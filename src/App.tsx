@@ -12,7 +12,7 @@ import Expenses from "./pages/Expenses";
 import More from "./pages/More";
 import GPSTracking from "./pages/GPSTracking";
 import AdminControls from "./pages/AdminControls";
-import Projects from "./pages/Projects";
+import AdminUserManagement from "./pages/AdminUserManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,10 +33,9 @@ const App = () => (
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/more" element={<More />} />
             <Route path="/gps-tracking" element={<GPSTracking />} />
-            <Route path="/projects" element={<Projects />} />
             <Route path="/admin-controls" element={<AdminControls />} />
             <Route path="/admin" element={<AdminControls />} />
-            <Route path="/admin/*" element={<AdminControls />} />
+            <Route path="/admin/users" element={<AdminUserManagement />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
