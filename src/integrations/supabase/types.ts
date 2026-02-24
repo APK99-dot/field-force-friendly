@@ -14,6 +14,890 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_events: {
+        Row: {
+          activity_date: string
+          activity_name: string
+          activity_type: string
+          created_at: string
+          duration_type: string | null
+          end_time: string | null
+          from_date: string | null
+          half_day_type: string | null
+          id: string
+          remarks: string | null
+          retailer_id: string | null
+          start_time: string | null
+          to_date: string | null
+          total_days: number | null
+          user_id: string
+          visit_id: string | null
+        }
+        Insert: {
+          activity_date?: string
+          activity_name: string
+          activity_type: string
+          created_at?: string
+          duration_type?: string | null
+          end_time?: string | null
+          from_date?: string | null
+          half_day_type?: string | null
+          id?: string
+          remarks?: string | null
+          retailer_id?: string | null
+          start_time?: string | null
+          to_date?: string | null
+          total_days?: number | null
+          user_id: string
+          visit_id?: string | null
+        }
+        Update: {
+          activity_date?: string
+          activity_name?: string
+          activity_type?: string
+          created_at?: string
+          duration_type?: string | null
+          end_time?: string | null
+          from_date?: string | null
+          half_day_type?: string | null
+          id?: string
+          remarks?: string | null
+          retailer_id?: string | null
+          start_time?: string | null
+          to_date?: string | null
+          total_days?: number | null
+          user_id?: string
+          visit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_events_retailer_id_fkey"
+            columns: ["retailer_id"]
+            isOneToOne: false
+            referencedRelation: "retailers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_events_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      additional_expenses: {
+        Row: {
+          amount: number
+          bill_url: string | null
+          category: string
+          created_at: string
+          custom_category: string | null
+          description: string | null
+          expense_date: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          bill_url?: string | null
+          category: string
+          created_at?: string
+          custom_category?: string | null
+          description?: string | null
+          expense_date?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bill_url?: string | null
+          category?: string
+          created_at?: string
+          custom_category?: string | null
+          description?: string | null
+          expense_date?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      attendance: {
+        Row: {
+          check_in_location: Json | null
+          check_in_photo_url: string | null
+          check_in_time: string | null
+          check_out_location: Json | null
+          check_out_photo_url: string | null
+          check_out_time: string | null
+          created_at: string
+          date: string
+          id: string
+          status: string
+          total_hours: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          check_in_location?: Json | null
+          check_in_photo_url?: string | null
+          check_in_time?: string | null
+          check_out_location?: Json | null
+          check_out_photo_url?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          status?: string
+          total_hours?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          check_in_location?: Json | null
+          check_in_photo_url?: string | null
+          check_in_time?: string | null
+          check_out_location?: Json | null
+          check_out_photo_url?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          status?: string
+          total_hours?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      beat_allowances: {
+        Row: {
+          beat_id: string
+          beat_name: string
+          created_at: string
+          da_amount: number | null
+          id: string
+          ta_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          beat_id: string
+          beat_name: string
+          created_at?: string
+          da_amount?: number | null
+          id?: string
+          ta_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          beat_id?: string
+          beat_name?: string
+          created_at?: string
+          da_amount?: number | null
+          id?: string
+          ta_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      beat_plans: {
+        Row: {
+          beat_data: Json | null
+          beat_id: string | null
+          beat_name: string | null
+          created_at: string
+          id: string
+          plan_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          beat_data?: Json | null
+          beat_id?: string | null
+          beat_name?: string | null
+          created_at?: string
+          id?: string
+          plan_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          beat_data?: Json | null
+          beat_id?: string | null
+          beat_name?: string | null
+          created_at?: string
+          id?: string
+          plan_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      company_profile: {
+        Row: {
+          address: string | null
+          bank_account: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
+          company_name: string
+          created_at: string
+          email: string | null
+          gst_number: string | null
+          id: string
+          logo_url: string | null
+          pan_number: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          bank_account?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          company_name?: string
+          created_at?: string
+          email?: string | null
+          gst_number?: string | null
+          id?: string
+          logo_url?: string | null
+          pan_number?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          bank_account?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          company_name?: string
+          created_at?: string
+          email?: string | null
+          gst_number?: string | null
+          id?: string
+          logo_url?: string | null
+          pan_number?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      employee_documents: {
+        Row: {
+          content_type: string | null
+          created_at: string
+          doc_type: Database["public"]["Enums"]["employee_doc_type"]
+          file_name: string
+          file_path: string
+          id: string
+          uploaded_by: string | null
+          user_id: string
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string
+          doc_type?: Database["public"]["Enums"]["employee_doc_type"]
+          file_name: string
+          file_path: string
+          id?: string
+          uploaded_by?: string | null
+          user_id: string
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string
+          doc_type?: Database["public"]["Enums"]["employee_doc_type"]
+          file_name?: string
+          file_path?: string
+          id?: string
+          uploaded_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      employees: {
+        Row: {
+          address: string | null
+          alternate_email: string | null
+          band: string | null
+          created_at: string
+          daily_da_allowance: number | null
+          date_of_exit: string | null
+          date_of_joining: string | null
+          education: string | null
+          emergency_contact_number: string | null
+          hq: string | null
+          id: string
+          manager_id: string | null
+          monthly_salary: number | null
+          photo_url: string | null
+          secondary_manager_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          alternate_email?: string | null
+          band?: string | null
+          created_at?: string
+          daily_da_allowance?: number | null
+          date_of_exit?: string | null
+          date_of_joining?: string | null
+          education?: string | null
+          emergency_contact_number?: string | null
+          hq?: string | null
+          id?: string
+          manager_id?: string | null
+          monthly_salary?: number | null
+          photo_url?: string | null
+          secondary_manager_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          alternate_email?: string | null
+          band?: string | null
+          created_at?: string
+          daily_da_allowance?: number | null
+          date_of_exit?: string | null
+          date_of_joining?: string | null
+          education?: string | null
+          emergency_contact_number?: string | null
+          hq?: string | null
+          id?: string
+          manager_id?: string | null
+          monthly_salary?: number | null
+          photo_url?: string | null
+          secondary_manager_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      expense_master_config: {
+        Row: {
+          created_at: string
+          da_type: string
+          fixed_da_amount: number | null
+          fixed_ta_amount: number | null
+          id: string
+          ta_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          da_type?: string
+          fixed_da_amount?: number | null
+          fixed_ta_amount?: number | null
+          id?: string
+          ta_type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          da_type?: string
+          fixed_da_amount?: number | null
+          fixed_ta_amount?: number | null
+          id?: string
+          ta_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gps_tracking: {
+        Row: {
+          accuracy: number | null
+          date: string
+          heading: number | null
+          id: string
+          latitude: number
+          longitude: number
+          speed: number | null
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          accuracy?: number | null
+          date?: string
+          heading?: number | null
+          id?: string
+          latitude: number
+          longitude: number
+          speed?: number | null
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          accuracy?: number | null
+          date?: string
+          heading?: number | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          speed?: number | null
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      gps_tracking_stops: {
+        Row: {
+          duration_minutes: number | null
+          id: string
+          latitude: number
+          longitude: number
+          reason: string | null
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          duration_minutes?: number | null
+          id?: string
+          latitude: number
+          longitude: number
+          reason?: string | null
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          duration_minutes?: number | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          reason?: string | null
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      holidays: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date: string
+          description: string | null
+          holiday_name: string
+          id: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date: string
+          description?: string | null
+          holiday_name: string
+          id?: string
+          year?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          holiday_name?: string
+          id?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      leave_applications: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          from_date: string
+          id: string
+          leave_type_id: string
+          reason: string | null
+          status: string
+          to_date: string
+          total_days: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          from_date: string
+          id?: string
+          leave_type_id: string
+          reason?: string | null
+          status?: string
+          to_date: string
+          total_days: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          from_date?: string
+          id?: string
+          leave_type_id?: string
+          reason?: string | null
+          status?: string
+          to_date?: string
+          total_days?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_applications_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_balance: {
+        Row: {
+          created_at: string
+          id: string
+          leave_type_id: string
+          opening_balance: number
+          remaining_balance: number | null
+          updated_at: string
+          used_balance: number
+          user_id: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          leave_type_id: string
+          opening_balance?: number
+          remaining_balance?: number | null
+          updated_at?: string
+          used_balance?: number
+          user_id: string
+          year?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          leave_type_id?: string
+          opening_balance?: number
+          remaining_balance?: number | null
+          updated_at?: string
+          used_balance?: number
+          user_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_balance_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_types: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          max_days: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_days?: number
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_days?: number
+          name?: string
+        }
+        Relationships: []
+      }
+      order_items: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          order_id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          rate: number
+          total: number
+          unit: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          order_id: string
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          rate?: number
+          total?: number
+          unit?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          rate?: number
+          total?: number
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          created_at: string
+          discount_amount: number | null
+          id: string
+          retailer_name: string | null
+          status: string
+          subtotal: number | null
+          total_amount: number | null
+          updated_at: string
+          user_id: string
+          visit_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          discount_amount?: number | null
+          id?: string
+          retailer_name?: string | null
+          status?: string
+          subtotal?: number | null
+          total_amount?: number | null
+          updated_at?: string
+          user_id: string
+          visit_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          discount_amount?: number | null
+          id?: string
+          retailer_name?: string | null
+          status?: string
+          subtotal?: number | null
+          total_amount?: number | null
+          updated_at?: string
+          user_id?: string
+          visit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      product_schemes: {
+        Row: {
+          condition_quantity: number | null
+          created_at: string
+          description: string | null
+          discount_amount: number | null
+          discount_percentage: number | null
+          end_date: string | null
+          free_quantity: number | null
+          id: string
+          is_active: boolean
+          name: string
+          product_id: string
+          scheme_type: string
+          start_date: string | null
+        }
+        Insert: {
+          condition_quantity?: number | null
+          created_at?: string
+          description?: string | null
+          discount_amount?: number | null
+          discount_percentage?: number | null
+          end_date?: string | null
+          free_quantity?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          product_id: string
+          scheme_type?: string
+          start_date?: string | null
+        }
+        Update: {
+          condition_quantity?: number | null
+          created_at?: string
+          description?: string | null
+          discount_amount?: number | null
+          discount_percentage?: number | null
+          end_date?: string | null
+          free_quantity?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          product_id?: string
+          scheme_type?: string
+          start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_schemes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          category_id: string | null
+          closing_stock: number | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          product_number: string | null
+          rate: number
+          sku: string | null
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          closing_stock?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          product_number?: string | null
+          rate?: number
+          sku?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          closing_stock?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          product_number?: string | null
+          rate?: number
+          sku?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_object_permissions: {
+        Row: {
+          can_create: boolean
+          can_delete: boolean
+          can_edit: boolean
+          can_modify_all: boolean
+          can_read: boolean
+          can_view_all: boolean
+          id: string
+          object_name: string
+          profile_id: string
+        }
+        Insert: {
+          can_create?: boolean
+          can_delete?: boolean
+          can_edit?: boolean
+          can_modify_all?: boolean
+          can_read?: boolean
+          can_view_all?: boolean
+          id?: string
+          object_name: string
+          profile_id: string
+        }
+        Update: {
+          can_create?: boolean
+          can_delete?: boolean
+          can_edit?: boolean
+          can_modify_all?: boolean
+          can_read?: boolean
+          can_view_all?: boolean
+          id?: string
+          object_name?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_object_permissions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "security_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -56,6 +940,135 @@ export type Database = {
         }
         Relationships: []
       }
+      regularization_requests: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          date: string
+          id: string
+          reason: string | null
+          request_type: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          date: string
+          id?: string
+          reason?: string | null
+          request_type: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          reason?: string | null
+          request_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      retailers: {
+        Row: {
+          address: string | null
+          beat_id: string | null
+          category: string | null
+          created_at: string
+          id: string
+          last_visit_date: string | null
+          latitude: number | null
+          location_tag: string | null
+          longitude: number | null
+          name: string
+          notes: string | null
+          order_value: number | null
+          phone: string | null
+          potential: string | null
+          priority: string | null
+          retail_type: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          beat_id?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          last_visit_date?: string | null
+          latitude?: number | null
+          location_tag?: string | null
+          longitude?: number | null
+          name: string
+          notes?: string | null
+          order_value?: number | null
+          phone?: string | null
+          potential?: string | null
+          priority?: string | null
+          retail_type?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          beat_id?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          last_visit_date?: string | null
+          latitude?: number | null
+          location_tag?: string | null
+          longitude?: number | null
+          name?: string
+          notes?: string | null
+          order_value?: number | null
+          phone?: string | null
+          potential?: string | null
+          priority?: string | null
+          retail_type?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      security_profiles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_system: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           assigned_at: string
@@ -77,11 +1090,113 @@ export type Database = {
         }
         Relationships: []
       }
+      user_security_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          profile_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_security_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "security_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visits: {
+        Row: {
+          check_in_location: Json | null
+          check_in_photo_url: string | null
+          check_in_time: string | null
+          check_out_location: Json | null
+          check_out_photo_url: string | null
+          check_out_time: string | null
+          created_at: string
+          id: string
+          location_match_in: boolean | null
+          location_match_out: boolean | null
+          planned_date: string | null
+          retailer_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          check_in_location?: Json | null
+          check_in_photo_url?: string | null
+          check_in_time?: string | null
+          check_out_location?: Json | null
+          check_out_photo_url?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          id?: string
+          location_match_in?: boolean | null
+          location_match_out?: boolean | null
+          planned_date?: string | null
+          retailer_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          check_in_location?: Json | null
+          check_in_photo_url?: string | null
+          check_in_time?: string | null
+          check_out_location?: Json | null
+          check_out_photo_url?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          id?: string
+          location_match_in?: boolean | null
+          location_match_out?: boolean | null
+          planned_date?: string | null
+          retailer_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_retailer_id_fkey"
+            columns: ["retailer_id"]
+            isOneToOne: false
+            referencedRelation: "retailers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      can_access_object: {
+        Args: { _object_name: string; _permission: string; _user_id: string }
+        Returns: boolean
+      }
+      get_subordinate_users: {
+        Args: { _manager_id: string }
+        Returns: {
+          level: number
+          user_id: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -96,6 +1211,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      employee_doc_type: "address_proof" | "id_proof" | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -224,6 +1340,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      employee_doc_type: ["address_proof", "id_proof", "other"],
     },
   },
 } as const
