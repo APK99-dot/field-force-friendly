@@ -1,19 +1,21 @@
+import { useState } from "react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
   MapPin,
   Clock,
-  Receipt,
-  CheckCircle2,
+  Users,
+  CheckCircle,
   TrendingUp,
-  Calendar,
-  AlertCircle,
-  ArrowRight,
+  UserPlus,
+  Zap,
+  LogIn,
+  Plus,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useNavigate } from "react-router-dom";
 
 const container = {
   hidden: { opacity: 0 },
@@ -24,157 +26,164 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
-const quickActions = [
-  { label: "Check In", icon: Clock, color: "bg-success text-success-foreground" },
-  { label: "Plan Visit", icon: MapPin, color: "bg-primary text-primary-foreground" },
-  { label: "Submit Expense", icon: Receipt, color: "bg-accent text-accent-foreground" },
-];
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good Morning!";
+  if (hour < 18) return "Good Afternoon!";
+  return "Good Evening!";
+};
 
-const activities = [
-  { text: "Checked in at Site Alpha", time: "9:02 AM", icon: CheckCircle2, status: "success" },
-  { text: "Visit to Metro Hardware completed", time: "11:30 AM", icon: MapPin, status: "info" },
-  { text: "Expense claim ₹1,250 submitted", time: "1:15 PM", icon: Receipt, status: "warning" },
-  { text: "Beat plan updated for tomorrow", time: "3:45 PM", icon: Calendar, status: "muted" },
-];
+// Mock data
+const beatProgress = {
+  planned: 0,
+  productive: 0,
+  remaining: 0,
+  newRetailers: 0,
+  revenueAchieved: 0,
+  points: 0,
+};
 
 export default function Dashboard() {
-  const today = format(new Date(), "EEEE, MMMM d");
+  const navigate = useNavigate();
+  const [dayStarted, setDayStarted] = useState(false);
 
   return (
-    <motion.div
-      className="p-4 space-y-5 max-w-2xl mx-auto"
-      variants={container}
-      initial="hidden"
-      animate="show"
-    >
-      {/* Greeting banner */}
-      <motion.div variants={item} className="gradient-hero rounded-xl p-5 text-primary-foreground">
-        <p className="text-sm opacity-80">{today}</p>
-        <h1 className="text-xl font-bold mt-1">Good Morning, Rajesh!</h1>
-        <p className="text-sm opacity-70 mt-1">You have 4 visits planned today</p>
-      </motion.div>
-
-      {/* Quick Actions */}
-      <motion.div variants={item} className="grid grid-cols-3 gap-3">
-        {quickActions.map((action) => (
-          <Button
-            key={action.label}
-            variant="outline"
-            className="h-auto flex-col gap-2 py-4 border-border hover:shadow-elevated transition-shadow"
-          >
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${action.color}`}>
-              <action.icon className="h-5 w-5" />
-            </div>
-            <span className="text-xs font-medium">{action.label}</span>
-          </Button>
-        ))}
-      </motion.div>
-
-      {/* Today's Summary */}
-      <motion.div variants={item}>
-        <Card className="shadow-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Today's Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
-            <div className="flex items-center gap-2.5 p-3 rounded-lg bg-success/10">
-              <CheckCircle2 className="h-5 w-5 text-success" />
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+      {/* Header with gradient */}
+      <div className="relative overflow-hidden gradient-hero text-primary-foreground">
+        <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent" />
+        <div className="relative p-4">
+          <div className="flex items-center justify-between">
+            <div
+              className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => navigate("/more")}
+            >
+              <Avatar className="h-10 w-10 border-2 border-white/30">
+                <AvatarFallback className="bg-white/20 text-primary-foreground font-bold text-sm">
+                  A
+                </AvatarFallback>
+              </Avatar>
               <div>
-                <p className="text-xs text-muted-foreground">Attendance</p>
-                <p className="text-sm font-semibold text-success">Checked In</p>
+                <p className="text-[10px] opacity-80">{getGreeting()}</p>
+                <h1 className="text-base font-bold leading-tight">Alice</h1>
+                <p className="text-[10px] opacity-70">Field Executive</p>
               </div>
             </div>
-            <div className="flex items-center gap-2.5 p-3 rounded-lg bg-primary/10">
-              <MapPin className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-xs text-muted-foreground">Visits</p>
-                <p className="text-sm font-semibold">2 / 4</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5 p-3 rounded-lg bg-accent/10">
-              <AlertCircle className="h-5 w-5 text-accent" />
-              <div>
-                <p className="text-xs text-muted-foreground">Pending</p>
-                <p className="text-sm font-semibold">3 Approvals</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5 p-3 rounded-lg bg-info/10">
-              <TrendingUp className="h-5 w-5 text-info" />
-              <div>
-                <p className="text-xs text-muted-foreground">Target</p>
-                <p className="text-sm font-semibold">72%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+            <Button
+              size="sm"
+              className="bg-white/20 hover:bg-white/30 text-white border-0 h-9 px-3"
+              onClick={() => {}}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              <span className="text-xs">Quick Add</span>
+            </Button>
+          </div>
+        </div>
+      </div>
 
-      {/* Target Progress */}
-      <motion.div variants={item}>
-        <Card className="shadow-card">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Monthly Target</CardTitle>
-              <Badge variant="secondary" className="text-xs">Feb 2026</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <div className="flex justify-between text-sm mb-1.5">
-                <span className="text-muted-foreground">Visits Completed</span>
-                <span className="font-semibold">54 / 75</span>
-              </div>
-              <Progress value={72} className="h-2.5" />
-            </div>
-            <div>
-              <div className="flex justify-between text-sm mb-1.5">
-                <span className="text-muted-foreground">Revenue Target</span>
-                <span className="font-semibold">₹8.4L / ₹12L</span>
-              </div>
-              <Progress value={70} className="h-2.5" />
-            </div>
-            <div>
-              <div className="flex justify-between text-sm mb-1.5">
-                <span className="text-muted-foreground">New Retailers</span>
-                <span className="font-semibold">7 / 10</span>
-              </div>
-              <Progress value={70} className="h-2.5" />
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Recent Activity */}
-      <motion.div variants={item}>
-        <Card className="shadow-card">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Recent Activity</CardTitle>
-              <Button variant="ghost" size="sm" className="text-xs text-primary">
-                View All <ArrowRight className="h-3 w-3 ml-1" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {activities.map((a, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  a.status === "success" ? "bg-success/10 text-success" :
-                  a.status === "info" ? "bg-info/10 text-info" :
-                  a.status === "warning" ? "bg-accent/10 text-accent" :
-                  "bg-muted text-muted-foreground"
-                }`}>
-                  <a.icon className="h-4 w-4" />
+      {/* Dashboard Content */}
+      <motion.div
+        className="p-4 -mt-3 relative z-10 space-y-4 max-w-2xl mx-auto"
+        variants={container}
+        initial="hidden"
+        animate="show"
+      >
+        {/* Check-in Status Banner */}
+        <motion.div variants={item}>
+          {!dayStarted ? (
+            <Card className="bg-gradient-to-r from-accent/20 to-accent/10 border-accent/30">
+              <div className="p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/30 flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-accent-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold">Day Not Started</p>
+                    <p className="text-xs text-muted-foreground">
+                      Start your day by marking attendance
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm">{a.text}</p>
-                  <p className="text-xs text-muted-foreground">{a.time}</p>
+                <Button
+                  onClick={() => {
+                    setDayStarted(true);
+                    navigate("/attendance");
+                  }}
+                  className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                >
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Start My Day
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <Card className="bg-gradient-to-r from-success/10 to-success/5 border-success/20">
+              <div className="p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-success" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-success">Day Started</p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(), "h:mm a")}
+                  </p>
                 </div>
               </div>
-            ))}
-          </CardContent>
-        </Card>
+            </Card>
+          )}
+        </motion.div>
+
+        {/* Today's Beat Card */}
+        <motion.div variants={item}>
+          <Card className="shadow-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                  <MapPin className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold">Not Planned</p>
+                  <p className="text-xs text-muted-foreground">No beat planned</p>
+                </div>
+              </div>
+
+              {/* Stats Grid - 3x2 like QuickApp */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-xl border border-border bg-card p-3 text-center">
+                  <Users className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+                  <p className="text-xl font-bold">{beatProgress.planned}</p>
+                  <p className="text-[10px] text-muted-foreground">Planned</p>
+                </div>
+                <div className="rounded-xl border border-border bg-success/5 p-3 text-center">
+                  <CheckCircle className="h-5 w-5 mx-auto mb-1 text-success" />
+                  <p className="text-xl font-bold">{beatProgress.productive}</p>
+                  <p className="text-[10px] text-muted-foreground">Productive</p>
+                </div>
+                <div className="rounded-xl border border-border bg-accent/5 p-3 text-center">
+                  <Clock className="h-5 w-5 mx-auto mb-1 text-accent" />
+                  <p className="text-xl font-bold">{beatProgress.remaining}</p>
+                  <p className="text-[10px] text-muted-foreground">Remaining</p>
+                </div>
+                <div className="rounded-xl border border-border bg-info/5 p-3 text-center">
+                  <UserPlus className="h-5 w-5 mx-auto mb-1 text-info" />
+                  <p className="text-xl font-bold">{beatProgress.newRetailers}</p>
+                  <p className="text-[10px] text-muted-foreground">New Retailers</p>
+                </div>
+                <div className="rounded-xl border border-border bg-primary/5 p-3 text-center">
+                  <TrendingUp className="h-5 w-5 mx-auto mb-1 text-primary" />
+                  <p className="text-xl font-bold">₹{beatProgress.revenueAchieved.toFixed(2)}</p>
+                  <p className="text-[10px] text-muted-foreground">Revenue</p>
+                </div>
+                <div className="rounded-xl border border-border bg-accent/5 p-3 text-center">
+                  <Zap className="h-5 w-5 mx-auto mb-1 text-accent" />
+                  <p className="text-xl font-bold">{beatProgress.points}</p>
+                  <p className="text-[10px] text-muted-foreground">Points</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }

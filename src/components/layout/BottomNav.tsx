@@ -1,4 +1,12 @@
-import { Home, MapPin, Clock, Receipt, MoreHorizontal } from "lucide-react";
+import {
+  Home,
+  MapPin,
+  Clock,
+  Receipt,
+  MoreHorizontal,
+  Navigation2,
+  FolderKanban,
+} from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const tabs = [

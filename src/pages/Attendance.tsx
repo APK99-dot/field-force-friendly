@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   format,
@@ -6,15 +6,23 @@ import {
   endOfMonth,
   eachDayOfInterval,
   getDay,
-  isSameDay,
+  isToday,
+  isBefore,
   subMonths,
   addMonths,
-  isToday,
+  isSameMonth,
 } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Clock, MapPin, Camera } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle,
+  XCircle,
+  LogIn,
+  LogOut,
+  AlertTriangle,
+} from "lucide-react";
 
 type AttendanceStatus = "present" | "absent" | "leave" | "half-day" | "holiday" | "week-off" | null;
 
@@ -28,57 +36,55 @@ const mockAttendance: Record<string, AttendanceStatus> = {
   "2026-02-08": "week-off",
   "2026-02-09": "present",
   "2026-02-10": "present",
-  "2026-02-11": "half-day",
+  "2026-02-11": "present",
   "2026-02-12": "present",
-  "2026-02-13": "leave",
-  "2026-02-14": "holiday",
+  "2026-02-13": "present",
+  "2026-02-14": "week-off",
   "2026-02-15": "week-off",
   "2026-02-16": "present",
   "2026-02-17": "present",
   "2026-02-18": "present",
   "2026-02-19": "absent",
-  "2026-02-20": "present",
+  "2026-02-20": "absent",
   "2026-02-21": "week-off",
   "2026-02-22": "week-off",
-  "2026-02-23": "present",
+  "2026-02-23": "absent",
   "2026-02-24": "present",
 };
 
 const statusColorMap: Record<string, string> = {
-  present: "bg-present",
-  absent: "bg-absent",
-  leave: "bg-leave",
-  "half-day": "bg-gradient-to-b from-present to-leave",
-  holiday: "bg-holiday",
-  "week-off": "bg-week-off",
+  present: "bg-success text-success-foreground",
+  absent: "bg-destructive text-destructive-foreground",
+  leave: "bg-leave text-white",
+  "half-day": "bg-gradient-to-b from-success to-leave text-white",
+  holiday: "bg-info text-info-foreground",
+  "week-off": "bg-muted text-muted-foreground",
 };
 
-const statusLabel: Record<string, string> = {
-  present: "Present",
-  absent: "Absent",
-  leave: "On Leave",
-  "half-day": "Half Day",
-  holiday: "Holiday",
-  "week-off": "Week Off",
-};
-
-const records = [
-  { date: "Feb 24", checkIn: "9:02 AM", checkOut: "6:15 PM", hours: "9h 13m", status: "present" },
-  { date: "Feb 23", checkIn: "8:55 AM", checkOut: "6:30 PM", hours: "9h 35m", status: "present" },
-  { date: "Feb 22", checkIn: "-", checkOut: "-", hours: "-", status: "week-off" },
-  { date: "Feb 21", checkIn: "-", checkOut: "-", hours: "-", status: "week-off" },
-  { date: "Feb 20", checkIn: "9:10 AM", checkOut: "6:00 PM", hours: "8h 50m", status: "present" },
-  { date: "Feb 19", checkIn: "-", checkOut: "-", hours: "-", status: "absent" },
-];
-
-const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function Attendance() {
   const [currentMonth, setCurrentMonth] = useState(new Date(2026, 1));
+
   const start = startOfMonth(currentMonth);
   const end = endOfMonth(currentMonth);
   const days = eachDayOfInterval({ start, end });
-  const startDayOfWeek = getDay(start);
+  // Shift to Monday-start: getDay returns 0=Sun..6=Sat. We want 0=Mon..6=Sun
+  const startDayOfWeek = (getDay(start) + 6) % 7;
+
+  const stats = useMemo(() => {
+    const entries = Object.entries(mockAttendance).filter(([date]) =>
+      isSameMonth(new Date(date), currentMonth)
+    );
+    const presentDays = entries.filter(([, s]) => s === "present").length;
+    const totalWorkingDays = days.filter((d) => {
+      const day = getDay(d);
+      return day !== 0 && day !== 6; // exclude weekends
+    }).length;
+    const absentDays = totalWorkingDays - presentDays;
+    const pct = totalWorkingDays > 0 ? Math.round((presentDays / totalWorkingDays) * 100) : 0;
+    return { presentDays, absentDays, totalWorkingDays, pct };
+  }, [currentMonth, days]);
 
   return (
     <motion.div
@@ -86,50 +92,97 @@ export default function Attendance() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      {/* Check In/Out */}
+      {/* Page Header */}
+      <div className="text-center">
+        <h1 className="text-2xl font-bold">Attendance</h1>
+        <p className="text-sm text-muted-foreground">Track your daily attendance and working hours</p>
+      </div>
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="shadow-card">
+          <CardContent className="p-4 text-center">
+            <p className="text-3xl font-bold">{stats.pct}%</p>
+            <p className="text-xs text-muted-foreground">This Month</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-card">
+          <CardContent className="p-4 text-center">
+            <p className="text-3xl font-bold">{stats.presentDays}/{stats.totalWorkingDays}</p>
+            <p className="text-xs text-muted-foreground">Present Days</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Start/End Day Buttons */}
+      <div className="grid grid-cols-2 gap-3">
+        <Button variant="outline" className="h-12 text-sm font-medium gap-2">
+          <CheckCircle className="h-4 w-4 text-success" />
+          Start My Day
+        </Button>
+        <Button variant="outline" className="h-12 text-sm font-medium gap-2 border-destructive/20 text-destructive">
+          <LogOut className="h-4 w-4" />
+          End My Day
+        </Button>
+      </div>
+
+      {/* GPS Tracking Note */}
+      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        <AlertTriangle className="h-3.5 w-3.5" />
+        <span>GPS tracking will start at 9 AM</span>
+      </div>
+
+      {/* Present / Absent Summary */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="bg-success/10 border-success/20">
+          <CardContent className="p-3 flex items-center justify-center gap-2">
+            <CheckCircle className="h-4 w-4 text-success" />
+            <span className="text-lg font-bold">{stats.presentDays}</span>
+            <span className="text-xs text-muted-foreground">Present Days</span>
+          </CardContent>
+        </Card>
+        <Card className="bg-destructive/10 border-destructive/20">
+          <CardContent className="p-3 flex items-center justify-center gap-2">
+            <XCircle className="h-4 w-4 text-destructive" />
+            <span className="text-lg font-bold">{stats.absentDays}</span>
+            <span className="text-xs text-muted-foreground">Absent Days</span>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Calendar */}
       <Card className="shadow-card">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Today, {format(new Date(), "MMM d")}</p>
-              <p className="text-lg font-bold mt-0.5">Checked In</p>
-              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                <Clock className="h-3 w-3" /> 9:02 AM
-                <MapPin className="h-3 w-3 ml-2" /> Site Alpha
-              </p>
-            </div>
-            <Button className="gradient-hero text-primary-foreground shadow-elevated">
-              Check Out
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Calendar + Stats Card */}
-      <Card className="shadow-card">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+          {/* Month Navigation */}
+          <div className="flex items-center justify-between mb-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <CardTitle className="text-base">{format(currentMonth, "MMMM yyyy")}</CardTitle>
-            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+            <h2 className="text-base font-semibold">{format(currentMonth, "MMMM yyyy")}</h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="pb-4">
+
           {/* Day headers */}
           <div className="grid grid-cols-7 mb-2">
-            {DAYS.map((d, i) => (
-              <div key={i} className="text-center text-xs text-muted-foreground font-medium py-1">
+            {WEEKDAYS.map((d) => (
+              <div key={d} className="text-center text-xs text-muted-foreground font-medium py-1">
                 {d}
               </div>
             ))}
           </div>
 
           {/* Calendar grid */}
-          <div className="grid grid-cols-7 gap-y-1">
+          <div className="grid grid-cols-7 gap-y-2">
             {Array.from({ length: startDayOfWeek }).map((_, i) => (
               <div key={`empty-${i}`} />
             ))}
@@ -137,16 +190,19 @@ export default function Attendance() {
               const key = format(day, "yyyy-MM-dd");
               const status = mockAttendance[key];
               const today = isToday(day);
+              const isPast = isBefore(day, new Date()) && !today;
+              const defaultStatus = isPast && !status ? "absent" : status;
+              const colorClass = defaultStatus ? statusColorMap[defaultStatus] : "";
+
               return (
-                <div key={key} className="flex flex-col items-center py-1">
-                  <span className={`text-xs mb-0.5 ${today ? "font-bold text-primary" : "text-foreground"}`}>
+                <div key={key} className="flex justify-center">
+                  <div
+                    className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
+                      colorClass || (today ? "ring-2 ring-primary" : "text-foreground")
+                    }`}
+                  >
                     {format(day, "d")}
-                  </span>
-                  {status ? (
-                    <div className={`w-3 h-3 rounded-full ${statusColorMap[status]}`} />
-                  ) : (
-                    <div className="w-3 h-3" />
-                  )}
+                  </div>
                 </div>
               );
             })}
@@ -154,54 +210,21 @@ export default function Attendance() {
 
           {/* Legend */}
           <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-border">
-            {Object.entries(statusColorMap).map(([key, color]) => (
-              <div key={key} className="flex items-center gap-1.5">
-                <div className={`w-2.5 h-2.5 rounded-full ${color}`} />
-                <span className="text-[10px] text-muted-foreground">{statusLabel[key]}</span>
+            {[
+              { label: "Present", color: "bg-success" },
+              { label: "Absent", color: "bg-destructive" },
+              { label: "Leave", color: "bg-leave" },
+              { label: "Holiday", color: "bg-info" },
+              { label: "Week Off", color: "bg-muted" },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center gap-1.5">
+                <div className={`w-2.5 h-2.5 rounded-full ${s.color}`} />
+                <span className="text-[10px] text-muted-foreground">{s.label}</span>
               </div>
             ))}
           </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3 mt-4 pt-3 border-t border-border">
-            <div className="text-center">
-              <p className="text-lg font-bold text-success">16</p>
-              <p className="text-[10px] text-muted-foreground">Present</p>
-            </div>
-            <div className="text-center">
-              <p className="text-lg font-bold text-absent">1</p>
-              <p className="text-[10px] text-muted-foreground">Absent</p>
-            </div>
-            <div className="text-center">
-              <p className="text-lg font-bold text-primary">142h</p>
-              <p className="text-[10px] text-muted-foreground">Total Hours</p>
-            </div>
-          </div>
         </CardContent>
       </Card>
-
-      {/* Daily Records */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-muted-foreground px-1">Daily Records</h3>
-        {records.map((r, i) => (
-          <Card key={i} className="shadow-card">
-            <CardContent className="p-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-2.5 h-8 rounded-full ${statusColorMap[r.status]}`} />
-                <div>
-                  <p className="text-sm font-medium">{r.date}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {r.checkIn} → {r.checkOut}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <Badge variant="secondary" className="text-xs">{r.hours}</Badge>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
     </motion.div>
   );
 }

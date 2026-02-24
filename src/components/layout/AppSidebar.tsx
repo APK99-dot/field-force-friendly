@@ -6,9 +6,10 @@ import {
   Users,
   Settings,
   BarChart3,
-  Map,
+  Navigation2,
   Shield,
   Building2,
+  FolderKanban,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -30,11 +31,12 @@ const fieldItems = [
   { title: "Visits", url: "/visits", icon: MapPin },
   { title: "Attendance", url: "/attendance", icon: Clock },
   { title: "Expenses", url: "/expenses", icon: Receipt },
-  { title: "GPS Tracking", url: "/gps-tracking", icon: Map },
+  { title: "GPS Tracking", url: "/gps-tracking", icon: Navigation2 },
+  { title: "Projects", url: "/projects", icon: FolderKanban },
 ];
 
 const adminItems = [
-  { title: "Admin Panel", url: "/admin", icon: Shield },
+  { title: "Admin Controls", url: "/admin-controls", icon: Shield },
   { title: "User Management", url: "/admin/users", icon: Users },
   { title: "Reports", url: "/admin/reports", icon: BarChart3 },
   { title: "Settings", url: "/admin/settings", icon: Settings },
@@ -64,17 +66,17 @@ export function AppSidebar() {
           <SidebarGroupLabel>Field Operations</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {fieldItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
+              {fieldItems.map((navItem) => (
+                <SidebarMenuItem key={navItem.title}>
+                  <SidebarMenuButton asChild tooltip={navItem.title}>
                     <NavLink
-                      to={item.url}
-                      end={item.url === "/dashboard"}
+                      to={navItem.url}
+                      end={navItem.url === "/dashboard"}
                       className="hover:bg-sidebar-accent/50"
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                     >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <navItem.icon className="h-4 w-4" />
+                      <span>{navItem.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -87,16 +89,16 @@ export function AppSidebar() {
           <SidebarGroupLabel>Administration</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {adminItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
+              {adminItems.map((navItem) => (
+                <SidebarMenuItem key={navItem.title}>
+                  <SidebarMenuButton asChild tooltip={navItem.title}>
                     <NavLink
-                      to={item.url}
+                      to={navItem.url}
                       className="hover:bg-sidebar-accent/50"
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                     >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <navItem.icon className="h-4 w-4" />
+                      <span>{navItem.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
