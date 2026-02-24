@@ -40,7 +40,6 @@ const navigationItems = [
   { icon: MapPin, label: "Visit", href: "/visits", color: "from-green-500 to-green-600" },
   { icon: Navigation2, label: "GPS Track", href: "/gps-tracking", color: "from-purple-500 to-purple-600" },
   { icon: CreditCard, label: "Expenses", href: "/expenses", color: "from-indigo-500 to-indigo-600" },
-  { icon: FolderKanban, label: "Projects", href: "/projects", color: "from-sky-500 to-sky-600" },
 ];
 
 const adminItems = [
