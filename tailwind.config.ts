@@ -14,7 +14,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -41,6 +41,10 @@ export default {
         accent: {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
+          gold: "hsl(var(--accent-gold))",
+          "gold-foreground": "hsl(var(--accent-gold-foreground))",
+          bronze: "hsl(var(--accent-bronze))",
+          "bronze-foreground": "hsl(var(--accent-bronze-foreground))",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",
