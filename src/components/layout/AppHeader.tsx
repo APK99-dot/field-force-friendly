@@ -13,12 +13,6 @@ import {
   Navigation2,
   FolderKanban,
   Shield,
-  Users,
-  BarChart3,
-  Settings,
-  Store,
-  Target,
-  Gift,
   CreditCard,
   AlertTriangle,
 } from "lucide-react";
@@ -43,13 +37,8 @@ import {
 
 const navigationItems = [
   { icon: UserCheck, label: "Attendance", href: "/attendance", color: "from-blue-500 to-blue-600" },
-  { icon: MapPin, label: "Visits", href: "/visits", color: "from-green-500 to-green-600" },
-  { icon: Store, label: "All Retailers", href: "/visits", color: "from-emerald-500 to-emerald-600" },
-  { icon: Target, label: "My Target", href: "/dashboard", color: "from-cyan-500 to-cyan-600" },
-  { icon: BarChart3, label: "Analytics", href: "/dashboard", color: "from-violet-500 to-violet-600" },
+  { icon: MapPin, label: "Visit", href: "/visits", color: "from-green-500 to-green-600" },
   { icon: Navigation2, label: "GPS Track", href: "/gps-tracking", color: "from-purple-500 to-purple-600" },
-  { icon: Users, label: "My Beats", href: "/visits", color: "from-orange-500 to-orange-600" },
-  { icon: Gift, label: "Schemes", href: "/dashboard", color: "from-pink-500 to-pink-600" },
   { icon: CreditCard, label: "Expenses", href: "/expenses", color: "from-indigo-500 to-indigo-600" },
   { icon: FolderKanban, label: "Projects", href: "/projects", color: "from-sky-500 to-sky-600" },
 ];
