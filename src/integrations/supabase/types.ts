@@ -724,6 +724,39 @@ export type Database = {
           },
         ]
       }
+      permissions: {
+        Row: {
+          can_create: boolean
+          can_delete: boolean
+          can_edit: boolean
+          can_modify_all: boolean
+          can_read: boolean
+          can_view_all: boolean
+          id: string
+          object_name: string
+        }
+        Insert: {
+          can_create?: boolean
+          can_delete?: boolean
+          can_edit?: boolean
+          can_modify_all?: boolean
+          can_read?: boolean
+          can_view_all?: boolean
+          id?: string
+          object_name: string
+        }
+        Update: {
+          can_create?: boolean
+          can_delete?: boolean
+          can_edit?: boolean
+          can_modify_all?: boolean
+          can_read?: boolean
+          can_view_all?: boolean
+          id?: string
+          object_name?: string
+        }
+        Relationships: []
+      }
       product_categories: {
         Row: {
           created_at: string
@@ -1042,6 +1075,63 @@ export type Database = {
         }
         Relationships: []
       }
+      role_permissions: {
+        Row: {
+          id: string
+          permission_id: string
+          role_id: string
+        }
+        Insert: {
+          id?: string
+          permission_id: string
+          role_id: string
+        }
+        Update: {
+          id?: string
+          permission_id?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          created_at: string
+          id: string
+          is_system: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       security_profiles: {
         Row: {
           created_at: string
@@ -1125,6 +1215,10 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          is_active: boolean
+          phone: string | null
+          reporting_manager_id: string | null
+          role_id: string | null
           updated_at: string
           username: string | null
         }
@@ -1133,6 +1227,10 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          is_active?: boolean
+          phone?: string | null
+          reporting_manager_id?: string | null
+          role_id?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -1141,10 +1239,29 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          is_active?: boolean
+          phone?: string | null
+          reporting_manager_id?: string | null
+          role_id?: string | null
           updated_at?: string
           username?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "users_reporting_manager_id_fkey"
+            columns: ["reporting_manager_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       visits: {
         Row: {
@@ -1228,6 +1345,13 @@ export type Database = {
         }[]
       }
       get_subordinate_users: {
+        Args: { _manager_id: string }
+        Returns: {
+          level: number
+          user_id: string
+        }[]
+      }
+      get_user_hierarchy: {
         Args: { _manager_id: string }
         Returns: {
           level: number

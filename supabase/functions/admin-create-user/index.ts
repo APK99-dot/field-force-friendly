@@ -80,12 +80,31 @@ Deno.serve(async (req) => {
 
     const userId = newUserData.user.id;
 
+    // Map role string to roles table id
+    const roleNameMap: Record<string, string> = {
+      admin: "Admin",
+      user: "Field User",
+      sales_manager: "Sales Manager",
+      data_viewer: "Data Viewer",
+    };
+    let roleId = null;
+    if (role && roleNameMap[role]) {
+      const { data: roleRow } = await adminClient
+        .from("roles")
+        .select("id")
+        .eq("name", roleNameMap[role])
+        .single();
+      if (roleRow) roleId = roleRow.id;
+    }
+
     // Insert into app users table
     await adminClient.from("users").upsert({
       id: userId,
       email,
       full_name: full_name || null,
       username: username || email,
+      role_id: roleId,
+      phone: phone || null,
     }, { onConflict: "id" });
 
     // Update profile with phone if provided
