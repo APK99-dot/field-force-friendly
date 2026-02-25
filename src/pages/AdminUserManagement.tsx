@@ -129,43 +129,36 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
     }
     setLoading(true);
     try {
-      // Sign up user via Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { username: username || email, full_name: fullName },
+      // Call edge function to create user server-side (preserves admin session)
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("You must be logged in as admin");
+
+      const res = await supabase.functions.invoke("admin-create-user", {
+        body: {
+          email,
+          password,
+          full_name: fullName,
+          username: username || email,
+          phone,
+          role,
+          hq: hq || null,
+          salary: salary || "0",
+          da: da || "0",
+          date_of_joining: dateOfJoining || null,
         },
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("User creation failed");
-
-      const userId = authData.user.id;
-
-      // Update profile with phone
-      if (phone) {
-        await supabase.from("profiles").update({ phone_number: phone }).eq("id", userId);
-      }
-
-      // Create employee record
-      await supabase.from("employees").insert({
-        user_id: userId,
-        monthly_salary: salary ? parseFloat(salary) : 0,
-        daily_da_allowance: da ? parseFloat(da) : 0,
-        hq: hq || null,
-        date_of_joining: dateOfJoining || null,
-      });
-
-      // If admin role, insert admin role
-      if (role === "admin") {
-        await supabase.from("user_roles").insert({ user_id: userId, role: "admin" });
-      }
+      if (res.error) throw new Error(res.error.message || "Failed to create user");
+      const result = res.data;
+      if (result?.error) throw new Error(result.error);
 
       toast.success(`User ${fullName} created successfully`);
-      queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-employees"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-user-roles"] });
+      
+      // Refetch all user data from database
+      await queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-employees"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-user-roles"] });
       onSuccess();
 
       // Reset form
