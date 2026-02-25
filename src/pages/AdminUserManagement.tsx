@@ -738,13 +738,44 @@ export default function AdminUserManagement() {
 
   const deleteUser = useMutation({
     mutationFn: async (userId: string) => {
+      // Clear reporting_manager_id references from other users
+      await supabase.from("users").update({ reporting_manager_id: null }).eq("reporting_manager_id", userId);
+      // Clear manager_id references from employees
+      await supabase.from("employees").update({ manager_id: null }).eq("manager_id", userId);
+      // Delete related records
+      await supabase.from("leave_balance").delete().eq("user_id", userId);
+      await supabase.from("leave_applications").delete().eq("user_id", userId);
+      await supabase.from("employee_documents").delete().eq("user_id", userId);
+      await supabase.from("user_security_profiles").delete().eq("user_id", userId);
+      await supabase.from("activity_events").delete().eq("user_id", userId);
+      await supabase.from("attendance").delete().eq("user_id", userId);
+      await supabase.from("gps_tracking").delete().eq("user_id", userId);
+      await supabase.from("gps_tracking_stops").delete().eq("user_id", userId);
+      await supabase.from("additional_expenses").delete().eq("user_id", userId);
+      await supabase.from("beat_plans").delete().eq("user_id", userId);
+      await supabase.from("regularization_requests").delete().eq("user_id", userId);
+      // Delete visits and related orders
+      const { data: userVisits } = await supabase.from("visits").select("id").eq("user_id", userId);
+      if (userVisits && userVisits.length > 0) {
+        const visitIds = userVisits.map(v => v.id);
+        const { data: userOrders } = await supabase.from("orders").select("id").in("visit_id", visitIds);
+        if (userOrders && userOrders.length > 0) {
+          await supabase.from("order_items").delete().in("order_id", userOrders.map(o => o.id));
+        }
+        await supabase.from("orders").delete().eq("user_id", userId);
+        await supabase.from("visits").delete().eq("user_id", userId);
+      }
+      await supabase.from("orders").delete().eq("user_id", userId);
+      await supabase.from("retailers").delete().eq("user_id", userId);
+      // Now delete core records
       await supabase.from("employees").delete().eq("user_id", userId);
       await supabase.from("user_roles").delete().eq("user_id", userId);
-      await supabase.from("users").delete().eq("id", userId);
+      const { error: userDelError } = await supabase.from("users").delete().eq("id", userId);
+      if (userDelError) throw userDelError;
       await supabase.from("profiles").update({ user_status: "deleted" }).eq("id", userId);
     },
     onSuccess: () => { invalidateAll(); toast.success("User deleted"); setDeleteTarget(null); },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: any) => toast.error(err.message || "Failed to delete user"),
   });
 
   const stats = {
