@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   format,
@@ -6,7 +6,7 @@ import {
   endOfMonth,
   eachDayOfInterval,
   getDay,
-  isToday,
+  isToday as isDateToday,
   isBefore,
   subMonths,
   addMonths,
@@ -22,35 +22,13 @@ import {
   LogIn,
   LogOut,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAttendance } from "@/hooks/useAttendance";
+import { toast } from "sonner";
 
 type AttendanceStatus = "present" | "absent" | "leave" | "half-day" | "holiday" | "week-off" | null;
-
-const mockAttendance: Record<string, AttendanceStatus> = {
-  "2026-02-02": "present",
-  "2026-02-03": "present",
-  "2026-02-04": "present",
-  "2026-02-05": "present",
-  "2026-02-06": "present",
-  "2026-02-07": "week-off",
-  "2026-02-08": "week-off",
-  "2026-02-09": "present",
-  "2026-02-10": "present",
-  "2026-02-11": "present",
-  "2026-02-12": "present",
-  "2026-02-13": "present",
-  "2026-02-14": "week-off",
-  "2026-02-15": "week-off",
-  "2026-02-16": "present",
-  "2026-02-17": "present",
-  "2026-02-18": "present",
-  "2026-02-19": "absent",
-  "2026-02-20": "absent",
-  "2026-02-21": "week-off",
-  "2026-02-22": "week-off",
-  "2026-02-23": "absent",
-  "2026-02-24": "present",
-};
 
 const statusColorMap: Record<string, string> = {
   present: "bg-success text-success-foreground",
@@ -64,27 +42,61 @@ const statusColorMap: Record<string, string> = {
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function Attendance() {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 1));
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [userId, setUserId] = useState<string>();
+  const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id);
+    });
+  }, []);
+
+  const { todayRecord, attendanceMap, loading, isCheckedIn, isCheckedOut, checkIn, checkOut } =
+    useAttendance(userId);
 
   const start = startOfMonth(currentMonth);
   const end = endOfMonth(currentMonth);
   const days = eachDayOfInterval({ start, end });
-  // Shift to Monday-start: getDay returns 0=Sun..6=Sat. We want 0=Mon..6=Sun
   const startDayOfWeek = (getDay(start) + 6) % 7;
 
   const stats = useMemo(() => {
-    const entries = Object.entries(mockAttendance).filter(([date]) =>
+    const entries = Object.entries(attendanceMap).filter(([date]) =>
       isSameMonth(new Date(date), currentMonth)
     );
     const presentDays = entries.filter(([, s]) => s === "present").length;
     const totalWorkingDays = days.filter((d) => {
       const day = getDay(d);
-      return day !== 0 && day !== 6; // exclude weekends
+      return day !== 0 && day !== 6;
     }).length;
-    const absentDays = totalWorkingDays - presentDays;
+    const absentDays = entries.filter(([, s]) => s === "absent").length;
     const pct = totalWorkingDays > 0 ? Math.round((presentDays / totalWorkingDays) * 100) : 0;
     return { presentDays, absentDays, totalWorkingDays, pct };
-  }, [currentMonth, days]);
+  }, [currentMonth, days, attendanceMap]);
+
+  const handleCheckIn = async () => {
+    setActionLoading(true);
+    try {
+      await checkIn();
+      toast.success("Checked in successfully!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to check in");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCheckOut = async () => {
+    setActionLoading(true);
+    try {
+      await checkOut();
+      toast.success("Checked out successfully!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to check out");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   return (
     <motion.div
@@ -92,7 +104,6 @@ export default function Attendance() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      {/* Page Header */}
       <div className="text-center">
         <h1 className="text-2xl font-bold">Attendance</h1>
         <p className="text-sm text-muted-foreground">Track your daily attendance and working hours</p>
@@ -116,21 +127,46 @@ export default function Attendance() {
 
       {/* Start/End Day Buttons */}
       <div className="grid grid-cols-2 gap-3">
-        <Button variant="outline" className="h-12 text-sm font-medium gap-2">
-          <CheckCircle className="h-4 w-4 text-success" />
-          Start My Day
+        <Button
+          variant="outline"
+          className="h-12 text-sm font-medium gap-2"
+          onClick={handleCheckIn}
+          disabled={actionLoading || isCheckedIn || isCheckedOut}
+        >
+          {actionLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <CheckCircle className="h-4 w-4 text-success" />
+          )}
+          {isCheckedIn ? "Checked In" : isCheckedOut ? "Day Ended" : "Start My Day"}
         </Button>
-        <Button variant="outline" className="h-12 text-sm font-medium gap-2 border-destructive/20 text-destructive">
-          <LogOut className="h-4 w-4" />
-          End My Day
+        <Button
+          variant="outline"
+          className="h-12 text-sm font-medium gap-2 border-destructive/20 text-destructive"
+          onClick={handleCheckOut}
+          disabled={actionLoading || !isCheckedIn || isCheckedOut}
+        >
+          {actionLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <LogOut className="h-4 w-4" />
+          )}
+          {isCheckedOut ? "Day Ended" : "End My Day"}
         </Button>
       </div>
 
-      {/* GPS Tracking Note */}
-      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-        <AlertTriangle className="h-3.5 w-3.5" />
-        <span>GPS tracking will start at 9 AM</span>
-      </div>
+      {/* Check-in/out times */}
+      {todayRecord?.check_in_time && (
+        <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+          <span>In: {format(new Date(todayRecord.check_in_time), "h:mm a")}</span>
+          {todayRecord.check_out_time && (
+            <span>Out: {format(new Date(todayRecord.check_out_time), "h:mm a")}</span>
+          )}
+          {todayRecord.total_hours && (
+            <span>Total: {todayRecord.total_hours.toFixed(1)}h</span>
+          )}
+        </div>
+      )}
 
       {/* Present / Absent Summary */}
       <div className="grid grid-cols-2 gap-3">
@@ -153,46 +189,40 @@ export default function Attendance() {
       {/* Calendar */}
       <Card className="shadow-card">
         <CardContent className="p-4">
-          {/* Month Navigation */}
           <div className="flex items-center justify-between mb-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-            >
+            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <h2 className="text-base font-semibold">{format(currentMonth, "MMMM yyyy")}</h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-            >
+            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Day headers */}
           <div className="grid grid-cols-7 mb-2">
             {WEEKDAYS.map((d) => (
-              <div key={d} className="text-center text-xs text-muted-foreground font-medium py-1">
-                {d}
-              </div>
+              <div key={d} className="text-center text-xs text-muted-foreground font-medium py-1">{d}</div>
             ))}
           </div>
 
-          {/* Calendar grid */}
           <div className="grid grid-cols-7 gap-y-2">
             {Array.from({ length: startDayOfWeek }).map((_, i) => (
               <div key={`empty-${i}`} />
             ))}
             {days.map((day) => {
               const key = format(day, "yyyy-MM-dd");
-              const status = mockAttendance[key];
-              const today = isToday(day);
+              const status = attendanceMap[key] as AttendanceStatus;
+              const today = isDateToday(day);
+              const dayOfWeek = getDay(day);
+              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
               const isPast = isBefore(day, new Date()) && !today;
-              const defaultStatus = isPast && !status ? "absent" : status;
-              const colorClass = defaultStatus ? statusColorMap[defaultStatus] : "";
+
+              let displayStatus = status;
+              if (!displayStatus && isWeekend) displayStatus = "week-off";
+              // Don't mark future days as absent
+              if (!displayStatus && isPast && !isWeekend) displayStatus = "absent";
+
+              const colorClass = displayStatus ? statusColorMap[displayStatus] || "" : "";
 
               return (
                 <div key={key} className="flex justify-center">
@@ -208,7 +238,6 @@ export default function Attendance() {
             })}
           </div>
 
-          {/* Legend */}
           <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-border">
             {[
               { label: "Present", color: "bg-success" },

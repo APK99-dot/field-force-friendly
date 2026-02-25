@@ -13,6 +13,10 @@ import More from "./pages/More";
 import GPSTracking from "./pages/GPSTracking";
 import AdminControls from "./pages/AdminControls";
 import AdminUserManagement from "./pages/AdminUserManagement";
+import AttendanceManagement from "./pages/AttendanceManagement";
+import AdminExpenseManagement from "./pages/AdminExpenseManagement";
+import SecurityManagement from "./pages/SecurityManagement";
+import CompanyProfile from "./pages/CompanyProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +40,10 @@ const App = () => (
             <Route path="/admin-controls" element={<AdminControls />} />
             <Route path="/admin" element={<AdminControls />} />
             <Route path="/admin/users" element={<AdminUserManagement />} />
+            <Route path="/admin/attendance" element={<AttendanceManagement />} />
+            <Route path="/admin/expenses" element={<AdminExpenseManagement />} />
+            <Route path="/admin/security" element={<SecurityManagement />} />
+            <Route path="/admin/company" element={<CompanyProfile />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
