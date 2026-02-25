@@ -1,19 +1,13 @@
 import {
   Home,
-  MapPin,
   Clock,
-  Receipt,
   MoreHorizontal,
-  Navigation2,
-  FolderKanban,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const tabs = [
   { label: "Home", icon: Home, to: "/dashboard" },
-  { label: "Visits", icon: MapPin, to: "/visits" },
   { label: "Attendance", icon: Clock, to: "/attendance" },
-  { label: "Expenses", icon: Receipt, to: "/expenses" },
   { label: "More", icon: MoreHorizontal, to: "/more" },
 ];
 

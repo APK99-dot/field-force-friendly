@@ -483,7 +483,7 @@ export default function Attendance() {
         </TabsContent>
 
         <TabsContent value="holiday">
-          <HolidayManagement />
+          <HolidayManagement readOnly />
         </TabsContent>
       </Tabs>
 

@@ -22,7 +22,11 @@ interface Holiday {
   year: number;
 }
 
-const HolidayManagement = () => {
+interface HolidayManagementProps {
+  readOnly?: boolean;
+}
+
+const HolidayManagement = ({ readOnly = false }: HolidayManagementProps) => {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -110,13 +114,20 @@ const HolidayManagement = () => {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div><CardTitle>Holiday Calendar {currentYear}</CardTitle><CardDescription>Manage company holidays for the current year</CardDescription></div>
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-              <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Add Holiday</Button></DialogTrigger>
-              <DialogContent><DialogHeader><DialogTitle>Add New Holiday</DialogTitle><DialogDescription>Create a new holiday entry for {currentYear}</DialogDescription></DialogHeader>
-                <HolidayForm date={selectedDate} setDate={setSelectedDate} onSave={createHoliday} saveLabel="Create Holiday" />
-              </DialogContent>
-            </Dialog>
+            <div>
+              <CardTitle>Holiday Calendar {currentYear}</CardTitle>
+              <CardDescription>
+                {readOnly ? "Company holidays for the current year" : "Manage company holidays for the current year"}
+              </CardDescription>
+            </div>
+            {!readOnly && (
+              <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Add Holiday</Button></DialogTrigger>
+                <DialogContent><DialogHeader><DialogTitle>Add New Holiday</DialogTitle><DialogDescription>Create a new holiday entry for {currentYear}</DialogDescription></DialogHeader>
+                  <HolidayForm date={selectedDate} setDate={setSelectedDate} onSave={createHoliday} saveLabel="Create Holiday" />
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -124,14 +135,28 @@ const HolidayManagement = () => {
           : holidays.length === 0 ? <div className="text-center py-8 text-muted-foreground">No holidays configured for {currentYear}.</div>
           : (
             <Table>
-              <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Holiday Name</TableHead><TableHead>Description</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Holiday Name</TableHead>
+                  <TableHead>Description</TableHead>
+                  {!readOnly && <TableHead>Actions</TableHead>}
+                </TableRow>
+              </TableHeader>
               <TableBody>
                 {holidays.map(h => (
                   <TableRow key={h.id}>
                     <TableCell className="font-medium">{format(new Date(h.date), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>{h.holiday_name}</TableCell>
                     <TableCell>{h.description || '-'}</TableCell>
-                    <TableCell><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => openEditDialog(h)}><Edit className="h-4 w-4" /></Button><Button variant="outline" size="sm" onClick={() => deleteHoliday(h.id)}><Trash2 className="h-4 w-4" /></Button></div></TableCell>
+                    {!readOnly && (
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => openEditDialog(h)}><Edit className="h-4 w-4" /></Button>
+                          <Button variant="outline" size="sm" onClick={() => deleteHoliday(h.id)}><Trash2 className="h-4 w-4" /></Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -139,11 +164,13 @@ const HolidayManagement = () => {
           )}
         </CardContent>
       </Card>
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent><DialogHeader><DialogTitle>Edit Holiday</DialogTitle><DialogDescription>Update holiday information</DialogDescription></DialogHeader>
-          <HolidayForm date={editDate} setDate={setEditDate} onSave={updateHoliday} saveLabel="Update Holiday" />
-        </DialogContent>
-      </Dialog>
+      {!readOnly && (
+        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+          <DialogContent><DialogHeader><DialogTitle>Edit Holiday</DialogTitle><DialogDescription>Update holiday information</DialogDescription></DialogHeader>
+            <HolidayForm date={editDate} setDate={setEditDate} onSave={updateHoliday} saveLabel="Update Holiday" />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
