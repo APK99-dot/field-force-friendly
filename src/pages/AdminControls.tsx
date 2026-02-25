@@ -12,6 +12,7 @@ import {
   Building2,
   ArrowLeft,
   Search,
+  FolderKanban,
 } from "lucide-react";
 
 const adminModules = [
@@ -21,6 +22,13 @@ const adminModules = [
     icon: Users,
     color: "bg-orange-100 text-orange-600",
     path: "/admin/users",
+  },
+  {
+    title: "Projects",
+    description: "Manage projects, tasks, sprints, and timelines.",
+    icon: FolderKanban,
+    color: "bg-blue-100 text-blue-600",
+    path: "/projects",
   },
   {
     title: "Attendance Management",

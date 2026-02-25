@@ -18,6 +18,8 @@ import AdminExpenseManagement from "./pages/AdminExpenseManagement";
 import SecurityManagement from "./pages/SecurityManagement";
 import CompanyProfile from "./pages/CompanyProfile";
 import NotFound from "./pages/NotFound";
+import ProjectsPage from "./pages/Projects";
+import ProjectDetailPage from "./pages/ProjectDetail";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +46,8 @@ const App = () => (
             <Route path="/admin/expenses" element={<AdminExpenseManagement />} />
             <Route path="/admin/security" element={<SecurityManagement />} />
             <Route path="/admin/company" element={<CompanyProfile />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/projects/:id" element={<ProjectDetailPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
