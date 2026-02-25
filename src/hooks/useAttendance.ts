@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isBefore, isToday as isDateToday } from "date-fns";
 
 interface AttendanceRecord {
   id: string;
@@ -12,6 +12,8 @@ interface AttendanceRecord {
   check_out_location: any;
   check_in_photo_url: string | null;
   check_out_photo_url: string | null;
+  check_in_address: string | null;
+  check_out_address: string | null;
   status: string;
   total_hours: number | null;
 }
@@ -22,10 +24,54 @@ interface Holiday {
   holiday_name: string;
 }
 
+interface WeekOffConfig {
+  id: string;
+  day_of_week: number;
+  is_off: boolean;
+  alternate_pattern: string | null;
+}
+
+interface LeaveRecord {
+  id: string;
+  from_date: string;
+  to_date: string;
+  status: string;
+  is_half_day: boolean | null;
+  half_day_period: string | null;
+  leave_types?: { name: string } | { name: string }[] | null;
+}
+
+interface RegularizationRequest {
+  id: string;
+  date: string;
+  status: string;
+  requested_check_in_time: string | null;
+  requested_check_out_time: string | null;
+  reason: string | null;
+  rejection_reason: string | null;
+  created_at: string;
+}
+
+export const isWeekOffDate = (date: Date, weekOffConfigs: WeekOffConfig[]): boolean => {
+  const dayOfWeek = date.getDay();
+  const dayConfig = weekOffConfigs.filter(c => c.day_of_week === dayOfWeek && c.is_off);
+  for (const config of dayConfig) {
+    const pattern = config.alternate_pattern || "all";
+    if (pattern === "all") return true;
+    const weekNumber = Math.ceil(date.getDate() / 7);
+    if (pattern === "1st_3rd" && (weekNumber === 1 || weekNumber === 3)) return true;
+    if (pattern === "2nd_4th" && (weekNumber === 2 || weekNumber === 4)) return true;
+  }
+  return false;
+};
+
 export function useAttendance(userId: string | undefined) {
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
   const [monthRecords, setMonthRecords] = useState<AttendanceRecord[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [weekOffConfig, setWeekOffConfig] = useState<WeekOffConfig[]>([]);
+  const [leaveRecords, setLeaveRecords] = useState<LeaveRecord[]>([]);
+  const [regularizationRequests, setRegularizationRequests] = useState<RegularizationRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
   const today = format(new Date(), "yyyy-MM-dd");
@@ -34,7 +80,7 @@ export function useAttendance(userId: string | undefined) {
     if (!userId) return;
     setLoading(true);
     try {
-      const [todayRes, monthRes, holidayRes] = await Promise.all([
+      const [todayRes, monthRes, holidayRes, weekOffRes, leaveRes, regRes] = await Promise.all([
         supabase
           .from("attendance")
           .select("*")
@@ -47,11 +93,30 @@ export function useAttendance(userId: string | undefined) {
           .eq("user_id", userId)
           .order("date", { ascending: false }),
         supabase.from("holidays").select("id, date, holiday_name"),
+        supabase.from("week_off_config").select("*"),
+        supabase
+          .from("leave_applications")
+          .select("*, leave_types!leave_applications_leave_type_id_fkey(name)")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("regularization_requests")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }),
       ]);
 
       setTodayRecord(todayRes.data);
       setMonthRecords(monthRes.data || []);
       setHolidays(holidayRes.data || []);
+      setWeekOffConfig(weekOffRes.data || []);
+      // Normalize leave_types from array to single object
+      const normalizedLeaves = (leaveRes.data || []).map((l: any) => ({
+        ...l,
+        leave_types: Array.isArray(l.leave_types) ? (l.leave_types.length > 0 ? l.leave_types[0] : null) : l.leave_types,
+      }));
+      setLeaveRecords(normalizedLeaves);
+      setRegularizationRequests(regRes.data || []);
     } catch (err) {
       console.error("Error fetching attendance:", err);
     } finally {
@@ -83,7 +148,6 @@ export function useAttendance(userId: string | undefined) {
     const now = new Date().toISOString();
 
     if (todayRecord) {
-      // Update existing record
       const { error } = await supabase
         .from("attendance")
         .update({
@@ -94,7 +158,6 @@ export function useAttendance(userId: string | undefined) {
         .eq("id", todayRecord.id);
       if (error) throw error;
     } else {
-      // Insert new record
       const { error } = await supabase.from("attendance").insert({
         user_id: userId,
         date: today,
@@ -142,12 +205,12 @@ export function useAttendance(userId: string | undefined) {
     await fetchData();
   };
 
-  // Build a map of date -> status for the calendar
+  // Build attendance map using week-off config
   const attendanceMap: Record<string, string> = {};
   const holidayDates = new Set(holidays.map((h) => h.date));
 
   monthRecords.forEach((r) => {
-    if (r.status === "present" && r.check_in_time) {
+    if ((r.status === "present" || r.status === "regularized") && r.check_in_time) {
       attendanceMap[r.date] = "present";
     } else if (r.status === "leave") {
       attendanceMap[r.date] = "leave";
@@ -164,6 +227,19 @@ export function useAttendance(userId: string | undefined) {
     }
   });
 
+  // Market hours calculation
+  const marketHours = useMemo(() => {
+    if (!todayRecord?.check_in_time) return null;
+    const checkInTime = new Date(todayRecord.check_in_time);
+    const checkOutTime = todayRecord.check_out_time ? new Date(todayRecord.check_out_time) : new Date();
+    const activeHours = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+    return {
+      firstCheckIn: format(checkInTime, "h:mm a"),
+      lastActivity: todayRecord.check_out_time ? format(checkOutTime, "h:mm a") : "Active",
+      activeHours: Math.round(activeHours * 10) / 10,
+    };
+  }, [todayRecord]);
+
   const isCheckedIn = !!todayRecord?.check_in_time && !todayRecord?.check_out_time;
   const isCheckedOut = !!todayRecord?.check_out_time;
 
@@ -172,6 +248,11 @@ export function useAttendance(userId: string | undefined) {
     monthRecords,
     attendanceMap,
     holidays,
+    holidayDates,
+    weekOffConfig,
+    leaveRecords,
+    regularizationRequests,
+    marketHours,
     loading,
     isCheckedIn,
     isCheckedOut,
