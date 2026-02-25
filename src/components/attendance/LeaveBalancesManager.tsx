@@ -29,6 +29,7 @@ const LeaveBalancesManager = () => {
   const [editingBalance, setEditingBalance] = useState<LeaveBalance | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({ user_id: '', leave_type_id: '', opening_balance: 0, used_balance: 0 });
+  const [employeeDOJs, setEmployeeDOJs] = useState<Record<string, string | null>>({});
 
   const currentYear = new Date().getFullYear();
   const years = [currentYear - 1, currentYear, currentYear + 1];
@@ -40,6 +41,10 @@ const LeaveBalancesManager = () => {
     try {
       const { data: ltData } = await supabase.from('leave_types').select('id, name, annual_quota, accrual_type').eq('is_active', true).order('name');
       const { data: usersData } = await supabase.from('profiles').select('id, full_name').order('full_name');
+      const { data: employeesData } = await supabase.from('employees').select('user_id, date_of_joining');
+      const dojMap: Record<string, string | null> = {};
+      (employeesData || []).forEach(e => { dojMap[e.user_id] = e.date_of_joining; });
+      setEmployeeDOJs(dojMap);
       setLeaveTypes(ltData || []);
       setUsers(usersData || []);
 
@@ -55,12 +60,38 @@ const LeaveBalancesManager = () => {
     } catch (error) { toast.error('Failed to load leave balances'); } finally { setIsLoading(false); }
   };
 
-  // Core calculation: derive allocated balance from annual_quota and accrual_type
-  const calculateAllocatedBalance = (annualQuota: number, accrualType: string, year: number): number => {
+  // Core calculation: derive allocated balance from annual_quota, accrual_type, and DOJ
+  const calculateAllocatedBalance = (annualQuota: number, accrualType: string, year: number, userId: string): number => {
+    const doj = employeeDOJs[userId];
+    const dojDate = doj ? new Date(doj) : null;
+    const now = new Date();
+
+    // Determine eligible months in the given year
+    let eligibleMonths: number;
+    if (dojDate && dojDate.getFullYear() === year) {
+      // Joined this year: months from DOJ month to current month (or Dec if past year)
+      const startMonth = dojDate.getMonth() + 1; // 1-indexed
+      const endMonth = year === currentYear ? now.getMonth() + 1 : 12;
+      eligibleMonths = Math.max(0, endMonth - startMonth + 1);
+    } else if (dojDate && dojDate.getFullYear() > year) {
+      // DOJ is in a future year relative to the filter year
+      eligibleMonths = 0;
+    } else {
+      // Joined before this year (or no DOJ recorded): full year up to current month
+      const endMonth = year === currentYear ? now.getMonth() + 1 : 12;
+      eligibleMonths = endMonth;
+    }
+
     if (accrualType === 'monthly') {
-      const monthlyAccrual = annualQuota / 12;
-      const currentMonth = year === currentYear ? new Date().getMonth() + 1 : 12;
-      return Math.floor(monthlyAccrual * currentMonth);
+      return Math.floor((annualQuota / 12) * eligibleMonths);
+    }
+    // Yearly accrual
+    if (dojDate && dojDate.getFullYear() === year) {
+      // Prorate for year of joining
+      return Math.floor((annualQuota / 12) * eligibleMonths);
+    }
+    if (dojDate && dojDate.getFullYear() > year) {
+      return 0;
     }
     return annualQuota;
   };
@@ -74,7 +105,7 @@ const LeaveBalancesManager = () => {
 
       const year = parseInt(filterYear);
       const inserts = activeUsers.flatMap(user => leaveTypes.map(lt => {
-        const allocatedBalance = calculateAllocatedBalance(lt.annual_quota, lt.accrual_type, year);
+        const allocatedBalance = calculateAllocatedBalance(lt.annual_quota, lt.accrual_type, year, user.id);
         return {
           user_id: user.id, leave_type_id: lt.id,
           opening_balance: allocatedBalance,
@@ -105,7 +136,7 @@ const LeaveBalancesManager = () => {
         const key = `${balance.user_id}_${balance.leave_type_id}`;
         const lt = leaveTypes.find(l => l.id === balance.leave_type_id);
         const allocatedBalance = lt
-          ? calculateAllocatedBalance(lt.annual_quota, lt.accrual_type, year)
+          ? calculateAllocatedBalance(lt.annual_quota, lt.accrual_type, year, balance.user_id)
           : balance.opening_balance;
         const usedBalance = usedDaysMap[key] || 0;
         await supabase.from('leave_balance').update({ opening_balance: allocatedBalance, used_balance: usedBalance }).eq('id', balance.id);
