@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
@@ -17,6 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useDashboard } from "@/hooks/useDashboard";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const container = {
   hidden: { opacity: 0 },
@@ -34,21 +37,23 @@ const getGreeting = () => {
   return "Good Evening!";
 };
 
-// Mock data
-const beatProgress = {
-  planned: 0,
-  productive: 0,
-  remaining: 0,
-  newRetailers: 0,
-  revenueAchieved: 0,
-  points: 0,
-};
-
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [dayStarted, setDayStarted] = useState(false);
   const { profile, isAdmin, initials } = useUserProfile();
+  const [userId, setUserId] = useState<string>();
   const displayName = profile?.full_name || profile?.username || "";
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id);
+    });
+  }, []);
+
+  const { dayStarted, isCheckedIn, stats, beatName, attendance } = useDashboard(userId);
+
+  const handleStartDay = () => {
+    navigate("/attendance");
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
@@ -75,7 +80,7 @@ export default function Dashboard() {
             <Button
               size="sm"
               className="bg-white/20 hover:bg-white/30 text-white border-0 h-9 px-3"
-              onClick={() => {}}
+              onClick={() => navigate("/visits")}
             >
               <Plus className="h-4 w-4 mr-1" />
               <span className="text-xs">Quick Add</span>
@@ -108,10 +113,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <Button
-                  onClick={() => {
-                    setDayStarted(true);
-                    navigate("/attendance");
-                  }}
+                  onClick={handleStartDay}
                   className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
                 >
                   <LogIn className="h-4 w-4 mr-2" />
@@ -128,7 +130,9 @@ export default function Dashboard() {
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-success">Day Started</p>
                   <p className="text-xs text-muted-foreground">
-                    {format(new Date(), "h:mm a")}
+                    {attendance?.check_in_time
+                      ? format(new Date(attendance.check_in_time), "h:mm a")
+                      : ""}
                   </p>
                 </div>
               </div>
@@ -145,41 +149,43 @@ export default function Dashboard() {
                   <MapPin className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold">Not Planned</p>
-                  <p className="text-xs text-muted-foreground">No beat planned</p>
+                  <p className="text-sm font-bold">{beatName || "Not Planned"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {beatName ? "Today's beat" : "No beat planned"}
+                  </p>
                 </div>
               </div>
 
-              {/* Stats Grid - 3x2 like QuickApp */}
+              {/* Stats Grid */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-xl border border-border bg-card p-3 text-center">
                   <Users className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                  <p className="text-xl font-bold">{beatProgress.planned}</p>
+                  <p className="text-xl font-bold">{stats.planned}</p>
                   <p className="text-[10px] text-muted-foreground">Planned</p>
                 </div>
                 <div className="rounded-xl border border-border bg-success/5 p-3 text-center">
                   <CheckCircle className="h-5 w-5 mx-auto mb-1 text-success" />
-                  <p className="text-xl font-bold">{beatProgress.productive}</p>
+                  <p className="text-xl font-bold">{stats.productive}</p>
                   <p className="text-[10px] text-muted-foreground">Productive</p>
                 </div>
                 <div className="rounded-xl border border-border bg-accent/5 p-3 text-center">
                   <Clock className="h-5 w-5 mx-auto mb-1 text-accent" />
-                  <p className="text-xl font-bold">{beatProgress.remaining}</p>
+                  <p className="text-xl font-bold">{stats.remaining}</p>
                   <p className="text-[10px] text-muted-foreground">Remaining</p>
                 </div>
                 <div className="rounded-xl border border-border bg-info/5 p-3 text-center">
                   <UserPlus className="h-5 w-5 mx-auto mb-1 text-info" />
-                  <p className="text-xl font-bold">{beatProgress.newRetailers}</p>
+                  <p className="text-xl font-bold">{stats.newRetailers}</p>
                   <p className="text-[10px] text-muted-foreground">New Retailers</p>
                 </div>
                 <div className="rounded-xl border border-border bg-primary/5 p-3 text-center">
                   <TrendingUp className="h-5 w-5 mx-auto mb-1 text-primary" />
-                  <p className="text-xl font-bold">₹{beatProgress.revenueAchieved.toFixed(2)}</p>
+                  <p className="text-xl font-bold">₹{stats.revenueAchieved.toFixed(2)}</p>
                   <p className="text-[10px] text-muted-foreground">Revenue</p>
                 </div>
                 <div className="rounded-xl border border-border bg-accent/5 p-3 text-center">
                   <Zap className="h-5 w-5 mx-auto mb-1 text-accent" />
-                  <p className="text-xl font-bold">{beatProgress.points}</p>
+                  <p className="text-xl font-bold">{stats.points}</p>
                   <p className="text-[10px] text-muted-foreground">Points</p>
                 </div>
               </div>
