@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 const adminItems = [
   { icon: Shield, label: "Admin Controls", href: "/admin-controls", color: "from-emerald-500 to-emerald-600" },
@@ -51,6 +52,8 @@ const item = {
 
 export default function More() {
   const navigate = useNavigate();
+  const { profile, isAdmin, initials } = useUserProfile();
+  const displayName = profile?.full_name || profile?.username || "User";
 
   return (
     <motion.div
@@ -67,14 +70,14 @@ export default function More() {
         >
           <Avatar className="h-12 w-12 border-2 border-white/30">
             <AvatarFallback className="bg-white/20 text-primary-foreground font-bold">
-              A
+              {initials}
             </AvatarFallback>
           </Avatar>
           <div>
-            <h2 className="text-lg font-bold">Alice</h2>
+            <h2 className="text-lg font-bold">{displayName}</h2>
             <div className="flex items-center gap-1.5 text-xs opacity-80">
               <Shield className="h-3.5 w-3.5" />
-              <span>Admin</span>
+              <span>{isAdmin ? "Admin" : "User"}</span>
             </div>
           </div>
         </div>

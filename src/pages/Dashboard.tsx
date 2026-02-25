@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 const container = {
   hidden: { opacity: 0 },
@@ -46,6 +47,8 @@ const beatProgress = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [dayStarted, setDayStarted] = useState(false);
+  const { profile, isAdmin, initials } = useUserProfile();
+  const displayName = profile?.full_name || profile?.username || "User";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
@@ -60,13 +63,13 @@ export default function Dashboard() {
             >
               <Avatar className="h-10 w-10 border-2 border-white/30">
                 <AvatarFallback className="bg-white/20 text-primary-foreground font-bold text-sm">
-                  A
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <p className="text-[10px] opacity-80">{getGreeting()}</p>
-                <h1 className="text-base font-bold leading-tight">Alice</h1>
-                <p className="text-[10px] opacity-70">Field Executive</p>
+                <h1 className="text-base font-bold leading-tight">{displayName}</h1>
+                <p className="text-[10px] opacity-70">{isAdmin ? "Admin" : "Field Executive"}</p>
               </div>
             </div>
             <Button

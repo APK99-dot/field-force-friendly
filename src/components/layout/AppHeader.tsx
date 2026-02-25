@@ -1,5 +1,7 @@
 import { useState, useCallback } from "react";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Menu,
   Bell,
@@ -51,6 +53,8 @@ export function AppHeader() {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
+  const { profile, isAdmin, initials } = useUserProfile();
+  const displayName = profile?.full_name || profile?.username || "User";
 
   const showBackButton = location.pathname !== "/dashboard" && location.pathname !== "/";
 
@@ -120,18 +124,18 @@ export function AppHeader() {
                 }}
                 className="flex items-center gap-3 hover:opacity-80 transition-opacity"
               >
-                <Avatar className="h-12 w-12 border-2 border-primary-foreground/30">
+              <Avatar className="h-12 w-12 border-2 border-primary-foreground/30">
                   <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground">
-                    RK
+                    {initials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col items-start">
                   <SheetTitle className="text-lg font-bold text-primary-foreground">
-                    Rajesh Kumar
+                    {displayName}
                   </SheetTitle>
                   <div className="flex items-center gap-1.5 text-xs opacity-90 text-primary-foreground mt-1">
                     <Shield className="h-3.5 w-3.5" />
-                    <span className="font-medium">Admin</span>
+                    <span className="font-medium">{isAdmin ? "Admin" : "User"}</span>
                   </div>
                 </div>
               </button>
@@ -209,8 +213,9 @@ export function AppHeader() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
+              onClick={async () => {
                 setIsLogoutDialogOpen(false);
+                await supabase.auth.signOut();
                 navigate("/auth");
               }}
             >
