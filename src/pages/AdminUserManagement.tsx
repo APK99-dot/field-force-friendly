@@ -34,6 +34,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+const ROLE_OPTIONS = [
+  { value: "user", label: "Field User" },
+  { value: "admin", label: "Admin" },
+  { value: "data_viewer", label: "Data Viewer" },
+  { value: "sales_manager", label: "Sales Manager" },
+] as const;
+
+const roleLabelMap: Record<string, string> = Object.fromEntries(ROLE_OPTIONS.map(r => [r.value, r.label]));
 
 // Types
 interface UserProfile {
@@ -199,8 +218,9 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
           <Select value={role} onValueChange={setRole}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="user">Field User</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
+              {ROLE_OPTIONS.map((r) => (
+                <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -273,7 +293,121 @@ function UserDetailDialog({ user, employee, role }: { user: UserProfile; employe
   );
 }
 
-// Hierarchy View
+// Edit User Dialog
+function EditUserDialog({ user, employee, role, onSaved }: { user: UserProfile; employee?: Employee; role?: string; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [fullName, setFullName] = useState(user.full_name || "");
+  const [username, setUsername] = useState(user.username || "");
+  const [phone, setPhone] = useState(user.phone_number || "");
+  const [selectedRole, setSelectedRole] = useState(role || "user");
+  const [hq, setHq] = useState(employee?.hq || "");
+  const [salary, setSalary] = useState(String(employee?.monthly_salary || 0));
+  const [da, setDa] = useState(String(employee?.daily_da_allowance || 0));
+  const [band, setBand] = useState(employee?.band || "");
+  const [loading, setLoading] = useState(false);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      // Update profile
+      const { error: profileError } = await supabase.from("profiles").update({
+        full_name: fullName || null,
+        username: username || null,
+        phone_number: phone || null,
+      }).eq("id", user.id);
+      if (profileError) throw profileError;
+
+      // Update role
+      const { error: roleError } = await supabase.from("user_roles").update({
+        role: selectedRole as any,
+      }).eq("user_id", user.id);
+      if (roleError) throw roleError;
+
+      // Update employee record (upsert)
+      const { error: empError } = await supabase.from("employees").upsert({
+        user_id: user.id,
+        hq: hq || null,
+        monthly_salary: parseFloat(salary) || 0,
+        daily_da_allowance: parseFloat(da) || 0,
+        band: band || null,
+      }, { onConflict: "user_id" });
+      if (empError) throw empError;
+
+      toast.success("User updated successfully");
+      setOpen(false);
+      onSaved();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update user");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setOpen(true); }}>
+          <Edit className="h-4 w-4 mr-2" /> Edit
+        </DropdownMenuItem>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit User</DialogTitle>
+          <DialogDescription>Update user profile and role</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Full Name</Label>
+            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Username</Label>
+            <Input value={username} onChange={(e) => setUsername(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Phone</Label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Role</Label>
+            <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {ROLE_OPTIONS.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>HQ</Label>
+            <Input value={hq} onChange={(e) => setHq(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Band</Label>
+            <Input value={band} onChange={(e) => setBand(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Monthly Salary (₹)</Label>
+            <Input type="number" value={salary} onChange={(e) => setSalary(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Daily DA (₹)</Label>
+            <Input type="number" value={da} onChange={(e) => setDa(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={loading}>
+            {loading ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 function UserHierarchy({ profiles, employees, roles }: { profiles: UserProfile[]; employees: Employee[]; roles: UserRole[] }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -350,6 +484,7 @@ export default function AdminUserManagement() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("users");
+  const [deleteTarget, setDeleteTarget] = useState<UserProfile | null>(null);
 
   const { data: profiles = [], isLoading: profilesLoading } = useProfiles();
   const { data: employees = [] } = useEmployees();
@@ -373,6 +508,25 @@ export default function AdminUserManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
       toast.success("User status updated");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: async (userId: string) => {
+      // Delete employee, user_roles, profiles records (cascade from auth handled by trigger)
+      await supabase.from("employees").delete().eq("user_id", userId);
+      await supabase.from("user_roles").delete().eq("user_id", userId);
+      await supabase.from("users").delete().eq("id", userId);
+      const { error } = await supabase.from("profiles").update({ user_status: "deleted" }).eq("id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-employees"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-user-roles"] });
+      toast.success("User deleted");
+      setDeleteTarget(null);
     },
     onError: (err: any) => toast.error(err.message),
   });
@@ -479,7 +633,7 @@ export default function AdminUserManagement() {
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           <Badge variant={role?.role === "admin" ? "default" : "outline"} className="text-xs">
-                            {role?.role || "user"}
+                            {roleLabelMap[role?.role || "user"] || role?.role || "user"}
                           </Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-sm">{employee?.hq || "—"}</TableCell>
@@ -496,6 +650,16 @@ export default function AdminUserManagement() {
                                 <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <EditUserDialog
+                                  user={user}
+                                  employee={employee}
+                                  role={role?.role}
+                                  onSaved={() => {
+                                    queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+                                    queryClient.invalidateQueries({ queryKey: ["admin-employees"] });
+                                    queryClient.invalidateQueries({ queryKey: ["admin-user-roles"] });
+                                  }}
+                                />
                                 <DropdownMenuItem
                                   onClick={() => toggleStatus.mutate({
                                     userId: user.id,
@@ -503,6 +667,12 @@ export default function AdminUserManagement() {
                                   })}
                                 >
                                   {user.user_status === "active" ? "Deactivate" : "Activate"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => setDeleteTarget(user)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" /> Delete
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -567,6 +737,27 @@ export default function AdminUserManagement() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteTarget?.full_name || deleteTarget?.username}</strong>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteTarget && deleteUser.mutate(deleteTarget.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }
