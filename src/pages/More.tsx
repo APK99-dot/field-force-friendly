@@ -29,10 +29,7 @@ const adminItems = [
 
 const navigationItems = [
   { icon: Clock, label: "Attendance", href: "/attendance", color: "from-blue-500 to-blue-600" },
-  { icon: Car, label: "Visit", href: "/visits", color: "from-green-500 to-green-600" },
   { icon: Navigation2, label: "GPS Track", href: "/gps-tracking", color: "from-purple-500 to-purple-600" },
-  { icon: Receipt, label: "Expenses", href: "/expenses", color: "from-indigo-500 to-indigo-600" },
-  { icon: FolderKanban, label: "Projects", href: "/projects", color: "from-sky-500 to-sky-600" },
 ];
 
 const accountItems = [
