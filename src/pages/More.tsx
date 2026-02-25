@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -53,7 +54,7 @@ const item = {
 export default function More() {
   const navigate = useNavigate();
   const { profile, isAdmin, initials } = useUserProfile();
-  const displayName = profile?.full_name || profile?.username || "User";
+  const displayName = profile?.full_name || profile?.username || "";
 
   return (
     <motion.div
@@ -159,7 +160,10 @@ export default function More() {
           <Card className="shadow-card">
             <CardContent className="p-0">
               <button
-                onClick={() => navigate("/auth")}
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  navigate("/auth");
+                }}
                 className="w-full flex items-center gap-3 p-3.5 hover:bg-destructive/5 transition-colors rounded-lg"
               >
                 <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center">

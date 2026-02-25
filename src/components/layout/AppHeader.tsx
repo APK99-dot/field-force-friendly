@@ -54,7 +54,7 @@ export function AppHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const { profile, isAdmin, initials } = useUserProfile();
-  const displayName = profile?.full_name || profile?.username || "User";
+  const displayName = profile?.full_name || profile?.username || "";
 
   const showBackButton = location.pathname !== "/dashboard" && location.pathname !== "/";
 

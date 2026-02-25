@@ -80,6 +80,14 @@ Deno.serve(async (req) => {
 
     const userId = newUserData.user.id;
 
+    // Insert into app users table
+    await adminClient.from("users").upsert({
+      id: userId,
+      email,
+      full_name: full_name || null,
+      username: username || email,
+    }, { onConflict: "id" });
+
     // Update profile with phone if provided
     if (phone) {
       await adminClient.from("profiles").update({ phone_number: phone }).eq("id", userId);

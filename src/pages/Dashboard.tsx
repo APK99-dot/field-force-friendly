@@ -48,7 +48,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [dayStarted, setDayStarted] = useState(false);
   const { profile, isAdmin, initials } = useUserProfile();
-  const displayName = profile?.full_name || profile?.username || "User";
+  const displayName = profile?.full_name || profile?.username || "";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
