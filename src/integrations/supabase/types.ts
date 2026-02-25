@@ -130,49 +130,97 @@ export type Database = {
       }
       attendance: {
         Row: {
+          check_in_address: string | null
           check_in_location: Json | null
           check_in_photo_url: string | null
           check_in_time: string | null
+          check_out_address: string | null
           check_out_location: Json | null
           check_out_photo_url: string | null
           check_out_time: string | null
           created_at: string
           date: string
+          face_match_confidence: number | null
+          face_match_confidence_out: number | null
+          face_verification_status: string | null
+          face_verification_status_out: string | null
           id: string
+          notes: string | null
+          regularized_request_id: string | null
           status: string
           total_hours: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          check_in_address?: string | null
           check_in_location?: Json | null
           check_in_photo_url?: string | null
           check_in_time?: string | null
+          check_out_address?: string | null
           check_out_location?: Json | null
           check_out_photo_url?: string | null
           check_out_time?: string | null
           created_at?: string
           date?: string
+          face_match_confidence?: number | null
+          face_match_confidence_out?: number | null
+          face_verification_status?: string | null
+          face_verification_status_out?: string | null
           id?: string
+          notes?: string | null
+          regularized_request_id?: string | null
           status?: string
           total_hours?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          check_in_address?: string | null
           check_in_location?: Json | null
           check_in_photo_url?: string | null
           check_in_time?: string | null
+          check_out_address?: string | null
           check_out_location?: Json | null
           check_out_photo_url?: string | null
           check_out_time?: string | null
           created_at?: string
           date?: string
+          face_match_confidence?: number | null
+          face_match_confidence_out?: number | null
+          face_verification_status?: string | null
+          face_verification_status_out?: string | null
           id?: string
+          notes?: string | null
+          regularized_request_id?: string | null
           status?: string
           total_hours?: number | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      attendance_policy: {
+        Row: {
+          created_at: string
+          id: string
+          policy_key: string
+          policy_value: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          policy_key: string
+          policy_value?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          policy_key?: string
+          policy_value?: Json
+          updated_at?: string
         }
         Relationships: []
       }
@@ -508,11 +556,15 @@ export type Database = {
       }
       leave_applications: {
         Row: {
+          applied_date: string | null
           approved_at: string | null
           approved_by: string | null
+          approved_date: string | null
           created_at: string
           from_date: string
+          half_day_period: string | null
           id: string
+          is_half_day: boolean | null
           leave_type_id: string
           reason: string | null
           status: string
@@ -522,11 +574,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          applied_date?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          approved_date?: string | null
           created_at?: string
           from_date: string
+          half_day_period?: string | null
           id?: string
+          is_half_day?: boolean | null
           leave_type_id: string
           reason?: string | null
           status?: string
@@ -536,11 +592,15 @@ export type Database = {
           user_id: string
         }
         Update: {
+          applied_date?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          approved_date?: string | null
           created_at?: string
           from_date?: string
+          half_day_period?: string | null
           id?: string
+          is_half_day?: boolean | null
           leave_type_id?: string
           reason?: string | null
           status?: string
@@ -598,6 +658,53 @@ export type Database = {
             foreignKeyName: "leave_balance_leave_type_id_fkey"
             columns: ["leave_type_id"]
             isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_policy: {
+        Row: {
+          accrual_type: string
+          carry_forward_allowed: boolean
+          created_at: string
+          id: string
+          is_active: boolean
+          leave_type_id: string
+          max_carry_forward: number
+          monthly_accrual: number | null
+          updated_at: string
+          yearly_entitlement: number
+        }
+        Insert: {
+          accrual_type?: string
+          carry_forward_allowed?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          leave_type_id: string
+          max_carry_forward?: number
+          monthly_accrual?: number | null
+          updated_at?: string
+          yearly_entitlement?: number
+        }
+        Update: {
+          accrual_type?: string
+          carry_forward_allowed?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          leave_type_id?: string
+          max_carry_forward?: number
+          monthly_accrual?: number | null
+          updated_at?: string
+          yearly_entitlement?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_policy_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: true
             referencedRelation: "leave_types"
             referencedColumns: ["id"]
           },
@@ -975,34 +1082,55 @@ export type Database = {
       }
       regularization_requests: {
         Row: {
+          approved_at: string | null
           approved_by: string | null
+          attendance_date: string | null
           created_at: string
+          current_check_in_time: string | null
+          current_check_out_time: string | null
           date: string
           id: string
           reason: string | null
+          rejection_reason: string | null
           request_type: string
+          requested_check_in_time: string | null
+          requested_check_out_time: string | null
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          approved_at?: string | null
           approved_by?: string | null
+          attendance_date?: string | null
           created_at?: string
+          current_check_in_time?: string | null
+          current_check_out_time?: string | null
           date: string
           id?: string
           reason?: string | null
+          rejection_reason?: string | null
           request_type: string
+          requested_check_in_time?: string | null
+          requested_check_out_time?: string | null
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          approved_at?: string | null
           approved_by?: string | null
+          attendance_date?: string | null
           created_at?: string
+          current_check_in_time?: string | null
+          current_check_out_time?: string | null
           date?: string
           id?: string
           reason?: string | null
+          rejection_reason?: string | null
           request_type?: string
+          requested_check_in_time?: string | null
+          requested_check_out_time?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -1324,6 +1452,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      week_off_config: {
+        Row: {
+          alternate_pattern: string | null
+          created_at: string
+          day_of_week: number
+          id: string
+          is_off: boolean
+          updated_at: string
+        }
+        Insert: {
+          alternate_pattern?: string | null
+          created_at?: string
+          day_of_week: number
+          id?: string
+          is_off?: boolean
+          updated_at?: string
+        }
+        Update: {
+          alternate_pattern?: string | null
+          created_at?: string
+          day_of_week?: number
+          id?: string
+          is_off?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      working_days_config: {
+        Row: {
+          created_at: string
+          holidays: number
+          id: string
+          month: number
+          total_days: number
+          updated_at: string
+          week_offs: number
+          working_days: number
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          holidays?: number
+          id?: string
+          month: number
+          total_days?: number
+          updated_at?: string
+          week_offs?: number
+          working_days?: number
+          year: number
+        }
+        Update: {
+          created_at?: string
+          holidays?: number
+          id?: string
+          month?: number
+          total_days?: number
+          updated_at?: string
+          week_offs?: number
+          working_days?: number
+          year?: number
+        }
+        Relationships: []
       }
     }
     Views: {
