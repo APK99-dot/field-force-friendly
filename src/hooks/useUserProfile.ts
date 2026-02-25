@@ -12,6 +12,7 @@ interface UserProfile {
 interface UserProfileState {
   profile: UserProfile | null;
   role: string | null;
+  roleName: string | null;
   isAdmin: boolean;
   loading: boolean;
   initials: string;
@@ -20,6 +21,7 @@ interface UserProfileState {
 export function useUserProfile(): UserProfileState {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [roleName, setRoleName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,6 +60,22 @@ export function useUserProfile(): UserProfileState {
             phone_number: null,
           });
           setRole(u.role);
+
+          // Fetch the role name from the roles table via users.role_id
+          const { data: userRow } = await supabase
+            .from("users")
+            .select("role_id")
+            .eq("id", user.id)
+            .single();
+
+          if (userRow?.role_id) {
+            const { data: roleRow } = await supabase
+              .from("roles")
+              .select("name")
+              .eq("id", userRow.role_id)
+              .single();
+            if (!cancelled) setRoleName(roleRow?.name ?? null);
+          }
         } else if (!cancelled) {
           // Fallback: read from profiles/user_roles directly
           const [profileRes, roleRes] = await Promise.all([
@@ -91,6 +109,7 @@ export function useUserProfile(): UserProfileState {
   return {
     profile,
     role,
+    roleName,
     isAdmin: role === "admin",
     loading,
     initials,

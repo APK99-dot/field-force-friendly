@@ -45,23 +45,22 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const ROLE_OPTIONS = [
-  { value: "user", label: "Field User" },
-  { value: "admin", label: "Admin" },
-  { value: "data_viewer", label: "Data Viewer" },
-  { value: "sales_manager", label: "Sales Manager" },
-] as const;
-
-const roleLabelMap: Record<string, string> = Object.fromEntries(ROLE_OPTIONS.map(r => [r.value, r.label]));
-
 // Types
-interface UserProfile {
+interface Role {
   id: string;
-  username: string | null;
+  name: string;
+  is_system: boolean;
+}
+
+interface AppUser {
+  id: string;
+  email: string;
   full_name: string | null;
-  phone_number: string | null;
-  profile_picture_url: string | null;
-  user_status: string;
+  username: string | null;
+  phone: string | null;
+  role_id: string | null;
+  reporting_manager_id: string | null;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -69,25 +68,30 @@ interface Employee {
   user_id: string;
   monthly_salary: number;
   daily_da_allowance: number;
-  manager_id: string | null;
   hq: string | null;
   date_of_joining: string | null;
   band: string | null;
 }
 
-interface UserRole {
-  user_id: string;
-  role: string;
+// Fetch hooks
+function useRoles() {
+  return useQuery({
+    queryKey: ["roles"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("roles").select("*").order("name");
+      if (error) throw error;
+      return (data || []) as Role[];
+    },
+  });
 }
 
-// Fetch hooks
-function useProfiles() {
+function useAppUsers() {
   return useQuery({
-    queryKey: ["admin-profiles"],
+    queryKey: ["admin-app-users"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("users").select("*").order("created_at", { ascending: false });
       if (error) throw error;
-      return data as UserProfile[];
+      return (data || []) as AppUser[];
     },
   });
 }
@@ -98,47 +102,45 @@ function useEmployees() {
     queryFn: async () => {
       const { data, error } = await supabase.from("employees").select("*");
       if (error) throw error;
-      return data as Employee[];
+      return (data || []) as Employee[];
     },
   });
 }
 
-function useUserRoles() {
+function useProfiles() {
   return useQuery({
-    queryKey: ["admin-user-roles"],
+    queryKey: ["admin-profiles"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("user_roles").select("*");
+      const { data, error } = await supabase.from("profiles").select("id, profile_picture_url, user_status");
       if (error) throw error;
-      return data as UserRole[];
-    },
-  });
-}
-
-function useSecurityProfiles() {
-  return useQuery({
-    queryKey: ["security-profiles"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("security_profiles").select("*");
-      if (error) throw error;
-      return data as { id: string; name: string; description: string | null; is_system: boolean }[];
+      return (data || []) as { id: string; profile_picture_url: string | null; user_status: string }[];
     },
   });
 }
 
 // Create User Form Component
-function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
+function CreateUserForm({ roles, onSuccess }: { roles: Role[]; onSuccess: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
-  const [role, setRole] = useState<string>("user");
+  const [roleId, setRoleId] = useState<string>("");
   const [hq, setHq] = useState("");
   const [salary, setSalary] = useState("");
   const [da, setDa] = useState("");
   const [dateOfJoining, setDateOfJoining] = useState("");
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
+
+  // Map role id → old enum for edge function compat
+  const roleEnumMap: Record<string, string> = {};
+  roles.forEach((r) => {
+    if (r.name === "Admin") roleEnumMap[r.id] = "admin";
+    else if (r.name === "Field User") roleEnumMap[r.id] = "user";
+    else if (r.name === "Sales Manager") roleEnumMap[r.id] = "sales_manager";
+    else if (r.name === "Data Viewer") roleEnumMap[r.id] = "data_viewer";
+  });
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,7 +150,6 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
     }
     setLoading(true);
     try {
-      // Call edge function to create user server-side (preserves admin session)
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error("You must be logged in as admin");
@@ -160,7 +161,7 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
           full_name: fullName,
           username: username || email,
           phone,
-          role,
+          role: roleId ? roleEnumMap[roleId] || "user" : "user",
           hq: hq || null,
           salary: salary || "0",
           da: da || "0",
@@ -172,17 +173,19 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
       const result = res.data;
       if (result?.error) throw new Error(result.error);
 
+      // Set role_id on users table
+      if (roleId && result?.user_id) {
+        await supabase.from("users").update({ role_id: roleId, phone: phone || null }).eq("id", result.user_id);
+      }
+
       toast.success(`User ${fullName} created successfully`);
-      
-      // Refetch all user data from database
-      await queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-app-users"] });
       await queryClient.invalidateQueries({ queryKey: ["admin-employees"] });
-      await queryClient.invalidateQueries({ queryKey: ["admin-user-roles"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
       onSuccess();
 
-      // Reset form
       setEmail(""); setPassword(""); setFullName(""); setUsername("");
-      setPhone(""); setRole("user"); setHq(""); setSalary(""); setDa(""); setDateOfJoining("");
+      setPhone(""); setRoleId(""); setHq(""); setSalary(""); setDa(""); setDateOfJoining("");
     } catch (err: any) {
       toast.error(err.message || "Failed to create user");
     } finally {
@@ -215,11 +218,11 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="cu-role">Role</Label>
-          <Select value={role} onValueChange={setRole}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+          <Select value={roleId} onValueChange={setRoleId}>
+            <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
             <SelectContent>
-              {ROLE_OPTIONS.map((r) => (
-                <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+              {roles.map((r) => (
+                <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -248,8 +251,11 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-// User Detail Sheet
-function UserDetailDialog({ user, employee, role }: { user: UserProfile; employee?: Employee; role?: string }) {
+// User Detail Dialog
+function UserDetailDialog({ user, employee, roleName }: { user: AppUser; employee?: Employee; roleName: string }) {
+  const { data: profiles = [] } = useProfiles();
+  const profile = profiles.find((p) => p.id === user.id);
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -263,23 +269,23 @@ function UserDetailDialog({ user, employee, role }: { user: UserProfile; employe
         <div className="space-y-4">
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16">
-              <AvatarImage src={user.profile_picture_url || undefined} />
+              <AvatarImage src={profile?.profile_picture_url || undefined} />
               <AvatarFallback className="gradient-hero text-primary-foreground text-lg">
                 {(user.full_name || user.username || "U").charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div>
               <h3 className="font-semibold text-lg">{user.full_name || "—"}</h3>
-              <p className="text-sm text-muted-foreground">@{user.username || "—"}</p>
-              <Badge variant={user.user_status === "active" ? "default" : "secondary"}>
-                {user.user_status}
+              <p className="text-sm text-muted-foreground">{user.email}</p>
+              <Badge variant={user.is_active ? "default" : "secondary"}>
+                {user.is_active ? "Active" : "Inactive"}
               </Badge>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium">{user.phone_number || "—"}</span></div>
-            <div><span className="text-muted-foreground">Role:</span> <Badge variant="outline">{role || "user"}</Badge></div>
+            <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium">{user.phone || "—"}</span></div>
+            <div><span className="text-muted-foreground">Role:</span> <Badge variant="outline">{roleName}</Badge></div>
             <div><span className="text-muted-foreground">HQ:</span> <span className="font-medium">{employee?.hq || "—"}</span></div>
             <div><span className="text-muted-foreground">Band:</span> <span className="font-medium">{employee?.band || "—"}</span></div>
             <div><span className="text-muted-foreground">Salary:</span> <span className="font-medium">₹{employee?.monthly_salary?.toLocaleString() || "0"}</span></div>
@@ -294,22 +300,50 @@ function UserDetailDialog({ user, employee, role }: { user: UserProfile; employe
 }
 
 // Edit User Dialog
-function EditUserDialog({ user, employee, role, onSaved }: { user: UserProfile; employee?: Employee; role?: string; onSaved: () => void }) {
+function EditUserDialog({ user, employee, roles, allUsers, onSaved }: {
+  user: AppUser;
+  employee?: Employee;
+  roles: Role[];
+  allUsers: AppUser[];
+  onSaved: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState(user.full_name || "");
   const [username, setUsername] = useState(user.username || "");
-  const [phone, setPhone] = useState(user.phone_number || "");
-  const [selectedRole, setSelectedRole] = useState(role || "user");
+  const [phone, setPhone] = useState(user.phone || "");
+  const [roleId, setRoleId] = useState(user.role_id || "");
+  const [managerId, setManagerId] = useState(user.reporting_manager_id || "none");
   const [hq, setHq] = useState(employee?.hq || "");
   const [salary, setSalary] = useState(String(employee?.monthly_salary || 0));
   const [da, setDa] = useState(String(employee?.daily_da_allowance || 0));
   const [band, setBand] = useState(employee?.band || "");
   const [loading, setLoading] = useState(false);
 
+  // Map role id → old enum for user_roles compat
+  const roleEnumMap: Record<string, string> = {};
+  roles.forEach((r) => {
+    if (r.name === "Admin") roleEnumMap[r.id] = "admin";
+    else if (r.name === "Field User") roleEnumMap[r.id] = "user";
+    else if (r.name === "Sales Manager") roleEnumMap[r.id] = "sales_manager";
+    else if (r.name === "Data Viewer") roleEnumMap[r.id] = "data_viewer";
+  });
+
+  const managerOptions = allUsers.filter((u) => u.id !== user.id && u.is_active);
+
   const handleSave = async () => {
     setLoading(true);
     try {
-      // Update profile
+      // Update users table (role_id, reporting_manager_id, phone, full_name, username)
+      const { error: userError } = await supabase.from("users").update({
+        full_name: fullName || null,
+        username: username || null,
+        phone: phone || null,
+        role_id: roleId || null,
+        reporting_manager_id: managerId === "none" ? null : managerId,
+      }).eq("id", user.id);
+      if (userError) throw userError;
+
+      // Sync profile table
       const { error: profileError } = await supabase.from("profiles").update({
         full_name: fullName || null,
         username: username || null,
@@ -317,11 +351,12 @@ function EditUserDialog({ user, employee, role, onSaved }: { user: UserProfile; 
       }).eq("id", user.id);
       if (profileError) throw profileError;
 
-      // Update role
-      const { error: roleError } = await supabase.from("user_roles").update({
-        role: selectedRole as any,
-      }).eq("user_id", user.id);
-      if (roleError) throw roleError;
+      // Sync user_roles for backward compat with RLS
+      if (roleId && roleEnumMap[roleId]) {
+        await supabase.from("user_roles").update({
+          role: roleEnumMap[roleId] as any,
+        }).eq("user_id", user.id);
+      }
 
       // Update employee record (upsert)
       const { error: empError } = await supabase.from("employees").upsert({
@@ -330,6 +365,7 @@ function EditUserDialog({ user, employee, role, onSaved }: { user: UserProfile; 
         monthly_salary: parseFloat(salary) || 0,
         daily_da_allowance: parseFloat(da) || 0,
         band: band || null,
+        manager_id: managerId === "none" ? null : managerId,
       }, { onConflict: "user_id" });
       if (empError) throw empError;
 
@@ -358,7 +394,7 @@ function EditUserDialog({ user, employee, role, onSaved }: { user: UserProfile; 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2 md:col-span-2">
             <Label>Email</Label>
-            <Input value={user.username?.includes("@") ? user.username : ""} disabled className="bg-muted" />
+            <Input value={user.email} disabled className="bg-muted" />
             <p className="text-xs text-muted-foreground">Email cannot be changed after creation</p>
           </div>
           <div className="space-y-2">
@@ -375,11 +411,23 @@ function EditUserDialog({ user, employee, role, onSaved }: { user: UserProfile; 
           </div>
           <div className="space-y-2">
             <Label>Role</Label>
-            <Select value={selectedRole} onValueChange={setSelectedRole}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select value={roleId} onValueChange={setRoleId}>
+              <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
               <SelectContent>
-                {ROLE_OPTIONS.map((r) => (
-                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                {roles.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Reporting Manager</Label>
+            <Select value={managerId} onValueChange={setManagerId}>
+              <SelectTrigger><SelectValue placeholder="Select manager" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— None —</SelectItem>
+                {managerOptions.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -412,35 +460,29 @@ function EditUserDialog({ user, employee, role, onSaved }: { user: UserProfile; 
   );
 }
 
-
-function UserHierarchy({ profiles, employees, roles }: { profiles: UserProfile[]; employees: Employee[]; roles: UserRole[] }) {
+// User Hierarchy
+function UserHierarchy({ users, roles }: { users: AppUser[]; roles: Role[] }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  // Build tree: find users with no manager (top level)
-  const topLevel = profiles.filter((p) => {
-    const emp = employees.find((e) => e.user_id === p.id);
-    return !emp?.manager_id;
-  });
+  const roleMap = new Map(roles.map((r) => [r.id, r.name]));
 
-  const getChildren = (managerId: string) => {
-    return profiles.filter((p) => {
-      const emp = employees.find((e) => e.user_id === p.id);
-      return emp?.manager_id === managerId;
-    });
-  };
+  const topLevel = users.filter((u) => !u.reporting_manager_id && u.is_active);
+
+  const getChildren = (managerId: string) =>
+    users.filter((u) => u.reporting_manager_id === managerId && u.is_active);
 
   const toggleExpand = (id: string) => {
-    const newExpanded = new Set(expanded);
-    if (newExpanded.has(id)) newExpanded.delete(id);
-    else newExpanded.add(id);
-    setExpanded(newExpanded);
+    const next = new Set(expanded);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setExpanded(next);
   };
 
-  const renderNode = (user: UserProfile, level: number) => {
+  const renderNode = (user: AppUser, level: number) => {
     const children = getChildren(user.id);
     const hasChildren = children.length > 0;
     const isExpanded = expanded.has(user.id);
-    const role = roles.find((r) => r.user_id === user.id);
+    const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
 
     return (
       <div key={user.id} style={{ marginLeft: level * 24 }}>
@@ -454,13 +496,13 @@ function UserHierarchy({ profiles, employees, roles }: { profiles: UserProfile[]
             <div className="w-4" />
           )}
           <Avatar className="h-8 w-8">
-            <AvatarFallback className={role?.role === "admin" ? "bg-accent text-accent-foreground" : "bg-primary text-primary-foreground"}>
+            <AvatarFallback className={roleName === "Admin" ? "bg-accent text-accent-foreground" : "bg-primary text-primary-foreground"}>
               {(user.full_name || "U").charAt(0)}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user.full_name || user.username}</p>
-            <p className="text-xs text-muted-foreground">{role?.role || "user"}</p>
+            <p className="text-sm font-medium truncate">{user.full_name || user.email}</p>
+            <p className="text-xs text-muted-foreground">{roleName}</p>
           </div>
           {hasChildren && <Badge variant="secondary" className="text-xs">{children.length}</Badge>}
         </div>
@@ -469,7 +511,7 @@ function UserHierarchy({ profiles, employees, roles }: { profiles: UserProfile[]
     );
   };
 
-  if (profiles.length === 0) {
+  if (users.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <Network className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -489,57 +531,56 @@ export default function AdminUserManagement() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("users");
-  const [deleteTarget, setDeleteTarget] = useState<UserProfile | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
 
-  const { data: profiles = [], isLoading: profilesLoading } = useProfiles();
+  const { data: appUsers = [], isLoading: usersLoading } = useAppUsers();
   const { data: employees = [] } = useEmployees();
-  const { data: userRoles = [] } = useUserRoles();
-  const { data: securityProfiles = [] } = useSecurityProfiles();
+  const { data: roles = [] } = useRoles();
+  const { data: profiles = [] } = useProfiles();
 
   const queryClient = useQueryClient();
 
-  const filteredProfiles = profiles.filter(
-    (p) =>
-      (p.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.username || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.phone_number || "").toLowerCase().includes(searchQuery.toLowerCase())
+  const roleMap = new Map(roles.map((r) => [r.id, r.name]));
+
+  const filteredUsers = appUsers.filter(
+    (u) =>
+      (u.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.phone || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const toggleStatus = useMutation({
-    mutationFn: async ({ userId, newStatus }: { userId: string; newStatus: string }) => {
-      const { error } = await supabase.from("profiles").update({ user_status: newStatus }).eq("id", userId);
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["admin-app-users"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-employees"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+  };
+
+  const toggleActive = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      const { error } = await supabase.from("users").update({ is_active: isActive }).eq("id", userId);
       if (error) throw error;
+      // Sync profile status
+      await supabase.from("profiles").update({ user_status: isActive ? "active" : "inactive" }).eq("id", userId);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
-      toast.success("User status updated");
-    },
+    onSuccess: () => { invalidateAll(); toast.success("User status updated"); },
     onError: (err: any) => toast.error(err.message),
   });
 
   const deleteUser = useMutation({
     mutationFn: async (userId: string) => {
-      // Delete employee, user_roles, profiles records (cascade from auth handled by trigger)
       await supabase.from("employees").delete().eq("user_id", userId);
       await supabase.from("user_roles").delete().eq("user_id", userId);
       await supabase.from("users").delete().eq("id", userId);
-      const { error } = await supabase.from("profiles").update({ user_status: "deleted" }).eq("id", userId);
-      if (error) throw error;
+      await supabase.from("profiles").update({ user_status: "deleted" }).eq("id", userId);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-employees"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-user-roles"] });
-      toast.success("User deleted");
-      setDeleteTarget(null);
-    },
+    onSuccess: () => { invalidateAll(); toast.success("User deleted"); setDeleteTarget(null); },
     onError: (err: any) => toast.error(err.message),
   });
 
   const stats = {
-    total: profiles.length,
-    active: profiles.filter((p) => p.user_status === "active").length,
-    admins: userRoles.filter((r) => r.role === "admin").length,
+    total: appUsers.length,
+    active: appUsers.filter((u) => u.is_active).length,
+    admins: appUsers.filter((u) => u.role_id && roleMap.get(u.role_id) === "Admin").length,
   };
 
   return (
@@ -597,9 +638,9 @@ export default function AdminUserManagement() {
             <Input placeholder="Search users..." className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
 
-          {profilesLoading ? (
+          {usersLoading ? (
             <div className="text-center py-12 text-muted-foreground">Loading users...</div>
-          ) : filteredProfiles.length === 0 ? (
+          ) : filteredUsers.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>No users found. Create your first user in the "Create" tab.</p>
@@ -611,45 +652,49 @@ export default function AdminUserManagement() {
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead className="hidden md:table-cell">Role</TableHead>
-                    <TableHead className="hidden md:table-cell">HQ</TableHead>
+                    <TableHead className="hidden md:table-cell">Manager</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[80px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProfiles.map((user) => {
+                  {filteredUsers.map((user) => {
                     const employee = employees.find((e) => e.user_id === user.id);
-                    const role = userRoles.find((r) => r.user_id === user.id);
+                    const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
+                    const manager = user.reporting_manager_id ? appUsers.find((u) => u.id === user.reporting_manager_id) : null;
+                    const profile = profiles.find((p) => p.id === user.id);
                     return (
                       <TableRow key={user.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar className="h-9 w-9">
-                              <AvatarImage src={user.profile_picture_url || undefined} />
+                              <AvatarImage src={profile?.profile_picture_url || undefined} />
                               <AvatarFallback className="gradient-hero text-primary-foreground text-xs">
-                                {(user.full_name || user.username || "U").charAt(0).toUpperCase()}
+                                {(user.full_name || user.email || "U").charAt(0).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
                               <p className="text-sm font-medium truncate">{user.full_name || "—"}</p>
-                              <p className="text-xs text-muted-foreground truncate">@{user.username || "—"}</p>
+                              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          <Badge variant={role?.role === "admin" ? "default" : "outline"} className="text-xs">
-                            {roleLabelMap[role?.role || "user"] || role?.role || "user"}
+                          <Badge variant={roleName === "Admin" ? "default" : "outline"} className="text-xs">
+                            {roleName}
                           </Badge>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell text-sm">{employee?.hq || "—"}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">
+                          {manager?.full_name || manager?.email || "—"}
+                        </TableCell>
                         <TableCell>
-                          <Badge variant={user.user_status === "active" ? "default" : "secondary"} className="text-xs">
-                            {user.user_status}
+                          <Badge variant={user.is_active ? "default" : "secondary"} className="text-xs">
+                            {user.is_active ? "Active" : "Inactive"}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
-                            <UserDetailDialog user={user} employee={employee} role={role?.role} />
+                            <UserDetailDialog user={user} employee={employee} roleName={roleName} />
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
@@ -658,20 +703,17 @@ export default function AdminUserManagement() {
                                 <EditUserDialog
                                   user={user}
                                   employee={employee}
-                                  role={role?.role}
-                                  onSaved={() => {
-                                    queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
-                                    queryClient.invalidateQueries({ queryKey: ["admin-employees"] });
-                                    queryClient.invalidateQueries({ queryKey: ["admin-user-roles"] });
-                                  }}
+                                  roles={roles}
+                                  allUsers={appUsers}
+                                  onSaved={invalidateAll}
                                 />
                                 <DropdownMenuItem
-                                  onClick={() => toggleStatus.mutate({
+                                  onClick={() => toggleActive.mutate({
                                     userId: user.id,
-                                    newStatus: user.user_status === "active" ? "inactive" : "active",
+                                    isActive: !user.is_active,
                                   })}
                                 >
-                                  {user.user_status === "active" ? "Deactivate" : "Activate"}
+                                  {user.is_active ? "Deactivate" : "Activate"}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="text-destructive focus:text-destructive"
@@ -699,7 +741,7 @@ export default function AdminUserManagement() {
               <CardTitle className="text-lg">Create New User</CardTitle>
             </CardHeader>
             <CardContent>
-              <CreateUserForm onSuccess={() => setActiveTab("users")} />
+              <CreateUserForm roles={roles} onSuccess={() => setActiveTab("users")} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -711,7 +753,7 @@ export default function AdminUserManagement() {
               <CardTitle className="text-lg">Organization Hierarchy</CardTitle>
             </CardHeader>
             <CardContent>
-              <UserHierarchy profiles={profiles} employees={employees} roles={userRoles} />
+              <UserHierarchy users={appUsers} roles={roles} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -720,20 +762,19 @@ export default function AdminUserManagement() {
         <TabsContent value="roles">
           <Card className="shadow-card">
             <CardHeader>
-              <CardTitle className="text-lg">Security Profiles</CardTitle>
+              <CardTitle className="text-lg">Roles</CardTitle>
             </CardHeader>
             <CardContent>
-              {securityProfiles.length === 0 ? (
-                <p className="text-center py-8 text-muted-foreground">No security profiles configured.</p>
+              {roles.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">No roles configured.</p>
               ) : (
                 <div className="space-y-3">
-                  {securityProfiles.map((sp) => (
-                    <div key={sp.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  {roles.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border">
                       <div>
-                        <p className="font-medium text-sm">{sp.name}</p>
-                        <p className="text-xs text-muted-foreground">{sp.description}</p>
+                        <p className="font-medium text-sm">{r.name}</p>
                       </div>
-                      {sp.is_system && <Badge variant="outline" className="text-xs">System</Badge>}
+                      {r.is_system && <Badge variant="outline" className="text-xs">System</Badge>}
                     </div>
                   ))}
                 </div>
@@ -749,7 +790,7 @@ export default function AdminUserManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{deleteTarget?.full_name || deleteTarget?.username}</strong>? This action cannot be undone.
+              Are you sure you want to delete <strong>{deleteTarget?.full_name || deleteTarget?.email}</strong>? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
