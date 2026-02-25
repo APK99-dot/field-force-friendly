@@ -1,6 +1,7 @@
 import {
   Home,
   Clock,
+  FolderKanban,
   MoreHorizontal,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -8,6 +9,7 @@ import { NavLink } from "@/components/NavLink";
 const tabs = [
   { label: "Home", icon: Home, to: "/dashboard" },
   { label: "Attendance", icon: Clock, to: "/attendance" },
+  { label: "Projects", icon: FolderKanban, to: "/projects" },
   { label: "More", icon: MoreHorizontal, to: "/more" },
 ];
 
