@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,19 +12,85 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MapPin, AlertTriangle, RefreshCw } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-
-// Fix default marker icons
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-});
 
 type DateRange = "today" | "week" | "month";
+
+// Lazy-load leaflet to avoid cleanup issues
+function LeafletMap({ location }: { location: { lat: number; lng: number } | null }) {
+  const mapRef = useRef<any>(null);
+  const [leafletReady, setLeafletReady] = useState(false);
+  const [modules, setModules] = useState<{
+    MapContainer: any;
+    TileLayer: any;
+    Marker: any;
+    Popup: any;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      import("react-leaflet"),
+      import("leaflet"),
+    ]).then(([rl, L]) => {
+      if (cancelled) return;
+      delete (L.default.Icon.Default.prototype as any)._getIconUrl;
+      L.default.Icon.Default.mergeOptions({
+        iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+        iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+      });
+      setModules({
+        MapContainer: rl.MapContainer,
+        TileLayer: rl.TileLayer,
+        Marker: rl.Marker,
+        Popup: rl.Popup,
+      });
+      setLeafletReady(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      // Clean up map instance on unmount
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []);
+
+  if (!leafletReady || !modules) {
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-muted">
+        <p className="text-sm text-muted-foreground">Loading map...</p>
+      </div>
+    );
+  }
+
+  const { MapContainer, TileLayer, Marker, Popup } = modules;
+
+  return (
+    <MapContainer
+      center={location ? [location.lat, location.lng] : [22.5, 78.9]}
+      zoom={location ? 14 : 5}
+      className="h-full w-full z-0"
+      scrollWheelZoom
+      ref={(map: any) => { mapRef.current = map; }}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://osm.org">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      {location && (
+        <Marker position={[location.lat, location.lng]}>
+          <Popup>Your current location</Popup>
+        </Marker>
+      )}
+    </MapContainer>
+  );
+}
 
 export default function GPSTracking() {
   const [activeTab, setActiveTab] = useState("current");
@@ -112,22 +178,7 @@ export default function GPSTracking() {
           <Card className="shadow-card overflow-hidden">
             <CardContent className="p-0">
               <div className="h-[400px] relative">
-                <MapContainer
-                  center={location ? [location.lat, location.lng] : [22.5, 78.9]}
-                  zoom={location ? 14 : 5}
-                  className="h-full w-full z-0"
-                  scrollWheelZoom
-                >
-                  <TileLayer
-                    attribution='&copy; <a href="https://osm.org">OpenStreetMap</a>'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-                  {location && (
-                    <Marker position={[location.lat, location.lng]}>
-                      <Popup>Your current location</Popup>
-                    </Marker>
-                  )}
-                </MapContainer>
+                <LeafletMap location={location} />
 
                 {/* Location Error Overlay */}
                 {locationError && (
