@@ -356,6 +356,11 @@ function EditUserDialog({ user, employee, role, onSaved }: { user: UserProfile; 
           <DialogDescription>Update user profile and role</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2 md:col-span-2">
+            <Label>Email</Label>
+            <Input value={user.username?.includes("@") ? user.username : ""} disabled className="bg-muted" />
+            <p className="text-xs text-muted-foreground">Email cannot be changed after creation</p>
+          </div>
           <div className="space-y-2">
             <Label>Full Name</Label>
             <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
