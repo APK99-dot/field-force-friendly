@@ -18,7 +18,7 @@ interface LeaveBalance {
 
 const LeaveBalancesManager = () => {
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
-  const [leaveTypes, setLeaveTypes] = useState<{ id: string; name: string }[]>([]);
+  const [leaveTypes, setLeaveTypes] = useState<{ id: string; name: string; annual_quota: number; accrual_type: string }[]>([]);
   const [users, setUsers] = useState<{ id: string; full_name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,7 +38,7 @@ const LeaveBalancesManager = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const { data: ltData } = await supabase.from('leave_types').select('*').order('name');
+      const { data: ltData } = await supabase.from('leave_types').select('id, name, annual_quota, accrual_type').eq('is_active', true).order('name');
       const { data: usersData } = await supabase.from('profiles').select('id, full_name').order('full_name');
       setLeaveTypes(ltData || []);
       setUsers(usersData || []);
@@ -58,20 +58,24 @@ const LeaveBalancesManager = () => {
   const handleInitializeBalances = async () => {
     setIsInitializing(true);
     try {
-      const { data: policies } = await supabase.from('leave_policy').select('*').eq('is_active', true);
-      if (!policies?.length) { toast.error('No active leave policies found.'); return; }
+      if (!leaveTypes.length) { toast.error('No active leave types found.'); return; }
       const { data: activeUsers } = await supabase.from('profiles').select('id').eq('user_status', 'active');
       if (!activeUsers?.length) { toast.error('No active users found'); return; }
 
       const year = parseInt(filterYear);
       const monthsElapsed = year === currentYear ? new Date().getMonth() + 1 : 12;
-      const inserts = activeUsers.flatMap(user => policies.map(policy => ({
-        user_id: user.id, leave_type_id: policy.leave_type_id,
-        opening_balance: policy.accrual_type === 'monthly' ? Math.round(monthsElapsed * (policy.yearly_entitlement / 12)) : policy.yearly_entitlement,
-        used_balance: 0, year,
-      })));
+      const inserts = activeUsers.flatMap(user => leaveTypes.map(lt => {
+        const allocatedBalance = lt.accrual_type === 'monthly'
+          ? Math.round(monthsElapsed * (lt.annual_quota / 12))
+          : lt.annual_quota;
+        return {
+          user_id: user.id, leave_type_id: lt.id,
+          opening_balance: allocatedBalance,
+          used_balance: 0, year,
+        };
+      }));
 
-      const { error } = await supabase.from('leave_balance').upsert(inserts, { onConflict: 'user_id,leave_type_id,year', ignoreDuplicates: true });
+      const { error } = await supabase.from('leave_balance').upsert(inserts, { onConflict: 'user_id,leave_type_id,year', ignoreDuplicates: false });
       if (error) throw error;
       toast.success(`Initialized balances for ${activeUsers.length} users`);
       fetchData();
@@ -89,9 +93,15 @@ const LeaveBalancesManager = () => {
         const days = Math.ceil((new Date(app.to_date).getTime() - new Date(app.from_date).getTime()) / (1000 * 60 * 60 * 24)) + 1;
         usedDaysMap[key] = (usedDaysMap[key] || 0) + days;
       }
+      const monthsElapsed = year === currentYear ? new Date().getMonth() + 1 : 12;
       for (const balance of balances) {
         const key = `${balance.user_id}_${balance.leave_type_id}`;
-        await supabase.from('leave_balance').update({ used_balance: usedDaysMap[key] || 0 }).eq('id', balance.id);
+        const lt = leaveTypes.find(l => l.id === balance.leave_type_id);
+        const allocatedBalance = lt
+          ? (lt.accrual_type === 'monthly' ? Math.round(monthsElapsed * (lt.annual_quota / 12)) : lt.annual_quota)
+          : balance.opening_balance;
+        const usedBalance = usedDaysMap[key] || 0;
+        await supabase.from('leave_balance').update({ opening_balance: allocatedBalance, used_balance: usedBalance }).eq('id', balance.id);
       }
       toast.success('Balances recalculated successfully');
       fetchData();

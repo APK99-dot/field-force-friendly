@@ -712,6 +712,8 @@ export type Database = {
       }
       leave_types: {
         Row: {
+          accrual_type: string
+          annual_quota: number
           created_at: string
           description: string | null
           id: string
@@ -720,6 +722,8 @@ export type Database = {
           name: string
         }
         Insert: {
+          accrual_type?: string
+          annual_quota?: number
           created_at?: string
           description?: string | null
           id?: string
@@ -728,6 +732,8 @@ export type Database = {
           name: string
         }
         Update: {
+          accrual_type?: string
+          annual_quota?: number
           created_at?: string
           description?: string | null
           id?: string
