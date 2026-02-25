@@ -1,102 +1,152 @@
 
 
-# Plan: Copy Attendance Module Exactly from Staging – QuickApp
+# Plan: Copy Projects Module from Staging-QuickApp
 
-After a thorough line-by-line comparison between the staging project and the current implementation, the current versions are already functionally close but have significant UI and feature gaps versus the staging originals. Below is the exact list of changes needed.
+## Overview
 
----
+The staging project has a full-featured **Project Management (PM) module** with 20+ database tables, 30+ component files, and 2 hook files. This is a substantial module covering projects, tasks, Kanban boards, sprints, milestones, Gantt charts, timesheets, risks, templates, and more.
 
-## Current State vs Staging — Gap Analysis
+## What Needs to Be Created
 
-### `AttendanceManagement.tsx` (Admin Page)
+### 1. Database Schema (Migration)
 
-| Feature | Staging | Current | Gap |
-|---|---|---|---|
-| Tab style | Custom button tabs with icons (pill-style, scrollable) | Radix TabsList (wrapped, no icons) | Needs rewrite to button tabs |
-| User filter dropdown | On Leave & Regularization tabs, filters by employee | Missing | Add |
-| Leave table columns | Employee, Leave Type, Start Date, End Date, Reason, Applied Date, Status, Actions | Employee, Type, From, To, Days, Status, Actions | Missing Reason, Applied Date columns; column labels differ |
-| Leave date columns | Uses `start_date`/`end_date` | Uses `from_date`/`to_date` | Need to use `from_date`/`to_date` (correct for our schema) |
-| Regularization total_hours calc | Calculates total_hours on approval; uses upsert with `onConflict: 'user_id,date'` | No total_hours calc; uses manual check + insert/update | Upgrade logic |
-| Regularization adds `notes` field | `Regularized via request #xxx` | No notes | Add |
-| Data fetching pattern | useState + useEffect with manual fetch | React Query | Keep React Query (improvement over staging) |
+Create all PM-related tables, enums, and RLS policies. The staging project uses these tables:
 
-### `Attendance.tsx` (User Page)
+**Core Tables:**
+- `pm_projects` -- Projects with status, priority, budget, dates, owner, color, template flag
+- `pm_tasks` -- Tasks with status, priority, assignee, sprint, milestone, section, subtasks, tags, story points
+- `pm_sections` -- Kanban board sections per project
+- `pm_sprints` -- Sprint planning per project
+- `pm_milestones` -- Project milestones with due dates
 
-| Feature | Staging | Current | Gap |
-|---|---|---|---|
-| Summary cards | 2 cards: Attendance %, Present/Total | 3 cards: Attendance %, Present, Absent | Match staging layout |
-| Present/Absent clickable dialogs | Click card to see list of dates | Missing | Add |
-| Market Hours | Full Card with 3 columns: First Check In, Active Market Hours, Last Check Out | Compact single-row card | Rewrite to match staging |
-| Attendance history list | Scrollable list of records with status badges, regularization button per record, date filter | Missing (only calendar view) | Add as "My Attendance" tab |
-| Tab structure | 3 tabs: My Attendance (history list), Leave (balances + applications), Holiday (list) | 3 tabs: Calendar, Leaves, Applications | Restructure to match staging |
-| Calendar view | Inside "My Attendance" section above the history list, with present/absent summary cards | Standalone tab | Move to above history |
-| Date filter | Select: This Month / Last Month | None | Add |
-| Manager "My Team" tab | Segmented control for managers | Missing | Skip (requires `useSubordinates` hook not ported yet) |
-| GPS/Camera/Face verification | Present in staging | Already excluded per plan | No change |
+**Supporting Tables:**
+- `pm_task_attachments` -- File attachments on tasks
+- `pm_task_dependencies` -- Task-to-task dependency links
+- `pm_task_collaborators` -- Multiple collaborators per task
+- `pm_task_comments` -- Comments on tasks
+- `pm_time_logs` -- Time tracking per task
+- `pm_project_members` -- Project membership with roles
+- `pm_project_resources` -- Resource allocation with rates
+- `pm_risks` -- Risk register per project
 
-### `LiveAttendanceMonitoring.tsx`
+**Template System:**
+- `pm_templates` -- Reusable project templates
+- `pm_template_sections` -- Template sections
+- `pm_template_tasks` -- Template tasks with duration_days
+- `pm_template_dependencies` -- Template task dependencies
+- `pm_template_attachments` -- Template task attachments
+- `pm_task_templates` -- Standalone task templates
 
-| Feature | Staging | Current | Gap |
-|---|---|---|---|
-| User checkbox selection | Multi-select user filter with checkboxes | Missing | Add |
-| Face match badges | Columns for face verification confidence | Missing | Skip (face verification not ported) |
-| Visit data columns | First/Last visit check-in columns | Missing | Skip (visit-specific, different scope) |
-| AttendanceDetailsDialog | Click summary cards to see details | Missing | Skip for now |
-| Real-time subscription | Subscribes to attendance table changes | Already implemented | No change |
+**AI/Extended Features:**
+- `pm_ai_insights` -- AI-generated project insights
+- `pm_ideas` -- Idea submissions per project
+- `pm_knowledge_documents` -- Knowledge base per project
+- `pm_support_requests` -- Support requests per project
 
----
+**Enums to create:**
+- `pm_priority`: critical, high, medium, low
+- `pm_project_status`: planning, active, on_hold, completed, cancelled
+- `pm_task_status`: backlog, todo, in_progress, in_review, done, cancelled, overdue
+- `pm_task_type`: epic, story, task, bug, idea, milestone
+- `pm_sprint_status`: planning, active, completed, cancelled
+- `pm_member_role`: owner, manager, developer, designer, tester, viewer
 
-## Changes to Implement
+**Storage bucket:**
+- `pm-attachments` -- For task file attachments
 
-### 1. Rewrite `AttendanceManagement.tsx`
+**RLS Policies:** All tables will have admin full-access and user-level read/write policies based on project membership or ownership.
 
-Port the staging version's UI exactly:
-- Custom button tabs (scrollable, pill-style with icons) instead of Radix Tabs
-- Add user filter dropdown on Leave and Regularization tabs
-- Add "Reason" and "Applied Date" columns to leave table
-- Use `from_date`/`to_date` column names (matching our schema)
-- Upgrade regularization approval: calculate `total_hours`, use `upsert` with `onConflict`, add `notes` field
-- Use separate profile/leave-type fetch + manual join pattern (matching staging's approach)
-- Use `useState` + `useEffect` fetch pattern to match staging exactly
+### 2. Hooks (2 files)
 
-### 2. Rewrite `Attendance.tsx`
+- `src/hooks/useProjects.ts` (~755 lines) -- All CRUD hooks for projects, tasks, sections, sprints, milestones, risks, time logs, attachments, dependencies, collaborators
+- `src/hooks/useTemplates.ts` -- All CRUD hooks for the template system
 
-Port the staging version's UI:
-- 2-card summary layout (Attendance %, Present/Total) instead of 3-card
-- Clickable Present/Absent cards that open Dialog with date lists
-- Market Hours as full 3-column Card (First Check In, Active Market Hours, Last Check Out)
-- Restructure tabs to: My Attendance (calendar + history list), Leave (balances + applications), Holiday
-- Add attendance history list with per-record regularization buttons, status badges, date info
-- Add date filter (This Month / Last Month) on the history list
-- Keep existing check-in/check-out logic unchanged
+**Adaptation needed:** The staging uses `useAuth()` from a custom AuthProvider. This project does not have that hook. Will replace with `supabase.auth.getUser()` calls inline (same pattern used elsewhere in this project).
 
-### 3. Minor updates to `LiveAttendanceMonitoring.tsx`
+### 3. Components (29 files in `src/components/pm/`)
 
-- Add user checkbox multi-select filter (matching staging)
-- Keep existing summary cards and table structure (already close to staging)
+- `CreateProjectModal.tsx` -- Project creation form with template selection
+- `CreateTaskModal.tsx` -- Task creation with owner picker, collaborators, tags
+- `KanbanBoard.tsx` -- Drag-and-drop board grouped by section/status/priority/assignee
+- `BacklogView.tsx` -- Work plan / list view of tasks
+- `CalendarView.tsx` -- Calendar display of tasks by due date
+- `GanttChart.tsx` -- Gantt timeline view
+- `TimesheetView.tsx` -- Time logging interface
+- `SprintsPanel.tsx` -- Sprint management
+- `MilestonesPanel.tsx` -- Milestone tracking
+- `RisksPanel.tsx` -- Risk register
+- `ProjectOverview.tsx` -- Dashboard/summary view
+- `TaskDetailPanel.tsx` -- Slide-over task detail editor
+- `TaskStatusBadge.tsx` -- Status/priority badge components
+- `TaskSubtasks.tsx` -- Subtask management
+- `TaskAttachments.tsx` -- File attachment management
+- `TaskDependencies.tsx` -- Dependency management
+- `TaskTimesheetSection.tsx` -- Time logging in task detail
+- `ResourcesPanel.tsx` -- Resource allocation panel
+- `MultiUserPicker.tsx` -- Multi-user selector component
+- `IdeasPanel.tsx` -- Ideas submission and management
+- `KnowledgePanel.tsx` -- Knowledge base document management
+- `SupportPanel.tsx` -- Support request management
+- `AIDescriptionWriter.tsx` -- AI-powered task description
+- `AIHealthCheck.tsx` -- AI project health analysis
+- `AIKnowledgeAssistant.tsx` -- AI knowledge Q&A
+- `AIRiskPredictor.tsx` -- AI risk prediction
+- `AISubtaskGenerator.tsx` -- AI subtask generation
+- `AIWorkloadAnalysis.tsx` -- AI workload analysis
+- `TemplateWorkPlanView.tsx` -- Template work plan viewer
 
----
+### 4. Pages (5 files in `src/pages/pm/`)
 
-## Files Modified
+- `ProjectsPage.tsx` -- Project listing with stats, search, filters, grid cards
+- `ProjectDetailPage.tsx` -- Full project workspace with tabbed views (Board, Work Plan, Calendar, Gantt, Timesheet, Sprints, Resources, Overview, Risks, Ideas, Knowledge, Support, Templates)
+- `TemplatesPage.tsx` -- Template listing
+- `TemplateBuilderPage.tsx` -- Template editor
+- `ResourceDetailPage.tsx` -- Resource detail view
 
-1. `src/pages/AttendanceManagement.tsx` — Complete rewrite to match staging UI/logic
-2. `src/pages/Attendance.tsx` — Complete rewrite to match staging UI/logic  
-3. `src/components/LiveAttendanceMonitoring.tsx` — Add user checkbox filter
+### 5. Routing Updates
 
-## Files NOT Changed
+Add routes in `App.tsx`:
+- `/projects` -- ProjectsPage
+- `/projects/:id` -- ProjectDetailPage
+- `/templates` -- TemplatesPage
+- `/templates/:id` -- TemplateBuilderPage
 
-- `src/hooks/useAttendance.ts` — Already functional, no changes needed
-- `src/components/attendance/AttendanceCalendarView.tsx` — Already matches staging
-- `src/components/RegularizationRequestModal.tsx` — Already matches staging
-- `src/components/LeaveBalanceCards.tsx` — Already matches staging
-- `src/components/MyLeaveApplications.tsx` — Already matches staging
-- All admin sub-components (HolidayManagement, LeaveTypesManager, etc.) — Already ported
+### 6. Navigation Updates
 
-## Database Changes
+- Add "Projects" entry to Admin Controls module grid in `AdminControls.tsx`
+- Optionally add to bottom navigation or More page
 
-None required — schema already has all needed columns.
+## Implementation Approach
 
-## Estimated Scope
+Due to the massive size of this module (~30+ files, ~5000+ lines of code, 20+ database tables), implementation will be done in phases:
 
-3 files modified, ~1500 lines of UI code adapted from staging with infrastructure substitutions (no i18n, no face matching, no offline storage, `from_date`/`to_date` instead of `start_date`/`end_date`).
+**Phase 1:** Database migration (all tables, enums, RLS, storage bucket)
+**Phase 2:** Hooks (`useProjects.ts`, `useTemplates.ts`) adapted for this project (no `useAuth`, use direct `supabase.auth.getUser()`)
+**Phase 3:** Core components (CreateProjectModal, KanbanBoard, TaskDetailPanel, TaskStatusBadge, MultiUserPicker)
+**Phase 4:** Pages (ProjectsPage, ProjectDetailPage) and routing
+**Phase 5:** Remaining components (Gantt, Calendar, Backlog, Sprints, Milestones, Risks, Timesheet, Resources)
+**Phase 6:** Template system components and AI features
+**Phase 7:** Navigation integration
+
+## Technical Details
+
+```text
+Staging Structure:
+src/
+  hooks/
+    useProjects.ts (755 lines - all PM CRUD hooks)
+    useTemplates.ts (~300 lines - template CRUD hooks)
+  components/pm/
+    29 component files
+  pages/pm/
+    5 page files
+
+Current Project Adaptation:
+- Replace useAuth() → supabase.auth.getUser()
+- Replace <Layout> wrapper → use existing AppLayout (already via routes)
+- All foreign keys reference profiles.id (already exists in current project)
+- Storage bucket pm-attachments needs creation
+```
+
+**Estimated total:** ~20+ database tables, ~36 new files, ~8000+ lines of code
 
