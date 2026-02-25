@@ -55,6 +55,16 @@ const LeaveBalancesManager = () => {
     } catch (error) { toast.error('Failed to load leave balances'); } finally { setIsLoading(false); }
   };
 
+  // Core calculation: derive allocated balance from annual_quota and accrual_type
+  const calculateAllocatedBalance = (annualQuota: number, accrualType: string, year: number): number => {
+    if (accrualType === 'monthly') {
+      const monthlyAccrual = annualQuota / 12;
+      const currentMonth = year === currentYear ? new Date().getMonth() + 1 : 12;
+      return Math.floor(monthlyAccrual * currentMonth);
+    }
+    return annualQuota;
+  };
+
   const handleInitializeBalances = async () => {
     setIsInitializing(true);
     try {
@@ -63,11 +73,8 @@ const LeaveBalancesManager = () => {
       if (!activeUsers?.length) { toast.error('No active users found'); return; }
 
       const year = parseInt(filterYear);
-      const monthsElapsed = year === currentYear ? new Date().getMonth() + 1 : 12;
       const inserts = activeUsers.flatMap(user => leaveTypes.map(lt => {
-        const allocatedBalance = lt.accrual_type === 'monthly'
-          ? Math.round(monthsElapsed * (lt.annual_quota / 12))
-          : lt.annual_quota;
+        const allocatedBalance = calculateAllocatedBalance(lt.annual_quota, lt.accrual_type, year);
         return {
           user_id: user.id, leave_type_id: lt.id,
           opening_balance: allocatedBalance,
@@ -86,19 +93,19 @@ const LeaveBalancesManager = () => {
     setIsInitializing(true);
     try {
       const year = parseInt(filterYear);
-      const { data: applications } = await supabase.from('leave_applications').select('user_id, leave_type_id, from_date, to_date').eq('status', 'approved').gte('from_date', `${year}-01-01`).lte('to_date', `${year}-12-31`);
+      // Fetch approved leave applications for the year to calculate used days
+      const { data: applications } = await supabase.from('leave_applications').select('user_id, leave_type_id, total_days').eq('status', 'approved').gte('from_date', `${year}-01-01`).lte('to_date', `${year}-12-31`);
       const usedDaysMap: Record<string, number> = {};
       for (const app of applications || []) {
         const key = `${app.user_id}_${app.leave_type_id}`;
-        const days = Math.ceil((new Date(app.to_date).getTime() - new Date(app.from_date).getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        usedDaysMap[key] = (usedDaysMap[key] || 0) + days;
+        usedDaysMap[key] = (usedDaysMap[key] || 0) + Number(app.total_days || 0);
       }
-      const monthsElapsed = year === currentYear ? new Date().getMonth() + 1 : 12;
+      // Recalculate each balance row
       for (const balance of balances) {
         const key = `${balance.user_id}_${balance.leave_type_id}`;
         const lt = leaveTypes.find(l => l.id === balance.leave_type_id);
         const allocatedBalance = lt
-          ? (lt.accrual_type === 'monthly' ? Math.round(monthsElapsed * (lt.annual_quota / 12)) : lt.annual_quota)
+          ? calculateAllocatedBalance(lt.annual_quota, lt.accrual_type, year)
           : balance.opening_balance;
         const usedBalance = usedDaysMap[key] || 0;
         await supabase.from('leave_balance').update({ opening_balance: allocatedBalance, used_balance: usedBalance }).eq('id', balance.id);
