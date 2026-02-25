@@ -244,7 +244,7 @@ async function applyTemplate(projectId: string, templateId: string, startDate: D
         sort_order: t.sort_order,
         tags: t.tags,
         created_by: (await supabase.auth.getUser()).data.user!.id,
-      }).select().single();
+      } as any).select().single();
 
       if (data) {
         taskMap.set(t.id, data.id);
@@ -277,7 +277,7 @@ async function applyTemplate(projectId: string, templateId: string, startDate: D
         sort_order: t.sort_order,
         tags: t.tags,
         created_by: (await supabase.auth.getUser()).data.user!.id,
-      }).select().single();
+      } as any).select().single();
 
       if (data) {
         taskMap.set(t.id, data.id);
