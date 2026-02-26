@@ -9,7 +9,7 @@ import { useProjects, useDeleteProject } from "@/hooks/useProjects";
 import { CreateProjectModal } from "@/components/pm/CreateProjectModal";
 import {
   Plus, Search, FolderKanban, Calendar, Clock,
-  ChevronRight, Trash2, MoreVertical, Filter
+  ChevronRight, Trash2, MoreVertical, Filter, Layers
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
@@ -60,9 +60,14 @@ export default function ProjectsPage() {
             </h1>
             <p className="text-muted-foreground text-sm mt-0.5">Manage all your projects and track progress</p>
           </div>
-          <Button onClick={() => setShowCreate(true)} className="gap-2">
-            <Plus className="w-4 h-4" /> New Project
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate("/templates")} className="gap-2">
+              <Layers className="w-4 h-4" /> Templates
+            </Button>
+            <Button onClick={() => setShowCreate(true)} className="gap-2">
+              <Plus className="w-4 h-4" /> New Project
+            </Button>
+          </div>
         </div>
 
         {/* Summary Stats */}
