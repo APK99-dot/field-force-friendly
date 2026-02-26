@@ -20,6 +20,7 @@ import CompanyProfile from "./pages/CompanyProfile";
 import NotFound from "./pages/NotFound";
 import ProjectsPage from "./pages/Projects";
 import ProjectDetailPage from "./pages/ProjectDetail";
+import TemplatesPage from "./pages/Templates";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,8 @@ const App = () => (
             <Route path="/admin/company" element={<CompanyProfile />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
+            <Route path="/templates" element={<TemplatesPage />} />
+            <Route path="/templates/:id" element={<TemplatesPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
