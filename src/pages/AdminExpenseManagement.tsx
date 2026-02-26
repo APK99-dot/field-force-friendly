@@ -1,105 +1,154 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import ProductivityTracking from "@/components/ProductivityTracking";
+
+interface ExpenseMasterConfig {
+  id: string;
+  ta_type: string;
+  fixed_ta_amount: number;
+  da_type: string;
+  fixed_da_amount: number;
+}
 
 export default function AdminExpenseManagement() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const [config, setConfig] = useState<ExpenseMasterConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const expensesQuery = useQuery({
-    queryKey: ["admin-all-expenses"],
-    queryFn: async () => {
+  useEffect(() => {
+    fetchConfig();
+  }, []);
+
+  const fetchConfig = async () => {
+    try {
       const { data, error } = await supabase
-        .from("additional_expenses")
-        .select("*, profiles:user_id(full_name, username)")
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .from('expense_master_config')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
       if (error) throw error;
-      return data || [];
-    },
-  });
+      if (data) setConfig(data as ExpenseMasterConfig);
+    } catch (error) {
+      console.error('Error fetching expense config:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const updateStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from("additional_expenses").update({ status }).eq("id", id);
+  const handleSave = async () => {
+    if (!config) return;
+    try {
+      setSaving(true);
+      const { error } = await supabase
+        .from('expense_master_config')
+        .update({
+          ta_type: config.ta_type,
+          fixed_ta_amount: config.fixed_ta_amount,
+          da_type: config.da_type,
+          fixed_da_amount: config.fixed_da_amount,
+        })
+        .eq('id', config.id);
       if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-all-expenses"] });
-      toast.success("Status updated");
-    },
-  });
+      toast.success("Expense master configuration saved successfully");
+    } catch (error) {
+      console.error('Error saving config:', error);
+      toast.error("Failed to save configuration");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <motion.div className="p-4 space-y-6 max-w-6xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/admin-controls")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Expense Management</h1>
-          <p className="text-sm text-muted-foreground">Review and manage expense claims</p>
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-2 sm:p-4">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Button onClick={() => navigate('/admin-controls')} variant="ghost" size="sm" className="p-1.5 sm:p-2">
+            <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
+          </Button>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground truncate">Expense Master</h1>
+            <p className="text-sm sm:text-base text-muted-foreground hidden sm:block">Configure expense settings and track team productivity</p>
+          </div>
         </div>
-      </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">All Expenses</CardTitle></CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {expensesQuery.isLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></TableCell></TableRow>
-              ) : (expensesQuery.data || []).length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No expenses found</TableCell></TableRow>
-              ) : (
-                (expensesQuery.data || []).map((exp: any) => (
-                  <TableRow key={exp.id}>
-                    <TableCell className="font-medium">{(exp.profiles as any)?.full_name || "—"}</TableCell>
-                    <TableCell>{exp.expense_date}</TableCell>
-                    <TableCell>{exp.category}</TableCell>
-                    <TableCell className="font-medium">₹{Number(exp.amount).toFixed(0)}</TableCell>
-                    <TableCell>
-                      <Badge variant={exp.status === "approved" ? "default" : exp.status === "rejected" ? "destructive" : "secondary"}>
-                        {exp.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {exp.status === "pending" && (
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => updateStatus.mutate({ id: exp.id, status: "approved" })}>
-                            Approve
-                          </Button>
-                          <Button size="sm" variant="outline" className="text-xs h-7 text-destructive" onClick={() => updateStatus.mutate({ id: exp.id, status: "rejected" })}>
-                            Reject
-                          </Button>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
+        {/* Expense Master Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Expense Configuration</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* TA Type */}
+              <div className="space-y-2">
+                <Label htmlFor="ta_type">TA Type</Label>
+                <Select
+                  value={config?.ta_type || 'fixed'}
+                  onValueChange={(value) => setConfig(prev => prev ? { ...prev, ta_type: value } : null)}
+                >
+                  <SelectTrigger id="ta_type"><SelectValue placeholder="Select TA Type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Fixed TA</SelectItem>
+                    <SelectItem value="from_beat">TA Amount from Beat</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {config?.ta_type === 'fixed' ? 'Fixed daily TA amount will be used' : 'TA amount from My Beat will be used'}
+                </p>
+              </div>
+
+              {/* Fixed TA Amount */}
+              {config?.ta_type === 'fixed' && (
+                <div className="space-y-2">
+                  <Label htmlFor="fixed_ta">Fixed TA Amount (₹)</Label>
+                  <Input id="fixed_ta" type="number" min="0"
+                    value={config?.fixed_ta_amount || 0}
+                    onChange={(e) => setConfig(prev => prev ? { ...prev, fixed_ta_amount: Number(e.target.value) } : null)}
+                    placeholder="Enter fixed TA amount" />
+                  <p className="text-xs text-muted-foreground">Daily travel allowance in Rs.</p>
+                </div>
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </motion.div>
+
+              {/* DA Amount */}
+              <div className="space-y-2">
+                <Label htmlFor="da_amount">DA Amount (₹)</Label>
+                <Input id="da_amount" type="number" min="0"
+                  value={config?.fixed_da_amount || 0}
+                  onChange={(e) => setConfig(prev => prev ? { ...prev, fixed_da_amount: Number(e.target.value) } : null)}
+                  placeholder="Enter DA amount" />
+                <p className="text-xs text-muted-foreground">Daily allowance amount in Rs.</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Configuration
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Productivity Tracking */}
+        <ProductivityTracking />
+      </div>
+    </div>
   );
 }
