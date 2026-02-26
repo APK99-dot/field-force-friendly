@@ -91,7 +91,7 @@ export default function Dashboard() {
 
       {/* Dashboard Content */}
       <motion.div
-        className="p-4 -mt-3 relative z-10 space-y-4 max-w-2xl mx-auto"
+        className="p-4 -mt-3 relative z-10 space-y-4"
         variants={container}
         initial="hidden"
         animate="show"
