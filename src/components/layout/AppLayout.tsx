@@ -3,10 +3,14 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { AppHeader } from "./AppHeader";
 import { BottomNav } from "./BottomNav";
 import { supabase } from "@/integrations/supabase/client";
+import ProfileSetupModal from "@/components/ProfileSetupModal";
 
 export function AppLayout() {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null | undefined>(undefined);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -14,6 +18,13 @@ export function AppLayout() {
         navigate("/auth", { replace: true });
       } else {
         setReady(true);
+        setUserId(session.user.id);
+        // Check profile setup
+        supabase.from("profiles").select("profile_picture_url, onboarding_completed").eq("id", session.user.id).single()
+          .then(({ data }) => {
+            setProfilePictureUrl(data?.profile_picture_url ?? null);
+            setOnboardingCompleted(data?.onboarding_completed ?? false);
+          });
       }
     });
 
@@ -28,6 +39,8 @@ export function AppLayout() {
 
   if (!ready) return null;
 
+  const showProfileSetup = userId && onboardingCompleted === false && profilePictureUrl === null;
+
   return (
     <div className="min-h-screen flex flex-col w-full bg-background">
       <AppHeader />
@@ -35,6 +48,17 @@ export function AppLayout() {
         <Outlet />
       </main>
       <BottomNav />
+      {showProfileSetup && (
+        <ProfileSetupModal
+          userId={userId}
+          profilePictureUrl={profilePictureUrl}
+          onComplete={() => {
+            setOnboardingCompleted(true);
+            supabase.from("profiles").select("profile_picture_url").eq("id", userId).single()
+              .then(({ data }) => setProfilePictureUrl(data?.profile_picture_url ?? null));
+          }}
+        />
+      )}
     </div>
   );
 }
