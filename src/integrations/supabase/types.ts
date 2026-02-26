@@ -2268,6 +2268,7 @@ export type Database = {
           hint_answer: string | null
           hint_question: string | null
           id: string
+          onboarding_completed: boolean
           phone_number: string | null
           profile_picture_url: string | null
           recovery_email: string | null
@@ -2281,6 +2282,7 @@ export type Database = {
           hint_answer?: string | null
           hint_question?: string | null
           id: string
+          onboarding_completed?: boolean
           phone_number?: string | null
           profile_picture_url?: string | null
           recovery_email?: string | null
@@ -2294,6 +2296,7 @@ export type Database = {
           hint_answer?: string | null
           hint_question?: string | null
           id?: string
+          onboarding_completed?: boolean
           phone_number?: string | null
           profile_picture_url?: string | null
           recovery_email?: string | null

@@ -1,22 +1,26 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { format, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CheckCircle, XCircle, LogOut, Loader2, Clock, CalendarDays, FileText, Edit3 } from "lucide-react";
+import { CheckCircle, XCircle, LogOut, Loader2, Clock, Edit3, Camera, Shield, MapPin, Save, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAttendance, isWeekOffDate } from "@/hooks/useAttendance";
+import { useFaceMatching } from "@/hooks/useFaceMatching";
 import { AttendanceCalendarView } from "@/components/attendance/AttendanceCalendarView";
 import LeaveBalanceCards from "@/components/LeaveBalanceCards";
 import MyLeaveApplications from "@/components/MyLeaveApplications";
 import HolidayManagement from "@/components/HolidayManagement";
 import RegularizationRequestModal from "@/components/RegularizationRequestModal";
+import CameraCapture from "@/components/CameraCapture";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+type ProcessingStep = "camera" | "location" | "uploading" | "verifying" | "saving" | null;
 
 export default function Attendance() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -29,19 +33,34 @@ export default function Attendance() {
   const [showPresentDaysDialog, setShowPresentDaysDialog] = useState(false);
   const [showAbsentDaysDialog, setShowAbsentDaysDialog] = useState(false);
 
+  // Camera & face verification state
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraMode, setCameraMode] = useState<"checkin" | "checkout">("checkin");
+  const [processingStep, setProcessingStep] = useState<ProcessingStep>(null);
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const { compareImages, matching } = useFaceMatching();
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
+      if (user) {
+        setUserId(user.id);
+        // Fetch profile picture for face matching
+        supabase.from("profiles").select("profile_picture_url").eq("id", user.id).single()
+          .then(({ data }) => {
+            if (data?.profile_picture_url) setProfilePictureUrl(data.profile_picture_url);
+          });
+      }
     });
   }, []);
 
   const {
     todayRecord, monthRecords, holidays, holidayDates, weekOffConfig,
-    leaveRecords, regularizationRequests, marketHours,
+    leaveRecords, regularizationRequests,
     loading, isCheckedIn, isCheckedOut, checkIn, checkOut, refetch,
   } = useAttendance(userId);
 
-  // Compute date range based on filter
   const dateRange = useMemo(() => {
     const now = new Date();
     if (dateFilter === "last-month") {
@@ -53,7 +72,6 @@ export default function Attendance() {
 
   const days = useMemo(() => eachDayOfInterval({ start: dateRange.start, end: dateRange.end }), [dateRange]);
 
-  // Filter records by date range
   const filteredRecords = useMemo(() => {
     const startStr = format(dateRange.start, "yyyy-MM-dd");
     const endStr = format(dateRange.end, "yyyy-MM-dd");
@@ -72,67 +90,127 @@ export default function Attendance() {
     return { presentDays, totalWorkingDays, pct };
   }, [filteredRecords, days, holidayDates, weekOffConfig]);
 
-  // Present/Absent date lists
   const presentDatesList = useMemo(() => {
-    return filteredRecords
-      .filter((r) => r.status === "present" || r.status === "regularized")
-      .map((r) => r.date)
-      .sort();
+    return filteredRecords.filter((r) => r.status === "present" || r.status === "regularized").map((r) => r.date).sort();
   }, [filteredRecords]);
 
   const absentDatesList = useMemo(() => {
     const presentSet = new Set(presentDatesList);
     const today = format(new Date(), "yyyy-MM-dd");
-    return days
-      .map((d) => format(d, "yyyy-MM-dd"))
-      .filter((key) => {
-        if (key > today) return false;
-        if (presentSet.has(key)) return false;
-        if (holidayDates.has(key)) return false;
-        if (isWeekOffDate(new Date(key), weekOffConfig)) return false;
-        // Check if on leave
-        const rec = filteredRecords.find((r) => r.date === key);
-        if (rec && (rec.status === "leave" || rec.status === "half-day")) return false;
-        return true;
-      })
-      .sort();
+    return days.map((d) => format(d, "yyyy-MM-dd")).filter((key) => {
+      if (key > today) return false;
+      if (presentSet.has(key)) return false;
+      if (holidayDates.has(key)) return false;
+      if (isWeekOffDate(new Date(key), weekOffConfig)) return false;
+      const rec = filteredRecords.find((r) => r.date === key);
+      if (rec && (rec.status === "leave" || rec.status === "half-day")) return false;
+      return true;
+    }).sort();
   }, [days, presentDatesList, holidayDates, weekOffConfig, filteredRecords]);
 
-  // Attendance data merged with absent placeholders
   const attendanceData = useMemo(() => {
     const absentRecords = absentDatesList.map((date) => ({
-      id: `absent-${date}`,
-      date,
-      status: "absent",
-      check_in_time: null,
-      check_out_time: null,
-      total_hours: null,
-      isAbsentPlaceholder: true,
+      id: `absent-${date}`, date, status: "absent", check_in_time: null, check_out_time: null, total_hours: null, isAbsentPlaceholder: true,
     }));
-    return [...filteredRecords, ...absentRecords].sort(
-      (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+    return [...filteredRecords, ...absentRecords].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [filteredRecords, absentDatesList]);
 
-  // Regularization map by date
   const regMap = useMemo(() => {
     const map = new Map<string, any>();
     regularizationRequests.forEach((r) => map.set(r.date, r));
     return map;
   }, [regularizationRequests]);
 
-  const handleCheckIn = async () => {
-    setActionLoading(true);
-    try { await checkIn(); toast.success("Checked in successfully!"); }
-    catch (err: any) { toast.error(err.message || "Failed to check in"); }
-    finally { setActionLoading(false); }
+  // --- Camera + Face Verification Flow ---
+  const handleStartDay = () => {
+    setCameraMode("checkin");
+    setRetryCount(0);
+    setCameraOpen(true);
   };
 
-  const handleCheckOut = async () => {
+  const handleEndDay = () => {
+    setCameraMode("checkout");
+    setRetryCount(0);
+    setCameraOpen(true);
+  };
+
+  const handleCameraCapture = async (blob: Blob) => {
+    if (!userId) return;
     setActionLoading(true);
-    try { await checkOut(); toast.success("Checked out successfully!"); }
-    catch (err: any) { toast.error(err.message || "Failed to check out"); }
-    finally { setActionLoading(false); }
+    setCameraOpen(false);
+
+    try {
+      // Step 1: Get location
+      setProcessingStep("location");
+      let location: any = null;
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+        );
+        location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy };
+      } catch {}
+
+      // Step 2: Upload photo
+      setProcessingStep("uploading");
+      const dateStr = format(new Date(), "yyyy-MM-dd");
+      const type = cameraMode === "checkin" ? "checkin" : "checkout";
+      const timestamp = Date.now();
+      const filePath = `${userId}/attendance/${dateStr}_${type}_${timestamp}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("attendance-photos")
+        .upload(filePath, blob, { contentType: "image/jpeg", upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("attendance-photos")
+        .getPublicUrl(filePath);
+      const photoUrl = urlData.publicUrl;
+
+      // Step 3: Face verification
+      let faceVerificationStatus = "bypassed";
+      let faceMatchConfidence = 0;
+
+      if (profilePictureUrl) {
+        setProcessingStep("verifying");
+        const matchResult = await compareImages(profilePictureUrl, photoUrl);
+        faceVerificationStatus = matchResult.status;
+        faceMatchConfidence = matchResult.confidence;
+
+        // If failed and first attempt, allow retry
+        if (matchResult.status === "failed" && retryCount === 0) {
+          setRetryCount(1);
+          setActionLoading(false);
+          setProcessingStep(null);
+          toast.error(`Face match failed (${matchResult.confidence}% confidence). Try again.`);
+          setCameraOpen(true);
+          return;
+        }
+
+        // Second attempt or bypassed - proceed regardless
+        if (matchResult.status === "failed" && retryCount >= 1) {
+          faceVerificationStatus = "bypassed";
+          toast.info("Face verification bypassed after retry.");
+        }
+      }
+
+      // Step 4: Save attendance
+      setProcessingStep("saving");
+      if (cameraMode === "checkin") {
+        await checkIn({ photoUrl, location, faceVerificationStatus, faceMatchConfidence });
+        toast.success("Day started successfully!");
+      } else {
+        await checkOut({ photoUrl, location, faceVerificationStatus, faceMatchConfidence });
+        toast.success("Day ended successfully!");
+      }
+    } catch (err: any) {
+      console.error("Attendance error:", err);
+      toast.error(err.message || "Failed to record attendance");
+    } finally {
+      setActionLoading(false);
+      setProcessingStep(null);
+    }
   };
 
   const handleOpenRegularizationModal = (record: any) => {
@@ -155,14 +233,21 @@ export default function Attendance() {
     return regMap.get(selectedRecordForReg.date) || null;
   }, [selectedRecordForReg, regMap]);
 
+  const stepLabels: Record<string, { icon: any; label: string }> = {
+    location: { icon: MapPin, label: "Getting location..." },
+    uploading: { icon: Upload, label: "Uploading photo..." },
+    verifying: { icon: Shield, label: "Verifying face..." },
+    saving: { icon: Save, label: "Saving attendance..." },
+  };
+
   return (
-    <motion.div className="p-4 space-y-4 max-w-2xl mx-auto pb-24" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div className="p-4 space-y-4 pb-24" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
       <div className="text-center">
         <h1 className="text-2xl font-bold">Attendance</h1>
         <p className="text-sm text-muted-foreground">Track your daily attendance and working hours</p>
       </div>
 
-      {/* Monthly Summary Cards - 2 cards matching staging */}
+      {/* Monthly Summary Cards */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-card rounded-2xl p-5 text-center shadow-sm">
           <div className="text-3xl font-bold text-foreground">{stats.pct}%</div>
@@ -174,10 +259,32 @@ export default function Attendance() {
         </div>
       </div>
 
+      {/* Processing Indicator */}
+      {processingStep && (
+        <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 flex items-center gap-3">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <div>
+            <div className="text-sm font-medium">{stepLabels[processingStep]?.label}</div>
+            <div className="flex gap-2 mt-1">
+              {["location", "uploading", "verifying", "saving"].map((step) => {
+                const StepIcon = stepLabels[step]?.icon;
+                const isActive = step === processingStep;
+                const isDone = ["location", "uploading", "verifying", "saving"].indexOf(step) < ["location", "uploading", "verifying", "saving"].indexOf(processingStep);
+                return (
+                  <div key={step} className={cn("flex items-center gap-1 text-xs", isActive ? "text-primary font-semibold" : isDone ? "text-primary/60" : "text-muted-foreground")}>
+                    {StepIcon && <StepIcon className="h-3 w-3" />}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Check-in / Check-out */}
       <div className="flex gap-3">
         <button
-          onClick={handleCheckIn}
+          onClick={handleStartDay}
           disabled={actionLoading || isCheckedIn || isCheckedOut}
           className={cn(
             "flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold transition-all border",
@@ -186,11 +293,11 @@ export default function Attendance() {
               : "bg-card text-foreground border-border hover:bg-accent"
           )}
         >
-          {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 text-[hsl(150,50%,45%)]" />}
+          {actionLoading && cameraMode === "checkin" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4 text-[hsl(150,50%,45%)]" />}
           {isCheckedIn ? "Day Started" : isCheckedOut ? "Day Ended" : "Start My Day"}
         </button>
         <button
-          onClick={handleCheckOut}
+          onClick={handleEndDay}
           disabled={actionLoading || !isCheckedIn || isCheckedOut}
           className={cn(
             "flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold transition-all",
@@ -199,7 +306,7 @@ export default function Attendance() {
               : "bg-destructive text-destructive-foreground hover:bg-destructive/90"
           )}
         >
-          {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
+          {actionLoading && cameraMode === "checkout" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
           {isCheckedOut ? "Day Ended" : "End My Day"}
         </button>
       </div>
@@ -207,20 +314,14 @@ export default function Attendance() {
       {/* Calendar View with Present/Absent Summary */}
       <div className="bg-background rounded-2xl p-4 shadow-sm space-y-3">
         <div className="grid grid-cols-2 gap-2">
-          <div
-            className="bg-[hsl(150,35%,93%)] rounded-xl p-2.5 text-center cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setShowPresentDaysDialog(true)}
-          >
+          <div className="bg-[hsl(150,35%,93%)] rounded-xl p-2.5 text-center cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowPresentDaysDialog(true)}>
             <div className="flex items-center justify-center gap-1.5">
               <CheckCircle className="h-4 w-4 text-[hsl(150,50%,45%)]" />
               <span className="text-lg font-bold text-[hsl(150,45%,30%)]">{stats.presentDays}</span>
             </div>
             <div className="text-[11px] font-medium text-[hsl(150,35%,40%)]">Present Days</div>
           </div>
-          <div
-            className="bg-[hsl(0,40%,95%)] rounded-xl p-2.5 text-center cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setShowAbsentDaysDialog(true)}
-          >
+          <div className="bg-[hsl(0,40%,95%)] rounded-xl p-2.5 text-center cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowAbsentDaysDialog(true)}>
             <div className="flex items-center justify-center gap-1.5">
               <XCircle className="h-4 w-4 text-[hsl(0,50%,55%)]" />
               <span className="text-lg font-bold text-[hsl(0,45%,35%)]">{absentDatesList.length}</span>
@@ -228,14 +329,7 @@ export default function Attendance() {
             <div className="text-[11px] font-medium text-[hsl(0,35%,45%)]">Absent Days</div>
           </div>
         </div>
-        <AttendanceCalendarView
-          attendanceRecords={monthRecords}
-          leaveRecords={leaveRecords}
-          weekOffConfig={weekOffConfig}
-          holidayDates={holidayDates}
-          currentMonth={currentMonth}
-          onMonthChange={setCurrentMonth}
-        />
+        <AttendanceCalendarView attendanceRecords={monthRecords} leaveRecords={leaveRecords} weekOffConfig={weekOffConfig} holidayDates={holidayDates} currentMonth={currentMonth} onMonthChange={setCurrentMonth} />
       </div>
 
       {/* Present Days Dialog */}
@@ -253,9 +347,7 @@ export default function Attendance() {
                 <CheckCircle className="h-4 w-4 text-[hsl(150,50%,45%)]" />
                 <span className="font-medium text-sm">{format(new Date(date), "EEE, MMM dd, yyyy")}</span>
               </div>
-            )) : (
-              <div className="text-center text-muted-foreground py-4">No present days recorded</div>
-            )}
+            )) : <div className="text-center text-muted-foreground py-4">No present days recorded</div>}
           </div>
         </DialogContent>
       </Dialog>
@@ -275,94 +367,51 @@ export default function Attendance() {
                 <XCircle className="h-4 w-4 text-[hsl(0,50%,55%)]" />
                 <span className="font-medium text-sm">{format(new Date(date), "EEE, MMM dd, yyyy")}</span>
               </div>
-            )) : (
-              <div className="text-center text-muted-foreground py-4">No absent days recorded</div>
-            )}
+            )) : <div className="text-center text-muted-foreground py-4">No absent days recorded</div>}
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Market Hours Module - 3-column layout matching staging */}
+      {/* Market Hours */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Today's Market Hours
-          </CardTitle>
+          <CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5" />Today's Market Hours</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* First Check In */}
             {todayRecord?.check_in_time ? (
               <div className="bg-green-100 dark:bg-green-900 p-4 rounded-lg border border-green-200 dark:border-green-800">
                 <div className="text-center">
                   <CheckCircle className="h-5 w-5 mx-auto mb-2 text-green-600" />
                   <div className="font-semibold text-green-800 dark:text-green-200 text-sm">First Check In</div>
-                  <div className="text-sm text-green-600 dark:text-green-400 mt-1">
-                    {format(new Date(todayRecord.check_in_time), "hh:mm a")}
-                  </div>
+                  <div className="text-sm text-green-600 dark:text-green-400 mt-1">{format(new Date(todayRecord.check_in_time), "hh:mm a")}</div>
                 </div>
               </div>
             ) : (
-              <div className="bg-muted p-4 rounded-lg border">
-                <div className="text-center text-muted-foreground">
-                  <CheckCircle className="h-5 w-5 mx-auto mb-2" />
-                  <div className="font-semibold text-sm">First Check In</div>
-                  <div className="text-xs mt-1">Not started</div>
-                </div>
-              </div>
+              <div className="bg-muted p-4 rounded-lg border"><div className="text-center text-muted-foreground"><CheckCircle className="h-5 w-5 mx-auto mb-2" /><div className="font-semibold text-sm">First Check In</div><div className="text-xs mt-1">Not started</div></div></div>
             )}
-
-            {/* Active Market Hours */}
-            <div className={`p-4 rounded-lg border ${
-              todayRecord?.check_out_time
-                ? "bg-blue-100 dark:bg-blue-900 border-blue-200 dark:border-blue-800"
-                : "bg-muted border-border"
-            }`}>
+            <div className={`p-4 rounded-lg border ${todayRecord?.check_out_time ? "bg-blue-100 dark:bg-blue-900 border-blue-200 dark:border-blue-800" : "bg-muted border-border"}`}>
               <div className="text-center">
                 <Clock className={`h-5 w-5 mx-auto mb-2 ${todayRecord?.check_out_time ? "text-blue-600" : "text-muted-foreground"}`} />
-                <div className={`font-semibold text-sm ${todayRecord?.check_out_time ? "text-blue-800 dark:text-blue-200" : "text-muted-foreground"}`}>
-                  Active Market Hours
-                </div>
+                <div className={`font-semibold text-sm ${todayRecord?.check_out_time ? "text-blue-800 dark:text-blue-200" : "text-muted-foreground"}`}>Active Market Hours</div>
                 <div className={`text-sm mt-1 ${todayRecord?.check_out_time ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground"}`}>
-                  {todayRecord?.check_in_time && todayRecord?.check_out_time ? (() => {
-                    const diffMs = new Date(todayRecord.check_out_time).getTime() - new Date(todayRecord.check_in_time).getTime();
-                    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-                    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                    return `${hours}h ${minutes}m`;
-                  })() : "--:--"}
+                  {todayRecord?.check_in_time && todayRecord?.check_out_time ? (() => { const diffMs = new Date(todayRecord.check_out_time).getTime() - new Date(todayRecord.check_in_time).getTime(); const hours = Math.floor(diffMs / (1000 * 60 * 60)); const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60)); return `${hours}h ${minutes}m`; })() : "--:--"}
                 </div>
               </div>
             </div>
-
-            {/* Last Check Out */}
             {todayRecord?.check_out_time ? (
               <div className="bg-orange-100 dark:bg-orange-900 p-4 rounded-lg border border-orange-200 dark:border-orange-800">
-                <div className="text-center">
-                  <LogOut className="h-5 w-5 mx-auto mb-2 text-orange-600" />
-                  <div className="font-semibold text-orange-800 dark:text-orange-200 text-sm">Last Check Out</div>
-                  <div className="text-sm text-orange-600 dark:text-orange-400 mt-1">
-                    {format(new Date(todayRecord.check_out_time), "hh:mm a")}
-                  </div>
-                </div>
+                <div className="text-center"><LogOut className="h-5 w-5 mx-auto mb-2 text-orange-600" /><div className="font-semibold text-orange-800 dark:text-orange-200 text-sm">Last Check Out</div><div className="text-sm text-orange-600 dark:text-orange-400 mt-1">{format(new Date(todayRecord.check_out_time), "hh:mm a")}</div></div>
               </div>
             ) : (
-              <div className="bg-muted p-4 rounded-lg border">
-                <div className="text-center text-muted-foreground">
-                  <LogOut className="h-5 w-5 mx-auto mb-2" />
-                  <div className="font-semibold text-sm">Last Check Out</div>
-                  <div className="text-xs mt-1">Not ended</div>
-                </div>
-              </div>
+              <div className="bg-muted p-4 rounded-lg border"><div className="text-center text-muted-foreground"><LogOut className="h-5 w-5 mx-auto mb-2" /><div className="font-semibold text-sm">Last Check Out</div><div className="text-xs mt-1">Not ended</div></div></div>
             )}
           </div>
-          <div className="text-sm text-muted-foreground text-center mt-4">
-            Market hours are automatically tracked from your attendance
-          </div>
+          <div className="text-sm text-muted-foreground text-center mt-4">Market hours are automatically tracked from your attendance</div>
         </CardContent>
       </Card>
 
-      {/* Tabs: My Attendance, Leave, Holiday */}
+      {/* Tabs */}
       <Tabs defaultValue="attendance" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="attendance">My Attendance</TabsTrigger>
@@ -375,9 +424,7 @@ export default function Attendance() {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent Attendance</CardTitle>
               <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="current-month">This Month</SelectItem>
                   <SelectItem value="last-month">Last Month</SelectItem>
@@ -395,66 +442,31 @@ export default function Attendance() {
                     const hasRejectedRequest = existingReq?.status === "rejected";
 
                     return (
-                      <div
-                        key={record.id}
-                        className={cn(
-                          "flex flex-col gap-3 p-4 border rounded-lg hover:shadow-md transition-all",
-                          isAbsent && "bg-red-50/50 dark:bg-red-950/30 border-red-200 dark:border-red-800",
-                          isRegularized && "bg-purple-50/50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800"
-                        )}
-                      >
+                      <div key={record.id} className={cn("flex flex-col gap-3 p-4 border rounded-lg hover:shadow-md transition-all", isAbsent && "bg-red-50/50 dark:bg-red-950/30 border-red-200 dark:border-red-800", isRegularized && "bg-purple-50/50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800")}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3 flex-1">
-                            {isAbsent ? (
-                              <XCircle className="h-5 w-5 text-red-600" />
-                            ) : isRegularized ? (
-                              <CheckCircle className="h-5 w-5 text-purple-600" />
-                            ) : (
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                            )}
+                            {isAbsent ? <XCircle className="h-5 w-5 text-red-600" /> : isRegularized ? <CheckCircle className="h-5 w-5 text-purple-600" /> : <CheckCircle className="h-5 w-5 text-green-600" />}
                             <div className="flex-1">
                               <div className="font-medium">{format(new Date(record.date), "EEE, MMM dd, yyyy")}</div>
                               {isAbsent ? (
                                 <div className="text-sm text-red-600 dark:text-red-400">Absent - No attendance recorded</div>
                               ) : (
                                 <>
-                                  <div className="text-sm text-muted-foreground">
-                                    In: {formatTime(record.check_in_time)} | Out: {formatTime(record.check_out_time)}
-                                  </div>
-                                  {record.total_hours && (
-                                    <div className="text-xs text-blue-600">Total: {record.total_hours.toFixed(1)} hours</div>
-                                  )}
+                                  <div className="text-sm text-muted-foreground">In: {formatTime(record.check_in_time)} | Out: {formatTime(record.check_out_time)}</div>
+                                  {record.total_hours && <div className="text-xs text-blue-600">Total: {record.total_hours.toFixed(1)} hours</div>}
                                 </>
                               )}
                             </div>
-
-                            {/* Status Badges */}
                             <div className="flex flex-col gap-1 items-end">
-                              {isAbsent && !hasPendingRequest && !hasRejectedRequest && (
-                                <Badge variant="destructive">Absent</Badge>
-                              )}
-                              {isRegularized && (
-                                <Badge className="bg-purple-500 hover:bg-purple-600">Regularized</Badge>
-                              )}
-                              {hasPendingRequest && (
-                                <Badge className="bg-yellow-500 hover:bg-yellow-600">Pending Approval</Badge>
-                              )}
-                              {hasRejectedRequest && (
-                                <Badge variant="destructive" className="text-xs">Rejected - Resubmit</Badge>
-                              )}
+                              {isAbsent && !hasPendingRequest && !hasRejectedRequest && <Badge variant="destructive">Absent</Badge>}
+                              {isRegularized && <Badge className="bg-purple-500 hover:bg-purple-600">Regularized</Badge>}
+                              {hasPendingRequest && <Badge className="bg-yellow-500 hover:bg-yellow-600">Pending Approval</Badge>}
+                              {hasRejectedRequest && <Badge variant="destructive" className="text-xs">Rejected - Resubmit</Badge>}
                             </div>
                           </div>
                         </div>
-
-                        {/* Regularization Button */}
                         <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8 border-orange-300 text-orange-700 hover:bg-orange-50"
-                            onClick={() => handleOpenRegularizationModal(record)}
-                            title={hasRejectedRequest ? "Resubmit Regularization" : "Request Regularization"}
-                          >
+                          <Button size="icon" variant="outline" className="h-8 w-8 border-orange-300 text-orange-700 hover:bg-orange-50" onClick={() => handleOpenRegularizationModal(record)} title={hasRejectedRequest ? "Resubmit Regularization" : "Request Regularization"}>
                             <Edit3 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -474,10 +486,7 @@ export default function Attendance() {
 
         <TabsContent value="leave">
           <div className="space-y-4">
-            <LeaveBalanceCards
-              refreshTrigger={refreshTrigger}
-              onApplicationSubmitted={handleRefresh}
-            />
+            <LeaveBalanceCards refreshTrigger={refreshTrigger} onApplicationSubmitted={handleRefresh} />
             <MyLeaveApplications refreshTrigger={refreshTrigger} />
           </div>
         </TabsContent>
@@ -490,16 +499,21 @@ export default function Attendance() {
       {userId && (
         <RegularizationRequestModal
           isOpen={regModalOpen}
-          onClose={() => {
-            setRegModalOpen(false);
-            setSelectedRecordForReg(null);
-          }}
+          onClose={() => { setRegModalOpen(false); setSelectedRecordForReg(null); }}
           attendanceRecord={selectedRecordForReg}
           existingRequest={existingRegRequest}
           onSubmit={handleRefresh}
           userId={userId}
         />
       )}
+
+      {/* Camera Capture Dialog */}
+      <CameraCapture
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={handleCameraCapture}
+        title={cameraMode === "checkin" ? "Check-in Selfie" : "Check-out Selfie"}
+      />
     </motion.div>
   );
 }
