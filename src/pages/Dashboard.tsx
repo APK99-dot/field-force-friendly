@@ -2,15 +2,16 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
-  MapPin,
   Clock,
-  Users,
   CheckCircle,
-  TrendingUp,
-  UserPlus,
-  Zap,
   LogIn,
   Plus,
+  FolderOpen,
+  ListTodo,
+  CalendarOff,
+  Receipt,
+  CheckSquare,
+  Loader,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,6 @@ import { useNavigate } from "react-router-dom";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDashboard } from "@/hooks/useDashboard";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 const container = {
   hidden: { opacity: 0 },
@@ -49,7 +49,14 @@ export default function Dashboard() {
     });
   }, []);
 
-  const { dayStarted, isCheckedIn, stats, beatName, attendance } = useDashboard(userId);
+  const {
+    dayStarted,
+    attendance,
+    activeProjects,
+    myTasks,
+    pendingLeaves,
+    pendingExpenses,
+  } = useDashboard(userId);
 
   const handleStartDay = () => {
     navigate("/attendance");
@@ -74,16 +81,16 @@ export default function Dashboard() {
               <div>
                 <p className="text-[10px] opacity-80">{getGreeting()}</p>
                 <h1 className="text-base font-bold leading-tight">{displayName}</h1>
-                <p className="text-[10px] opacity-70">{isAdmin ? "Admin" : "Field Executive"}</p>
+                <p className="text-[10px] opacity-70">{isAdmin ? "Admin" : "Team Member"}</p>
               </div>
             </div>
             <Button
               size="sm"
               className="bg-white/20 hover:bg-white/30 text-white border-0 h-9 px-3"
-              onClick={() => navigate("/visits")}
+              onClick={() => navigate("/projects")}
             >
               <Plus className="h-4 w-4 mr-1" />
-              <span className="text-xs">Quick Add</span>
+              <span className="text-xs">New Project</span>
             </Button>
           </div>
         </div>
@@ -140,53 +147,59 @@ export default function Dashboard() {
           )}
         </motion.div>
 
-        {/* Today's Beat Card */}
+        {/* Module Stats Grid */}
         <motion.div variants={item}>
           <Card className="shadow-card">
             <CardContent className="p-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                  <MapPin className="h-5 w-5 text-muted-foreground" />
+              <p className="text-sm font-bold mb-4">Overview</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div
+                  className="rounded-xl border border-border bg-primary/5 p-4 text-center cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => navigate("/projects")}
+                >
+                  <FolderOpen className="h-5 w-5 mx-auto mb-1 text-primary" />
+                  <p className="text-xl font-bold">{activeProjects}</p>
+                  <p className="text-[10px] text-muted-foreground">Active Projects</p>
                 </div>
-                <div>
-                  <p className="text-sm font-bold">{beatName || "Not Planned"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {beatName ? "Today's beat" : "No beat planned"}
-                  </p>
+                <div
+                  className="rounded-xl border border-border bg-info/5 p-4 text-center cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => navigate("/projects")}
+                >
+                  <ListTodo className="h-5 w-5 mx-auto mb-1 text-info" />
+                  <p className="text-xl font-bold">{myTasks.total}</p>
+                  <p className="text-[10px] text-muted-foreground">My Tasks</p>
                 </div>
-              </div>
-
-              {/* Stats Grid */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-xl border border-border bg-card p-3 text-center">
-                  <Users className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                  <p className="text-xl font-bold">{stats.planned}</p>
-                  <p className="text-[10px] text-muted-foreground">Planned</p>
+                <div
+                  className="rounded-xl border border-border bg-success/5 p-4 text-center cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => navigate("/projects")}
+                >
+                  <CheckSquare className="h-5 w-5 mx-auto mb-1 text-success" />
+                  <p className="text-xl font-bold">{myTasks.completed}</p>
+                  <p className="text-[10px] text-muted-foreground">Completed</p>
                 </div>
-                <div className="rounded-xl border border-border bg-success/5 p-3 text-center">
-                  <CheckCircle className="h-5 w-5 mx-auto mb-1 text-success" />
-                  <p className="text-xl font-bold">{stats.productive}</p>
-                  <p className="text-[10px] text-muted-foreground">Productive</p>
+                <div
+                  className="rounded-xl border border-border bg-warning/5 p-4 text-center cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => navigate("/projects")}
+                >
+                  <Loader className="h-5 w-5 mx-auto mb-1 text-warning" />
+                  <p className="text-xl font-bold">{myTasks.inProgress}</p>
+                  <p className="text-[10px] text-muted-foreground">In Progress</p>
                 </div>
-                <div className="rounded-xl border border-border bg-accent/5 p-3 text-center">
-                  <Clock className="h-5 w-5 mx-auto mb-1 text-accent" />
-                  <p className="text-xl font-bold">{stats.remaining}</p>
-                  <p className="text-[10px] text-muted-foreground">Remaining</p>
+                <div
+                  className="rounded-xl border border-border bg-accent/5 p-4 text-center cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => navigate("/attendance")}
+                >
+                  <CalendarOff className="h-5 w-5 mx-auto mb-1 text-accent" />
+                  <p className="text-xl font-bold">{pendingLeaves}</p>
+                  <p className="text-[10px] text-muted-foreground">Pending Leaves</p>
                 </div>
-                <div className="rounded-xl border border-border bg-info/5 p-3 text-center">
-                  <UserPlus className="h-5 w-5 mx-auto mb-1 text-info" />
-                  <p className="text-xl font-bold">{stats.newRetailers}</p>
-                  <p className="text-[10px] text-muted-foreground">New Retailers</p>
-                </div>
-                <div className="rounded-xl border border-border bg-primary/5 p-3 text-center">
-                  <TrendingUp className="h-5 w-5 mx-auto mb-1 text-primary" />
-                  <p className="text-xl font-bold">₹{stats.revenueAchieved.toFixed(2)}</p>
-                  <p className="text-[10px] text-muted-foreground">Revenue</p>
-                </div>
-                <div className="rounded-xl border border-border bg-accent/5 p-3 text-center">
-                  <Zap className="h-5 w-5 mx-auto mb-1 text-accent" />
-                  <p className="text-xl font-bold">{stats.points}</p>
-                  <p className="text-[10px] text-muted-foreground">Points</p>
+                <div
+                  className="rounded-xl border border-border bg-destructive/5 p-4 text-center cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => navigate("/expenses")}
+                >
+                  <Receipt className="h-5 w-5 mx-auto mb-1 text-destructive" />
+                  <p className="text-xl font-bold">{pendingExpenses.count}</p>
+                  <p className="text-[10px] text-muted-foreground">Pending Expenses</p>
                 </div>
               </div>
             </CardContent>

@@ -4,6 +4,7 @@ import { format } from "date-fns";
 
 export function useDashboard(userId: string | undefined) {
   const today = format(new Date(), "yyyy-MM-dd");
+  const currentYear = new Date().getFullYear();
 
   const attendanceQuery = useQuery({
     queryKey: ["dashboard-attendance", userId, today],
@@ -21,85 +22,103 @@ export function useDashboard(userId: string | undefined) {
     enabled: !!userId,
   });
 
-  const beatPlansQuery = useQuery({
-    queryKey: ["dashboard-beat-plans", userId, today],
+  const pendingLeavesQuery = useQuery({
+    queryKey: ["dashboard-pending-leaves", userId],
+    queryFn: async () => {
+      if (!userId) return 0;
+      const { count, error } = await supabase
+        .from("leave_applications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("status", "pending");
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!userId,
+  });
+
+  const leaveBalanceQuery = useQuery({
+    queryKey: ["dashboard-leave-balance", userId, currentYear],
     queryFn: async () => {
       if (!userId) return [];
       const { data, error } = await supabase
-        .from("beat_plans")
-        .select("*")
+        .from("leave_balance")
+        .select("*, leave_types(name)")
         .eq("user_id", userId)
-        .eq("plan_date", today);
+        .eq("year", currentYear);
       if (error) throw error;
       return data || [];
     },
     enabled: !!userId,
   });
 
-  const visitsQuery = useQuery({
-    queryKey: ["dashboard-visits", userId, today],
+  const activeProjectsQuery = useQuery({
+    queryKey: ["dashboard-active-projects", userId],
     queryFn: async () => {
-      if (!userId) return [];
-      const { data, error } = await supabase
-        .from("visits")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("planned_date", today);
+      if (!userId) return 0;
+      const { count, error } = await supabase
+        .from("pm_projects")
+        .select("*", { count: "exact", head: true })
+        .in("status", ["active", "planning"]);
       if (error) throw error;
-      return data || [];
+      return count || 0;
     },
     enabled: !!userId,
   });
 
-  const ordersQuery = useQuery({
-    queryKey: ["dashboard-orders", userId, today],
+  const myTasksQuery = useQuery({
+    queryKey: ["dashboard-my-tasks", userId],
     queryFn: async () => {
-      if (!userId) return [];
+      if (!userId) return { total: 0, completed: 0, inProgress: 0 };
       const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("user_id", userId)
-        .gte("created_at", `${today}T00:00:00.000Z`)
-        .lte("created_at", `${today}T23:59:59.999Z`);
+        .from("pm_tasks")
+        .select("status")
+        .eq("assignee_id", userId);
       if (error) throw error;
-      return data || [];
+      const tasks = data || [];
+      return {
+        total: tasks.length,
+        completed: tasks.filter((t) => t.status === "done").length,
+        inProgress: tasks.filter((t) => t.status === "in_progress").length,
+      };
     },
     enabled: !!userId,
   });
 
-  const visits = visitsQuery.data || [];
-  const orders = ordersQuery.data || [];
-  const beatPlans = beatPlansQuery.data || [];
+  const pendingExpensesQuery = useQuery({
+    queryKey: ["dashboard-pending-expenses", userId],
+    queryFn: async () => {
+      if (!userId) return { count: 0, total: 0 };
+      const { data, error } = await supabase
+        .from("additional_expenses")
+        .select("amount, status")
+        .eq("user_id", userId)
+        .eq("status", "pending");
+      if (error) throw error;
+      const expenses = data || [];
+      return {
+        count: expenses.length,
+        total: expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0),
+      };
+    },
+    enabled: !!userId,
+  });
+
   const attendance = attendanceQuery.data;
-
-  const planned = visits.filter((v) => v.status === "planned").length;
-  const productive = visits.filter((v) => v.status === "completed" || v.status === "productive").length;
-  const remaining = visits.filter((v) => v.status === "planned" || v.status === "in_progress").length;
-  const revenueAchieved = orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
-
-  const beatName = beatPlans.map((bp) => bp.beat_name).filter(Boolean).join(", ") || null;
-
   const isCheckedIn = !!attendance?.check_in_time && !attendance?.check_out_time;
   const isCheckedOut = !!attendance?.check_out_time;
   const dayStarted = !!attendance?.check_in_time;
 
   return {
     attendance,
-    beatPlans,
-    beatName,
-    visits,
-    orders,
     isLoading: attendanceQuery.isLoading,
     dayStarted,
     isCheckedIn,
     isCheckedOut,
-    stats: {
-      planned,
-      productive,
-      remaining,
-      newRetailers: 0,
-      revenueAchieved,
-      points: 0,
-    },
+    pendingLeaves: pendingLeavesQuery.data || 0,
+    leaveBalances: leaveBalanceQuery.data || [],
+    activeProjects: activeProjectsQuery.data || 0,
+    myTasks: myTasksQuery.data || { total: 0, completed: 0, inProgress: 0 },
+    pendingExpenses: pendingExpensesQuery.data || { count: 0, total: 0 },
   };
 }
