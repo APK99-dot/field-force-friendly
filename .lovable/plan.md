@@ -1,152 +1,64 @@
 
 
-# Plan: Copy Projects Module from Staging-QuickApp
+## Plan: Implement Camera Selfie Capture with Face Verification for Attendance
 
-## Overview
+### Problem
+Clicking "Start My Day" / "End My Day" currently just calls `checkIn()`/`checkOut()` which records attendance with GPS only — no camera opens, no selfie is captured, and no face verification happens.
 
-The staging project has a full-featured **Project Management (PM) module** with 20+ database tables, 30+ component files, and 2 hook files. This is a substantial module covering projects, tasks, Kanban boards, sprints, milestones, Gantt charts, timesheets, risks, templates, and more.
+### What needs to happen (matching Staging-Quickapp exactly)
 
-## What Needs to Be Created
+#### 1. Database Migration
+- Add `onboarding_completed` boolean column to `profiles` table (default false)
+- Add storage RLS policy: allow users to upload their own photos to `employee-photos` bucket (path pattern: `{user_id}/...`)
 
-### 1. Database Schema (Migration)
+#### 2. Create `CameraCapture` Component
+- New file: `src/components/CameraCapture.tsx`
+- Full camera dialog with live video feed, face guide circle overlay, capture button, retake/confirm flow
+- Front/back camera toggle, permission denied handling with retry
+- Adapted from staging version — removes Capacitor-specific native code (not applicable to this web-only project), keeps all PWA/browser camera logic intact
 
-Create all PM-related tables, enums, and RLS policies. The staging project uses these tables:
+#### 3. Create `ProfileSetupModal` Component
+- New file: `src/components/ProfileSetupModal.tsx`
+- On first login, checks if user has `profile_picture_url` set
+- If not, shows modal prompting user to capture baseline face photo
+- Uploads to `employee-photos/{userId}/baseline_{timestamp}.jpg`
+- Updates `profiles.profile_picture_url` and `profiles.onboarding_completed`
+- Can be skipped
 
-**Core Tables:**
-- `pm_projects` -- Projects with status, priority, budget, dates, owner, color, template flag
-- `pm_tasks` -- Tasks with status, priority, assignee, sprint, milestone, section, subtasks, tags, story points
-- `pm_sections` -- Kanban board sections per project
-- `pm_sprints` -- Sprint planning per project
-- `pm_milestones` -- Project milestones with due dates
+#### 4. Create `useFaceMatching` Hook
+- New file: `src/hooks/useFaceMatching.ts`
+- Provides `compareImages()` function and status helpers
+- Simulates face matching client-side (same as staging's implementation which uses random confidence for demo)
 
-**Supporting Tables:**
-- `pm_task_attachments` -- File attachments on tasks
-- `pm_task_dependencies` -- Task-to-task dependency links
-- `pm_task_collaborators` -- Multiple collaborators per task
-- `pm_task_comments` -- Comments on tasks
-- `pm_time_logs` -- Time tracking per task
-- `pm_project_members` -- Project membership with roles
-- `pm_project_resources` -- Resource allocation with rates
-- `pm_risks` -- Risk register per project
+#### 5. Create `verify-face-match` Edge Function
+- New file: `supabase/functions/verify-face-match/index.ts`
+- Accepts baseline and attendance photo URLs
+- Fetches both images, converts to base64
+- Calls Lovable AI (Gemini 2.5 Flash) for face comparison
+- Returns confidence percentage and match status
+- Uses `LOVABLE_API_KEY` (already configured as a secret)
 
-**Template System:**
-- `pm_templates` -- Reusable project templates
-- `pm_template_sections` -- Template sections
-- `pm_template_tasks` -- Template tasks with duration_days
-- `pm_template_dependencies` -- Template task dependencies
-- `pm_template_attachments` -- Template task attachments
-- `pm_task_templates` -- Standalone task templates
+#### 6. Update Attendance Page (`src/pages/Attendance.tsx`)
+- Import `CameraCapture` and face matching logic
+- "Start My Day" and "End My Day" buttons now open camera dialog instead of directly calling checkIn/checkOut
+- Flow: Button click → open camera → user captures selfie → upload to `attendance-photos/{userId}/attendance/{date}_{type}_{timestamp}.jpg` → get location → call `verify-face-match` edge function → record attendance with `face_verification_status` and `face_match_confidence` → show result toast
+- Processing state indicator showing steps: Location → Photo Upload → Face Verification → Saving
+- If face match fails first attempt (<50%), allow retry; bypass on second attempt
+- If edge function is unavailable, bypass verification and proceed
 
-**AI/Extended Features:**
-- `pm_ai_insights` -- AI-generated project insights
-- `pm_ideas` -- Idea submissions per project
-- `pm_knowledge_documents` -- Knowledge base per project
-- `pm_support_requests` -- Support requests per project
+#### 7. Update `useAttendance` Hook
+- Modify `checkIn()` to accept optional photo path, location, and face match data
+- Modify `checkOut()` similarly
+- Store `face_verification_status`, `face_match_confidence`, `check_in_photo_url`, `check_out_photo_url` in attendance record
 
-**Enums to create:**
-- `pm_priority`: critical, high, medium, low
-- `pm_project_status`: planning, active, on_hold, completed, cancelled
-- `pm_task_status`: backlog, todo, in_progress, in_review, done, cancelled, overdue
-- `pm_task_type`: epic, story, task, bug, idea, milestone
-- `pm_sprint_status`: planning, active, completed, cancelled
-- `pm_member_role`: owner, manager, developer, designer, tester, viewer
+#### 8. Integrate `ProfileSetupModal` in App Layout
+- Add to `AppLayout.tsx` so it appears on first login when profile picture is missing
 
-**Storage bucket:**
-- `pm-attachments` -- For task file attachments
-
-**RLS Policies:** All tables will have admin full-access and user-level read/write policies based on project membership or ownership.
-
-### 2. Hooks (2 files)
-
-- `src/hooks/useProjects.ts` (~755 lines) -- All CRUD hooks for projects, tasks, sections, sprints, milestones, risks, time logs, attachments, dependencies, collaborators
-- `src/hooks/useTemplates.ts` -- All CRUD hooks for the template system
-
-**Adaptation needed:** The staging uses `useAuth()` from a custom AuthProvider. This project does not have that hook. Will replace with `supabase.auth.getUser()` calls inline (same pattern used elsewhere in this project).
-
-### 3. Components (29 files in `src/components/pm/`)
-
-- `CreateProjectModal.tsx` -- Project creation form with template selection
-- `CreateTaskModal.tsx` -- Task creation with owner picker, collaborators, tags
-- `KanbanBoard.tsx` -- Drag-and-drop board grouped by section/status/priority/assignee
-- `BacklogView.tsx` -- Work plan / list view of tasks
-- `CalendarView.tsx` -- Calendar display of tasks by due date
-- `GanttChart.tsx` -- Gantt timeline view
-- `TimesheetView.tsx` -- Time logging interface
-- `SprintsPanel.tsx` -- Sprint management
-- `MilestonesPanel.tsx` -- Milestone tracking
-- `RisksPanel.tsx` -- Risk register
-- `ProjectOverview.tsx` -- Dashboard/summary view
-- `TaskDetailPanel.tsx` -- Slide-over task detail editor
-- `TaskStatusBadge.tsx` -- Status/priority badge components
-- `TaskSubtasks.tsx` -- Subtask management
-- `TaskAttachments.tsx` -- File attachment management
-- `TaskDependencies.tsx` -- Dependency management
-- `TaskTimesheetSection.tsx` -- Time logging in task detail
-- `ResourcesPanel.tsx` -- Resource allocation panel
-- `MultiUserPicker.tsx` -- Multi-user selector component
-- `IdeasPanel.tsx` -- Ideas submission and management
-- `KnowledgePanel.tsx` -- Knowledge base document management
-- `SupportPanel.tsx` -- Support request management
-- `AIDescriptionWriter.tsx` -- AI-powered task description
-- `AIHealthCheck.tsx` -- AI project health analysis
-- `AIKnowledgeAssistant.tsx` -- AI knowledge Q&A
-- `AIRiskPredictor.tsx` -- AI risk prediction
-- `AISubtaskGenerator.tsx` -- AI subtask generation
-- `AIWorkloadAnalysis.tsx` -- AI workload analysis
-- `TemplateWorkPlanView.tsx` -- Template work plan viewer
-
-### 4. Pages (5 files in `src/pages/pm/`)
-
-- `ProjectsPage.tsx` -- Project listing with stats, search, filters, grid cards
-- `ProjectDetailPage.tsx` -- Full project workspace with tabbed views (Board, Work Plan, Calendar, Gantt, Timesheet, Sprints, Resources, Overview, Risks, Ideas, Knowledge, Support, Templates)
-- `TemplatesPage.tsx` -- Template listing
-- `TemplateBuilderPage.tsx` -- Template editor
-- `ResourceDetailPage.tsx` -- Resource detail view
-
-### 5. Routing Updates
-
-Add routes in `App.tsx`:
-- `/projects` -- ProjectsPage
-- `/projects/:id` -- ProjectDetailPage
-- `/templates` -- TemplatesPage
-- `/templates/:id` -- TemplateBuilderPage
-
-### 6. Navigation Updates
-
-- Add "Projects" entry to Admin Controls module grid in `AdminControls.tsx`
-- Optionally add to bottom navigation or More page
-
-## Implementation Approach
-
-Due to the massive size of this module (~30+ files, ~5000+ lines of code, 20+ database tables), implementation will be done in phases:
-
-**Phase 1:** Database migration (all tables, enums, RLS, storage bucket)
-**Phase 2:** Hooks (`useProjects.ts`, `useTemplates.ts`) adapted for this project (no `useAuth`, use direct `supabase.auth.getUser()`)
-**Phase 3:** Core components (CreateProjectModal, KanbanBoard, TaskDetailPanel, TaskStatusBadge, MultiUserPicker)
-**Phase 4:** Pages (ProjectsPage, ProjectDetailPage) and routing
-**Phase 5:** Remaining components (Gantt, Calendar, Backlog, Sprints, Milestones, Risks, Timesheet, Resources)
-**Phase 6:** Template system components and AI features
-**Phase 7:** Navigation integration
-
-## Technical Details
-
-```text
-Staging Structure:
-src/
-  hooks/
-    useProjects.ts (755 lines - all PM CRUD hooks)
-    useTemplates.ts (~300 lines - template CRUD hooks)
-  components/pm/
-    29 component files
-  pages/pm/
-    5 page files
-
-Current Project Adaptation:
-- Replace useAuth() → supabase.auth.getUser()
-- Replace <Layout> wrapper → use existing AppLayout (already via routes)
-- All foreign keys reference profiles.id (already exists in current project)
-- Storage bucket pm-attachments needs creation
-```
-
-**Estimated total:** ~20+ database tables, ~36 new files, ~8000+ lines of code
+### Technical Details
+- Storage buckets `employee-photos` and `attendance-photos` already exist with correct RLS for attendance photos
+- Need to add user self-upload policy for `employee-photos`
+- `profiles` table already has `profile_picture_url` column
+- `attendance` table already has `face_match_confidence`, `face_verification_status`, `check_in_photo_url`, `check_out_photo_url` columns
+- `LOVABLE_API_KEY` secret is already configured for the edge function
+- Edge function config needs `verify_jwt = false` in `supabase/config.toml`
 
