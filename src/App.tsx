@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import ProjectsPage from "./pages/Projects";
 import ProjectDetailPage from "./pages/ProjectDetail";
 import TemplatesPage from "./pages/Templates";
+import PendingApprovals from "./pages/PendingApprovals";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/templates" element={<TemplatesPage />} />
             <Route path="/templates/:id" element={<TemplatesPage />} />
+            <Route path="/pending-approvals" element={<PendingApprovals />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
