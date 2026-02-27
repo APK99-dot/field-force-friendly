@@ -1,64 +1,98 @@
 
 
-## Plan: Implement Camera Selfie Capture with Face Verification for Attendance
+## Plan: Approval Workflow Notifications for Leave & Regularisation
 
-### Problem
-Clicking "Start My Day" / "End My Day" currently just calls `checkIn()`/`checkOut()` which records attendance with GPS only — no camera opens, no selfie is captured, and no face verification happens.
+### 1. Database Migration
 
-### What needs to happen (matching Staging-Quickapp exactly)
+Create `notifications` table and `send_notification` RPC function (matching staging schema):
 
-#### 1. Database Migration
-- Add `onboarding_completed` boolean column to `profiles` table (default false)
-- Add storage RLS policy: allow users to upload their own photos to `employee-photos` bucket (path pattern: `{user_id}/...`)
+```sql
+CREATE TABLE public.notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT DEFAULT 'info',
+  is_read BOOLEAN DEFAULT false,
+  related_table TEXT,
+  related_id UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
-#### 2. Create `CameraCapture` Component
-- New file: `src/components/CameraCapture.tsx`
-- Full camera dialog with live video feed, face guide circle overlay, capture button, retake/confirm flow
-- Front/back camera toggle, permission denied handling with retry
-- Adapted from staging version — removes Capacitor-specific native code (not applicable to this web-only project), keeps all PWA/browser camera logic intact
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
-#### 3. Create `ProfileSetupModal` Component
-- New file: `src/components/ProfileSetupModal.tsx`
-- On first login, checks if user has `profile_picture_url` set
-- If not, shows modal prompting user to capture baseline face photo
-- Uploads to `employee-photos/{userId}/baseline_{timestamp}.jpg`
-- Updates `profiles.profile_picture_url` and `profiles.onboarding_completed`
-- Can be skipped
+-- Users see/update own notifications
+CREATE POLICY "Users can view own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
+-- Authenticated users can insert (needed for submitting requests that notify managers)
+CREATE POLICY "Authenticated can insert notifications" ON public.notifications FOR INSERT TO authenticated WITH CHECK (true);
 
-#### 4. Create `useFaceMatching` Hook
-- New file: `src/hooks/useFaceMatching.ts`
-- Provides `compareImages()` function and status helpers
-- Simulates face matching client-side (same as staging's implementation which uses random confidence for demo)
+-- Enable realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+```
 
-#### 5. Create `verify-face-match` Edge Function
-- New file: `supabase/functions/verify-face-match/index.ts`
-- Accepts baseline and attendance photo URLs
-- Fetches both images, converts to base64
-- Calls Lovable AI (Gemini 2.5 Flash) for face comparison
-- Returns confidence percentage and match status
-- Uses `LOVABLE_API_KEY` (already configured as a secret)
+Create `send_notification` SECURITY DEFINER function:
 
-#### 6. Update Attendance Page (`src/pages/Attendance.tsx`)
-- Import `CameraCapture` and face matching logic
-- "Start My Day" and "End My Day" buttons now open camera dialog instead of directly calling checkIn/checkOut
-- Flow: Button click → open camera → user captures selfie → upload to `attendance-photos/{userId}/attendance/{date}_{type}_{timestamp}.jpg` → get location → call `verify-face-match` edge function → record attendance with `face_verification_status` and `face_match_confidence` → show result toast
-- Processing state indicator showing steps: Location → Photo Upload → Face Verification → Saving
-- If face match fails first attempt (<50%), allow retry; bypass on second attempt
-- If edge function is unavailable, bypass verification and proceed
+```sql
+CREATE OR REPLACE FUNCTION public.send_notification(
+  user_id_param UUID, title_param TEXT, message_param TEXT,
+  type_param TEXT DEFAULT 'info', related_table_param TEXT DEFAULT NULL,
+  related_id_param UUID DEFAULT NULL
+) RETURNS UUID
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = 'public'
+AS $$ ... INSERT INTO notifications ... RETURNING id $$;
+```
 
-#### 7. Update `useAttendance` Hook
-- Modify `checkIn()` to accept optional photo path, location, and face match data
-- Modify `checkOut()` similarly
-- Store `face_verification_status`, `face_match_confidence`, `check_in_photo_url`, `check_out_photo_url` in attendance record
+### 2. Create `useNotifications` Hook (`src/hooks/useNotifications.ts`)
 
-#### 8. Integrate `ProfileSetupModal` in App Layout
-- Add to `AppLayout.tsx` so it appears on first login when profile picture is missing
+Replicate staging hook exactly:
+- Fetch unread notifications for current user
+- Real-time subscription via Supabase channel on `notifications` table filtered by `user_id`
+- `markAsRead(id)` and `markAllAsRead()` functions
+- Return `{ notifications, unreadCount, isLoading, markAsRead, markAllAsRead }`
+
+### 3. Create `NotificationBell` Component (`src/components/NotificationBell.tsx`)
+
+Replicate staging component:
+- Bell icon with badge count
+- Popover dropdown showing notification list with title, message, relative timestamp
+- "Mark all read" button
+- Click notification to mark as read
+
+### 4. Update `AppHeader.tsx`
+
+Replace the static bell button with the `<NotificationBell />` component.
+
+### 5. Update `LeaveApplicationModal.tsx`
+
+After successful leave insert:
+- Look up current user's `reporting_manager_id` from `users` table
+- If manager exists, insert notification for the manager:
+  - Title: "Leave Application - {employee_name}"
+  - Message: "{leave_type} from {from_date} to {to_date}"
+  - type: "leave_request", related_table: "leave_applications", related_id: application id
+
+### 6. Update `RegularizationRequestModal.tsx`
+
+After successful regularization insert:
+- Look up current user's `reporting_manager_id` from `users` table
+- If manager exists, insert notification for the manager:
+  - Title: "Regularisation Request - {employee_name}"
+  - Message: "Date: {date}, Reason: {reason}"
+  - type: "regularization_request", related_table: "regularization_requests", related_id: request id
+
+### 7. Update `AttendanceManagement.tsx` (Admin approval page)
+
+After approving/rejecting leave or regularisation:
+- Insert notification for the employee:
+  - Title: "Leave {Approved/Rejected}" or "Regularisation {Approved/Rejected}"
+  - Message includes dates and rejection reason if applicable
+  - type: "leave_decision" / "regularization_decision"
 
 ### Technical Details
-- Storage buckets `employee-photos` and `attendance-photos` already exist with correct RLS for attendance photos
-- Need to add user self-upload policy for `employee-photos`
-- `profiles` table already has `profile_picture_url` column
-- `attendance` table already has `face_match_confidence`, `face_verification_status`, `check_in_photo_url`, `check_out_photo_url` columns
-- `LOVABLE_API_KEY` secret is already configured for the edge function
-- Edge function config needs `verify_jwt = false` in `supabase/config.toml`
+- `users.reporting_manager_id` already exists and is used for hierarchy
+- Realtime enabled so managers see notifications instantly
+- `send_notification` RPC is SECURITY DEFINER to bypass RLS for cross-user inserts (used from admin actions)
+- Direct inserts used from employee-side (INSERT policy allows authenticated)
+- Leave balance updates already handled by existing approval logic
 
