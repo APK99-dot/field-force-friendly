@@ -66,20 +66,18 @@ const LeaveBalancesManager = () => {
     const dojDate = doj ? new Date(doj) : null;
     const now = new Date();
 
-    // Determine eligible months in the given year
+    // Determine eligible months in the given year (full year entitlement from DOJ)
     let eligibleMonths: number;
     if (dojDate && dojDate.getFullYear() === year) {
-      // Joined this year: months from DOJ month to current month (or Dec if past year)
+      // Joined this year: months from DOJ month to December
       const startMonth = dojDate.getMonth() + 1; // 1-indexed
-      const endMonth = year === currentYear ? now.getMonth() + 1 : 12;
-      eligibleMonths = Math.max(0, endMonth - startMonth + 1);
+      eligibleMonths = Math.max(0, 12 - startMonth + 1);
     } else if (dojDate && dojDate.getFullYear() > year) {
       // DOJ is in a future year relative to the filter year
       eligibleMonths = 0;
     } else {
-      // Joined before this year (or no DOJ recorded): full year up to current month
-      const endMonth = year === currentYear ? now.getMonth() + 1 : 12;
-      eligibleMonths = endMonth;
+      // Joined before this year (or no DOJ recorded): full 12 months
+      eligibleMonths = 12;
     }
 
     if (accrualType === 'monthly') {
