@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CheckCircle, XCircle, LogOut, Loader2, Clock, Edit3, Camera, Shield, MapPin, Save, Upload } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CheckCircle, XCircle, LogOut, Loader2, Clock, Edit3, Camera, Shield, MapPin, Save, Upload, Route, CalendarDays, FileText, Navigation2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+const LeafletMap = lazy(() => import("@/components/LeafletMap"));
 import { supabase } from "@/integrations/supabase/client";
 import { useAttendance, isWeekOffDate } from "@/hooks/useAttendance";
 import { useFaceMatching } from "@/hooks/useFaceMatching";
@@ -23,6 +26,7 @@ import { cn } from "@/lib/utils";
 type ProcessingStep = "camera" | "location" | "uploading" | "verifying" | "saving" | null;
 
 export default function Attendance() {
+  const navigate = useNavigate();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [userId, setUserId] = useState<string>();
   const [actionLoading, setActionLoading] = useState(false);
@@ -32,6 +36,9 @@ export default function Attendance() {
   const [dateFilter, setDateFilter] = useState("current-month");
   const [showPresentDaysDialog, setShowPresentDaysDialog] = useState(false);
   const [showAbsentDaysDialog, setShowAbsentDaysDialog] = useState(false);
+  const [selectedDateForMap, setSelectedDateForMap] = useState<Date | null>(null);
+  const [gpsPositions, setGpsPositions] = useState<any[]>([]);
+  const [mapLoading, setMapLoading] = useState(false);
 
   // Camera & face verification state
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -216,6 +223,24 @@ export default function Attendance() {
   const handleOpenRegularizationModal = (record: any) => {
     setSelectedRecordForReg(record);
     setRegModalOpen(true);
+  };
+
+  const loadGPSPositionsForDate = async (dateStr: string) => {
+    if (!userId) return;
+    setMapLoading(true);
+    try {
+      const { data } = await supabase
+        .from("gps_tracking")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("date", dateStr)
+        .order("timestamp", { ascending: true });
+      setGpsPositions(data || []);
+    } catch (err) {
+      console.error("Error loading GPS positions:", err);
+    } finally {
+      setMapLoading(false);
+    }
   };
 
   const handleRefresh = () => {
@@ -458,6 +483,23 @@ export default function Attendance() {
                               )}
                             </div>
                             <div className="flex flex-col gap-1 items-end">
+                              {!isAbsent && record.face_match_confidence !== null && record.face_match_confidence !== undefined && (
+                                <Badge
+                                  variant={
+                                    record.face_match_confidence >= 70 ? 'default' :
+                                    record.face_match_confidence >= 40 ? 'secondary' :
+                                    'destructive'
+                                  }
+                                  className={cn(
+                                    record.face_match_confidence >= 70 && "bg-green-500 hover:bg-green-600",
+                                    record.face_match_confidence >= 40 && record.face_match_confidence < 70 && "bg-amber-500 hover:bg-amber-600"
+                                  )}
+                                >
+                                  {record.face_match_confidence >= 70 ? '✅' :
+                                   record.face_match_confidence >= 40 ? '⚠️' : '❌'}
+                                  {' '}{Math.round(record.face_match_confidence)}%
+                                </Badge>
+                              )}
                               {isAbsent && !hasPendingRequest && !hasRejectedRequest && <Badge variant="destructive">Absent</Badge>}
                               {isRegularized && <Badge className="bg-purple-500 hover:bg-purple-600">Regularized</Badge>}
                               {hasPendingRequest && <Badge className="bg-yellow-500 hover:bg-yellow-600">Pending Approval</Badge>}
@@ -469,6 +511,77 @@ export default function Attendance() {
                           <Button size="icon" variant="outline" className="h-8 w-8 border-orange-300 text-orange-700 hover:bg-orange-50" onClick={() => handleOpenRegularizationModal(record)} title={hasRejectedRequest ? "Resubmit Regularization" : "Request Regularization"}>
                             <Edit3 className="h-4 w-4" />
                           </Button>
+
+                          {!isAbsent && (
+                            <>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-8 w-8"
+                                    onClick={async () => {
+                                      setSelectedDateForMap(new Date(record.date));
+                                      await loadGPSPositionsForDate(format(new Date(record.date), "yyyy-MM-dd"));
+                                    }}
+                                    title="Travel Heat Map"
+                                  >
+                                    <Route className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+                                  <DialogHeader>
+                                    <div className="flex items-center justify-between">
+                                      <DialogTitle>
+                                        Journey Heat Map - {format(new Date(record.date), "MMM dd, yyyy")}
+                                      </DialogTitle>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => navigate(`/gps-tracking?date=${format(new Date(record.date), "yyyy-MM-dd")}`)}
+                                      >
+                                        <Navigation2 className="h-4 w-4 mr-2" />
+                                        Open in GPS Track
+                                      </Button>
+                                    </div>
+                                  </DialogHeader>
+                                  <div className="mt-4 h-[500px]">
+                                    {mapLoading ? (
+                                      <div className="flex items-center justify-center h-full">
+                                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                      </div>
+                                    ) : (
+                                      <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+                                        <LeafletMap
+                                          location={gpsPositions.length > 0 ? { lat: Number(gpsPositions[0].latitude), lng: Number(gpsPositions[0].longitude) } : null}
+                                        />
+                                      </Suspense>
+                                    )}
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-8 w-8"
+                                onClick={() => navigate(`/visits?date=${format(new Date(record.date), "yyyy-MM-dd")}`)}
+                                title="Timeline View"
+                              >
+                                <CalendarDays className="h-4 w-4" />
+                              </Button>
+
+                              <Button
+                                size="icon"
+                                variant={record.status === 'present' || isRegularized ? 'default' : 'destructive'}
+                                className="h-8 w-8"
+                                onClick={() => navigate(`/expenses?date=${format(new Date(record.date), "yyyy-MM-dd")}`)}
+                                title="Productivity Report"
+                              >
+                                <FileText className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
