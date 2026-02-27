@@ -2,9 +2,9 @@ import { useState, useCallback } from "react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { NotificationBell } from "@/components/NotificationBell";
 import {
   Menu,
-  Bell,
   ArrowLeft,
   Building2,
   LogOut,
@@ -93,10 +93,7 @@ export function AppHeader() {
             </div>
 
             <div className="flex items-center gap-1">
-              <button className="p-1.5 rounded-lg hover:bg-white/10 transition-colors relative">
-                <Bell size={20} />
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-accent animate-pulse" />
-              </button>
+              <NotificationBell />
               <button
                 onClick={() => setIsMenuOpen(true)}
                 className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"

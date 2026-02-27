@@ -69,7 +69,7 @@ const LeaveApplicationModal: React.FC<LeaveApplicationModalProps> = ({
         ? (Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1) * 0.5
         : Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
 
-      const { error } = await supabase.from('leave_applications').insert({
+      const { data: insertedApp, error } = await supabase.from('leave_applications').insert({
         user_id: user.id,
         leave_type_id: leaveTypeId,
         from_date: format(startDate, 'yyyy-MM-dd'),
@@ -78,9 +78,33 @@ const LeaveApplicationModal: React.FC<LeaveApplicationModalProps> = ({
         reason: reason.trim(),
         is_half_day: leaveDay === 'half',
         status: 'pending'
-      });
+      }).select('id').single();
 
       if (error) throw error;
+
+      // Notify reporting manager
+      try {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('reporting_manager_id, full_name')
+          .eq('id', user.id)
+          .single();
+
+        if (userData?.reporting_manager_id && insertedApp) {
+          const selectedType = leaveTypes.find(t => t.id === leaveTypeId);
+          await supabase.from('notifications').insert({
+            user_id: userData.reporting_manager_id,
+            title: `Leave Application - ${userData.full_name || 'Employee'}`,
+            message: `${selectedType?.name || 'Leave'} from ${format(startDate, 'MMM dd, yyyy')} to ${format(endDate, 'MMM dd, yyyy')}`,
+            type: 'leave_request',
+            related_table: 'leave_applications',
+            related_id: insertedApp.id,
+          });
+        }
+      } catch (notifError) {
+        console.error('Error sending notification:', notifError);
+      }
+
       toast.success('Leave application submitted successfully');
       setLeaveTypeId('');
       setStartDate(undefined);

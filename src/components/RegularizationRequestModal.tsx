@@ -70,7 +70,7 @@ const RegularizationRequestModal: React.FC<RegularizationRequestModalProps> = ({
       const requestedCheckInTime = requestedCheckIn ? new Date(`${attendanceDate}T${requestedCheckIn}:00`).toISOString() : null;
       const requestedCheckOutTime = requestedCheckOut ? new Date(`${attendanceDate}T${requestedCheckOut}:00`).toISOString() : null;
 
-      const { error } = await supabase.from('regularization_requests').insert({
+      const { data: insertedReq, error } = await supabase.from('regularization_requests').insert({
         user_id: userId,
         date: attendanceDate,
         attendance_date: attendanceDate,
@@ -81,9 +81,32 @@ const RegularizationRequestModal: React.FC<RegularizationRequestModalProps> = ({
         requested_check_out_time: requestedCheckOutTime,
         reason: reason.trim(),
         status: 'pending'
-      });
+      }).select('id').single();
 
       if (error) throw error;
+
+      // Notify reporting manager
+      try {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('reporting_manager_id, full_name')
+          .eq('id', userId)
+          .single();
+
+        if (userData?.reporting_manager_id && insertedReq) {
+          await supabase.from('notifications').insert({
+            user_id: userData.reporting_manager_id,
+            title: `Regularisation Request - ${userData.full_name || 'Employee'}`,
+            message: `Date: ${format(new Date(attendanceDate), 'MMM dd, yyyy')}, Reason: ${reason.trim().substring(0, 100)}`,
+            type: 'regularization_request',
+            related_table: 'regularization_requests',
+            related_id: insertedReq.id,
+          });
+        }
+      } catch (notifError) {
+        console.error('Error sending notification:', notifError);
+      }
+
       toast.success('Regularization request submitted successfully');
       onSubmit();
       onClose();
