@@ -2,13 +2,38 @@ import { Bell, CheckCheck } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
+import { useState } from 'react';
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+
+  const handleNotificationClick = (n: typeof notifications[0]) => {
+    markAsRead(n.id);
+    setOpen(false);
+
+    // Navigate to pending approvals for actionable notification types
+    if (
+      n.type === 'leave_request' ||
+      n.type === 'regularization_request'
+    ) {
+      const params = new URLSearchParams();
+      if (n.related_id) params.set('id', n.related_id);
+      if (n.type) params.set('type', n.type);
+      navigate(`/pending-approvals?${params.toString()}`);
+    } else if (
+      n.type === 'leave_decision' ||
+      n.type === 'regularization_decision'
+    ) {
+      navigate('/attendance');
+    }
+  };
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button className="p-1.5 rounded-lg hover:bg-white/10 transition-colors relative">
           <Bell size={20} />
@@ -36,7 +61,7 @@ export function NotificationBell() {
             notifications.map((n) => (
               <button
                 key={n.id}
-                onClick={() => markAsRead(n.id)}
+                onClick={() => handleNotificationClick(n)}
                 className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors border-b last:border-b-0"
               >
                 <p className="text-sm font-medium leading-tight">{n.title}</p>
