@@ -144,8 +144,9 @@ export default function AttendanceManagement() {
     }
   };
 
-  const handleLeaveStatusUpdate = async (applicationId: string, newStatus: string) => {
+  const handleLeaveStatusUpdate = async (applicationId: string, newStatus: string, rejectionReason?: string) => {
     try {
+      const app = leaveApplications.find(a => a.id === applicationId);
       const updateData: any = {
         status: newStatus,
         approved_date: newStatus === "approved" ? new Date().toISOString() : null,
@@ -155,6 +156,20 @@ export default function AttendanceManagement() {
 
       const { error } = await supabase.from("leave_applications").update(updateData).eq("id", applicationId);
       if (error) throw error;
+
+      // Notify employee
+      if (app) {
+        try {
+          await supabase.from('notifications').insert({
+            user_id: app.user_id,
+            title: `Leave ${newStatus === 'approved' ? 'Approved' : 'Rejected'}`,
+            message: `Your leave from ${format(new Date(app.from_date), 'MMM dd')} to ${format(new Date(app.to_date), 'MMM dd')}${newStatus === 'rejected' && rejectionReason ? ` - Reason: ${rejectionReason}` : ''} has been ${newStatus}.`,
+            type: 'leave_decision',
+            related_table: 'leave_applications',
+            related_id: applicationId,
+          });
+        } catch (e) { console.error('Notification error:', e); }
+      }
 
       toast.success(`Leave application ${newStatus} successfully`);
       fetchLeaveApplications();
@@ -212,6 +227,18 @@ export default function AttendanceManagement() {
       const { error } = await supabase.from("regularization_requests").update(updateData).eq("id", requestId);
       if (error) throw error;
 
+      // Notify employee
+      try {
+        await supabase.from('notifications').insert({
+          user_id: request.user_id,
+          title: `Regularisation ${newStatus === 'approved' ? 'Approved' : 'Rejected'}`,
+          message: `Your regularisation for ${format(new Date(request.attendance_date || request.date), 'MMM dd, yyyy')}${newStatus === 'rejected' && rejectionReason ? ` - Reason: ${rejectionReason}` : ''} has been ${newStatus}.`,
+          type: 'regularization_decision',
+          related_table: 'regularization_requests',
+          related_id: requestId,
+        });
+      } catch (e) { console.error('Notification error:', e); }
+
       toast.success(`Regularization request ${newStatus} successfully`);
       fetchRegularizationRequests();
     } catch (error) {
@@ -228,7 +255,7 @@ export default function AttendanceManagement() {
   const handleConfirmRejection = async (reason: string) => {
     if (!rejectionTarget) return;
     if (rejectionTarget.type === "leave") {
-      await handleLeaveStatusUpdate(rejectionTarget.id, "rejected");
+      await handleLeaveStatusUpdate(rejectionTarget.id, "rejected", reason);
     } else {
       await handleRegularizationStatusUpdate(rejectionTarget.id, "rejected", reason);
     }
