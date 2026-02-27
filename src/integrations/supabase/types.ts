@@ -19,17 +19,25 @@ export type Database = {
           activity_date: string
           activity_name: string
           activity_type: string
+          attachment_urls: Json | null
           created_at: string
+          description: string | null
           duration_type: string | null
           end_time: string | null
           from_date: string | null
           half_day_type: string | null
           id: string
+          location_address: string | null
+          location_lat: number | null
+          location_lng: number | null
+          project_id: string | null
           remarks: string | null
           retailer_id: string | null
           start_time: string | null
+          status: string
           to_date: string | null
           total_days: number | null
+          total_hours: number | null
           user_id: string
           visit_id: string | null
         }
@@ -37,17 +45,25 @@ export type Database = {
           activity_date?: string
           activity_name: string
           activity_type: string
+          attachment_urls?: Json | null
           created_at?: string
+          description?: string | null
           duration_type?: string | null
           end_time?: string | null
           from_date?: string | null
           half_day_type?: string | null
           id?: string
+          location_address?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
+          project_id?: string | null
           remarks?: string | null
           retailer_id?: string | null
           start_time?: string | null
+          status?: string
           to_date?: string | null
           total_days?: number | null
+          total_hours?: number | null
           user_id: string
           visit_id?: string | null
         }
@@ -55,21 +71,36 @@ export type Database = {
           activity_date?: string
           activity_name?: string
           activity_type?: string
+          attachment_urls?: Json | null
           created_at?: string
+          description?: string | null
           duration_type?: string | null
           end_time?: string | null
           from_date?: string | null
           half_day_type?: string | null
           id?: string
+          location_address?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
+          project_id?: string | null
           remarks?: string | null
           retailer_id?: string | null
           start_time?: string | null
+          status?: string
           to_date?: string | null
           total_days?: number | null
+          total_hours?: number | null
           user_id?: string
           visit_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "activity_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "pm_projects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "activity_events_retailer_id_fkey"
             columns: ["retailer_id"]
