@@ -14,6 +14,7 @@ import {
   Shield,
   AlertTriangle,
   Receipt,
+  ClipboardList,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NavLink } from "@/components/NavLink";
@@ -39,6 +40,7 @@ const navigationItems = [
   { icon: Navigation2, label: "GPS Track", href: "/gps-tracking", color: "from-purple-500 to-purple-600" },
   { icon: FolderKanban, label: "Projects", href: "/projects", color: "from-indigo-500 to-indigo-600" },
   { icon: Receipt, label: "Expenses", href: "/expenses", color: "from-orange-500 to-orange-600" },
+  { icon: ClipboardList, label: "Activities", href: "/activities", color: "from-teal-500 to-teal-600" },
 ];
 
 const adminItems = [
