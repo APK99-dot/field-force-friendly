@@ -138,7 +138,7 @@ const LeaveApplicationModal: React.FC<LeaveApplicationModalProps> = ({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Apply for Leave</DialogTitle>
           <DialogDescription>Submit a new leave application for approval</DialogDescription>
