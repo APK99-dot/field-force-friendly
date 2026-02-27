@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,10 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { CheckCircle, XCircle, LogOut, Loader2, Clock, Edit3, Camera, Shield, MapPin, Save, Upload, Route, CalendarDays, FileText, Navigation2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { CheckCircle, XCircle, LogOut, Loader2, Clock, Edit3, Camera, Shield, MapPin, Save, Upload, CalendarDays, Download } from "lucide-react";
 
-const LeafletMap = lazy(() => import("@/components/LeafletMap"));
+// LeafletMap removed - no longer needed for travel heat map
 import { supabase } from "@/integrations/supabase/client";
 import { useAttendance, isWeekOffDate } from "@/hooks/useAttendance";
 import { useFaceMatching } from "@/hooks/useFaceMatching";
@@ -26,7 +25,6 @@ import { cn } from "@/lib/utils";
 type ProcessingStep = "camera" | "location" | "uploading" | "verifying" | "saving" | null;
 
 export default function Attendance() {
-  const navigate = useNavigate();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [userId, setUserId] = useState<string>();
   const [actionLoading, setActionLoading] = useState(false);
@@ -36,9 +34,11 @@ export default function Attendance() {
   const [dateFilter, setDateFilter] = useState("current-month");
   const [showPresentDaysDialog, setShowPresentDaysDialog] = useState(false);
   const [showAbsentDaysDialog, setShowAbsentDaysDialog] = useState(false);
-  const [selectedDateForMap, setSelectedDateForMap] = useState<Date | null>(null);
-  const [gpsPositions, setGpsPositions] = useState<any[]>([]);
-  const [mapLoading, setMapLoading] = useState(false);
+  const [timelineDate, setTimelineDate] = useState<string | null>(null);
+  const [timelineActivities, setTimelineActivities] = useState<any[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineCheckIn, setTimelineCheckIn] = useState<string | null>(null);
+  const [timelineCheckOut, setTimelineCheckOut] = useState<string | null>(null);
 
   // Camera & face verification state
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -225,21 +225,24 @@ export default function Attendance() {
     setRegModalOpen(true);
   };
 
-  const loadGPSPositionsForDate = async (dateStr: string) => {
-    if (!userId) return;
-    setMapLoading(true);
+  const openTimelineView = async (record: any) => {
+    const dateStr = format(new Date(record.date), "yyyy-MM-dd");
+    setTimelineDate(dateStr);
+    setTimelineCheckIn(record.check_in_time || null);
+    setTimelineCheckOut(record.check_out_time || null);
+    setTimelineLoading(true);
     try {
       const { data } = await supabase
-        .from("gps_tracking")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("date", dateStr)
-        .order("timestamp", { ascending: true });
-      setGpsPositions(data || []);
+        .from("activity_events")
+        .select("*, retailers(name)")
+        .eq("user_id", userId!)
+        .eq("activity_date", dateStr)
+        .order("start_time", { ascending: true });
+      setTimelineActivities(data || []);
     } catch (err) {
-      console.error("Error loading GPS positions:", err);
+      console.error("Error loading timeline:", err);
     } finally {
-      setMapLoading(false);
+      setTimelineLoading(false);
     }
   };
 
@@ -513,74 +516,15 @@ export default function Attendance() {
                           </Button>
 
                           {!isAbsent && (
-                            <>
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="outline"
-                                    className="h-8 w-8"
-                                    onClick={async () => {
-                                      setSelectedDateForMap(new Date(record.date));
-                                      await loadGPSPositionsForDate(format(new Date(record.date), "yyyy-MM-dd"));
-                                    }}
-                                    title="Travel Heat Map"
-                                  >
-                                    <Route className="h-4 w-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-                                  <DialogHeader>
-                                    <div className="flex items-center justify-between">
-                                      <DialogTitle>
-                                        Journey Heat Map - {format(new Date(record.date), "MMM dd, yyyy")}
-                                      </DialogTitle>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => navigate(`/gps-tracking?date=${format(new Date(record.date), "yyyy-MM-dd")}`)}
-                                      >
-                                        <Navigation2 className="h-4 w-4 mr-2" />
-                                        Open in GPS Track
-                                      </Button>
-                                    </div>
-                                  </DialogHeader>
-                                  <div className="mt-4 h-[500px]">
-                                    {mapLoading ? (
-                                      <div className="flex items-center justify-center h-full">
-                                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                      </div>
-                                    ) : (
-                                      <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-                                        <LeafletMap
-                                          location={gpsPositions.length > 0 ? { lat: Number(gpsPositions[0].latitude), lng: Number(gpsPositions[0].longitude) } : null}
-                                        />
-                                      </Suspense>
-                                    )}
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
-
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                className="h-8 w-8"
-                                onClick={() => navigate(`/visits?date=${format(new Date(record.date), "yyyy-MM-dd")}`)}
-                                title="Timeline View"
-                              >
-                                <CalendarDays className="h-4 w-4" />
-                              </Button>
-
-                              <Button
-                                size="icon"
-                                variant={record.status === 'present' || isRegularized ? 'default' : 'destructive'}
-                                className="h-8 w-8"
-                                onClick={() => navigate(`/expenses?date=${format(new Date(record.date), "yyyy-MM-dd")}`)}
-                                title="Productivity Report"
-                              >
-                                <FileText className="h-4 w-4" />
-                              </Button>
-                            </>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8"
+                              onClick={() => openTimelineView(record)}
+                              title="Timeline View"
+                            >
+                              <CalendarDays className="h-4 w-4" />
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -619,6 +563,101 @@ export default function Attendance() {
           userId={userId}
         />
       )}
+
+      {/* Timeline View Dialog */}
+      <Dialog open={!!timelineDate} onOpenChange={(open) => { if (!open) setTimelineDate(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Timeline View - {timelineDate ? format(new Date(timelineDate), "MMM dd, yyyy") : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold tracking-wide">TIMELINE</h2>
+                <div className="h-1 w-20 bg-primary mt-1 rounded-full" />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm">
+                  <CalendarDays className="h-4 w-4 mr-2" />
+                  {timelineDate ? format(new Date(timelineDate), "MMMM do, yyyy") : ""}
+                </Button>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download PDF
+                </Button>
+              </div>
+            </div>
+
+            {timelineLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="relative pl-8">
+                {/* Vertical line */}
+                <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-muted-foreground/30" />
+
+                {/* Day Start */}
+                {timelineCheckIn && (
+                  <div className="relative mb-6">
+                    <div className="absolute -left-5 top-1 h-3 w-3 rounded-full bg-[hsl(150,50%,45%)] border-2 border-background" />
+                    <div>
+                      <div className="font-bold text-sm">DAY START</div>
+                      <div className="text-sm text-muted-foreground">{format(new Date(timelineCheckIn), "h:mm a")}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Activities */}
+                {timelineActivities.map((activity: any) => (
+                  <div key={activity.id} className="relative mb-6">
+                    <div className="absolute -left-5 top-1 h-3 w-3 rounded-full bg-primary border-2 border-background" />
+                    <div>
+                      <div className="font-bold text-sm">{activity.activity_name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {activity.start_time ? format(new Date(activity.start_time), "h:mm a") : ""}
+                        {activity.end_time ? ` - ${format(new Date(activity.end_time), "h:mm a")}` : ""}
+                      </div>
+                      {activity.retailers?.name && (
+                        <div className="text-xs text-muted-foreground mt-0.5">{activity.retailers.name}</div>
+                      )}
+                      {activity.remarks && (
+                        <div className="text-xs text-muted-foreground mt-0.5">{activity.remarks}</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Day End */}
+                {timelineCheckOut && (
+                  <div className="relative mb-2">
+                    <div className="absolute -left-5 top-1 h-3 w-3 rounded-full bg-destructive border-2 border-background" />
+                    <div>
+                      <div className="font-bold text-sm">DAY END</div>
+                      <div className="text-sm text-muted-foreground">{format(new Date(timelineCheckOut), "h:mm a")}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty state */}
+                {timelineActivities.length === 0 && !timelineCheckIn && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p className="font-medium">No activities recorded for this date.</p>
+                    <p className="text-sm mt-1">Activities will appear here once you place orders or record no-order reasons.</p>
+                  </div>
+                )}
+
+                {timelineActivities.length === 0 && timelineCheckIn && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p className="font-medium">No activities recorded for this date.</p>
+                    <p className="text-sm mt-1">Activities will appear here once you place orders or record no-order reasons.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Camera Capture Dialog */}
       <CameraCapture
