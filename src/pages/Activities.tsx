@@ -1,12 +1,18 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { format, parseISO, isToday } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO, isToday } from "date-fns";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -15,26 +21,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Activity,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Navigation2,
+  Sparkles,
   Clock,
+  Users,
+  MapPin,
+  Activity,
   CheckCircle2,
   AlertCircle,
   Plus,
-  Filter,
-  MapPin,
-  CalendarDays,
   Search,
   Trash2,
   Edit,
-  RotateCcw,
+  Loader2,
 } from "lucide-react";
-import { useActivities, type Activity as ActivityType, type ActivityFilters } from "@/hooks/useActivities";
+import { supabase } from "@/integrations/supabase/client";
+import { useActivities, type Activity as ActivityType } from "@/hooks/useActivities";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
 const activityTypes = [
@@ -48,13 +53,12 @@ const activityTypes = [
   "Other",
 ];
 
-const durationTypes = ["hour_based", "half_day", "full_day", "multiple_days"];
 const statusOptions = ["planned", "in_progress", "completed"];
 
 const statusColors: Record<string, string> = {
-  planned: "bg-blue-100 text-blue-700 border-blue-200",
-  in_progress: "bg-amber-100 text-amber-700 border-amber-200",
-  completed: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  planned: "bg-muted text-muted-foreground",
+  in_progress: "bg-info/10 text-info border-info/20",
+  completed: "bg-success/10 text-success border-success/20",
 };
 
 const statusLabels: Record<string, string> = {
@@ -65,7 +69,7 @@ const statusLabels: Record<string, string> = {
 
 const container = {
   hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.04 } },
+  show: { opacity: 1, transition: { staggerChildren: 0.05 } },
 };
 const item = {
   hidden: { opacity: 0, y: 10 },
@@ -90,63 +94,61 @@ export default function Activities() {
   const { activities, loading, users, projects, fetchActivities, createActivity, updateActivity, deleteActivity } = useActivities();
   const { isAdmin } = useUserProfile();
 
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [activeTab, setActiveTab] = useState<"timeline" | "gps" | "activity">("timeline");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
-  const [filters, setFilters] = useState<ActivityFilters>({
-    employee: "",
-    project: "",
-    dateFrom: "",
-    dateTo: "",
-    status: "",
-  });
+  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const dateStr = format(selectedDate, "yyyy-MM-dd");
 
-  // Dashboard stats
-  const stats = useMemo(() => {
-    const today = activities.filter((a) => {
-      try { return isToday(parseISO(a.activity_date)); } catch { return false; }
+  // Filter activities by selected date and optionally by user
+  const dayActivities = useMemo(() => {
+    return activities.filter((a) => {
+      const dateMatch = a.activity_date === dateStr;
+      const userMatch = !selectedUserId || a.user_id === selectedUserId;
+      return dateMatch && userMatch;
     });
-    const completed = today.filter((a) => a.status === "completed");
-    const pending = today.filter((a) => a.status !== "completed");
-    const totalHours = today.reduce((sum, a) => sum + (a.total_hours || 0), 0);
+  }, [activities, dateStr, selectedUserId]);
+
+  const filteredActivities = useMemo(() => {
+    if (!searchQuery) return dayActivities;
+    const q = searchQuery.toLowerCase();
+    return dayActivities.filter(
+      (a) =>
+        a.activity_name.toLowerCase().includes(q) ||
+        a.activity_type.toLowerCase().includes(q) ||
+        (a.user_full_name || "").toLowerCase().includes(q)
+    );
+  }, [dayActivities, searchQuery]);
+
+  // Stats for selected date
+  const stats = useMemo(() => {
+    const completed = dayActivities.filter((a) => a.status === "completed");
+    const pending = dayActivities.filter((a) => a.status !== "completed");
+    const totalHours = dayActivities.reduce((sum, a) => sum + (a.total_hours || 0), 0);
     return {
-      total: today.length,
+      total: dayActivities.length,
       completed: completed.length,
       pending: pending.length,
       totalHours: Math.round(totalHours * 10) / 10,
     };
+  }, [dayActivities]);
+
+  // Check which days have activities (green dot)
+  const daysWithActivities = useMemo(() => {
+    const set = new Set<string>();
+    activities.forEach((a) => set.add(a.activity_date));
+    return set;
   }, [activities]);
 
-  const filtered = useMemo(() => {
-    if (!searchQuery) return activities;
-    const q = searchQuery.toLowerCase();
-    return activities.filter(
-      (a) =>
-        a.activity_name.toLowerCase().includes(q) ||
-        a.activity_type.toLowerCase().includes(q) ||
-        (a.user_full_name || "").toLowerCase().includes(q) ||
-        (a.project_name || "").toLowerCase().includes(q)
-    );
-  }, [activities, searchQuery]);
-
-  const handleApplyFilters = () => {
-    fetchActivities(filters);
-    setShowFilters(false);
-  };
-
-  const handleResetFilters = () => {
-    const reset: ActivityFilters = { employee: "", project: "", dateFrom: "", dateTo: "", status: "" };
-    setFilters(reset);
-    fetchActivities(reset);
-    setShowFilters(false);
-  };
-
   const handleOpenCreate = () => {
-    setForm(defaultForm);
+    setForm({ ...defaultForm, activity_date: dateStr });
     setEditingId(null);
     setShowForm(true);
   };
@@ -186,14 +188,13 @@ export default function Activities() {
         location_address: form.location_address || null,
         total_hours: form.total_hours || 0,
       };
-
       if (editingId) {
         await updateActivity(editingId, payload);
       } else {
         await createActivity(payload);
       }
       setShowForm(false);
-      fetchActivities(filters);
+      fetchActivities();
     } catch (err: any) {
       console.error(err);
     } finally {
@@ -204,150 +205,191 @@ export default function Activities() {
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this activity?")) return;
     await deleteActivity(id);
-    fetchActivities(filters);
+    fetchActivities();
   };
 
   return (
-    <motion.div
-      className="p-4 space-y-4 max-w-7xl mx-auto pb-24"
-      variants={container}
-      initial="hidden"
-      animate="show"
-    >
-      {/* Header */}
-      <motion.div variants={item} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">Activities</h1>
-          <p className="text-xs text-muted-foreground">Log & track daily work activities</p>
+    <motion.div className="space-y-0" variants={container} initial="hidden" animate="show">
+      {/* Gradient Header - Matching Visits/Staging-Quickapp */}
+      <motion.div variants={item} className="gradient-hero text-primary-foreground p-4 pb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold">Activities</h1>
+            <p className="text-xs opacity-80">Log & track daily work</p>
+          </div>
+          {/* User Select Dropdown */}
+          <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+            <SelectTrigger className="w-[140px] h-8 bg-white/15 border-white/20 text-primary-foreground text-xs">
+              <Users className="h-3.5 w-3.5 mr-1 opacity-80" />
+              <SelectValue placeholder="Select" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Users</SelectItem>
+              {users.map((u) => (
+                <SelectItem key={u.id} value={u.id}>{u.full_name || "Unknown"}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setShowFilters(true)}>
-            <Filter className="h-4 w-4 mr-1" /> Filter
+
+        {/* Week Info + Navigation */}
+        <div className="flex items-center gap-2 mt-3 mb-3">
+          <CalendarDays className="h-4 w-4 opacity-80" />
+          <span className="text-xs opacity-80">Week of {format(weekStart, "MMM d, yyyy")}</span>
+          <div className="ml-auto flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-primary-foreground/70 hover:text-primary-foreground hover:bg-white/10" onClick={() => setSelectedDate(subWeeks(selectedDate, 1))}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-primary-foreground/70 hover:text-primary-foreground hover:bg-white/10" onClick={() => setSelectedDate(addWeeks(selectedDate, 1))}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Week Day Selector */}
+        <div className="grid grid-cols-7 gap-1.5">
+          {weekDays.map((day) => {
+            const isActive = isSameDay(day, selectedDate);
+            const dayKey = format(day, "yyyy-MM-dd");
+            const hasActivities = daysWithActivities.has(dayKey);
+            return (
+              <button
+                key={day.toISOString()}
+                onClick={() => setSelectedDate(day)}
+                className={`rounded-lg py-2 text-center transition-colors relative ${isActive ? "bg-white text-primary font-semibold" : "bg-white/15 text-primary-foreground/80 hover:bg-white/25"}`}
+              >
+                <p className="text-[10px]">{format(day, "EEE")}</p>
+                <p className="text-sm font-semibold">{format(day, "d")}</p>
+                {hasActivities && (
+                  <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Action Buttons Row: Timeline, GPS Track, Activity */}
+        <div className="grid grid-cols-3 gap-2 mt-3">
+          <Button
+            variant="ghost"
+            className={`h-9 text-xs ${activeTab === "timeline" ? "bg-white/20 text-primary-foreground" : "text-primary-foreground/60 hover:bg-white/10"}`}
+            onClick={() => setActiveTab("timeline")}
+          >
+            <Clock className="h-3.5 w-3.5 mr-1.5" />Timeline
           </Button>
-          <Button size="sm" onClick={handleOpenCreate}>
+          <Button
+            variant="ghost"
+            className={`h-9 text-xs ${activeTab === "gps" ? "bg-white/20 text-primary-foreground" : "text-primary-foreground/60 hover:bg-white/10"}`}
+            onClick={() => setActiveTab("gps")}
+          >
+            <Navigation2 className="h-3.5 w-3.5 mr-1.5" />GPS Track
+          </Button>
+          <Button
+            variant="ghost"
+            className={`h-9 text-xs ${activeTab === "activity" ? "bg-white/20 text-primary-foreground" : "text-primary-foreground/60 hover:bg-white/10"}`}
+            onClick={() => {
+              setActiveTab("activity");
+              handleOpenCreate();
+            }}
+          >
+            <Sparkles className="h-3.5 w-3.5 mr-1.5" />Activity
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Stats Row */}
+      <motion.div variants={item} className="p-4 grid grid-cols-4 gap-2">
+        <div className="bg-card rounded-xl p-3 text-center shadow-card">
+          <p className="text-lg font-bold">{stats.total}</p>
+          <p className="text-[10px] text-muted-foreground">Total</p>
+        </div>
+        <div className="bg-card rounded-xl p-3 text-center shadow-card">
+          <p className="text-lg font-bold text-emerald-600">{stats.completed}</p>
+          <p className="text-[10px] text-muted-foreground">Done</p>
+        </div>
+        <div className="bg-card rounded-xl p-3 text-center shadow-card">
+          <p className="text-lg font-bold text-amber-600">{stats.pending}</p>
+          <p className="text-[10px] text-muted-foreground">Pending</p>
+        </div>
+        <div className="bg-card rounded-xl p-3 text-center shadow-card">
+          <p className="text-lg font-bold text-violet-600">{stats.totalHours}h</p>
+          <p className="text-[10px] text-muted-foreground">Hours</p>
+        </div>
+      </motion.div>
+
+      {/* Search + New Button */}
+      <motion.div variants={item} className="px-4 space-y-3">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search activities..." className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+          </div>
+          <Button className="gradient-hero text-primary-foreground" onClick={handleOpenCreate}>
             <Plus className="h-4 w-4 mr-1" /> New
           </Button>
         </div>
       </motion.div>
 
-      {/* Stats Cards */}
-      <motion.div variants={item} className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="border-l-4 border-l-primary">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-medium">Today's Activities</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
-              </div>
-              <Activity className="h-8 w-8 text-primary/30" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-emerald-500">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-medium">Completed</p>
-                <p className="text-2xl font-bold">{stats.completed}</p>
-              </div>
-              <CheckCircle2 className="h-8 w-8 text-emerald-500/30" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-amber-500">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-medium">Pending</p>
-                <p className="text-2xl font-bold">{stats.pending}</p>
-              </div>
-              <AlertCircle className="h-8 w-8 text-amber-500/30" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-violet-500">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-medium">Hours Logged</p>
-                <p className="text-2xl font-bold">{stats.totalHours}</p>
-              </div>
-              <Clock className="h-8 w-8 text-violet-500/30" />
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Search */}
-      <motion.div variants={item} className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search activities..."
-          className="pl-9"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </motion.div>
-
       {/* Activity List */}
-      <motion.div variants={item} className="space-y-3">
+      <motion.div variants={item} className="px-4 pb-24 pt-3 space-y-3">
         {loading ? (
-          <div className="text-center py-12 text-muted-foreground text-sm">Loading...</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-12">
-            <Activity className="h-12 w-12 text-muted-foreground/30 mx-auto mb-2" />
-            <p className="text-muted-foreground text-sm">No activities found</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={handleOpenCreate}>
-              <Plus className="h-4 w-4 mr-1" /> Log Activity
-            </Button>
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : filteredActivities.length === 0 ? (
+          <Card className="shadow-card">
+            <CardContent className="p-8 text-center">
+              <CalendarDays className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+              <p className="text-sm font-semibold text-muted-foreground">No activities found</p>
+              <p className="text-xs text-muted-foreground mt-1">Log a new activity for this date</p>
+            </CardContent>
+          </Card>
         ) : (
-          filtered.map((a) => (
-            <Card key={a.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-3">
-                <div className="flex items-start justify-between gap-2">
+          filteredActivities.map((a) => (
+            <Card key={a.id} className="shadow-card">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-sm font-semibold truncate">{a.activity_name}</h3>
-                      <Badge variant="outline" className={`text-[10px] shrink-0 ${statusColors[a.status] || ""}`}>
-                        {statusLabels[a.status] || a.status}
-                      </Badge>
+                      <Activity className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="font-semibold text-sm truncate">{a.activity_name}</span>
                     </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span className="inline-flex items-center gap-1">
-                        <Activity className="h-3 w-3" /> {a.activity_type}
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <CalendarDays className="h-3 w-3" /> {format(parseISO(a.activity_date), "dd MMM yyyy")}
-                      </span>
-                      {a.total_hours ? (
-                        <span className="inline-flex items-center gap-1">
-                          <Clock className="h-3 w-3" /> {a.total_hours}h
-                        </span>
-                      ) : null}
-                      {a.location_address && (
-                        <span className="inline-flex items-center gap-1">
-                          <MapPin className="h-3 w-3" /> {a.location_address}
-                        </span>
-                      )}
-                    </div>
+                    <p className="text-xs text-muted-foreground ml-6">{a.activity_type}</p>
+                    {a.location_address && (
+                      <p className="text-xs text-muted-foreground ml-6 mt-0.5">
+                        <MapPin className="h-3 w-3 inline mr-1" />{a.location_address}
+                      </p>
+                    )}
+                    {a.start_time && (
+                      <p className="text-xs text-muted-foreground ml-6 mt-0.5">
+                        <Clock className="h-3 w-3 inline mr-1" />
+                        {format(parseISO(a.start_time), "h:mm a")}
+                        {a.end_time && ` - ${format(parseISO(a.end_time), "h:mm a")}`}
+                        {a.total_hours ? ` (${a.total_hours}h)` : ""}
+                      </p>
+                    )}
                     {a.project_name && (
-                      <p className="text-xs text-primary mt-1">📁 {a.project_name}</p>
+                      <p className="text-xs text-primary ml-6 mt-0.5">📁 {a.project_name}</p>
                     )}
                     {isAdmin && a.user_full_name && (
-                      <p className="text-xs text-muted-foreground mt-0.5">👤 {a.user_full_name}</p>
+                      <p className="text-xs text-muted-foreground ml-6 mt-0.5">👤 {a.user_full_name}</p>
                     )}
                     {a.description && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.description}</p>
+                      <p className="text-xs text-muted-foreground ml-6 mt-1 line-clamp-2">{a.description}</p>
                     )}
                   </div>
-                  <div className="flex flex-col gap-1 shrink-0">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenEdit(a)}>
-                      <Edit className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(a.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <Badge variant="outline" className={statusColors[a.status] || ""}>
+                      {statusLabels[a.status] || a.status}
+                    </Badge>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenEdit(a)}>
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(a.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -356,7 +398,7 @@ export default function Activities() {
         )}
       </motion.div>
 
-      {/* Create/Edit Dialog */}
+      {/* Create/Edit Activity Dialog - Reusing existing form */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -437,64 +479,9 @@ export default function Activities() {
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Activity details..." rows={3} />
             </div>
             <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_name || !form.activity_type}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingId ? "Update Activity" : "Log Activity"}
             </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Filters Dialog */}
-      <Dialog open={showFilters} onOpenChange={setShowFilters}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>Filter Activities</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 mt-2">
-            {isAdmin && (
-              <div>
-                <Label className="text-xs">Employee</Label>
-                <Select value={filters.employee} onValueChange={(v) => setFilters({ ...filters, employee: v })}>
-                  <SelectTrigger><SelectValue placeholder="All Employees" /></SelectTrigger>
-                  <SelectContent>
-                    {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.full_name || u.id}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div>
-              <Label className="text-xs">Project</Label>
-              <Select value={filters.project} onValueChange={(v) => setFilters({ ...filters, project: v })}>
-                <SelectTrigger><SelectValue placeholder="All Projects" /></SelectTrigger>
-                <SelectContent>
-                  {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Status</Label>
-              <Select value={filters.status} onValueChange={(v) => setFilters({ ...filters, status: v })}>
-                <SelectTrigger><SelectValue placeholder="All Statuses" /></SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((s) => <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">From Date</Label>
-                <Input type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} />
-              </div>
-              <div>
-                <Label className="text-xs">To Date</Label>
-                <Input type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button className="flex-1" onClick={handleApplyFilters}>Apply</Button>
-              <Button variant="outline" className="flex-1" onClick={handleResetFilters}>
-                <RotateCcw className="h-4 w-4 mr-1" /> Reset
-              </Button>
-            </div>
           </div>
         </DialogContent>
       </Dialog>
