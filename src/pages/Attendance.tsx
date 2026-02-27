@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, subMonths } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { CheckCircle, XCircle, LogOut, Loader2, Clock, Edit3, Camera, Shield, MapPin, Save, Upload, CalendarDays, Download } from "lucide-react";
+import jsPDF from "jspdf";
 
 // LeafletMap removed - no longer needed for travel heat map
 import { supabase } from "@/integrations/supabase/client";
@@ -230,20 +233,98 @@ export default function Attendance() {
     setTimelineDate(dateStr);
     setTimelineCheckIn(record.check_in_time || null);
     setTimelineCheckOut(record.check_out_time || null);
+    await loadTimelineForDate(dateStr);
+  };
+
+  const loadTimelineForDate = async (dateStr: string) => {
     setTimelineLoading(true);
     try {
-      const { data } = await supabase
+      // Load activities
+      const { data: activities } = await supabase
         .from("activity_events")
         .select("*, retailers(name)")
         .eq("user_id", userId!)
         .eq("activity_date", dateStr)
         .order("start_time", { ascending: true });
-      setTimelineActivities(data || []);
+      setTimelineActivities(activities || []);
+
+      // Load attendance for that date to get check-in/out times
+      const { data: att } = await supabase
+        .from("attendance")
+        .select("check_in_time, check_out_time")
+        .eq("user_id", userId!)
+        .eq("date", dateStr)
+        .maybeSingle();
+      setTimelineCheckIn(att?.check_in_time || null);
+      setTimelineCheckOut(att?.check_out_time || null);
     } catch (err) {
       console.error("Error loading timeline:", err);
     } finally {
       setTimelineLoading(false);
     }
+  };
+
+  const handleTimelineDateChange = (date: Date | undefined) => {
+    if (!date) return;
+    const dateStr = format(date, "yyyy-MM-dd");
+    setTimelineDate(dateStr);
+    loadTimelineForDate(dateStr);
+  };
+
+  const handleDownloadTimelinePDF = () => {
+    if (!timelineDate) return;
+    const doc = new jsPDF();
+    const dateLabel = format(new Date(timelineDate), "MMMM do, yyyy");
+
+    doc.setFontSize(18);
+    doc.text("TIMELINE", 14, 20);
+    doc.setFontSize(11);
+    doc.text(dateLabel, 14, 28);
+
+    let y = 40;
+
+    if (timelineCheckIn) {
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("DAY START", 20, y);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(format(new Date(timelineCheckIn), "h:mm a"), 20, y + 6);
+      y += 16;
+    }
+
+    timelineActivities.forEach((activity: any) => {
+      if (y > 270) { doc.addPage(); y = 20; }
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(activity.activity_name, 20, y);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      const timeStr = [
+        activity.start_time ? format(new Date(activity.start_time), "h:mm a") : "",
+        activity.end_time ? format(new Date(activity.end_time), "h:mm a") : "",
+      ].filter(Boolean).join(" - ");
+      if (timeStr) doc.text(timeStr, 20, y + 6);
+      if (activity.retailers?.name) doc.text(activity.retailers.name, 20, y + 12);
+      y += activity.retailers?.name ? 22 : 16;
+    });
+
+    if (timelineCheckOut) {
+      if (y > 270) { doc.addPage(); y = 20; }
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("DAY END", 20, y);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(format(new Date(timelineCheckOut), "h:mm a"), 20, y + 6);
+    }
+
+    if (timelineActivities.length === 0 && !timelineCheckIn) {
+      doc.setFontSize(12);
+      doc.text("No activities recorded for this date.", 14, y);
+    }
+
+    doc.save(`timeline-${timelineDate}.pdf`);
   };
 
   const handleRefresh = () => {
@@ -577,11 +658,23 @@ export default function Attendance() {
                 <div className="h-1 w-20 bg-primary mt-1 rounded-full" />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <CalendarDays className="h-4 w-4 mr-2" />
-                  {timelineDate ? format(new Date(timelineDate), "MMMM do, yyyy") : ""}
-                </Button>
-                <Button variant="outline" size="sm">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <CalendarDays className="h-4 w-4 mr-2" />
+                      {timelineDate ? format(new Date(timelineDate), "MMMM do, yyyy") : ""}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={timelineDate ? new Date(timelineDate) : undefined}
+                      onSelect={handleTimelineDateChange}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button variant="outline" size="sm" onClick={handleDownloadTimelinePDF}>
                   <Download className="h-4 w-4 mr-2" />
                   Download PDF
                 </Button>
