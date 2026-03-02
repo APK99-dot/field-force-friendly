@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +15,6 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Redirect if already logged in
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) navigate("/dashboard", { replace: true });
@@ -30,7 +28,6 @@ export default function Auth() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      // Bootstrap user record + role via DB function
       const { data: userData, error: rpcError } = await supabase.rpc("ensure_current_user", {
         _email: email,
       });
@@ -39,7 +36,6 @@ export default function Auth() {
         console.error("ensure_current_user error:", rpcError);
       }
 
-      const userRole = userData?.[0]?.role;
       const displayName = userData?.[0]?.full_name || userData?.[0]?.username || email;
       toast.success(`Welcome back, ${displayName}!`);
       navigate("/dashboard");
@@ -51,78 +47,100 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <motion.div
-        className="w-full max-w-sm"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl gradient-hero mx-auto flex items-center justify-center shadow-elevated mb-4">
-            <Building2 className="h-8 w-8 text-primary-foreground" />
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background: "linear-gradient(135deg, hsl(200 80% 82%) 0%, hsl(210 85% 75%) 50%, hsl(200 75% 85%) 100%)",
+      }}
+    >
+      <Card className="w-full max-w-md shadow-hero border-0 rounded-2xl overflow-hidden">
+        <CardContent className="p-8 pt-10 pb-8">
+          {/* Logo */}
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-card shadow-elevated flex items-center justify-center mb-4">
+              <Building2 className="h-8 w-8 text-foreground" />
+            </div>
+            <h1 className="text-xl font-bold text-primary">Bharath Builders</h1>
+            <p className="text-xs text-muted-foreground tracking-wide uppercase mt-0.5">
+              Field Force Management
+            </p>
           </div>
-          <h1 className="text-2xl font-bold">Bharath Builders</h1>
-          <p className="text-sm text-muted-foreground mt-1">Field Force Management</p>
-        </div>
 
-        <Card className="shadow-elevated">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-center text-lg">Sign In</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+          {/* Welcome text */}
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-foreground">Welcome</h2>
+            <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-semibold text-foreground">
+                Email Address
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-12 rounded-xl border-border bg-muted/40 px-4 text-sm placeholder:text-muted-foreground/60"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-semibold text-foreground">
+                Password
+              </Label>
+              <div className="relative">
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@bharathbuilders.in"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
+                  className="h-12 rounded-xl border-border bg-muted/40 px-4 pr-12 text-sm placeholder:text-muted-foreground/60"
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-              <Button
-                type="submit"
-                className="w-full gradient-hero text-primary-foreground shadow-elevated"
-                disabled={loading}
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-12 rounded-xl bg-foreground text-background font-semibold text-sm hover:bg-foreground/90 transition-colors"
+              disabled={loading}
+            >
+              {loading ? "Signing in..." : "Sign In as User"}
+            </Button>
+
+            <div className="text-center space-y-2 pt-1">
+              <button
+                type="button"
+                className="text-sm font-bold text-foreground hover:underline"
               >
-                {loading ? "Signing in..." : "Sign In"}
-              </Button>
-              <p className="text-center text-xs text-muted-foreground">
-                Forgot password?{" "}
-                <button type="button" className="text-primary font-medium hover:underline">
-                  Reset
+                Admin Sign In
+              </button>
+              <p>
+                <button
+                  type="button"
+                  className="text-sm text-muted-foreground hover:underline"
+                >
+                  Forgot your password?
                 </button>
               </p>
-            </form>
-          </CardContent>
-        </Card>
-      </motion.div>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
