@@ -9,13 +9,9 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   { id: "module_admin_panel", name: "module_admin_panel", label: "Admin Panel" },
   { id: "module_attendance", name: "module_attendance", label: "Attendance" },
   { id: "module_activities", name: "module_activities", label: "Activities" },
-  { id: "module_visits", name: "module_visits", label: "Visits" },
-  { id: "module_beats", name: "module_beats", label: "Beats" },
   { id: "module_expenses", name: "module_expenses", label: "Expenses" },
   { id: "module_projects", name: "module_projects", label: "Projects" },
   { id: "module_gps_tracking", name: "module_gps_tracking", label: "GPS Tracking" },
-  { id: "module_retailers", name: "module_retailers", label: "Retailers" },
-  { id: "module_orders", name: "module_orders", label: "Orders" },
   { id: "module_leaves", name: "module_leaves", label: "Leaves" },
 ];
 
