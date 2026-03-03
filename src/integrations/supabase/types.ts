@@ -33,6 +33,7 @@ export type Database = {
           project_id: string | null
           remarks: string | null
           retailer_id: string | null
+          site_id: string | null
           start_time: string | null
           status: string
           to_date: string | null
@@ -59,6 +60,7 @@ export type Database = {
           project_id?: string | null
           remarks?: string | null
           retailer_id?: string | null
+          site_id?: string | null
           start_time?: string | null
           status?: string
           to_date?: string | null
@@ -85,6 +87,7 @@ export type Database = {
           project_id?: string | null
           remarks?: string | null
           retailer_id?: string | null
+          site_id?: string | null
           start_time?: string | null
           status?: string
           to_date?: string | null
@@ -106,6 +109,13 @@ export type Database = {
             columns: ["retailer_id"]
             isOneToOne: false
             referencedRelation: "retailers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_events_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "project_sites"
             referencedColumns: ["id"]
           },
           {
@@ -2486,6 +2496,42 @@ export type Database = {
           updated_at?: string
           user_status?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      project_sites: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          site_code: string | null
+          site_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          site_code?: string | null
+          site_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          site_code?: string | null
+          site_name?: string
+          updated_at?: string
         }
         Relationships: []
       }

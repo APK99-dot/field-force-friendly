@@ -19,6 +19,7 @@ export interface Activity {
   remarks: string | null;
   status: string;
   project_id: string | null;
+  site_id: string | null;
   location_lat: number | null;
   location_lng: number | null;
   location_address: string | null;
@@ -27,6 +28,7 @@ export interface Activity {
   // joined
   user_full_name?: string;
   project_name?: string;
+  site_name?: string;
 }
 
 export interface ActivityFilters {
@@ -42,6 +44,7 @@ export function useActivities() {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<{ id: string; full_name: string }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const [sites, setSites] = useState<{ id: string; site_name: string; is_active: boolean }[]>([]);
   const { toast } = useToast();
 
   const fetchActivities = useCallback(async (filters?: ActivityFilters) => {
@@ -62,35 +65,40 @@ export function useActivities() {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Fetch user names and project names
+      // Fetch user names, project names, and site names
       const userIds = [...new Set((data || []).map((a: any) => a.user_id))];
       const projectIds = [...new Set((data || []).filter((a: any) => a.project_id).map((a: any) => a.project_id))];
+      const siteIds = [...new Set((data || []).filter((a: any) => a.site_id).map((a: any) => a.site_id))];
 
       let userMap: Record<string, string> = {};
       let projectMap: Record<string, string> = {};
+      let siteMap: Record<string, { name: string; active: boolean }> = {};
 
       if (userIds.length > 0) {
-        const { data: usersData } = await supabase
-          .from("users")
-          .select("id, full_name")
-          .in("id", userIds);
+        const { data: usersData } = await supabase.from("users").select("id, full_name").in("id", userIds);
         (usersData || []).forEach((u: any) => { userMap[u.id] = u.full_name || u.id; });
       }
 
       if (projectIds.length > 0) {
-        const { data: projData } = await supabase
-          .from("pm_projects")
-          .select("id, name")
-          .in("id", projectIds);
+        const { data: projData } = await supabase.from("pm_projects").select("id, name").in("id", projectIds);
         (projData || []).forEach((p: any) => { projectMap[p.id] = p.name; });
       }
 
-      const mapped: Activity[] = (data || []).map((a: any) => ({
-        ...a,
-        attachment_urls: a.attachment_urls || [],
-        user_full_name: userMap[a.user_id] || "",
-        project_name: a.project_id ? projectMap[a.project_id] || "" : "",
-      }));
+      if (siteIds.length > 0) {
+        const { data: siteData } = await supabase.from("project_sites").select("id, site_name, is_active").in("id", siteIds);
+        (siteData || []).forEach((s: any) => { siteMap[s.id] = { name: s.site_name, active: s.is_active }; });
+      }
+
+      const mapped: Activity[] = (data || []).map((a: any) => {
+        const siteInfo = a.site_id ? siteMap[a.site_id] : null;
+        return {
+          ...a,
+          attachment_urls: a.attachment_urls || [],
+          user_full_name: userMap[a.user_id] || "",
+          project_name: a.project_id ? projectMap[a.project_id] || "" : "",
+          site_name: siteInfo ? `${siteInfo.name}${!siteInfo.active ? " (Inactive)" : ""}` : "",
+        };
+      });
 
       setActivities(mapped);
     } catch (err: any) {
@@ -101,12 +109,14 @@ export function useActivities() {
   }, [toast]);
 
   const fetchDropdowns = useCallback(async () => {
-    const [usersRes, projRes] = await Promise.all([
+    const [usersRes, projRes, sitesRes] = await Promise.all([
       supabase.from("users").select("id, full_name").eq("is_active", true).order("full_name"),
       supabase.from("pm_projects").select("id, name").eq("is_template", false).order("name"),
+      supabase.from("project_sites").select("id, site_name, is_active").order("site_name"),
     ]);
     setUsers((usersRes.data || []).map((u: any) => ({ id: u.id, full_name: u.full_name || "" })));
     setProjects((projRes.data || []).map((p: any) => ({ id: p.id, name: p.name })));
+    setSites((sitesRes.data || []).map((s: any) => ({ id: s.id, site_name: s.site_name, is_active: s.is_active })));
   }, []);
 
   const fetchAttendanceForDate = useCallback(async (userId: string, date: string) => {
@@ -160,6 +170,7 @@ export function useActivities() {
       remarks: activity.remarks || null,
       status: activity.status || "planned",
       project_id: activity.project_id || null,
+      site_id: activity.site_id || null,
       location_lat: activity.location_lat || null,
       location_lng: activity.location_lng || null,
       location_address: activity.location_address || null,
@@ -185,6 +196,7 @@ export function useActivities() {
         remarks: updates.remarks,
         status: updates.status,
         project_id: updates.project_id,
+        site_id: updates.site_id,
         location_address: updates.location_address,
       })
       .eq("id", id);
@@ -209,7 +221,9 @@ export function useActivities() {
     loading,
     users,
     projects,
+    sites,
     fetchActivities,
+    fetchDropdowns,
     createActivity,
     updateActivity,
     deleteActivity,

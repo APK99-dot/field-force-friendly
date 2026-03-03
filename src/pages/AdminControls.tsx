@@ -12,6 +12,7 @@ import {
   Building2,
   ArrowLeft,
   Search,
+  MapPin,
 } from "lucide-react";
 
 const adminModules = [
@@ -49,6 +50,13 @@ const adminModules = [
     icon: Building2,
     color: "bg-indigo-100 text-indigo-600",
     path: "/admin/company",
+  },
+  {
+    title: "Project / Site Master",
+    description: "Manage project sites for activity logging",
+    icon: MapPin,
+    color: "bg-teal-100 text-teal-600",
+    path: "/admin/sites",
   },
 ];
 
