@@ -109,12 +109,43 @@ export function useActivities() {
     setProjects((projRes.data || []).map((p: any) => ({ id: p.id, name: p.name })));
   }, []);
 
-  const createActivity = useCallback(async (activity: Partial<Activity>) => {
+  const fetchAttendanceForDate = useCallback(async (userId: string, date: string) => {
+    const { data } = await supabase
+      .from("attendance")
+      .select("check_in_time, check_out_time")
+      .eq("user_id", userId)
+      .eq("date", date)
+      .maybeSingle();
+    return data;
+  }, []);
+
+  const fetchGPSTrackingForDate = useCallback(async (userId: string, date: string) => {
+    const [pointsRes, stopsRes] = await Promise.all([
+      supabase
+        .from("gps_tracking")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("date", date)
+        .order("timestamp", { ascending: true }),
+      supabase
+        .from("gps_tracking_stops")
+        .select("*")
+        .eq("user_id", userId)
+        .gte("timestamp", `${date}T00:00:00`)
+        .lte("timestamp", `${date}T23:59:59`)
+    ]);
+    return {
+      points: pointsRes.data || [],
+      stops: stopsRes.data || [],
+    };
+  }, []);
+
+  const createActivity = useCallback(async (activity: Partial<Activity>, targetUserId?: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
 
     const { error } = await supabase.from("activity_events").insert({
-      user_id: user.id,
+      user_id: targetUserId || user.id,
       activity_name: activity.activity_name!,
       activity_type: activity.activity_type!,
       activity_date: activity.activity_date!,
@@ -182,5 +213,7 @@ export function useActivities() {
     createActivity,
     updateActivity,
     deleteActivity,
+    fetchAttendanceForDate,
+    fetchGPSTrackingForDate,
   };
 }
