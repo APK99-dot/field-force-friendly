@@ -72,7 +72,7 @@ export function AppHeader() {
   return (
     <>
       {/* Top Navbar */}
-      <nav className="sticky top-0 z-50 bg-gradient-primary text-primary-foreground shadow-lg">
+      <nav className="sticky top-0 z-50 gradient-hero text-primary-foreground shadow-lg">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
