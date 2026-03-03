@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, IndianRupee, Clock, CheckCircle2, XCircle, Loader2, Pencil, Trash2, Eye, Upload } from 'lucide-react';
+import { Plus, IndianRupee, Clock, CheckCircle2, XCircle, Loader2, Pencil, Trash2, Eye, Upload, Camera } from 'lucide-react';
+import CameraCapture from '@/components/CameraCapture';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,7 +52,7 @@ export default function Expenses() {
   const [formDescription, setFormDescription] = useState('');
   const [formFile, setFormFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
+  const [showCamera, setShowCamera] = useState(false);
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = subMonths(new Date(), i);
     return { value: format(d, 'yyyy-MM'), label: format(d, 'MMM yyyy') };
@@ -294,7 +295,9 @@ export default function Expenses() {
               <Label>Receipt</Label>
               <div className="flex items-center gap-2">
                 <Input type="file" accept="image/*,.pdf" onChange={e => setFormFile(e.target.files?.[0] || null)} className="flex-1" />
-                <Upload size={16} className="text-muted-foreground" />
+                <Button type="button" variant="outline" size="icon" onClick={() => setShowCamera(true)} title="Take photo">
+                  <Camera className="h-4 w-4" />
+                </Button>
               </div>
               {formFile && <p className="text-xs text-muted-foreground">Selected: {formFile.name}</p>}
             </div>
@@ -316,6 +319,16 @@ export default function Expenses() {
           <p className="text-sm">{rejectionView}</p>
         </DialogContent>
       </Dialog>
+
+      <CameraCapture
+        open={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={(blob) => {
+          const file = new File([blob], `receipt_${Date.now()}.jpg`, { type: 'image/jpeg' });
+          setFormFile(file);
+        }}
+        title="Capture Receipt"
+      />
     </motion.div>
   );
 }
