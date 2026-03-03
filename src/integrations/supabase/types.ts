@@ -122,11 +122,14 @@ export type Database = {
           amount: number
           bill_url: string | null
           category: string
+          category_id: string | null
           created_at: string
           custom_category: string | null
           description: string | null
           expense_date: string
           id: string
+          month_key: string | null
+          rejection_reason: string | null
           status: string
           updated_at: string
           user_id: string
@@ -135,11 +138,14 @@ export type Database = {
           amount?: number
           bill_url?: string | null
           category: string
+          category_id?: string | null
           created_at?: string
           custom_category?: string | null
           description?: string | null
           expense_date?: string
           id?: string
+          month_key?: string | null
+          rejection_reason?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -148,16 +154,27 @@ export type Database = {
           amount?: number
           bill_url?: string | null
           category?: string
+          category_id?: string | null
           created_at?: string
           custom_category?: string | null
           description?: string | null
           expense_date?: string
           id?: string
+          month_key?: string | null
+          rejection_reason?: string | null
           status?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "additional_expenses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       attendance: {
         Row: {
@@ -459,6 +476,42 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_categories: {
+        Row: {
+          auto_approval_limit: number | null
+          created_at: string
+          daily_limit: number | null
+          id: string
+          is_active: boolean
+          monthly_limit: number | null
+          name: string
+          receipt_required_above: number | null
+          updated_at: string
+        }
+        Insert: {
+          auto_approval_limit?: number | null
+          created_at?: string
+          daily_limit?: number | null
+          id?: string
+          is_active?: boolean
+          monthly_limit?: number | null
+          name: string
+          receipt_required_above?: number | null
+          updated_at?: string
+        }
+        Update: {
+          auto_approval_limit?: number | null
+          created_at?: string
+          daily_limit?: number | null
+          id?: string
+          is_active?: boolean
+          monthly_limit?: number | null
+          name?: string
+          receipt_required_above?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       expense_master_config: {
         Row: {
           created_at: string
@@ -485,6 +538,39 @@ export type Database = {
           fixed_ta_amount?: number | null
           id?: string
           ta_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      expense_policy: {
+        Row: {
+          allow_backdate: boolean
+          created_at: string
+          id: string
+          max_back_days: number
+          month_lock_enabled: boolean
+          multi_level_approval: boolean
+          submission_deadline: number
+          updated_at: string
+        }
+        Insert: {
+          allow_backdate?: boolean
+          created_at?: string
+          id?: string
+          max_back_days?: number
+          month_lock_enabled?: boolean
+          multi_level_approval?: boolean
+          submission_deadline?: number
+          updated_at?: string
+        }
+        Update: {
+          allow_backdate?: boolean
+          created_at?: string
+          id?: string
+          max_back_days?: number
+          month_lock_enabled?: boolean
+          multi_level_approval?: boolean
+          submission_deadline?: number
           updated_at?: string
         }
         Relationships: []
