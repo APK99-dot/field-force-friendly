@@ -47,19 +47,10 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useActivities, type Activity as ActivityType } from "@/hooks/useActivities";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { toast } from "sonner";
+import { Separator } from "@/components/ui/separator";
 
 const LeafletMap = lazy(() => import("@/components/LeafletMap"));
-
-const activityTypes = [
-  "Site Visit",
-  "Contractor Meeting",
-  "Inspection",
-  "Training",
-  "Internal Work",
-  "Client Meeting",
-  "Documentation",
-  "Other",
-];
 
 const statusOptions = ["planned", "in_progress", "completed"];
 
@@ -114,6 +105,49 @@ export default function Activities() {
   const [form, setForm] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
+
+  // Dynamic activity types from DB
+  const [activityTypes, setActivityTypes] = useState<string[]>([]);
+  const [showAddTypeDialog, setShowAddTypeDialog] = useState(false);
+  const [newTypeName, setNewTypeName] = useState("");
+  const [addingType, setAddingType] = useState(false);
+
+  const fetchActivityTypes = useCallback(async () => {
+    const { data } = await supabase
+      .from("activity_types_master")
+      .select("name")
+      .eq("is_active", true)
+      .order("name");
+    setActivityTypes((data || []).map((d: any) => d.name));
+  }, []);
+
+  useEffect(() => {
+    fetchActivityTypes();
+  }, [fetchActivityTypes]);
+
+  const handleAddNewType = async () => {
+    const trimmed = newTypeName.trim();
+    if (!trimmed) return;
+    if (activityTypes.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error("This activity type already exists");
+      return;
+    }
+    setAddingType(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("activity_types_master").insert({ name: trimmed, created_by: user?.id });
+      if (error) throw error;
+      await fetchActivityTypes();
+      setForm((f) => ({ ...f, activity_type: trimmed }));
+      setNewTypeName("");
+      setShowAddTypeDialog(false);
+      toast.success(`"${trimmed}" added`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add type");
+    } finally {
+      setAddingType(false);
+    }
+  };
 
   // Timeline state
   const [attendance, setAttendance] = useState<{ check_in_time: string | null; check_out_time: string | null } | null>(null);
@@ -468,10 +502,20 @@ export default function Activities() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Activity Type *</Label>
-                <Select value={form.activity_type} onValueChange={(v) => setForm({ ...form, activity_type: v })}>
+                <Select value={form.activity_type} onValueChange={(v) => {
+                    if (v === "__add_new__") {
+                      setShowAddTypeDialog(true);
+                      return;
+                    }
+                    setForm({ ...form, activity_type: v });
+                  }}>
                   <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                   <SelectContent>
                     {activityTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    <Separator className="my-1" />
+                    <SelectItem value="__add_new__" className="text-primary font-medium">
+                      <span className="flex items-center gap-1.5"><Plus className="h-3.5 w-3.5" />Add new type...</span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -537,6 +581,28 @@ export default function Activities() {
             <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_name || !form.activity_type}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingId ? "Update Activity" : "Log Activity"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add New Activity Type Dialog */}
+      <Dialog open={showAddTypeDialog} onOpenChange={setShowAddTypeDialog}>
+        <DialogContent className="sm:max-w-[360px]">
+          <DialogHeader>
+            <DialogTitle>Add New Activity Type</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <Input
+              placeholder="e.g. Quality Check"
+              value={newTypeName}
+              onChange={(e) => setNewTypeName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddNewType()}
+              autoFocus
+            />
+            <Button className="w-full" onClick={handleAddNewType} disabled={addingType || !newTypeName.trim()}>
+              {addingType ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+              {addingType ? "Adding..." : "Add Type"}
             </Button>
           </div>
         </DialogContent>
