@@ -283,11 +283,11 @@ export default function Activities() {
   };
 
   const handleSave = async () => {
-    if (!form.activity_name || !form.activity_type) return;
+    if (!form.activity_type) return;
     setSaving(true);
     try {
       const payload: any = {
-        activity_name: form.activity_name,
+        activity_name: form.activity_type,
         activity_type: form.activity_type,
         activity_date: form.activity_date,
         start_time: form.start_time ? `${form.activity_date}T${form.start_time}:00` : null,
@@ -495,10 +495,6 @@ export default function Activities() {
                 </Select>
               </div>
             )}
-            <div>
-              <Label className="text-xs">Activity Name *</Label>
-              <Input value={form.activity_name} onChange={(e) => setForm({ ...form, activity_name: e.target.value })} placeholder="e.g. Site inspection at Block A" />
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Activity Type *</Label>
@@ -578,7 +574,7 @@ export default function Activities() {
               <Label className="text-xs">Description</Label>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Activity details..." rows={3} />
             </div>
-            <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_name || !form.activity_type}>
+            <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingId ? "Update Activity" : "Log Activity"}
             </Button>
