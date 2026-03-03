@@ -40,7 +40,7 @@ const LeaveBalancesManager = () => {
     setIsLoading(true);
     try {
       const { data: ltData } = await supabase.from('leave_types').select('id, name, annual_quota, accrual_type').eq('is_active', true).order('name');
-      const { data: usersData } = await supabase.from('profiles').select('id, full_name').order('full_name');
+      const { data: usersData } = await supabase.from('users').select('id, full_name').eq('is_active', true).order('full_name');
       const { data: employeesData } = await supabase.from('employees').select('user_id, date_of_joining');
       const dojMap: Record<string, string | null> = {};
       (employeesData || []).forEach(e => { dojMap[e.user_id] = e.date_of_joining; });
@@ -98,7 +98,7 @@ const LeaveBalancesManager = () => {
     setIsInitializing(true);
     try {
       if (!leaveTypes.length) { toast.error('No active leave types found.'); return; }
-      const { data: activeUsers } = await supabase.from('profiles').select('id').eq('user_status', 'active');
+      const { data: activeUsers } = await supabase.from('users').select('id').eq('is_active', true);
       if (!activeUsers?.length) { toast.error('No active users found'); return; }
 
       const year = parseInt(filterYear);
