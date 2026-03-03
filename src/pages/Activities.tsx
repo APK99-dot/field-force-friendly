@@ -104,7 +104,7 @@ export default function Activities() {
   const isManagerOrAdmin = isAdmin || role === "sales_manager";
 
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [activeTab, setActiveTab] = useState<"timeline" | "gps" | "activity">("timeline");
+  const [activeTab, setActiveTab] = useState<"timeline" | "gps" | "activity">("activity");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [showForm, setShowForm] = useState(false);
@@ -347,8 +347,8 @@ export default function Activities() {
         <div className="grid grid-cols-3 gap-2 mt-3">
           <Button
             variant="ghost"
-            className={`h-9 text-xs ${activeTab === "timeline" ? "bg-white/20 text-primary-foreground" : "text-primary-foreground/60 hover:bg-white/10"}`}
-            onClick={() => setActiveTab("timeline")}
+            className={`h-9 text-xs ${activeTab === "activity" ? "bg-white/20 text-primary-foreground" : "text-primary-foreground/60 hover:bg-white/10"}`}
+            onClick={() => setActiveTab("activity")}
           >
             <Clock className="h-3.5 w-3.5 mr-1.5" />Timeline
           </Button>
@@ -361,11 +361,8 @@ export default function Activities() {
           </Button>
           <Button
             variant="ghost"
-            className={`h-9 text-xs ${activeTab === "activity" ? "bg-white/20 text-primary-foreground" : "text-primary-foreground/60 hover:bg-white/10"}`}
-            onClick={() => {
-              setActiveTab("activity");
-              handleOpenCreate();
-            }}
+            className="h-9 text-xs text-primary-foreground/60 hover:bg-white/10"
+            onClick={handleOpenCreate}
           >
             <Sparkles className="h-3.5 w-3.5 mr-1.5" />Activity
           </Button>
@@ -407,27 +404,6 @@ export default function Activities() {
 
       {/* Content based on active tab */}
       <motion.div variants={item} className="px-4 pb-24 pt-3 space-y-3">
-        {activeTab === "timeline" && (
-          <TimelineView
-            activities={timelineSorted}
-            attendance={attendance}
-            attendanceLoading={attendanceLoading}
-            loading={loading}
-            isAdmin={isAdmin}
-            onEdit={handleOpenEdit}
-            onDelete={handleDelete}
-          />
-        )}
-
-        {activeTab === "gps" && (
-          <GPSTrackView
-            gpsData={gpsData}
-            gpsStats={gpsStats}
-            gpsLoading={gpsLoading}
-            activities={filteredActivities}
-          />
-        )}
-
         {activeTab === "activity" && (
           <>
             {loading ? (
@@ -448,6 +424,15 @@ export default function Activities() {
               ))
             )}
           </>
+        )}
+
+        {activeTab === "gps" && (
+          <GPSTrackView
+            gpsData={gpsData}
+            gpsStats={gpsStats}
+            gpsLoading={gpsLoading}
+            activities={filteredActivities}
+          />
         )}
       </motion.div>
 
