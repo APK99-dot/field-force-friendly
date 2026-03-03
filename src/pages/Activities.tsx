@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, Suspense, lazy, useCallback } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO, isToday } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,7 @@ const defaultForm = {
 export default function Activities() {
   const { activities, loading, users, projects, fetchActivities, createActivity, updateActivity, deleteActivity, fetchAttendanceForDate, fetchGPSTrackingForDate } = useActivities();
   const { isAdmin, role } = useUserProfile();
+  const navigate = useNavigate();
   const isManagerOrAdmin = isAdmin || role === "sales_manager";
 
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -354,8 +356,8 @@ export default function Activities() {
           </Button>
           <Button
             variant="ghost"
-            className={`h-9 text-xs ${activeTab === "gps" ? "bg-white/20 text-primary-foreground" : "text-primary-foreground/60 hover:bg-white/10"}`}
-            onClick={() => setActiveTab("gps")}
+            className="h-9 text-xs text-primary-foreground/60 hover:bg-white/10"
+            onClick={() => navigate("/gps-tracking")}
           >
             <Navigation2 className="h-3.5 w-3.5 mr-1.5" />GPS Track
           </Button>
