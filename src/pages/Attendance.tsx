@@ -9,11 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CheckCircle, XCircle, LogOut, Loader2, Clock, Edit3, Camera, Shield, MapPin, Save, Upload, CalendarDays, Download } from "lucide-react";
+import { CheckCircle, XCircle, LogOut, Loader2, Clock, Edit3, Camera, Shield, MapPin, Save, Upload, CalendarDays, Download, Users } from "lucide-react";
 import jsPDF from "jspdf";
 
-// LeafletMap removed - no longer needed for travel heat map
 import { supabase } from "@/integrations/supabase/client";
+import MyTeamAttendance from "@/components/attendance/MyTeamAttendance";
 import { useAttendance, isWeekOffDate } from "@/hooks/useAttendance";
 import { useFaceMatching } from "@/hooks/useFaceMatching";
 import { AttendanceCalendarView } from "@/components/attendance/AttendanceCalendarView";
@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 type ProcessingStep = "camera" | "location" | "uploading" | "verifying" | "saving" | null;
 
 export default function Attendance() {
+  const [activeView, setActiveView] = useState<"my" | "team">("my");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [userId, setUserId] = useState<string>();
   const [actionLoading, setActionLoading] = useState(false);
@@ -355,6 +356,37 @@ export default function Attendance() {
         <h1 className="text-2xl font-bold">Attendance</h1>
         <p className="text-sm text-muted-foreground">Track your daily attendance and working hours</p>
       </div>
+
+      {/* My Attendance / My Team Toggle */}
+      <div className="grid grid-cols-2 gap-0 rounded-full border overflow-hidden">
+        <button
+          onClick={() => setActiveView("my")}
+          className={cn(
+            "py-3 text-sm font-semibold transition-all",
+            activeView === "my"
+              ? "bg-card text-foreground shadow-sm"
+              : "bg-muted/50 text-muted-foreground hover:text-foreground"
+          )}
+        >
+          My Attendance
+        </button>
+        <button
+          onClick={() => setActiveView("team")}
+          className={cn(
+            "py-3 text-sm font-semibold transition-all",
+            activeView === "team"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted/50 text-muted-foreground hover:text-foreground"
+          )}
+        >
+          My Team
+        </button>
+      </div>
+
+      {activeView === "team" ? (
+        <MyTeamAttendance />
+      ) : (
+      <>
 
       {/* Monthly Summary Cards */}
       <div className="grid grid-cols-2 gap-3">
@@ -759,6 +791,8 @@ export default function Attendance() {
         onCapture={handleCameraCapture}
         title={cameraMode === "checkin" ? "Check-in Selfie" : "Check-out Selfie"}
       />
+      </>
+      )}
     </motion.div>
   );
 }
