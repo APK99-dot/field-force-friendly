@@ -410,8 +410,8 @@ export default function Activities() {
         {/* Action Buttons Row */}
         <div className="grid grid-cols-3 gap-2 mt-3">
           <button
-            className={`flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl text-xs font-medium transition-all ${activeTab === "activity" ? "bg-white text-foreground shadow-md" : "bg-white/10 text-white/70 hover:bg-white/20"}`}
-            onClick={() => setActiveTab("activity")}
+            className="flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl text-xs font-medium bg-white/10 text-white/70 hover:bg-white/20 transition-all"
+            onClick={() => navigate("/activity-timeline")}
           >
             <Clock className="h-4 w-4" />Timeline
           </button>
