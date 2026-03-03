@@ -10,9 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subMonths } from 'date-fns';
 import { toast } from 'sonner';
+import MyTeamExpenses from '@/components/expenses/MyTeamExpenses';
 
 interface Expense {
   id: string;
@@ -185,85 +187,100 @@ export default function Expenses() {
 
   return (
     <motion.div className="p-4 space-y-4" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">My Expenses</h1>
-        <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Expense</Button>
-      </div>
+      <h1 className="text-xl font-bold">Expenses</h1>
 
-      {/* Month & Status Filter */}
-      <div className="flex flex-wrap gap-2">
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-          <SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="submitted">Submitted</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <Tabs defaultValue="my-expenses" className="w-full">
+        <TabsList className="w-full">
+          <TabsTrigger value="my-expenses" className="flex-1">My Expenses</TabsTrigger>
+          <TabsTrigger value="my-team" className="flex-1">My Team</TabsTrigger>
+        </TabsList>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">Total Submitted</p><p className="text-lg font-bold">₹{totalSubmitted.toFixed(0)}</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-xs text-green-600">Approved</p><p className="text-lg font-bold text-green-600">₹{totalApproved.toFixed(0)}</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-xs text-yellow-600">Pending</p><p className="text-lg font-bold text-yellow-600">₹{totalPending.toFixed(0)}</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-xs text-destructive">Rejected</p><p className="text-lg font-bold text-destructive">₹{totalRejected.toFixed(0)}</p></CardContent></Card>
-      </div>
+        <TabsContent value="my-expenses">
+          <div className="space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-end">
+              <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Expense</Button>
+            </div>
 
-      {/* Expense List */}
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-      ) : filtered.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-muted-foreground">No expenses found.</CardContent></Card>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map(exp => (
-            <Card key={exp.id}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="font-medium">{exp.category}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(exp.expense_date), 'dd MMM yyyy')}</p>
-                    {exp.description && <p className="text-sm text-muted-foreground mt-1">{exp.description}</p>}
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="font-bold">₹{Number(exp.amount).toFixed(0)}</span>
-                    {statusBadge(exp.status)}
-                  </div>
-                </div>
-                {/* Actions */}
-                <div className="flex gap-2 mt-3">
-                  {(exp.status === 'draft' || exp.status === 'rejected') && (
-                    <Button variant="outline" size="sm" onClick={() => openEdit(exp)}><Pencil className="h-3 w-3 mr-1" />Edit</Button>
-                  )}
-                  {exp.status === 'draft' && (
-                    <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleDelete(exp.id)}><Trash2 className="h-3 w-3 mr-1" />Delete</Button>
-                  )}
-                  {/* Allow delete for pending too since RLS allows pending */}
-                  {exp.status === 'pending' && (
-                    <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleDelete(exp.id)}><Trash2 className="h-3 w-3 mr-1" />Delete</Button>
-                  )}
-                  {exp.status === 'rejected' && exp.rejection_reason && (
-                    <Button variant="ghost" size="sm" onClick={() => setRejectionView(exp.rejection_reason)}>
-                      <Eye className="h-3 w-3 mr-1" />Reason
-                    </Button>
-                  )}
-                  {exp.bill_url && (
-                    <Button variant="ghost" size="sm" onClick={() => window.open(exp.bill_url!, '_blank')}><Eye className="h-3 w-3 mr-1" />Receipt</Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+            {/* Month & Status Filter */}
+            <div className="flex flex-wrap gap-2">
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="submitted">Submitted</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Card><CardContent className="p-4 text-center"><p className="text-xs text-muted-foreground">Total Submitted</p><p className="text-lg font-bold">₹{totalSubmitted.toFixed(0)}</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><p className="text-xs text-green-600">Approved</p><p className="text-lg font-bold text-green-600">₹{totalApproved.toFixed(0)}</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><p className="text-xs text-yellow-600">Pending</p><p className="text-lg font-bold text-yellow-600">₹{totalPending.toFixed(0)}</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><p className="text-xs text-destructive">Rejected</p><p className="text-lg font-bold text-destructive">₹{totalRejected.toFixed(0)}</p></CardContent></Card>
+            </div>
+
+            {/* Expense List */}
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+            ) : filtered.length === 0 ? (
+              <Card><CardContent className="py-8 text-center text-muted-foreground">No expenses found.</CardContent></Card>
+            ) : (
+              <div className="space-y-3">
+                {filtered.map(exp => (
+                  <Card key={exp.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium">{exp.category}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(exp.expense_date), 'dd MMM yyyy')}</p>
+                          {exp.description && <p className="text-sm text-muted-foreground mt-1">{exp.description}</p>}
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="font-bold">₹{Number(exp.amount).toFixed(0)}</span>
+                          {statusBadge(exp.status)}
+                        </div>
+                      </div>
+                      {/* Actions */}
+                      <div className="flex gap-2 mt-3">
+                        {(exp.status === 'draft' || exp.status === 'rejected') && (
+                          <Button variant="outline" size="sm" onClick={() => openEdit(exp)}><Pencil className="h-3 w-3 mr-1" />Edit</Button>
+                        )}
+                        {exp.status === 'draft' && (
+                          <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleDelete(exp.id)}><Trash2 className="h-3 w-3 mr-1" />Delete</Button>
+                        )}
+                        {exp.status === 'pending' && (
+                          <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleDelete(exp.id)}><Trash2 className="h-3 w-3 mr-1" />Delete</Button>
+                        )}
+                        {exp.status === 'rejected' && exp.rejection_reason && (
+                          <Button variant="ghost" size="sm" onClick={() => setRejectionView(exp.rejection_reason)}>
+                            <Eye className="h-3 w-3 mr-1" />Reason
+                          </Button>
+                        )}
+                        {exp.bill_url && (
+                          <Button variant="ghost" size="sm" onClick={() => window.open(exp.bill_url!, '_blank')}><Eye className="h-3 w-3 mr-1" />Receipt</Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="my-team">
+          <MyTeamExpenses />
+        </TabsContent>
+      </Tabs>
 
       {/* Add/Edit Expense Dialog */}
       <Dialog open={showAddDialog} onOpenChange={(open) => { if (!open) { setShowAddDialog(false); resetForm(); } }}>
