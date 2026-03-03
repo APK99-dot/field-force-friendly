@@ -1,42 +1,36 @@
 
 
-## Fix Edit User Button and Match Reference Edit Dialog
+## Add Dynamic Activity Types with "Add New" Option
 
 ### Problem
-1. The "Edit" button in the table does nothing (`onClick={() => {}}`)
-2. The real `EditUserDialog` is buried inside the "..." dropdown menu
-3. The edit dialog doesn't match the reference screenshot -- it should have tabbed sections (Basic Info, Managers, Reset Password) and footer action buttons (Delete Data, Delete User, Cancel, Save Changes)
+Activity types are currently hardcoded as a static array in `Activities.tsx`. Users cannot add custom activity types, and there's no persistence or sharing across the system.
+
+### Solution
+Create an `activity_types_master` table in the database to store activity types globally, and add an inline "Add New Type" option within the Activity Type dropdown.
 
 ### Changes
 
-**File: `src/pages/AdminUserManagement.tsx`**
+#### 1. Database Migration
+- Create `activity_types_master` table with columns: `id`, `name`, `is_active`, `created_by`, `created_at`
+- Seed it with the existing hardcoded types (Site Visit, Contractor Meeting, etc.)
+- RLS: Anyone authenticated can SELECT; admins can manage all; authenticated users can INSERT (so any user can add new types)
 
-#### 1. Redesign `EditUserDialog` to match reference screenshot
-- Add internal `Tabs` with three tabs: **Basic Info**, **Managers**, **Reset Password**
-- **Basic Info tab**: Full Name, Username, Phone Number, Email (disabled), Role (Security Profile) dropdown
-- **Managers tab**: Primary Manager and Secondary Manager selectors
-- **Reset Password tab**: New password field with generate button
-- **Dialog title**: "Edit User: {name}" matching the screenshot
-- **Footer buttons**: Delete Data (outline/orange), Delete User (destructive/red), Cancel (outline), Save Changes (primary/dark)
+#### 2. `src/pages/Activities.tsx`
+- Remove the hardcoded `activityTypes` array
+- Add state to fetch activity types from `activity_types_master` on mount
+- Replace the Activity Type `<Select>` with a combo that includes:
+  - All existing types from the database
+  - A separator + "Add New Type" option at the bottom
+- When "Add New Type" is selected, show a small inline dialog/input to enter the new type name
+- On submission, insert into `activity_types_master` and refresh the list
+- The new type is immediately selected in the form
 
-#### 2. Convert `EditUserDialog` to use controlled open state from parent
-- Remove the `DialogTrigger` wrapper from inside the component
-- Accept `open` and `onOpenChange` props instead
-- Add `editingUser` state to the main component to track which user is being edited
-
-#### 3. Wire the Edit button in the table
-- Replace the dead `onClick={() => {}}` on the Edit button with `onClick={() => setEditingUser(user)}`
-- Remove `EditUserDialog` from inside the DropdownMenu
-- Keep only "Delete" in the dropdown menu
-- Render a single `EditUserDialog` instance at the page level, controlled by `editingUser` state
-
-#### 4. Add Delete Data functionality
-- "Delete Data" button clears operational records (attendance, visits, GPS, expenses, orders) but keeps the user account
-- "Delete User" button triggers the existing full delete confirmation dialog
+#### 3. No edge function needed
+- Direct Supabase client insert with authenticated user's ID as `created_by`
 
 ### Technical Details
+- Table schema: `id uuid PK default gen_random_uuid()`, `name text NOT NULL UNIQUE`, `is_active boolean default true`, `created_by uuid`, `created_at timestamptz default now()`
+- RLS policies: SELECT for all authenticated, INSERT for all authenticated, UPDATE/DELETE for admins only
+- The dropdown will show a `Plus` icon + "Add new type..." as the last item, which opens a small `Dialog` with a single text input and Save button
+- After adding, the `activity_types_master` list is refetched and the new value is auto-selected
 
-- The dialog uses the existing `Tabs` component for internal tab switching
-- Reset Password will call `supabase.auth.admin.updateUser()` via an edge function or show a placeholder
-- The `EditUserDialog` state fields reset via `useEffect` when user changes
-- Footer layout: `flex justify-between` with destructive buttons on the left, cancel/save on the right -- matching the screenshot exactly
