@@ -1,108 +1,34 @@
 
 
-## Expense Module Complete Restructure
+## Fix Expense Master UI Overlap and Unlimited Expense Logic
 
-This is a major restructure that removes all TA/DA/Beat Allowance logic and builds a clean Additional Expense Claim and Approval system.
+### Problem 1: Tab Text Overlapping on Mobile
+The `TabsList` uses `grid grid-cols-3` which forces all 3 tabs into equal-width columns. On mobile screens, "Pending Approvals" and "Monthly Overview" overflow and overlap each other.
 
-### What Gets Removed
-- TA/DA configuration from Admin Expense Master
-- `ProductivityTracking` component usage in expense module
-- `BeatAllowanceManagement` component (unused/dead code)
-- `useExpenses` hook (references TA/DA, unused)
-- Beat allowance calculations and references
-- Old `AdditionalExpenses` component (replaced with new inline form)
-
-### What Gets Created/Changed
+### Problem 2: No Limit = Unlimited
+Currently, when `monthly_limit`, `daily_limit`, or `auto_approval_limit` fields are left empty (null), the system should treat this as "unlimited" (no restriction). The submission logic and admin UI need to clearly communicate this.
 
 ---
 
-### Database Changes (3 new tables, via migrations)
+### Changes
 
-**1. `expense_categories` table**
-- `id`, `name`, `monthly_limit` (nullable), `daily_limit` (nullable), `receipt_required_above` (nullable), `auto_approval_limit` (nullable), `is_active`, `created_at`, `updated_at`
-- RLS: Admins manage all, authenticated users can view
-- Seed with default categories: Travel, Food, Lodging, Internet, Fuel, Telephone Expense, Stay, Other
+**File: `src/pages/AdminExpenseManagement.tsx`**
 
-**2. `expense_policy` table** (single-row config)
-- `id`, `submission_deadline` (integer, day of month), `allow_backdate` (boolean), `max_back_days` (integer), `multi_level_approval` (boolean), `month_lock_enabled` (boolean), `created_at`, `updated_at`
-- RLS: Admins manage, authenticated users can view
+1. **Fix tab overflow**: Change `TabsList` from `grid grid-cols-3` to a scrollable horizontal layout using `w-full flex overflow-x-auto` styling, with smaller text on mobile (`text-xs sm:text-sm`). Shorten tab labels on mobile: "Config", "Approvals", "Overview".
 
-**3. Modify `additional_expenses` table**
-- Add columns: `category_id` (uuid, nullable FK to expense_categories), `rejection_reason` (text), `month_key` (text, format YYYY-MM)
-- Keep existing `category` text column for backward compatibility
+2. **Category table mobile fix**: The categories table has 7 columns which also overflow on mobile. Wrap it to show as stacked cards on mobile instead of a table, or hide non-essential columns (`daily_limit`, `receipt_required_above`) on small screens.
 
----
+3. **Show "Unlimited" hint**: In the category table, show placeholder text "Unlimited" in limit input fields when they are empty/null so admins understand leaving it blank means no restriction.
 
-### Admin Side: `/admin/expenses` (rewrite `AdminExpenseManagement.tsx`)
+4. **Unlimited logic in user submission** (`src/pages/Expenses.tsx`): The auto-approval check already handles null correctly (`cat?.auto_approval_limit && amount < cat.auto_approval_limit` -- if null, this is falsy, so it skips auto-approve). No change needed there. But the submission should NOT block if no monthly/daily limit is set -- currently it doesn't check limits at all during submission, so this is already "unlimited" by default. No code change needed for the logic itself.
 
-**3 Tabs:**
+### Technical Details
 
-**Tab 1 - Configuration**
-- Expense Categories CRUD: name, monthly limit, daily limit, receipt required above amount, auto-approval limit, active toggle
-- Policy Settings: submission deadline day, allow backdated entries toggle, max back days, multi-level approval toggle, month lock toggle
+**TabsList fix (AdminExpenseManagement.tsx line 72)**:
+- Replace `grid w-full grid-cols-3` with `w-full` and add `className="text-xs sm:text-sm"` to each `TabsTrigger`
+- This lets the tabs wrap or scroll naturally
 
-**Tab 2 - Pending Approvals**
-- Table: User, Category, Date, Amount, Receipt, Description, Action (Approve/Reject)
-- Reject requires mandatory remark (uses existing `RejectionReasonDialog`)
-- Filters: Month selector, User dropdown, Category dropdown, Status dropdown
-- Fetches from `additional_expenses` joined with `users` for names
+**Category inputs (lines 177-191)**:
+- Add `placeholder="Unlimited"` to all limit Input fields instead of the current dash placeholder
 
-**Tab 3 - Monthly Overview**
-- Summary cards: Total Claimed, Total Approved, Total Pending, Total Rejected
-- Table: User | Total Applied | Approved | Pending | Rejected
-- Click row to expand detailed breakdown
-- Export to XLS button
-
----
-
-### User Side: `/expenses` (rewrite `Expenses.tsx`)
-
-**Section 1 - Summary Cards (top)**
-- Month selector dropdown (generates last 12 months)
-- 4 cards: Total Submitted, Total Approved, Total Pending, Total Rejected
-
-**Section 2 - Expense List**
-- Card-based list showing: Date, Category, Description, Amount, Status badge
-- Status: draft, submitted, approved, rejected
-- Actions: Edit (if draft/rejected), Delete (if draft only), View rejection reason
-- Filter by status
-
-**Section 3 - Add Expense (FAB button opens modal)**
-- Fields: Date, Category (dropdown from `expense_categories`), Amount, Description, Receipt upload
-- Policy validation: check backdating rules, submission deadline
-- Submit sets status to "submitted" and notifies reporting manager
-
----
-
-### Files to Create
-1. None needed beyond the rewrites
-
-### Files to Modify
-1. **`src/pages/AdminExpenseManagement.tsx`** - Complete rewrite with 3 tabs (Configuration, Approvals, Overview)
-2. **`src/pages/Expenses.tsx`** - Complete rewrite with month filter, summary cards, expense list, add modal
-3. **`src/components/AdditionalExpenses.tsx`** - Rewrite to use `expense_categories` table for category dropdown instead of hardcoded list
-
-### Files to Delete (dead code)
-1. **`src/components/BeatAllowanceManagement.tsx`** - Unused, all TA/DA logic
-2. **`src/hooks/useExpenses.ts`** - Contains TA/DA calculations, unused
-3. **`src/components/ProductivityTracking.tsx`** - Remove from expense module (note: also used in admin page, will be removed from there)
-
-### Route Changes
-- Keep `/admin/expenses` route as-is (same component, rewritten)
-- Keep `/expenses` route as-is (same component, rewritten)
-
-### Migration Summary
-```text
-1. CREATE TABLE expense_categories (with seed data)
-2. CREATE TABLE expense_policy (with default row)
-3. ALTER TABLE additional_expenses ADD COLUMN rejection_reason, month_key, category_id
-```
-
-### Approval Flow
-- User submits expense -> status = "submitted"
-- If amount < category's `auto_approval_limit` -> auto-set to "approved"
-- Otherwise, manager/admin sees in Pending Approvals tab
-- Approve -> status = "approved"
-- Reject -> status = "rejected" + mandatory rejection_reason
-- Notification sent to reporting manager on submit (existing flow preserved)
-
+**No functional logic changes needed** -- null limits already mean "no restriction" in the current code since no limit checks are performed during expense submission beyond auto-approval.
