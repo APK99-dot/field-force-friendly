@@ -48,11 +48,14 @@ interface RegularizationRequest {
   profiles?: { full_name: string; username: string };
 }
 
-const tabs = [
+const overviewTabs = [
   { key: "live", label: "Live Attendance", icon: User },
   { key: "leave", label: "Leave Management", icon: Calendar },
   { key: "regularization", label: "Regularization", icon: Users },
   { key: "leave-balances", label: "Leave Balances", icon: ClipboardList },
+];
+
+const configTabs = [
   { key: "leave-types", label: "Leave Types", icon: FileText },
   { key: "holidays", label: "Holidays", icon: CalendarDays },
   { key: "working-days", label: "Working Days", icon: Calendar },
@@ -61,6 +64,7 @@ const tabs = [
 
 export default function AttendanceManagement() {
   const navigate = useNavigate();
+  const [section, setSection] = useState<"overview" | "configuration">("overview");
   const [activeTab, setActiveTab] = useState("live");
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([]);
   const [regularizationRequests, setRegularizationRequests] = useState<RegularizationRequest[]>([]);
@@ -287,10 +291,34 @@ export default function AttendanceManagement() {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
+      {/* Section Toggle */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => { setSection("overview"); setActiveTab("live"); }}
+          className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+            section === "overview"
+              ? "bg-primary text-primary-foreground shadow-md"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => { setSection("configuration"); setActiveTab("leave-types"); }}
+          className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+            section === "configuration"
+              ? "bg-primary text-primary-foreground shadow-md"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          Configuration
+        </button>
+      </div>
+
+      {/* Sub-Tabs */}
       <div className="overflow-x-auto">
         <div className="flex gap-1 border-b pb-2 min-w-max">
-          {tabs.map((tab) => {
+          {(section === "overview" ? overviewTabs : configTabs).map((tab) => {
             const Icon = tab.icon;
             return (
               <button
