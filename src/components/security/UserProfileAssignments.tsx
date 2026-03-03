@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, UserPlus, X } from "lucide-react";
+import { Search, UserPlus, X, Users2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -80,7 +80,6 @@ export default function UserProfileAssignments() {
   const assignProfile = useMutation({
     mutationFn: async () => {
       if (!selectedUserId || !selectedProfileId) throw new Error("Select user and profile");
-      // Check if assignment exists
       const { data: existing } = await supabase
         .from("user_security_profiles")
         .select("id")
@@ -135,103 +134,101 @@ export default function UserProfileAssignments() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">User Assignments</h2>
-          <p className="text-sm text-muted-foreground">Assign security profiles to users</p>
-        </div>
-        <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm"><UserPlus className="h-4 w-4 mr-1" />Assign Profile</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Assign Security Profile</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">User</label>
-                <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                  <SelectTrigger><SelectValue placeholder="Select user..." /></SelectTrigger>
-                  <SelectContent>
-                    {users.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.full_name || u.username} {assignedUserIds.has(u.id) ? "(reassign)" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Security Profile</label>
-                <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
-                  <SelectTrigger><SelectValue placeholder="Select profile..." /></SelectTrigger>
-                  <SelectContent>
-                    {profiles.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={() => assignProfile.mutate()} disabled={assignProfile.isPending || !selectedUserId || !selectedProfileId} className="w-full">
-                {assignProfile.isPending ? "Assigning..." : "Assign Profile"}
-              </Button>
+      <Card>
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold">Permission Set Groups</h2>
+              <p className="text-sm text-muted-foreground">Override role permissions for specific users</p>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+              <DialogTrigger asChild>
+                <Button><UserPlus className="h-4 w-4 mr-1.5" />Assign User</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Assign Security Profile</DialogTitle></DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">User</label>
+                    <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                      <SelectTrigger><SelectValue placeholder="Select user..." /></SelectTrigger>
+                      <SelectContent>
+                        {users.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.full_name || u.username} {assignedUserIds.has(u.id) ? "(reassign)" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Security Profile</label>
+                    <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+                      <SelectTrigger><SelectValue placeholder="Select profile..." /></SelectTrigger>
+                      <SelectContent>
+                        {profiles.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button onClick={() => assignProfile.mutate()} disabled={assignProfile.isPending || !selectedUserId || !selectedProfileId} className="w-full">
+                    {assignProfile.isPending ? "Assigning..." : "Assign Profile"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search users..." className="pl-9" />
-      </div>
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search users..." className="pl-9" />
+          </div>
 
-      {assignments.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground text-sm">
-            {search ? "No matching users found" : "No users have been assigned a security profile yet"}
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="p-0">
+          {assignments.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">
+              {search ? "No matching users found" : "No users have been assigned to a permission set group yet"}
+            </div>
+          ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="text-[11px] font-medium text-muted-foreground py-2 h-8">User</TableHead>
-                  <TableHead className="text-[11px] font-medium text-muted-foreground py-2 h-8">Security Profile</TableHead>
-                  <TableHead className="text-[11px] font-medium text-muted-foreground py-2 h-8 w-16"></TableHead>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-xs font-medium text-muted-foreground">User</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground">Security Profile</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground text-right w-16">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {assignments.map((a) => (
                   <TableRow key={a.id}>
-                    <TableCell className="py-1.5">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7">
-                          <AvatarFallback className="text-[10px]">
+                    <TableCell className="py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
                             {(a.full_name || "?").slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div>
                           <p className="text-sm font-medium">{a.full_name}</p>
-                          <p className="text-[10px] text-muted-foreground">{a.username}</p>
+                          <p className="text-[11px] text-muted-foreground">{a.username}</p>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="py-1.5">
-                      <Badge variant="outline" className="text-xs">{a.profile_name}</Badge>
+                    <TableCell className="py-2.5">
+                      <Badge variant="outline" className="text-xs font-normal">{a.profile_name}</Badge>
                     </TableCell>
-                    <TableCell className="py-1.5">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAssignment.mutate(a.id)}>
-                        <X className="h-3.5 w-3.5" />
+                    <TableCell className="py-2.5 text-right">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeAssignment.mutate(a.id)}>
+                        <X className="h-3.5 w-3.5 text-destructive" />
                       </Button>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
