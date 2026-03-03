@@ -44,10 +44,9 @@ export function AppLayout() {
   return (
     <div className="min-h-screen flex flex-col w-full bg-background">
       <AppHeader />
-      <main className="flex-1 pb-20 md:pb-0 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
-      <BottomNav />
       {showProfileSetup && (
         <ProfileSetupModal
           userId={userId}
