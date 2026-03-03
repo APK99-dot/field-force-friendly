@@ -23,6 +23,7 @@ import ProjectDetailPage from "./pages/ProjectDetail";
 import TemplatesPage from "./pages/Templates";
 import PendingApprovals from "./pages/PendingApprovals";
 import Activities from "./pages/Activities";
+import SiteMasterPage from "./pages/SiteMaster";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => (
             <Route path="/admin/expenses" element={<AdminExpenseManagement />} />
             <Route path="/admin/security" element={<SecurityManagement />} />
             <Route path="/admin/company" element={<CompanyProfile />} />
+            <Route path="/admin/sites" element={<SiteMasterPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/templates" element={<TemplatesPage />} />

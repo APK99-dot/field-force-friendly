@@ -84,14 +84,14 @@ const defaultForm = {
   duration_type: "hour_based",
   description: "",
   status: "planned",
-  project_id: "",
+  site_id: "",
   location_address: "",
   total_hours: 0,
   owner_user_id: "",
 };
 
 export default function Activities() {
-  const { activities, loading, users, projects, fetchActivities, createActivity, updateActivity, deleteActivity, fetchAttendanceForDate, fetchGPSTrackingForDate } = useActivities();
+  const { activities, loading, users, projects, sites, fetchActivities, fetchDropdowns, createActivity, updateActivity, deleteActivity, fetchAttendanceForDate, fetchGPSTrackingForDate } = useActivities();
   const { isAdmin, role } = useUserProfile();
   const navigate = useNavigate();
   const isManagerOrAdmin = isAdmin || role === "sales_manager";
@@ -111,6 +111,11 @@ export default function Activities() {
   const [showAddTypeDialog, setShowAddTypeDialog] = useState(false);
   const [newTypeName, setNewTypeName] = useState("");
   const [addingType, setAddingType] = useState(false);
+
+  // Add new site dialog
+  const [showAddSiteDialog, setShowAddSiteDialog] = useState(false);
+  const [newSiteName, setNewSiteName] = useState("");
+  const [addingSite, setAddingSite] = useState(false);
 
   const fetchActivityTypes = useCallback(async () => {
     const { data } = await supabase
@@ -263,6 +268,27 @@ export default function Activities() {
     setShowForm(true);
   };
 
+  const handleAddNewSite = async () => {
+    const trimmed = newSiteName.trim();
+    if (!trimmed) return;
+    setAddingSite(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("project_sites").insert({ site_name: trimmed, created_by: user?.id });
+      if (error) throw error;
+      await fetchDropdowns();
+      const newSite = sites.find(s => s.site_name === trimmed) || (await supabase.from("project_sites").select("id").eq("site_name", trimmed).maybeSingle()).data;
+      if (newSite) setForm((f) => ({ ...f, site_id: newSite.id }));
+      setNewSiteName("");
+      setShowAddSiteDialog(false);
+      toast.success(`"${trimmed}" added`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add site");
+    } finally {
+      setAddingSite(false);
+    }
+  };
+
   const handleOpenEdit = (a: ActivityType) => {
     setForm({
       activity_name: a.activity_name,
@@ -273,7 +299,7 @@ export default function Activities() {
       duration_type: a.duration_type || "hour_based",
       description: a.description || "",
       status: a.status,
-      project_id: a.project_id || "",
+      site_id: a.site_id || "",
       location_address: a.location_address || "",
       total_hours: a.total_hours || 0,
       owner_user_id: a.user_id,
@@ -295,7 +321,7 @@ export default function Activities() {
         duration_type: form.duration_type,
         description: form.description || null,
         status: form.status,
-        project_id: form.project_id || null,
+        site_id: form.site_id || null,
         location_address: form.location_address || null,
         total_hours: form.total_hours || 0,
       };
@@ -527,10 +553,20 @@ export default function Activities() {
             </div>
             <div>
               <Label className="text-xs">Project / Site</Label>
-              <Select value={form.project_id} onValueChange={(v) => setForm({ ...form, project_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select project (optional)" /></SelectTrigger>
+              <Select value={form.site_id} onValueChange={(v) => {
+                if (v === "__add_new_site__") {
+                  setShowAddSiteDialog(true);
+                  return;
+                }
+                setForm({ ...form, site_id: v });
+              }}>
+                <SelectTrigger><SelectValue placeholder="Select site (optional)" /></SelectTrigger>
                 <SelectContent>
-                  {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  {sites.filter(s => s.is_active).map((s) => <SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>)}
+                  <Separator className="my-1" />
+                  <SelectItem value="__add_new_site__" className="text-primary font-medium">
+                    <span className="flex items-center gap-1.5"><Plus className="h-3.5 w-3.5" />Add new site...</span>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -599,6 +635,28 @@ export default function Activities() {
             <Button className="w-full" onClick={handleAddNewType} disabled={addingType || !newTypeName.trim()}>
               {addingType ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
               {addingType ? "Adding..." : "Add Type"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add New Site Dialog */}
+      <Dialog open={showAddSiteDialog} onOpenChange={setShowAddSiteDialog}>
+        <DialogContent className="sm:max-w-[360px]">
+          <DialogHeader>
+            <DialogTitle>Add New Site</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <Input
+              placeholder="e.g. Koramangala Site"
+              value={newSiteName}
+              onChange={(e) => setNewSiteName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddNewSite()}
+              autoFocus
+            />
+            <Button className="w-full" onClick={handleAddNewSite} disabled={addingSite || !newSiteName.trim()}>
+              {addingSite ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+              {addingSite ? "Adding..." : "Add Site"}
             </Button>
           </div>
         </DialogContent>
@@ -845,8 +903,8 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete }: { a: ActivityType; isAdm
                 {a.total_hours ? ` (${a.total_hours}h)` : ""}
               </p>
             )}
-            {a.project_name && (
-              <p className="text-xs text-primary ml-6 mt-0.5">📁 {a.project_name}</p>
+            {(a.site_name || a.project_name) && (
+              <p className="text-xs text-primary ml-6 mt-0.5">📁 {a.site_name || a.project_name}</p>
             )}
             {a.user_full_name && (
               <p className="text-xs text-muted-foreground ml-6 mt-0.5">👤 {a.user_full_name}</p>
