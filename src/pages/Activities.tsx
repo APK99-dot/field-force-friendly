@@ -49,6 +49,14 @@ import { useActivities, type Activity as ActivityType } from "@/hooks/useActivit
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const LeafletMap = lazy(() => import("@/components/LeafletMap"));
 
@@ -886,6 +894,60 @@ function GPSTrackView({
 
 // ---- Activity Card Component ----
 function ActivityCard({ a, isAdmin, onEdit, onDelete }: { a: ActivityType; isAdmin: boolean; onEdit: (a: ActivityType) => void; onDelete: (id: string) => void }) {
+  const { updateActivity, fetchActivities } = useActivities();
+  const [changingStatus, setChangingStatus] = useState(false);
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === a.status) return;
+    setChangingStatus(true);
+    try {
+      const updates: Partial<ActivityType> = {
+        status: newStatus,
+        status_changed_at: new Date().toISOString(),
+      };
+
+      // Capture GPS location
+      if (navigator.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+          });
+          updates.status_change_lat = pos.coords.latitude;
+          updates.status_change_lng = pos.coords.longitude;
+          updates.location_lat = pos.coords.latitude;
+          updates.location_lng = pos.coords.longitude;
+
+          // Reverse geocode
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`);
+            const geo = await res.json();
+            if (geo.display_name) {
+              updates.location_address = geo.display_name;
+            }
+          } catch {}
+        } catch (geoErr) {
+          console.warn("Geolocation failed:", geoErr);
+          toast.error("Could not capture location. Status updated without location.");
+        }
+      }
+
+      // Set start/end time based on transition
+      if (newStatus === "in_progress" && !a.start_time) {
+        updates.start_time = new Date().toISOString();
+      } else if (newStatus === "completed") {
+        updates.end_time = new Date().toISOString();
+      }
+
+      await updateActivity(a.id, updates);
+      fetchActivities();
+      toast.success(`Status changed to ${statusLabels[newStatus]}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update status");
+    } finally {
+      setChangingStatus(false);
+    }
+  };
+
   return (
     <Card className="shadow-card">
       <CardContent className="p-4">
@@ -918,11 +980,43 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete }: { a: ActivityType; isAdm
             {a.description && (
               <p className="text-xs text-muted-foreground ml-6 mt-1 line-clamp-2">{a.description}</p>
             )}
+            {/* Status change location & timestamp */}
+            {a.status_changed_at && (
+              <p className="text-[10px] text-muted-foreground ml-6 mt-1">
+                📍 Status updated {format(parseISO(a.status_changed_at), "h:mm a, MMM d")}
+                {a.status_change_lat && a.status_change_lng && (
+                  <span> • {Number(a.status_change_lat).toFixed(4)}, {Number(a.status_change_lng).toFixed(4)}</span>
+                )}
+              </p>
+            )}
           </div>
           <div className="flex flex-col items-end gap-2 shrink-0">
-            <Badge variant="outline" className={statusColors[a.status] || ""}>
-              {statusLabels[a.status] || a.status}
-            </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild disabled={changingStatus}>
+                <button className="cursor-pointer">
+                  <Badge variant="outline" className={`${statusColors[a.status] || ""} ${changingStatus ? "opacity-50" : "hover:opacity-80"}`}>
+                    {changingStatus ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    {statusLabels[a.status] || a.status}
+                  </Badge>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel className="text-xs">Change Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {statusOptions.map((s) => (
+                  <DropdownMenuItem
+                    key={s}
+                    onClick={() => handleStatusChange(s)}
+                    className={a.status === s ? "font-bold" : ""}
+                  >
+                    <Badge variant="outline" className={`${statusColors[s]} mr-2 text-[10px]`}>
+                      {statusLabels[s]}
+                    </Badge>
+                    {a.status === s && <CheckCircle2 className="h-3.5 w-3.5 ml-auto text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <div className="flex gap-1">
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(a)}>
                 <Edit className="h-3.5 w-3.5" />

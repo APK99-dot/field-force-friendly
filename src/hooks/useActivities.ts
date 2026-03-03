@@ -23,6 +23,9 @@ export interface Activity {
   location_lat: number | null;
   location_lng: number | null;
   location_address: string | null;
+  status_changed_at: string | null;
+  status_change_lat: number | null;
+  status_change_lng: number | null;
   attachment_urls: string[];
   created_at: string;
   // joined
@@ -182,23 +185,21 @@ export function useActivities() {
   }, [toast]);
 
   const updateActivity = useCallback(async (id: string, updates: Partial<Activity>) => {
+    const updatePayload: any = {};
+    const fields = [
+      'activity_name', 'activity_type', 'activity_date', 'start_time', 'end_time',
+      'duration_type', 'total_hours', 'description', 'remarks', 'status',
+      'project_id', 'site_id', 'location_address',
+      'status_changed_at', 'status_change_lat', 'status_change_lng',
+      'location_lat', 'location_lng',
+    ];
+    fields.forEach((f) => {
+      if ((updates as any)[f] !== undefined) updatePayload[f] = (updates as any)[f];
+    });
+
     const { error } = await supabase
       .from("activity_events")
-      .update({
-        activity_name: updates.activity_name,
-        activity_type: updates.activity_type,
-        activity_date: updates.activity_date,
-        start_time: updates.start_time,
-        end_time: updates.end_time,
-        duration_type: updates.duration_type,
-        total_hours: updates.total_hours,
-        description: updates.description,
-        remarks: updates.remarks,
-        status: updates.status,
-        project_id: updates.project_id,
-        site_id: updates.site_id,
-        location_address: updates.location_address,
-      })
+      .update(updatePayload)
       .eq("id", id);
 
     if (error) throw error;

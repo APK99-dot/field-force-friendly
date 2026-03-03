@@ -36,6 +36,9 @@ export type Database = {
           site_id: string | null
           start_time: string | null
           status: string
+          status_change_lat: number | null
+          status_change_lng: number | null
+          status_changed_at: string | null
           to_date: string | null
           total_days: number | null
           total_hours: number | null
@@ -63,6 +66,9 @@ export type Database = {
           site_id?: string | null
           start_time?: string | null
           status?: string
+          status_change_lat?: number | null
+          status_change_lng?: number | null
+          status_changed_at?: string | null
           to_date?: string | null
           total_days?: number | null
           total_hours?: number | null
@@ -90,6 +96,9 @@ export type Database = {
           site_id?: string | null
           start_time?: string | null
           status?: string
+          status_change_lat?: number | null
+          status_change_lng?: number | null
+          status_changed_at?: string | null
           to_date?: string | null
           total_days?: number | null
           total_hours?: number | null
