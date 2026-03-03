@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft,
   Search,
@@ -32,6 +33,10 @@ import {
   List,
   ChevronDown,
   ChevronRight,
+  LogIn,
+  Pencil,
+  RefreshCw,
+  Columns3,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -716,109 +721,139 @@ export default function AdminUserManagement() {
 
         {/* Users & Roles Tab */}
         <TabsContent value="users" className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search users..." className="pl-9" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} />
-            </div>
-            <Select value={roleFilter} onValueChange={(v) => { setRoleFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                {roles.map((r) => (
-                  <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {usersLoading ? (
-            <div className="text-center py-12 text-muted-foreground">Loading users...</div>
-          ) : filteredUsers.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No users found. Create your first user in the "Create User" tab.</p>
-            </div>
-          ) : (
-            <Card className="overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead className="hidden md:table-cell">Role</TableHead>
-                    <TableHead className="hidden md:table-cell">Manager</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-[80px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedUsers.map((user) => {
-                    const employee = employees.find((e) => e.user_id === user.id);
-                    const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
-                    const manager = user.reporting_manager_id ? appUsers.find((u) => u.id === user.reporting_manager_id) : null;
-                    const profile = profiles.find((p) => p.id === user.id);
-                    const colors = getRoleColor(roleName);
-                    return (
-                      <TableRow key={user.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-9 w-9">
-                              <AvatarImage src={profile?.profile_picture_url || undefined} />
-                              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                                {(user.full_name || user.email || "U").charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium truncate">{user.full_name || "—"}</p>
-                              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${colors.bg} ${colors.text}`}
-                          >
-                            {roleName}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell text-sm">
-                          {manager?.full_name || manager?.email || "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={user.is_active ? "default" : "secondary"} className="text-xs">
-                            {user.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <UserDetailDialog user={user} employee={employee} roleName={roleName} />
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <EditUserDialog user={user} employee={employee} roles={roles} allUsers={appUsers} onSaved={invalidateAll} />
-                                <DropdownMenuItem onClick={() => toggleActive.mutate({ userId: user.id, isActive: !user.is_active })}>
-                                  {user.is_active ? "Deactivate" : "Activate"}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(user)}>
-                                  <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl">Users & Roles Management</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">View and manage all user accounts and their assigned roles</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Columns3 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Columns</span>
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={invalidateAll}>
+                    <RefreshCw className="h-4 w-4" />
+                    <span className="hidden sm:inline">Refresh</span>
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between mt-3">
+                <div>
+                  <p className="text-base font-semibold">Total Users: {filteredUsers.length}</p>
+                  <p className="text-xs text-muted-foreground">{filteredUsers.length} users with security profiles assigned</p>
+                </div>
+              </div>
+              <div className="relative mt-3">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search by name, email, username, or role..." 
+                  className="pl-9" 
+                  value={searchQuery} 
+                  onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} 
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {usersLoading ? (
+                <div className="text-center py-12 text-muted-foreground">Loading users...</div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No users found. Create your first user in the "Create User" tab.</p>
+                </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[60px]">Photo</TableHead>
+                        <TableHead>User Name</TableHead>
+                        <TableHead className="hidden sm:table-cell">Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead className="hidden md:table-cell">Reporting Manager</TableHead>
+                        <TableHead>Active</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-              <TablePagination total={filteredUsers.length} page={page} pageSize={pageSize} onPageChange={setPage} />
-            </Card>
-          )}
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedUsers.map((user) => {
+                        const employee = employees.find((e) => e.user_id === user.id);
+                        const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
+                        const manager = user.reporting_manager_id ? appUsers.find((u) => u.id === user.reporting_manager_id) : null;
+                        const profile = profiles.find((p) => p.id === user.id);
+                        const colors = getRoleColor(roleName);
+                        return (
+                          <TableRow key={user.id}>
+                            <TableCell>
+                              <Avatar className="h-9 w-9">
+                                <AvatarImage src={profile?.profile_picture_url || undefined} />
+                                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                                  {(user.full_name || user.email || "U").charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                            </TableCell>
+                            <TableCell>
+                              <p className="text-sm font-medium truncate">{user.full_name || user.username || "—"}</p>
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell">
+                              <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={`text-xs ${colors.bg} ${colors.text}`}
+                              >
+                                {roleName}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-sm">
+                              {manager?.full_name || manager?.email || "—"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  checked={user.is_active}
+                                  onCheckedChange={(checked) => toggleActive.mutate({ userId: user.id, isActive: checked })}
+                                />
+                                <span className={`text-xs font-medium ${user.is_active ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                                  {user.is_active ? "Active" : "Inactive"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <UserDetailDialog user={user} employee={employee} roleName={roleName} />
+                                <Button variant="ghost" size="sm" className="gap-1 text-xs h-8 px-2" onClick={() => {
+                                  /* Edit opens the edit dialog */
+                                }}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  Edit
+                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <EditUserDialog user={user} employee={employee} roles={roles} allUsers={appUsers} onSaved={invalidateAll} />
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(user)}>
+                                      <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                  <TablePagination total={filteredUsers.length} page={page} pageSize={pageSize} onPageChange={setPage} />
+                </>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Create User Tab - Wizard */}
