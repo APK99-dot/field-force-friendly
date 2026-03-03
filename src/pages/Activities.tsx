@@ -347,27 +347,24 @@ export default function Activities() {
 
         {/* Action Buttons Row */}
         <div className="grid grid-cols-3 gap-2 mt-3">
-          <Button
-            variant="ghost"
-            className={`h-9 text-xs ${activeTab === "activity" ? "bg-white/20 text-primary-foreground" : "text-primary-foreground/60 hover:bg-white/10"}`}
+          <button
+            className={`flex items-center justify-center gap-1.5 h-10 rounded-xl text-xs font-medium transition-all ${activeTab === "activity" ? "bg-white text-foreground shadow-md" : "bg-white/15 text-primary-foreground/80 hover:bg-white/25"}`}
             onClick={() => setActiveTab("activity")}
           >
-            <Clock className="h-3.5 w-3.5 mr-1.5" />Timeline
-          </Button>
-          <Button
-            variant="ghost"
-            className="h-9 text-xs text-primary-foreground/60 hover:bg-white/10"
+            <Clock className="h-4 w-4" />Timeline
+          </button>
+          <button
+            className="flex items-center justify-center gap-1.5 h-10 rounded-xl text-xs font-medium bg-white/15 text-primary-foreground/80 hover:bg-white/25 transition-all"
             onClick={() => navigate("/gps-tracking")}
           >
-            <Navigation2 className="h-3.5 w-3.5 mr-1.5" />GPS Track
-          </Button>
-          <Button
-            variant="ghost"
-            className="h-9 text-xs text-primary-foreground/60 hover:bg-white/10"
+            <Navigation2 className="h-4 w-4" />GPS Track
+          </button>
+          <button
+            className="flex items-center justify-center gap-1.5 h-10 rounded-xl text-xs font-medium bg-white/15 text-primary-foreground/80 hover:bg-white/25 transition-all"
             onClick={handleOpenCreate}
           >
-            <Sparkles className="h-3.5 w-3.5 mr-1.5" />Activity
-          </Button>
+            <Sparkles className="h-4 w-4" />Activity
+          </button>
         </div>
       </motion.div>
 
