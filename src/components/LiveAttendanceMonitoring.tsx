@@ -53,7 +53,7 @@ const LiveAttendanceMonitoring = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase.from('profiles').select('id, full_name, username').order('full_name');
+      const { data, error } = await supabase.from('users').select('id, full_name, username').eq('is_active', true).order('full_name');
       if (error) throw error;
       setUsers(data || []);
     } catch (error) {
@@ -65,7 +65,7 @@ const LiveAttendanceMonitoring = () => {
     try {
       setIsLoading(true);
       const { data: attendance } = await supabase.from('attendance').select('*').gte('date', format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')).order('date', { ascending: false });
-      const { data: allUsers } = await supabase.from('profiles').select('id, full_name, username');
+      const { data: allUsers } = await supabase.from('users').select('id, full_name, username').eq('is_active', true);
 
       if (allUsers) {
         const result: AttendanceData[] = [];

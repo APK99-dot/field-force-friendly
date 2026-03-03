@@ -86,7 +86,7 @@ export default function AttendanceManagement() {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase.from("profiles").select("id, full_name").order("full_name");
+      const { data, error } = await supabase.from("users").select("id, full_name").eq("is_active", true).order("full_name");
       if (error) throw error;
       setAllUsers(data || []);
     } catch (error) {
@@ -105,7 +105,7 @@ export default function AttendanceManagement() {
       const userIds = [...new Set(data?.map((app) => app.user_id) || [])];
       const leaveTypeIds = [...new Set(data?.map((app) => app.leave_type_id) || [])];
 
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name, username").in("id", userIds);
+      const { data: profiles } = await supabase.from("users").select("id, full_name, username").in("id", userIds);
       const { data: leaveTypes } = await supabase.from("leave_types").select("id, name").in("id", leaveTypeIds);
 
       const enrichedData = data?.map((app) => ({
@@ -132,7 +132,7 @@ export default function AttendanceManagement() {
       if (error) throw error;
 
       const userIds = [...new Set(data?.map((req) => req.user_id) || [])];
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name, username").in("id", userIds);
+      const { data: profiles } = await supabase.from("users").select("id, full_name, username").in("id", userIds);
 
       const enrichedData = data?.map((req) => ({
         ...req,
