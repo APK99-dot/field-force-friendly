@@ -69,10 +69,10 @@ export default function AdminExpenseManagement() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="configuration">Configuration</TabsTrigger>
-            <TabsTrigger value="approvals">Pending Approvals</TabsTrigger>
-            <TabsTrigger value="overview">Monthly Overview</TabsTrigger>
+          <TabsList className="w-full flex">
+            <TabsTrigger value="configuration" className="flex-1 text-xs sm:text-sm"><span className="sm:hidden">Config</span><span className="hidden sm:inline">Configuration</span></TabsTrigger>
+            <TabsTrigger value="approvals" className="flex-1 text-xs sm:text-sm"><span className="sm:hidden">Approvals</span><span className="hidden sm:inline">Pending Approvals</span></TabsTrigger>
+            <TabsTrigger value="overview" className="flex-1 text-xs sm:text-sm"><span className="sm:hidden">Overview</span><span className="hidden sm:inline">Monthly Overview</span></TabsTrigger>
           </TabsList>
 
           <TabsContent value="configuration"><ConfigurationTab /></TabsContent>
@@ -162,8 +162,8 @@ function ConfigurationTab() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Monthly Limit</TableHead>
-                  <TableHead>Daily Limit</TableHead>
-                  <TableHead>Receipt Above ₹</TableHead>
+                   <TableHead className="hidden md:table-cell">Daily Limit</TableHead>
+                   <TableHead className="hidden md:table-cell">Receipt Above ₹</TableHead>
                   <TableHead>Auto Approve Below ₹</TableHead>
                   <TableHead>Active</TableHead>
                   <TableHead></TableHead>
@@ -174,19 +174,19 @@ function ConfigurationTab() {
                   <TableRow key={cat.id}>
                     <TableCell className="font-medium">{cat.name}</TableCell>
                     <TableCell>
-                      <Input type="number" className="w-24" value={cat.monthly_limit ?? ""} placeholder="—"
+                      <Input type="number" className="w-24" value={cat.monthly_limit ?? ""} placeholder="Unlimited"
                         onChange={e => updateCategory(cat.id, { monthly_limit: e.target.value ? Number(e.target.value) : null })} />
                     </TableCell>
-                    <TableCell>
-                      <Input type="number" className="w-24" value={cat.daily_limit ?? ""} placeholder="—"
+                    <TableCell className="hidden md:table-cell">
+                      <Input type="number" className="w-24" value={cat.daily_limit ?? ""} placeholder="Unlimited"
                         onChange={e => updateCategory(cat.id, { daily_limit: e.target.value ? Number(e.target.value) : null })} />
                     </TableCell>
-                    <TableCell>
-                      <Input type="number" className="w-24" value={cat.receipt_required_above ?? ""} placeholder="—"
+                    <TableCell className="hidden md:table-cell">
+                      <Input type="number" className="w-24" value={cat.receipt_required_above ?? ""} placeholder="Unlimited"
                         onChange={e => updateCategory(cat.id, { receipt_required_above: e.target.value ? Number(e.target.value) : null })} />
                     </TableCell>
                     <TableCell>
-                      <Input type="number" className="w-24" value={cat.auto_approval_limit ?? ""} placeholder="—"
+                      <Input type="number" className="w-24" value={cat.auto_approval_limit ?? ""} placeholder="Unlimited"
                         onChange={e => updateCategory(cat.id, { auto_approval_limit: e.target.value ? Number(e.target.value) : null })} />
                     </TableCell>
                     <TableCell>
