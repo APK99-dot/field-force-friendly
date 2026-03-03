@@ -82,6 +82,7 @@ const defaultForm = {
   start_time: "",
   end_time: "",
   duration_type: "hour_based",
+  half_day_type: "first_half",
   description: "",
   status: "planned",
   site_id: "",
@@ -297,6 +298,7 @@ export default function Activities() {
       start_time: a.start_time ? format(parseISO(a.start_time), "HH:mm") : "",
       end_time: a.end_time ? format(parseISO(a.end_time), "HH:mm") : "",
       duration_type: a.duration_type || "hour_based",
+      half_day_type: (a as any).half_day_type || "first_half",
       description: a.description || "",
       status: a.status,
       site_id: a.site_id || "",
@@ -586,6 +588,18 @@ export default function Activities() {
                 </SelectContent>
               </Select>
             </div>
+            {form.duration_type === "half_day" && (
+              <div>
+                <Label className="text-xs">Half Day Period</Label>
+                <Select value={form.half_day_type} onValueChange={(v) => setForm({ ...form, half_day_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="first_half">First Half</SelectItem>
+                    <SelectItem value="second_half">Second Half</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {form.duration_type === "hour_based" && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
