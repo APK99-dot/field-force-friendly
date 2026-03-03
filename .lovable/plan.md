@@ -1,34 +1,49 @@
 
 
-## Fix Expense Master UI Overlap and Unlimited Expense Logic
+## Fix Column Chooser and Table UX in User Management
 
-### Problem 1: Tab Text Overlapping on Mobile
-The `TabsList` uses `grid grid-cols-3` which forces all 3 tabs into equal-width columns. On mobile screens, "Pending Approvals" and "Monthly Overview" overflow and overlap each other.
-
-### Problem 2: No Limit = Unlimited
-Currently, when `monthly_limit`, `daily_limit`, or `auto_approval_limit` fields are left empty (null), the system should treat this as "unlimited" (no restriction). The submission logic and admin UI need to clearly communicate this.
-
----
+### What's Wrong
+The "Columns" button currently does nothing -- it's a static button with no popover or functionality. The screenshot from the reference project shows a proper **Popover** with checkboxes to toggle column visibility. Additionally, the table needs to support showing/hiding columns like Full Name, Phone, Email Status, Joined Date dynamically.
 
 ### Changes
 
-**File: `src/pages/AdminExpenseManagement.tsx`**
+**File: `src/pages/AdminUserManagement.tsx`**
 
-1. **Fix tab overflow**: Change `TabsList` from `grid grid-cols-3` to a scrollable horizontal layout using `w-full flex overflow-x-auto` styling, with smaller text on mobile (`text-xs sm:text-sm`). Shorten tab labels on mobile: "Config", "Approvals", "Overview".
+1. **Add `allColumns` configuration array** (matching reference project pattern):
+   - `photo` (default: on, locked)
+   - `username` / User Name (default: on)
+   - `email` (default: on)
+   - `role` (default: on)
+   - `manager` / Reporting Manager (default: on)
+   - `active` (default: on)
+   - `email_status` / Email Status (default: off)
+   - `action` (default: on, locked)
+   - `full_name` / Full Name (default: off)
+   - `phone` / Phone (default: off)
 
-2. **Category table mobile fix**: The categories table has 7 columns which also overflow on mobile. Wrap it to show as stacked cards on mobile instead of a table, or hide non-essential columns (`daily_limit`, `receipt_required_above`) on small screens.
+2. **Add `visibleColumns` state** initialized from columns where `default: true`.
 
-3. **Show "Unlimited" hint**: In the category table, show placeholder text "Unlimited" in limit input fields when they are empty/null so admins understand leaving it blank means no restriction.
+3. **Replace the static Columns button** with a `Popover` + `PopoverContent` containing:
+   - "Choose columns" heading
+   - `ScrollArea` with `Checkbox` for each column
+   - `photo` and `action` checkboxes are disabled (always visible)
+   - Matches the exact layout from the reference: `PopoverContent className="w-56" align="end"`
 
-4. **Unlimited logic in user submission** (`src/pages/Expenses.tsx`): The auto-approval check already handles null correctly (`cat?.auto_approval_limit && amount < cat.auto_approval_limit` -- if null, this is falsy, so it skips auto-approve). No change needed there. But the submission should NOT block if no monthly/daily limit is set -- currently it doesn't check limits at all during submission, so this is already "unlimited" by default. No code change needed for the logic itself.
+4. **Make table columns conditional**: Wrap each `TableHead` and `TableCell` in `{visibleColumns.includes('key') && (...)}` checks so toggling a checkbox instantly shows/hides the column.
+
+5. **Add new column data rendering** for the newly available columns:
+   - **Full Name**: `user.full_name` (separate from User Name which shows `full_name || username`)
+   - **Phone**: `user.phone`
+   - **Email Status**: Badge showing "Verified" or "Pending" (currently not tracked, will show based on profile data or default to "Active")
+
+6. **Import additions**: Add `Popover, PopoverTrigger, PopoverContent` and `Checkbox` imports.
 
 ### Technical Details
 
-**TabsList fix (AdminExpenseManagement.tsx line 72)**:
-- Replace `grid w-full grid-cols-3` with `w-full` and add `className="text-xs sm:text-sm"` to each `TabsTrigger`
-- This lets the tabs wrap or scroll naturally
+- The `allColumns` array defines `{ key, label, default }` for each column
+- `visibleColumns` state: `useState<string[]>(allColumns.filter(c => c.default).map(c => c.key))`
+- The Popover uses `ScrollArea` with `h-[280px]` for consistent height
+- Photo and Action columns have `disabled` on their Checkbox to prevent hiding
+- No responsive `hidden sm:table-cell` classes needed anymore since column visibility is user-controlled
+- Remove the existing hardcoded `hidden sm:table-cell` / `hidden md:table-cell` classes from Email and Reporting Manager columns
 
-**Category inputs (lines 177-191)**:
-- Add `placeholder="Unlimited"` to all limit Input fields instead of the current dash placeholder
-
-**No functional logic changes needed** -- null limits already mean "no restriction" in the current code since no limit checks are performed during expense submission beyond auto-approval.
