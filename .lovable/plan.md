@@ -1,49 +1,48 @@
 
 
-## Split Attendance Management into Overview and Configuration Sections
+## Link Attendance Management to User Management (Real Users)
 
-### Overview
-Reorganize the 8 flat tabs into two clear sections using a top-level tab group: **Overview** (operational/data viewing) and **Configuration** (settings/setup).
+### Problem
+The Attendance Management module fetches employee data from the `profiles` table (10 entries), but the actual managed users live in the `users` table (5 entries). This means the attendance module shows stale/unmanaged users that don't appear in User Management, and the data is disconnected.
 
-### Layout
+### Solution
+Update all attendance management components to source their user lists from the `users` table (filtered by `is_active = true`) instead of the `profiles` table. This ensures only actively managed employees appear across the attendance module.
 
-```text
-[  Overview  ] [  Configuration  ]
-       |                |
-       |                +-- Leave Types
-       |                +-- Holidays  
-       |                +-- Working Days
-       |                +-- Attendance Policy
-       |
-       +-- Live Attendance
-       +-- Leave Management
-       +-- Regularization
-       +-- Leave Balances
-```
+### Files to Change
 
-### Changes
+**1. `src/components/LiveAttendanceMonitoring.tsx`**
+- Change `fetchUsers()` to query `users` table (`id, full_name, username`) with `is_active = true` instead of `profiles`
+- Change `fetchAttendanceData()` to query `users` table for the "all users" list used to determine absent employees
+- This ensures the KPI cards (Total Employees, Present, Absent) reflect only managed users
 
-**File: `src/pages/AttendanceManagement.tsx`**
+**2. `src/components/attendance/LeaveBalancesManager.tsx`**
+- Change `fetchData()` to query `users` table (`id, full_name`) with `is_active = true` instead of `profiles`
+- Update the enrichment mapping to use users table data
+- Update `handleInitializeBalances()` to query active users from `users` table instead of filtering `profiles` by `user_status`
 
-1. Replace the single flat tab row with a two-level navigation:
-   - **Top level**: Two styled segment buttons -- "Overview" and "Configuration" 
-   - **Sub level**: Show only the tabs belonging to the active section
-
-2. Define two tab groups:
-   - `overviewTabs`: Live Attendance, Leave Management, Regularization, Leave Balances
-   - `configTabs`: Leave Types, Holidays, Working Days, Attendance Policy
-
-3. Add a `section` state (`"overview"` | `"configuration"`) defaulting to `"overview"`
-   - When switching sections, auto-select the first sub-tab of that section
-   - Keep the existing `activeTab` state for the sub-tab selection
-
-4. Style the top-level section buttons as prominent pill/segment controls (similar to the Activities page action buttons) so the two sections are visually distinct from the sub-tabs below them
+**3. `src/pages/AttendanceManagement.tsx`**
+- Change `fetchUsers()` to query `users` table (`id, full_name`) with `is_active = true` instead of `profiles`
+- This fixes the Leave Management and Regularization user filter dropdowns
 
 ### Technical Details
 
-- Add `const [section, setSection] = useState<"overview" | "configuration">("overview")`
-- Split the existing `tabs` array into two arrays
-- When `section` changes, set `activeTab` to the first tab key of that section
-- The sub-tab row renders only tabs from the active section
-- All existing tab content rendering (`activeTab === "live"`, etc.) remains unchanged -- no logic changes needed for the content panels
+Each component currently does:
+```typescript
+// OLD - queries profiles (10 rows, includes unmanaged users)
+const { data } = await supabase.from('profiles').select('id, full_name, username').order('full_name');
+```
+
+Will be changed to:
+```typescript
+// NEW - queries users (only actively managed employees)
+const { data } = await supabase.from('users').select('id, full_name, username').eq('is_active', true).order('full_name');
+```
+
+The attendance enrichment (joining user names to attendance records) will also switch from `profiles` to `users`, keeping the same field names (`full_name`, `username`) so no downstream UI changes are needed.
+
+### Impact
+- Live Attendance will show exactly the 5 managed users
+- Leave Balances will initialize/display for managed users only
+- Leave Management and Regularization filters will list managed users only
+- Absent employee detection will be accurate (based on managed headcount)
 
