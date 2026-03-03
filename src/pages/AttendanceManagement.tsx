@@ -279,23 +279,23 @@ export default function AttendanceManagement() {
   const formatTime = (t: string | null) => (t ? format(new Date(t), "HH:mm") : "--");
 
   return (
-    <motion.div className="p-4 space-y-6 max-w-6xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.div className="p-2 sm:p-4 space-y-3 sm:space-y-6 max-w-6xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       {/* Page Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/admin-controls")}>
-          <ArrowLeft className="h-5 w-5" />
+      <div className="flex items-center gap-2 sm:gap-4">
+        <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => navigate("/admin-controls")}>
+          <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Attendance Management</h1>
-          <p className="text-muted-foreground">Monitor attendance, manage leaves, configure policies and holidays</p>
+          <h1 className="text-lg sm:text-3xl font-bold tracking-tight">Attendance Management</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Monitor attendance, manage leaves & policies</p>
         </div>
       </div>
 
       {/* Section Toggle */}
-      <div className="flex gap-2">
+      <div className="flex gap-1.5 sm:gap-2">
         <button
           onClick={() => { setSection("overview"); setActiveTab("live"); }}
-          className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+          className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
             section === "overview"
               ? "bg-primary text-primary-foreground shadow-md"
               : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -305,7 +305,7 @@ export default function AttendanceManagement() {
         </button>
         <button
           onClick={() => { setSection("configuration"); setActiveTab("leave-types"); }}
-          className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+          className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
             section === "configuration"
               ? "bg-primary text-primary-foreground shadow-md"
               : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -316,7 +316,7 @@ export default function AttendanceManagement() {
       </div>
 
       {/* Sub-Tabs */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
         <div className="flex gap-1 border-b pb-2 min-w-max">
           {(section === "overview" ? overviewTabs : configTabs).map((tab) => {
             const Icon = tab.icon;
@@ -324,13 +324,13 @@ export default function AttendanceManagement() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`py-2 px-3 rounded-t-lg transition-colors flex items-center text-sm font-medium whitespace-nowrap ${
+                className={`py-1.5 sm:py-2 px-2 sm:px-3 rounded-t-lg transition-colors flex items-center text-[11px] sm:text-sm font-medium whitespace-nowrap ${
                   activeTab === tab.key
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 }`}
               >
-                <Icon className="w-4 h-4 mr-1.5" />
+                <Icon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
                 {tab.label}
               </button>
             );
