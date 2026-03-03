@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Check, X, Clock, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, X, Clock, Loader2, IndianRupee } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -39,6 +39,21 @@ interface RegRequest {
   employee_name: string;
 }
 
+interface ExpenseRequest {
+  id: string;
+  user_id: string;
+  category: string;
+  custom_category: string | null;
+  amount: number;
+  description: string | null;
+  expense_date: string;
+  status: string;
+  created_at: string;
+  employee_name: string;
+}
+
+type TabType = "leave" | "regularization" | "expenses";
+
 export default function PendingApprovals() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -47,12 +62,14 @@ export default function PendingApprovals() {
 
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [regRequests, setRegRequests] = useState<RegRequest[]>([]);
+  const [expenseRequests, setExpenseRequests] = useState<ExpenseRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showRejectionDialog, setShowRejectionDialog] = useState(false);
-  const [rejectionTarget, setRejectionTarget] = useState<{ type: "leave" | "reg"; id: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<"leave" | "regularization">(
-    highlightType === "regularization_request" ? "regularization" : "leave"
+  const [rejectionTarget, setRejectionTarget] = useState<{ type: "leave" | "reg" | "expense"; id: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>(
+    highlightType === "regularization_request" ? "regularization" :
+    highlightType === "expense_request" ? "expenses" : "leave"
   );
 
   useEffect(() => {
@@ -65,7 +82,6 @@ export default function PendingApprovals() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get subordinate user IDs from the users table
       const { data: subordinates } = await supabase
         .from("users")
         .select("id, full_name")
@@ -77,55 +93,43 @@ export default function PendingApprovals() {
       if (subIds.length === 0) {
         setLeaveRequests([]);
         setRegRequests([]);
+        setExpenseRequests([]);
         setLoading(false);
         return;
       }
 
-      // Fetch pending leave applications
-      const { data: leaves } = await supabase
-        .from("leave_applications")
-        .select("*")
-        .in("user_id", subIds)
-        .eq("status", "pending")
-        .order("applied_date", { ascending: false });
+      // Fetch all in parallel
+      const [leavesRes, regsRes, expensesRes] = await Promise.all([
+        supabase.from("leave_applications").select("*").in("user_id", subIds).eq("status", "pending").order("applied_date", { ascending: false }),
+        supabase.from("regularization_requests").select("*").in("user_id", subIds).eq("status", "pending").order("created_at", { ascending: false }),
+        supabase.from("additional_expenses").select("*").in("user_id", subIds).eq("status", "pending").order("created_at", { ascending: false }),
+      ]);
 
-      const leaveTypeIds = [...new Set(leaves?.map((l) => l.leave_type_id) || [])];
-      let leaveTypesData: { id: string; name: string }[] = [];
+      // Leave types
+      const leaveTypeIds = [...new Set(leavesRes.data?.map((l) => l.leave_type_id) || [])];
+      let ltMap = new Map<string, string>();
       if (leaveTypeIds.length > 0) {
         const { data } = await supabase.from("leave_types").select("id, name").in("id", leaveTypeIds);
-        leaveTypesData = data || [];
+        ltMap = new Map((data || []).map((lt) => [lt.id, lt.name]));
       }
-      const ltMap = new Map<string, string>(leaveTypesData.map((lt) => [lt.id, lt.name]));
 
       setLeaveRequests(
-        (leaves || []).map((l) => ({
-          id: l.id,
-          user_id: l.user_id,
-          leave_type_id: l.leave_type_id,
-          from_date: l.from_date,
-          to_date: l.to_date,
-          reason: l.reason || "",
-          status: l.status,
-          total_days: l.total_days,
+        (leavesRes.data || []).map((l) => ({
+          id: l.id, user_id: l.user_id, leave_type_id: l.leave_type_id,
+          from_date: l.from_date, to_date: l.to_date, reason: l.reason || "",
+          status: l.status, total_days: l.total_days,
           applied_date: l.applied_date || l.created_at,
           employee_name: nameMap.get(l.user_id) || "Unknown",
           leave_type_name: ltMap.get(l.leave_type_id) || "Leave",
         }))
       );
 
-      // Fetch pending regularization requests
-      const { data: regs } = await supabase
-        .from("regularization_requests")
-        .select("*")
-        .in("user_id", subIds)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
-
       setRegRequests(
-        (regs || []).map((r) => ({
-          ...r,
-          employee_name: nameMap.get(r.user_id) || "Unknown",
-        }))
+        (regsRes.data || []).map((r) => ({ ...r, employee_name: nameMap.get(r.user_id) || "Unknown" }))
+      );
+
+      setExpenseRequests(
+        (expensesRes.data || []).map((e) => ({ ...e, employee_name: nameMap.get(e.user_id) || "Unknown" }))
       );
     } catch (error) {
       console.error("Error fetching pending requests:", error);
@@ -140,29 +144,19 @@ export default function PendingApprovals() {
     try {
       const app = leaveRequests.find((l) => l.id === id);
       const { data: { user } } = await supabase.auth.getUser();
-
-      const { error } = await supabase
-        .from("leave_applications")
-        .update({
-          status,
-          approved_by: user?.id,
-          approved_date: status === "approved" ? new Date().toISOString() : null,
-        })
-        .eq("id", id);
+      const { error } = await supabase.from("leave_applications").update({
+        status, approved_by: user?.id, approved_date: status === "approved" ? new Date().toISOString() : null,
+      }).eq("id", id);
       if (error) throw error;
 
-      // Notify employee
       if (app) {
         await supabase.from("notifications").insert({
           user_id: app.user_id,
           title: `Leave ${status === "approved" ? "Approved" : "Rejected"}`,
           message: `Your ${app.leave_type_name} from ${format(new Date(app.from_date), "MMM dd")} to ${format(new Date(app.to_date), "MMM dd")}${status === "rejected" && reason ? ` - Reason: ${reason}` : ""} has been ${status}.`,
-          type: "leave_decision",
-          related_table: "leave_applications",
-          related_id: id,
+          type: "leave_decision", related_table: "leave_applications", related_id: id,
         });
       }
-
       toast.success(`Leave ${status} successfully`);
       setLeaveRequests((prev) => prev.filter((l) => l.id !== id));
     } catch (error) {
@@ -176,13 +170,8 @@ export default function PendingApprovals() {
   const handleRegAction = async (id: string, status: "approved" | "rejected", reason?: string) => {
     setActionLoading(id);
     try {
-      const { data: request, error: fetchErr } = await supabase
-        .from("regularization_requests")
-        .select("*")
-        .eq("id", id)
-        .single();
+      const { data: request, error: fetchErr } = await supabase.from("regularization_requests").select("*").eq("id", id).single();
       if (fetchErr) throw fetchErr;
-
       const { data: { user } } = await supabase.auth.getUser();
 
       if (status === "approved" && request) {
@@ -192,40 +181,26 @@ export default function PendingApprovals() {
           const co = new Date(request.requested_check_out_time);
           totalHours = (co.getTime() - ci.getTime()) / (1000 * 60 * 60);
         }
-        await supabase.from("attendance").upsert(
-          {
-            user_id: request.user_id,
-            date: request.attendance_date || request.date,
-            check_in_time: request.requested_check_in_time,
-            check_out_time: request.requested_check_out_time,
-            status: "regularized",
-            total_hours: totalHours,
-            notes: `Regularized via request #${id.slice(0, 8)}`,
-            regularized_request_id: id,
-          },
-          { onConflict: "user_id,date" }
-        );
+        await supabase.from("attendance").upsert({
+          user_id: request.user_id, date: request.attendance_date || request.date,
+          check_in_time: request.requested_check_in_time, check_out_time: request.requested_check_out_time,
+          status: "regularized", total_hours: totalHours,
+          notes: `Regularized via request #${id.slice(0, 8)}`, regularized_request_id: id,
+        }, { onConflict: "user_id,date" });
       }
 
-      const { error } = await supabase
-        .from("regularization_requests")
-        .update({
-          status,
-          approved_by: user?.id,
-          approved_at: status === "approved" ? new Date().toISOString() : null,
-          rejection_reason: reason || null,
-        })
-        .eq("id", id);
+      const { error } = await supabase.from("regularization_requests").update({
+        status, approved_by: user?.id,
+        approved_at: status === "approved" ? new Date().toISOString() : null,
+        rejection_reason: reason || null,
+      }).eq("id", id);
       if (error) throw error;
 
-      // Notify employee
       await supabase.from("notifications").insert({
         user_id: request.user_id,
         title: `Regularisation ${status === "approved" ? "Approved" : "Rejected"}`,
         message: `Your regularisation for ${format(new Date(request.attendance_date || request.date), "MMM dd, yyyy")}${status === "rejected" && reason ? ` - Reason: ${reason}` : ""} has been ${status}.`,
-        type: "regularization_decision",
-        related_table: "regularization_requests",
-        related_id: id,
+        type: "regularization_decision", related_table: "regularization_requests", related_id: id,
       });
 
       toast.success(`Regularisation ${status} successfully`);
@@ -238,22 +213,59 @@ export default function PendingApprovals() {
     }
   };
 
-  const handleRejectClick = (type: "leave" | "reg", id: string) => {
+  const handleExpenseAction = async (id: string, status: "approved" | "rejected", reason?: string) => {
+    setActionLoading(id);
+    try {
+      const exp = expenseRequests.find((e) => e.id === id);
+      const { error } = await supabase.from("additional_expenses").update({ status }).eq("id", id);
+      if (error) throw error;
+
+      if (exp) {
+        await supabase.from("notifications").insert({
+          user_id: exp.user_id,
+          title: `Expense ${status === "approved" ? "Approved" : "Rejected"}`,
+          message: `Your expense of ₹${exp.amount} (${exp.category === 'Other' ? exp.custom_category : exp.category})${status === "rejected" && reason ? ` - Reason: ${reason}` : ""} has been ${status}.`,
+          type: "expense_decision", related_table: "additional_expenses", related_id: id,
+        });
+      }
+
+      toast.success(`Expense ${status} successfully`);
+      setExpenseRequests((prev) => prev.filter((e) => e.id !== id));
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error(`Failed to ${status} expense`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRejectClick = (type: "leave" | "reg" | "expense", id: string) => {
     setRejectionTarget({ type, id });
     setShowRejectionDialog(true);
   };
 
   const handleConfirmRejection = async (reason: string) => {
     if (!rejectionTarget) return;
-    if (rejectionTarget.type === "leave") {
-      await handleLeaveAction(rejectionTarget.id, "rejected", reason);
-    } else {
-      await handleRegAction(rejectionTarget.id, "rejected", reason);
-    }
+    if (rejectionTarget.type === "leave") await handleLeaveAction(rejectionTarget.id, "rejected", reason);
+    else if (rejectionTarget.type === "reg") await handleRegAction(rejectionTarget.id, "rejected", reason);
+    else await handleExpenseAction(rejectionTarget.id, "rejected", reason);
     setRejectionTarget(null);
   };
 
-  const totalPending = leaveRequests.length + regRequests.length;
+  const totalPending = leaveRequests.length + regRequests.length + expenseRequests.length;
+
+  const ActionButtons = ({ id, type }: { id: string; type: "leave" | "reg" | "expense" }) => (
+    <div className="flex gap-2 pt-1">
+      <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" disabled={actionLoading === id}
+        onClick={() => type === "leave" ? handleLeaveAction(id, "approved") : type === "reg" ? handleRegAction(id, "approved") : handleExpenseAction(id, "approved")}>
+        {actionLoading === id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}Approve
+      </Button>
+      <Button size="sm" variant="destructive" className="flex-1" disabled={actionLoading === id}
+        onClick={() => handleRejectClick(type, id)}>
+        <X className="h-4 w-4 mr-1" />Reject
+      </Button>
+    </div>
+  );
 
   return (
     <motion.div className="p-4 space-y-4 pb-24" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
@@ -269,22 +281,16 @@ export default function PendingApprovals() {
 
       {/* Tab Switch */}
       <div className="flex gap-2">
-        <Button
-          variant={activeTab === "leave" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setActiveTab("leave")}
-          className="flex-1"
-        >
-          Leave ({leaveRequests.length})
-        </Button>
-        <Button
-          variant={activeTab === "regularization" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setActiveTab("regularization")}
-          className="flex-1"
-        >
-          Regularisation ({regRequests.length})
-        </Button>
+        {([
+          { key: "leave" as TabType, label: "Leave", count: leaveRequests.length },
+          { key: "regularization" as TabType, label: "Regularisation", count: regRequests.length },
+          { key: "expenses" as TabType, label: "Expenses", count: expenseRequests.length },
+        ]).map((tab) => (
+          <Button key={tab.key} variant={activeTab === tab.key ? "default" : "outline"} size="sm"
+            onClick={() => setActiveTab(tab.key)} className="flex-1">
+            {tab.label} ({tab.count})
+          </Button>
+        ))}
       </div>
 
       {loading ? (
@@ -293,129 +299,85 @@ export default function PendingApprovals() {
         </div>
       ) : (
         <>
-          {/* Leave Requests */}
+          {/* Leave */}
           {activeTab === "leave" && (
             <div className="space-y-3">
               {leaveRequests.length === 0 ? (
-                <Card>
-                  <CardContent className="py-8 text-center text-muted-foreground">
-                    <Check className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
-                    No pending leave requests
+                <Card><CardContent className="py-8 text-center text-muted-foreground"><Check className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />No pending leave requests</CardContent></Card>
+              ) : leaveRequests.map((req) => (
+                <Card key={req.id} className={highlightId === req.id ? "ring-2 ring-primary" : ""}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-semibold">{req.employee_name}</p>
+                        <Badge variant="secondary" className="mt-1">{req.leave_type_name}</Badge>
+                      </div>
+                      <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>
+                    </div>
+                    <div className="text-sm space-y-1 text-muted-foreground">
+                      <p>📅 {format(new Date(req.from_date), "MMM dd, yyyy")} → {format(new Date(req.to_date), "MMM dd, yyyy")}</p>
+                      <p>📝 {req.total_days} day{req.total_days !== 1 ? "s" : ""}</p>
+                      <p>💬 {req.reason}</p>
+                    </div>
+                    <ActionButtons id={req.id} type="leave" />
                   </CardContent>
                 </Card>
-              ) : (
-                leaveRequests.map((req) => (
-                  <Card
-                    key={req.id}
-                    className={highlightId === req.id ? "ring-2 ring-primary" : ""}
-                  >
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-semibold">{req.employee_name}</p>
-                          <Badge variant="secondary" className="mt-1">{req.leave_type_name}</Badge>
-                        </div>
-                        <Badge className="bg-yellow-100 text-yellow-800">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Pending
-                        </Badge>
-                      </div>
-                      <div className="text-sm space-y-1 text-muted-foreground">
-                        <p>📅 {format(new Date(req.from_date), "MMM dd, yyyy")} → {format(new Date(req.to_date), "MMM dd, yyyy")}</p>
-                        <p>📝 {req.total_days} day{req.total_days !== 1 ? "s" : ""}</p>
-                        <p>💬 {req.reason}</p>
-                      </div>
-                      <div className="flex gap-2 pt-1">
-                        <Button
-                          size="sm"
-                          className="flex-1 bg-green-600 hover:bg-green-700"
-                          disabled={actionLoading === req.id}
-                          onClick={() => handleLeaveAction(req.id, "approved")}
-                        >
-                          {actionLoading === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="flex-1"
-                          disabled={actionLoading === req.id}
-                          onClick={() => handleRejectClick("leave", req.id)}
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          Reject
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
+              ))}
             </div>
           )}
 
-          {/* Regularization Requests */}
+          {/* Regularization */}
           {activeTab === "regularization" && (
             <div className="space-y-3">
               {regRequests.length === 0 ? (
-                <Card>
-                  <CardContent className="py-8 text-center text-muted-foreground">
-                    <Check className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
-                    No pending regularisation requests
+                <Card><CardContent className="py-8 text-center text-muted-foreground"><Check className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />No pending regularisation requests</CardContent></Card>
+              ) : regRequests.map((req) => (
+                <Card key={req.id} className={highlightId === req.id ? "ring-2 ring-primary" : ""}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-semibold">{req.employee_name}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{format(new Date(req.attendance_date || req.date), "MMM dd, yyyy")}</p>
+                      </div>
+                      <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>
+                    </div>
+                    <div className="text-sm space-y-1 text-muted-foreground">
+                      {req.requested_check_in_time && <p>🕐 Requested In: {format(new Date(req.requested_check_in_time), "hh:mm a")}</p>}
+                      {req.requested_check_out_time && <p>🕐 Requested Out: {format(new Date(req.requested_check_out_time), "hh:mm a")}</p>}
+                      <p>💬 {req.reason}</p>
+                    </div>
+                    <ActionButtons id={req.id} type="reg" />
                   </CardContent>
                 </Card>
-              ) : (
-                regRequests.map((req) => (
-                  <Card
-                    key={req.id}
-                    className={highlightId === req.id ? "ring-2 ring-primary" : ""}
-                  >
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-semibold">{req.employee_name}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {format(new Date(req.attendance_date || req.date), "MMM dd, yyyy")}
-                          </p>
-                        </div>
-                        <Badge className="bg-yellow-100 text-yellow-800">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Pending
-                        </Badge>
+              ))}
+            </div>
+          )}
+
+          {/* Expenses */}
+          {activeTab === "expenses" && (
+            <div className="space-y-3">
+              {expenseRequests.length === 0 ? (
+                <Card><CardContent className="py-8 text-center text-muted-foreground"><Check className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />No pending expense requests</CardContent></Card>
+              ) : expenseRequests.map((exp) => (
+                <Card key={exp.id} className={highlightId === exp.id ? "ring-2 ring-primary" : ""}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-semibold">{exp.employee_name}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {exp.category === 'Other' ? exp.custom_category : exp.category} • {format(new Date(exp.expense_date), "MMM dd, yyyy")}
+                        </p>
                       </div>
-                      <div className="text-sm space-y-1 text-muted-foreground">
-                        {req.requested_check_in_time && (
-                          <p>🕐 Requested In: {format(new Date(req.requested_check_in_time), "hh:mm a")}</p>
-                        )}
-                        {req.requested_check_out_time && (
-                          <p>🕐 Requested Out: {format(new Date(req.requested_check_out_time), "hh:mm a")}</p>
-                        )}
-                        <p>💬 {req.reason}</p>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="font-bold flex items-center"><IndianRupee className="h-3 w-3" />{exp.amount}</span>
+                        <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>
                       </div>
-                      <div className="flex gap-2 pt-1">
-                        <Button
-                          size="sm"
-                          className="flex-1 bg-green-600 hover:bg-green-700"
-                          disabled={actionLoading === req.id}
-                          onClick={() => handleRegAction(req.id, "approved")}
-                        >
-                          {actionLoading === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="flex-1"
-                          disabled={actionLoading === req.id}
-                          onClick={() => handleRejectClick("reg", req.id)}
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          Reject
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
+                    </div>
+                    {exp.description && <p className="text-sm text-muted-foreground">💬 {exp.description}</p>}
+                    <ActionButtons id={exp.id} type="expense" />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </>
