@@ -188,26 +188,39 @@ function UserDetailDialog({ user, employee, roleName }: { user: AppUser; employe
   );
 }
 
-// Edit User Dialog
-function EditUserDialog({ user, employee, roles, allUsers, onSaved }: {
+// Edit User Dialog - Tabbed version matching reference screenshot
+function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpenChange, onDeleteUser }: {
   user: AppUser;
   employee?: Employee;
   roles: Role[];
   allUsers: AppUser[];
   onSaved: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDeleteUser: (user: AppUser) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState(user.full_name || "");
   const [username, setUsername] = useState(user.username || "");
   const [phone, setPhone] = useState(user.phone || "");
   const [roleId, setRoleId] = useState(user.role_id || "");
   const [managerId, setManagerId] = useState(user.reporting_manager_id || "none");
-  const [hq, setHq] = useState(employee?.hq || "");
-  const [salary, setSalary] = useState(String(employee?.monthly_salary || 0));
-  const [da, setDa] = useState(String(employee?.daily_da_allowance || 0));
-  const [band, setBand] = useState(employee?.band || "");
-  const [dateOfJoining, setDateOfJoining] = useState(employee?.date_of_joining || "");
+  const [secondaryManagerId, setSecondaryManagerId] = useState("none");
+  const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deletingData, setDeletingData] = useState(false);
+  const [editTab, setEditTab] = useState("basic");
+
+  // Reset state when user changes
+  useState(() => {
+    setFullName(user.full_name || "");
+    setUsername(user.username || "");
+    setPhone(user.phone || "");
+    setRoleId(user.role_id || "");
+    setManagerId(user.reporting_manager_id || "none");
+    setSecondaryManagerId("none");
+    setNewPassword("");
+    setEditTab("basic");
+  });
 
   const roleEnumMap: Record<string, string> = {};
   roles.forEach((r) => {
@@ -246,17 +259,13 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved }: {
 
       const { error: empError } = await supabase.from("employees").upsert({
         user_id: user.id,
-        hq: hq || null,
-        monthly_salary: parseFloat(salary) || 0,
-        daily_da_allowance: parseFloat(da) || 0,
-        band: band || null,
-        date_of_joining: dateOfJoining || null,
         manager_id: managerId === "none" ? null : managerId,
+        secondary_manager_id: secondaryManagerId === "none" ? null : secondaryManagerId,
       }, { onConflict: "user_id" });
       if (empError) throw empError;
 
       toast.success("User updated successfully");
-      setOpen(false);
+      onOpenChange(false);
       onSaved();
     } catch (err: any) {
       toast.error(err.message || "Failed to update user");
@@ -265,85 +274,144 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved }: {
     }
   };
 
+  const handleDeleteData = async () => {
+    setDeletingData(true);
+    try {
+      // Delete operational records but keep the user account
+      await supabase.from("attendance").delete().eq("user_id", user.id);
+      await supabase.from("gps_tracking").delete().eq("user_id", user.id);
+      await supabase.from("gps_tracking_stops").delete().eq("user_id", user.id);
+      await supabase.from("additional_expenses").delete().eq("user_id", user.id);
+      await supabase.from("activity_events").delete().eq("user_id", user.id);
+      await supabase.from("leave_applications").delete().eq("user_id", user.id);
+      toast.success("User data cleared successfully");
+      onSaved();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete data");
+    } finally {
+      setDeletingData(false);
+    }
+  };
+
+  const generatePassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
+    let pwd = "";
+    for (let i = 0; i < 12; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    setNewPassword(pwd);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setOpen(true); }}>
-          <Edit className="h-4 w-4 mr-2" /> Edit
-        </DropdownMenuItem>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit User</DialogTitle>
-          <DialogDescription>Update user profile and role</DialogDescription>
+          <DialogTitle>Edit User: {user.full_name || user.email}</DialogTitle>
+          <DialogDescription>Update user profile, managers and password</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2 md:col-span-2">
-            <Label>Email</Label>
-            <Input value={user.email} disabled className="bg-muted" />
-            <p className="text-xs text-muted-foreground">Email cannot be changed after creation</p>
+        <Tabs value={editTab} onValueChange={setEditTab} className="w-full">
+          <TabsList className="w-full grid grid-cols-3">
+            <TabsTrigger value="basic">Basic Info</TabsTrigger>
+            <TabsTrigger value="managers">Managers</TabsTrigger>
+            <TabsTrigger value="password">Reset Password</TabsTrigger>
+          </TabsList>
+          <TabsContent value="basic" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Full Name</Label>
+              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Username</Label>
+              <Input value={username} onChange={(e) => setUsername(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Phone Number</Label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input value={user.email} disabled className="bg-muted" />
+              <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Security Profile (Role)</Label>
+              <Select value={roleId} onValueChange={setRoleId}>
+                <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                <SelectContent>
+                  {roles.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </TabsContent>
+          <TabsContent value="managers" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Primary Manager</Label>
+              <Select value={managerId} onValueChange={setManagerId}>
+                <SelectTrigger><SelectValue placeholder="Select manager" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— None —</SelectItem>
+                  {managerOptions.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Secondary Manager</Label>
+              <Select value={secondaryManagerId} onValueChange={setSecondaryManagerId}>
+                <SelectTrigger><SelectValue placeholder="Select secondary manager" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— None —</SelectItem>
+                  {managerOptions.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </TabsContent>
+          <TabsContent value="password" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>New Password</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                />
+                <Button variant="outline" size="sm" onClick={generatePassword} className="shrink-0">
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" /> Generate
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Password reset requires backend function support</p>
+            </div>
+          </TabsContent>
+        </Tabs>
+        <div className="flex items-center justify-between mt-4 pt-4 border-t">
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950"
+              onClick={handleDeleteData}
+              disabled={deletingData}
+            >
+              {deletingData ? "Deleting..." : "Delete Data"}
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => { onOpenChange(false); onDeleteUser(user); }}
+            >
+              Delete User
+            </Button>
           </div>
-          <div className="space-y-2">
-            <Label>Full Name</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleSave} disabled={loading}>
+              {loading ? "Saving..." : "Save Changes"}
+            </Button>
           </div>
-          <div className="space-y-2">
-            <Label>Username</Label>
-            <Input value={username} onChange={(e) => setUsername(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Phone</Label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Role</Label>
-            <Select value={roleId} onValueChange={setRoleId}>
-              <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-              <SelectContent>
-                {roles.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Reporting Manager</Label>
-            <Select value={managerId} onValueChange={setManagerId}>
-              <SelectTrigger><SelectValue placeholder="Select manager" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">— None —</SelectItem>
-                {managerOptions.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Date of Joining</Label>
-            <Input type="date" value={dateOfJoining} onChange={(e) => setDateOfJoining(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>HQ</Label>
-            <Input value={hq} onChange={(e) => setHq(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Band</Label>
-            <Input value={band} onChange={(e) => setBand(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Monthly Salary (₹)</Label>
-            <Input type="number" value={salary} onChange={(e) => setSalary(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label>Daily DA (₹)</Label>
-            <Input type="number" value={da} onChange={(e) => setDa(e.target.value)} />
-          </div>
-        </div>
-        <div className="flex justify-end gap-2 mt-4">
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={loading}>
-            {loading ? "Saving..." : "Save Changes"}
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -573,6 +641,7 @@ export default function AdminUserManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
+  const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [roleFilter, setRoleFilter] = useState("all");
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -907,7 +976,7 @@ export default function AdminUserManagement() {
                               <TableCell>
                                 <div className="flex items-center gap-1">
                                   <UserDetailDialog user={user} employee={employee} roleName={roleName} />
-                                  <Button variant="ghost" size="sm" className="gap-1 text-xs h-8 px-2" onClick={() => {}}>
+                                  <Button variant="ghost" size="sm" className="gap-1 text-xs h-8 px-2" onClick={() => setEditingUser(user)}>
                                     <Pencil className="h-3.5 w-3.5" />
                                     Edit
                                   </Button>
@@ -916,7 +985,9 @@ export default function AdminUserManagement() {
                                       <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                      <EditUserDialog user={user} employee={employee} roles={roles} allUsers={appUsers} onSaved={invalidateAll} />
+                                      <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                                        <Edit className="h-4 w-4 mr-2" /> Edit
+                                      </DropdownMenuItem>
                                       <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(user)}>
                                         <Trash2 className="h-4 w-4 mr-2" /> Delete
                                       </DropdownMenuItem>
@@ -943,6 +1014,20 @@ export default function AdminUserManagement() {
         </TabsContent>
 
       </Tabs>
+
+      {/* Edit User Dialog */}
+      {editingUser && (
+        <EditUserDialog
+          user={editingUser}
+          employee={employees.find((e) => e.user_id === editingUser.id)}
+          roles={roles}
+          allUsers={appUsers}
+          onSaved={invalidateAll}
+          open={!!editingUser}
+          onOpenChange={(open) => { if (!open) setEditingUser(null); }}
+          onDeleteUser={(u) => setDeleteTarget(u)}
+        />
+      )}
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
