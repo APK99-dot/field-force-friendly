@@ -18,6 +18,8 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowLeft,
   Search,
@@ -575,6 +577,30 @@ export default function AdminUserManagement() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
+  // Column chooser config
+  const allColumns = [
+    { key: "photo", label: "Photo", default: true, locked: true },
+    { key: "username", label: "User Name", default: true },
+    { key: "email", label: "Email", default: true },
+    { key: "role", label: "Role", default: true },
+    { key: "manager", label: "Reporting Manager", default: true },
+    { key: "active", label: "Active", default: true },
+    { key: "full_name", label: "Full Name", default: false },
+    { key: "phone", label: "Phone", default: false },
+    { key: "email_status", label: "Email Status", default: false },
+    { key: "joined", label: "Joined Date", default: false },
+    { key: "action", label: "Actions", default: true, locked: true },
+  ];
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    allColumns.filter((c) => c.default).map((c) => c.key)
+  );
+  const isColVisible = (key: string) => visibleColumns.includes(key);
+  const toggleColumn = (key: string) => {
+    setVisibleColumns((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
   const { data: appUsers = [], isLoading: usersLoading } = useAppUsers();
   const { data: employees = [] } = useEmployees();
   const { data: roles = [] } = useRoles();
@@ -729,10 +755,34 @@ export default function AdminUserManagement() {
                   <p className="text-sm text-muted-foreground mt-1">View and manage all user accounts and their assigned roles</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="gap-1.5">
-                    <Columns3 className="h-4 w-4" />
-                    <span className="hidden sm:inline">Columns</span>
-                  </Button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-1.5">
+                        <Columns3 className="h-4 w-4" />
+                        <span className="hidden sm:inline">Columns</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56" align="end">
+                      <p className="text-sm font-medium mb-3">Choose columns</p>
+                      <ScrollArea className="h-[280px]">
+                        <div className="space-y-3">
+                          {allColumns.map((col) => (
+                            <label
+                              key={col.key}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <Checkbox
+                                checked={visibleColumns.includes(col.key)}
+                                disabled={col.locked}
+                                onCheckedChange={() => toggleColumn(col.key)}
+                              />
+                              <span className="text-sm">{col.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
                   <Button variant="outline" size="sm" className="gap-1.5" onClick={invalidateAll}>
                     <RefreshCw className="h-4 w-4" />
                     <span className="hidden sm:inline">Refresh</span>
@@ -768,13 +818,17 @@ export default function AdminUserManagement() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[60px]">Photo</TableHead>
-                        <TableHead>User Name</TableHead>
-                        <TableHead className="hidden sm:table-cell">Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead className="hidden md:table-cell">Reporting Manager</TableHead>
-                        <TableHead>Active</TableHead>
-                        <TableHead>Actions</TableHead>
+                        {isColVisible("photo") && <TableHead className="w-[60px]">Photo</TableHead>}
+                        {isColVisible("username") && <TableHead>User Name</TableHead>}
+                        {isColVisible("full_name") && <TableHead>Full Name</TableHead>}
+                        {isColVisible("email") && <TableHead>Email</TableHead>}
+                        {isColVisible("phone") && <TableHead>Phone</TableHead>}
+                        {isColVisible("role") && <TableHead>Role</TableHead>}
+                        {isColVisible("manager") && <TableHead>Reporting Manager</TableHead>}
+                        {isColVisible("email_status") && <TableHead>Email Status</TableHead>}
+                        {isColVisible("joined") && <TableHead>Joined Date</TableHead>}
+                        {isColVisible("active") && <TableHead>Active</TableHead>}
+                        {isColVisible("action") && <TableHead>Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -786,64 +840,95 @@ export default function AdminUserManagement() {
                         const colors = getRoleColor(roleName);
                         return (
                           <TableRow key={user.id}>
-                            <TableCell>
-                              <Avatar className="h-9 w-9">
-                                <AvatarImage src={profile?.profile_picture_url || undefined} />
-                                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                                  {(user.full_name || user.email || "U").charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                            </TableCell>
-                            <TableCell>
-                              <p className="text-sm font-medium truncate">{user.full_name || user.username || "—"}</p>
-                            </TableCell>
-                            <TableCell className="hidden sm:table-cell">
-                              <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={`text-xs ${colors.bg} ${colors.text}`}
-                              >
-                                {roleName}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell text-sm">
-                              {manager?.full_name || manager?.email || "—"}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Switch
-                                  checked={user.is_active}
-                                  onCheckedChange={(checked) => toggleActive.mutate({ userId: user.id, isActive: checked })}
-                                />
-                                <span className={`text-xs font-medium ${user.is_active ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
-                                  {user.is_active ? "Active" : "Inactive"}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <UserDetailDialog user={user} employee={employee} roleName={roleName} />
-                                <Button variant="ghost" size="sm" className="gap-1 text-xs h-8 px-2" onClick={() => {
-                                  /* Edit opens the edit dialog */
-                                }}>
-                                  <Pencil className="h-3.5 w-3.5" />
-                                  Edit
-                                </Button>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <EditUserDialog user={user} employee={employee} roles={roles} allUsers={appUsers} onSaved={invalidateAll} />
-                                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(user)}>
-                                      <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            </TableCell>
+                            {isColVisible("photo") && (
+                              <TableCell>
+                                <Avatar className="h-9 w-9">
+                                  <AvatarImage src={profile?.profile_picture_url || undefined} />
+                                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                                    {(user.full_name || user.email || "U").charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </TableCell>
+                            )}
+                            {isColVisible("username") && (
+                              <TableCell>
+                                <p className="text-sm font-medium truncate">{user.full_name || user.username || "—"}</p>
+                              </TableCell>
+                            )}
+                            {isColVisible("full_name") && (
+                              <TableCell>
+                                <p className="text-sm truncate">{user.full_name || "—"}</p>
+                              </TableCell>
+                            )}
+                            {isColVisible("email") && (
+                              <TableCell>
+                                <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                              </TableCell>
+                            )}
+                            {isColVisible("phone") && (
+                              <TableCell>
+                                <p className="text-sm text-muted-foreground">{user.phone || "—"}</p>
+                              </TableCell>
+                            )}
+                            {isColVisible("role") && (
+                              <TableCell>
+                                <Badge variant="outline" className={`text-xs ${colors.bg} ${colors.text}`}>
+                                  {roleName}
+                                </Badge>
+                              </TableCell>
+                            )}
+                            {isColVisible("manager") && (
+                              <TableCell className="text-sm">
+                                {manager?.full_name || manager?.email || "—"}
+                              </TableCell>
+                            )}
+                            {isColVisible("email_status") && (
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                  Verified
+                                </Badge>
+                              </TableCell>
+                            )}
+                            {isColVisible("joined") && (
+                              <TableCell className="text-sm text-muted-foreground">
+                                {employee?.date_of_joining || "—"}
+                              </TableCell>
+                            )}
+                            {isColVisible("active") && (
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    checked={user.is_active}
+                                    onCheckedChange={(checked) => toggleActive.mutate({ userId: user.id, isActive: checked })}
+                                  />
+                                  <span className={`text-xs font-medium ${user.is_active ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                                    {user.is_active ? "Active" : "Inactive"}
+                                  </span>
+                                </div>
+                              </TableCell>
+                            )}
+                            {isColVisible("action") && (
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <UserDetailDialog user={user} employee={employee} roleName={roleName} />
+                                  <Button variant="ghost" size="sm" className="gap-1 text-xs h-8 px-2" onClick={() => {}}>
+                                    <Pencil className="h-3.5 w-3.5" />
+                                    Edit
+                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <EditUserDialog user={user} employee={employee} roles={roles} allUsers={appUsers} onSaved={invalidateAll} />
+                                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(user)}>
+                                        <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </TableCell>
+                            )}
                           </TableRow>
                         );
                       })}
