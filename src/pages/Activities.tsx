@@ -598,12 +598,6 @@ export default function Activities() {
                 </div>
               </div>
             )}
-            {form.duration_type === "hour_based" && (
-              <div>
-                <Label className="text-xs">Total Hours</Label>
-                <Input type="number" step="0.5" min="0" value={form.total_hours} onChange={(e) => setForm({ ...form, total_hours: parseFloat(e.target.value) || 0 })} />
-              </div>
-            )}
             <div>
               <Label className="text-xs">Description</Label>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Activity details..." rows={3} />
