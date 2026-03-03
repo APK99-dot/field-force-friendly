@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Shield, Pencil, Trash2, Users } from "lucide-react";
+import { Plus, Shield, Pencil, Trash2, Users2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -121,76 +122,111 @@ export default function SecurityProfilesList({ onSelectProfile, selectedProfileI
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Security Profiles</h2>
-          <p className="text-sm text-muted-foreground">Define role-based access templates</p>
-        </div>
-        <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" />New Profile</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Create Security Profile</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Profile Name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Regional Manager" />
-              </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the access level..." rows={3} />
-              </div>
-              <Button onClick={() => createProfile.mutate()} disabled={createProfile.isPending} className="w-full">
-                {createProfile.isPending ? "Creating..." : "Create Profile"}
-              </Button>
+      <Card>
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-xl font-semibold">Security Profiles</h2>
+              <p className="text-sm text-muted-foreground">Define user roles with different permission sets</p>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+              <DialogTrigger asChild>
+                <Button><Plus className="h-4 w-4 mr-1.5" />Create Profile</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Create Security Profile</DialogTitle></DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Profile Name</Label>
+                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Regional Manager" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the access level..." rows={3} />
+                  </div>
+                  <Button onClick={() => createProfile.mutate()} disabled={createProfile.isPending} className="w-full">
+                    {createProfile.isPending ? "Creating..." : "Create Profile"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
 
-      <div className="grid gap-3">
-        {profiles.map((profile) => (
-          <Card
-            key={profile.id}
-            className={`cursor-pointer transition-all hover:shadow-md ${selectedProfileId === profile.id ? "ring-2 ring-primary" : ""}`}
-            onClick={() => onSelectProfile(profile)}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Shield className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-sm">{profile.name}</h3>
-                      {profile.is_system && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">System</Badge>}
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="text-xs font-medium text-muted-foreground">Profile Name</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground">Description</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground text-center">Type</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground text-center">Users</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {profiles.map((profile) => (
+                <TableRow
+                  key={profile.id}
+                  className={`cursor-pointer transition-colors ${selectedProfileId === profile.id ? "bg-primary/5" : ""}`}
+                  onClick={() => onSelectProfile(profile)}
+                >
+                  <TableCell className="py-3">
+                    <div className="flex items-center gap-2.5">
+                      <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="font-medium text-sm">{profile.name}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{profile.description || "No description"}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mr-2">
-                    <Users className="h-3.5 w-3.5" />
-                    <span>{userCounts[profile.id] || 0}</span>
-                  </div>
-                  {!profile.is_system && (
-                    <>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(profile); }}>
-                        <Pencil className="h-3.5 w-3.5" />
+                  </TableCell>
+                  <TableCell className="py-3 text-sm text-muted-foreground max-w-[300px]">
+                    {profile.description || "—"}
+                  </TableCell>
+                  <TableCell className="py-3 text-center">
+                    <Badge
+                      variant={profile.is_system ? "secondary" : "outline"}
+                      className="text-[11px] px-2 py-0.5"
+                    >
+                      {profile.is_system ? "System" : "Custom"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="py-3 text-center">
+                    <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground">
+                      <Users2 className="h-3.5 w-3.5" />
+                      <span className="font-medium">{userCounts[profile.id] || 0}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => { e.stopPropagation(); openEdit(profile); }}
+                      >
+                        <Pencil className="h-4 w-4 text-muted-foreground" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); deleteProfile.mutate(profile.id); }}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                      {!profile.is_system && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => { e.stopPropagation(); deleteProfile.mutate(profile.id); }}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {profiles.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
+                    No security profiles found. Create one to get started.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Edit Dialog */}
       <Dialog open={!!editProfile} onOpenChange={(open) => { if (!open) setEditProfile(null); }}>

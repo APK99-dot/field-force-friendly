@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Shield, Search } from "lucide-react";
+import { Plus, Shield, Search, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -25,7 +26,7 @@ interface Permission {
 
 const PERMISSION_FIELDS = ["can_read", "can_create", "can_edit", "can_delete", "can_view_all", "can_modify_all"] as const;
 const FIELD_LABELS: Record<string, string> = {
-  can_read: "Read",
+  can_read: "View",
   can_create: "Create",
   can_edit: "Edit",
   can_delete: "Delete",
@@ -119,99 +120,109 @@ export default function RolePermissionsMatrix({ profileId, profileName }: Props)
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-primary" />
-          <div>
-            <h2 className="text-lg font-semibold">Permissions for: {profileName}</h2>
-            <p className="text-xs text-muted-foreground">{permissions.length} objects configured</p>
-          </div>
-        </div>
-        <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" />Add Object</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Add Permission Object</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Object Name</Label>
-                <Input value={newObject} onChange={(e) => setNewObject(e.target.value)} placeholder="e.g. invoices, territories" />
+      <Card>
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Shield className="h-4.5 w-4.5 text-primary" />
               </div>
-              <Button onClick={() => addObject.mutate()} disabled={addObject.isPending} className="w-full">
-                {addObject.isPending ? "Adding..." : "Add Object"}
-              </Button>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold">{profileName}</h2>
+                  <Badge variant="outline" className="text-[10px]">{permissions.length} objects</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">Configure module access permissions</p>
+              </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm"><Plus className="h-4 w-4 mr-1" />Add Module</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Add Permission Module</DialogTitle></DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Module Name</Label>
+                    <Input value={newObject} onChange={(e) => setNewObject(e.target.value)} placeholder="e.g. invoices, territories" />
+                  </div>
+                  <Button onClick={() => addObject.mutate()} disabled={addObject.isPending} className="w-full">
+                    {addObject.isPending ? "Adding..." : "Add Module"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search objects..." className="pl-9" />
-      </div>
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search modules..." className="pl-9" />
+          </div>
 
-      {permissions.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground text-sm">
-            No permission objects configured for this profile. Add one to get started.
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-[11px] font-medium text-muted-foreground py-2 h-8">Object</TableHead>
-                  {PERMISSION_FIELDS.map((f) => (
-                    <TableHead key={f} className="text-[11px] font-medium text-muted-foreground py-2 h-8 text-center w-20">
-                      {FIELD_LABELS[f]}
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-[11px] font-medium text-muted-foreground py-2 h-8 text-center w-24">All</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {permissions.map((perm) => {
-                  const allEnabled = PERMISSION_FIELDS.every((f) => perm[f]);
-                  return (
-                    <TableRow key={perm.id}>
-                      <TableCell className="font-medium text-sm capitalize py-1.5">{perm.object_name}</TableCell>
-                      {PERMISSION_FIELDS.map((field) => (
-                        <TableCell key={field} className="text-center py-1.5">
-                          <Switch
-                            checked={perm[field]}
-                            onCheckedChange={(v) => togglePermission.mutate({ permId: perm.id, field, value: v })}
-                            className="scale-75"
-                          />
+          {permissions.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">
+              No permission modules configured. Add one to get started.
+            </div>
+          ) : (
+            <div className="overflow-x-auto -mx-5">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="text-xs font-medium text-muted-foreground pl-5">Module</TableHead>
+                    {PERMISSION_FIELDS.map((f) => (
+                      <TableHead key={f} className="text-xs font-medium text-muted-foreground text-center w-[80px]">
+                        {FIELD_LABELS[f]}
+                      </TableHead>
+                    ))}
+                    <TableHead className="text-xs font-medium text-muted-foreground text-center w-[70px]">All</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground text-center w-[50px] pr-5"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {permissions.map((perm) => {
+                    const allEnabled = PERMISSION_FIELDS.every((f) => perm[f]);
+                    return (
+                      <TableRow key={perm.id}>
+                        <TableCell className="font-medium text-sm capitalize py-2.5 pl-5">{perm.object_name}</TableCell>
+                        {PERMISSION_FIELDS.map((field) => (
+                          <TableCell key={field} className="text-center py-2.5">
+                            <div className="flex justify-center">
+                              <Switch
+                                checked={perm[field]}
+                                onCheckedChange={(v) => togglePermission.mutate({ permId: perm.id, field, value: v })}
+                                className="scale-[0.8]"
+                              />
+                            </div>
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-center py-2.5">
+                          <div className="flex justify-center">
+                            <Switch
+                              checked={allEnabled}
+                              onCheckedChange={(v) => toggleAll.mutate({ permId: perm.id, enable: v })}
+                              className="scale-[0.8]"
+                            />
+                          </div>
                         </TableCell>
-                      ))}
-                      <TableCell className="text-center py-1.5">
-                        <div className="flex items-center justify-center gap-1">
-                          <Switch
-                            checked={allEnabled}
-                            onCheckedChange={(v) => toggleAll.mutate({ permId: perm.id, enable: v })}
-                            className="scale-75"
-                          />
+                        <TableCell className="text-center py-2.5 pr-5">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 text-destructive"
+                            className="h-7 w-7"
                             onClick={() => removeObject.mutate(perm.id)}
                           >
-                            <span className="text-xs">×</span>
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
