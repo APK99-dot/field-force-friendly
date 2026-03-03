@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Check, X, Clock, Loader2, IndianRupee } from "lucide-react";
+import { ArrowLeft, Check, X, Clock, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -39,20 +39,7 @@ interface RegRequest {
   employee_name: string;
 }
 
-interface ExpenseRequest {
-  id: string;
-  user_id: string;
-  category: string;
-  custom_category: string | null;
-  amount: number;
-  description: string | null;
-  expense_date: string;
-  status: string;
-  created_at: string;
-  employee_name: string;
-}
-
-type TabType = "leave" | "regularization" | "expenses";
+type TabType = "leave" | "regularization";
 
 export default function PendingApprovals() {
   const navigate = useNavigate();
@@ -62,14 +49,12 @@ export default function PendingApprovals() {
 
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [regRequests, setRegRequests] = useState<RegRequest[]>([]);
-  const [expenseRequests, setExpenseRequests] = useState<ExpenseRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showRejectionDialog, setShowRejectionDialog] = useState(false);
-  const [rejectionTarget, setRejectionTarget] = useState<{ type: "leave" | "reg" | "expense"; id: string } | null>(null);
+  const [rejectionTarget, setRejectionTarget] = useState<{ type: "leave" | "reg"; id: string } | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>(
-    highlightType === "regularization_request" ? "regularization" :
-    highlightType === "expense_request" ? "expenses" : "leave"
+    highlightType === "regularization_request" ? "regularization" : "leave"
   );
 
   useEffect(() => {
@@ -93,19 +78,15 @@ export default function PendingApprovals() {
       if (subIds.length === 0) {
         setLeaveRequests([]);
         setRegRequests([]);
-        setExpenseRequests([]);
         setLoading(false);
         return;
       }
 
-      // Fetch all in parallel
-      const [leavesRes, regsRes, expensesRes] = await Promise.all([
+      const [leavesRes, regsRes] = await Promise.all([
         supabase.from("leave_applications").select("*").in("user_id", subIds).eq("status", "pending").order("applied_date", { ascending: false }),
         supabase.from("regularization_requests").select("*").in("user_id", subIds).eq("status", "pending").order("created_at", { ascending: false }),
-        supabase.from("additional_expenses").select("*").in("user_id", subIds).eq("status", "pending").order("created_at", { ascending: false }),
       ]);
 
-      // Leave types
       const leaveTypeIds = [...new Set(leavesRes.data?.map((l) => l.leave_type_id) || [])];
       let ltMap = new Map<string, string>();
       if (leaveTypeIds.length > 0) {
@@ -126,10 +107,6 @@ export default function PendingApprovals() {
 
       setRegRequests(
         (regsRes.data || []).map((r) => ({ ...r, employee_name: nameMap.get(r.user_id) || "Unknown" }))
-      );
-
-      setExpenseRequests(
-        (expensesRes.data || []).map((e) => ({ ...e, employee_name: nameMap.get(e.user_id) || "Unknown" }))
       );
     } catch (error) {
       console.error("Error fetching pending requests:", error);
@@ -213,33 +190,7 @@ export default function PendingApprovals() {
     }
   };
 
-  const handleExpenseAction = async (id: string, status: "approved" | "rejected", reason?: string) => {
-    setActionLoading(id);
-    try {
-      const exp = expenseRequests.find((e) => e.id === id);
-      const { error } = await supabase.from("additional_expenses").update({ status }).eq("id", id);
-      if (error) throw error;
-
-      if (exp) {
-        await supabase.from("notifications").insert({
-          user_id: exp.user_id,
-          title: `Expense ${status === "approved" ? "Approved" : "Rejected"}`,
-          message: `Your expense of ₹${exp.amount} (${exp.category === 'Other' ? exp.custom_category : exp.category})${status === "rejected" && reason ? ` - Reason: ${reason}` : ""} has been ${status}.`,
-          type: "expense_decision", related_table: "additional_expenses", related_id: id,
-        });
-      }
-
-      toast.success(`Expense ${status} successfully`);
-      setExpenseRequests((prev) => prev.filter((e) => e.id !== id));
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error(`Failed to ${status} expense`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleRejectClick = (type: "leave" | "reg" | "expense", id: string) => {
+  const handleRejectClick = (type: "leave" | "reg", id: string) => {
     setRejectionTarget({ type, id });
     setShowRejectionDialog(true);
   };
@@ -247,17 +198,16 @@ export default function PendingApprovals() {
   const handleConfirmRejection = async (reason: string) => {
     if (!rejectionTarget) return;
     if (rejectionTarget.type === "leave") await handleLeaveAction(rejectionTarget.id, "rejected", reason);
-    else if (rejectionTarget.type === "reg") await handleRegAction(rejectionTarget.id, "rejected", reason);
-    else await handleExpenseAction(rejectionTarget.id, "rejected", reason);
+    else await handleRegAction(rejectionTarget.id, "rejected", reason);
     setRejectionTarget(null);
   };
 
-  const totalPending = leaveRequests.length + regRequests.length + expenseRequests.length;
+  const totalPending = leaveRequests.length + regRequests.length;
 
-  const ActionButtons = ({ id, type }: { id: string; type: "leave" | "reg" | "expense" }) => (
+  const ActionButtons = ({ id, type }: { id: string; type: "leave" | "reg" }) => (
     <div className="flex gap-2 pt-1">
       <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" disabled={actionLoading === id}
-        onClick={() => type === "leave" ? handleLeaveAction(id, "approved") : type === "reg" ? handleRegAction(id, "approved") : handleExpenseAction(id, "approved")}>
+        onClick={() => type === "leave" ? handleLeaveAction(id, "approved") : handleRegAction(id, "approved")}>
         {actionLoading === id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}Approve
       </Button>
       <Button size="sm" variant="destructive" className="flex-1" disabled={actionLoading === id}
@@ -284,7 +234,6 @@ export default function PendingApprovals() {
         {([
           { key: "leave" as TabType, label: "Leave", count: leaveRequests.length },
           { key: "regularization" as TabType, label: "Regularisation", count: regRequests.length },
-          { key: "expenses" as TabType, label: "Expenses", count: expenseRequests.length },
         ]).map((tab) => (
           <Button key={tab.key} variant={activeTab === tab.key ? "default" : "outline"} size="sm"
             onClick={() => setActiveTab(tab.key)} className="flex-1">
@@ -347,34 +296,6 @@ export default function PendingApprovals() {
                       <p>💬 {req.reason}</p>
                     </div>
                     <ActionButtons id={req.id} type="reg" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {/* Expenses */}
-          {activeTab === "expenses" && (
-            <div className="space-y-3">
-              {expenseRequests.length === 0 ? (
-                <Card><CardContent className="py-8 text-center text-muted-foreground"><Check className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />No pending expense requests</CardContent></Card>
-              ) : expenseRequests.map((exp) => (
-                <Card key={exp.id} className={highlightId === exp.id ? "ring-2 ring-primary" : ""}>
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-semibold">{exp.employee_name}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {exp.category === 'Other' ? exp.custom_category : exp.category} • {format(new Date(exp.expense_date), "MMM dd, yyyy")}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="font-bold flex items-center"><IndianRupee className="h-3 w-3" />{exp.amount}</span>
-                        <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>
-                      </div>
-                    </div>
-                    {exp.description && <p className="text-sm text-muted-foreground">💬 {exp.description}</p>}
-                    <ActionButtons id={exp.id} type="expense" />
                   </CardContent>
                 </Card>
               ))}
