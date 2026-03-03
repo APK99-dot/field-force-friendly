@@ -49,6 +49,7 @@ const LeaveBalanceCards: React.FC<LeaveBalanceCardsProps> = ({ refreshTrigger, o
 
       if (!leaveTypes) { setBalances([]); return; }
 
+      // Show all leave types, even those without a balance record (show as 0)
       const result: LeaveTypeBalance[] = leaveTypes.map(lt => {
         const balance = userBalances?.find(b => b.leave_type_id === lt.id);
         return {
@@ -56,7 +57,7 @@ const LeaveBalanceCards: React.FC<LeaveBalanceCardsProps> = ({ refreshTrigger, o
           leave_type_name: lt.name,
           opening_balance: balance?.opening_balance || 0,
           used_balance: balance?.used_balance || 0,
-          remaining_balance: balance?.remaining_balance ?? 0,
+          remaining_balance: balance?.remaining_balance ?? (balance ? (balance.opening_balance - balance.used_balance) : 0),
         };
       });
       setBalances(result);
@@ -76,7 +77,7 @@ const LeaveBalanceCards: React.FC<LeaveBalanceCardsProps> = ({ refreshTrigger, o
 
   if (isLoading) return <Card><CardContent className="py-8"><div className="flex items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" /></div></CardContent></Card>;
 
-  if (balances.length === 0) return <Card><CardContent className="py-8 text-center text-muted-foreground"><CalendarDays className="h-10 w-10 mx-auto mb-3 opacity-40" /><p className="text-sm">No leave types configured yet.</p></CardContent></Card>;
+  if (balances.length === 0) return <Card><CardContent className="py-8 text-center text-muted-foreground"><CalendarDays className="h-10 w-10 mx-auto mb-3 opacity-40" /><p className="text-sm font-medium">No leave balances allocated</p><p className="text-xs mt-1">Your leave balances have not been initialized for this year. Please contact your administrator.</p></CardContent></Card>;
 
   return (
     <Card>

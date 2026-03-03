@@ -22,6 +22,8 @@ export default function ProfileSetupModal({ userId, profilePictureUrl, onComplet
     // Show modal if no profile picture set
     if (!profilePictureUrl) {
       setOpen(true);
+    } else {
+      setOpen(false);
     }
   }, [profilePictureUrl]);
 
