@@ -1,39 +1,32 @@
 
 
-## Plan: Restructure Expenses Page with "My Expenses" and "My Team" Tabs
+## Plan: Hierarchy-Based Leave Visibility in Attendance Management
 
-### Current State
-- `/expenses` (Expenses.tsx) — shows only the logged-in user's own expenses
-- `/pending-approvals` (PendingApprovals.tsx) — has an "Expenses" tab for approving team expenses, but it's mixed with leave and regularization approvals
-- Admin Expense Management has its own separate approvals tab
+### Problem
+The `AttendanceManagement.tsx` page fetches **all** leave applications with `select("*")`, relying on RLS. Since this is an admin page, users accessing it (even non-super-admins with just attendance management permission) can see leave requests from employees who don't report to them.
 
-### What Changes
+The `PendingApprovals.tsx` page already correctly filters by `reporting_manager_id` — we need to apply the same pattern to `AttendanceManagement.tsx`.
 
-**1. Add Tabs to Expenses.tsx: "My Expenses" + "My Team"**
+### Changes — Single File: `src/pages/AttendanceManagement.tsx`
 
-Wrap the existing Expenses page content in a `Tabs` component:
-- **My Expenses** tab — the current expense list (no changes to logic)
-- **My Team** tab — fetches expenses from subordinates (via `reporting_manager_id`), displayed as cards with employee name, category, amount, date, status, description, and approve/reject buttons for pending items
+**1. Determine user role on mount**
+- Fetch current user's ID and check `user_roles` table for admin role
+- Store `isAdmin` and `currentUserId` in state
 
-**2. Create `MyTeamExpenses` component**
+**2. Fix `fetchLeaveApplications`**
+- If admin → fetch all (current behavior)
+- If not admin → first get subordinate IDs via `users.reporting_manager_id = currentUserId`, then filter `.in("user_id", subIds)`
+- If no subordinates, return empty
 
-New file `src/components/expenses/MyTeamExpenses.tsx`:
-- Fetches subordinate user IDs from `users` table where `reporting_manager_id = currentUserId`
-- Queries `additional_expenses` for those user IDs with month filter and status filter
-- Renders card-style list showing: employee name, category, amount, date, description, status badge
-- Pending expenses get Approve/Reject action buttons
-- Approve updates status to `approved`, Reject opens rejection reason dialog
-- Sends notification to the user on action
-- Month and status filters at the top
+**3. Fix `fetchRegularizationRequests`**
+- Same hierarchy filter as leaves
 
-**3. Remove Expenses tab from PendingApprovals.tsx**
+**4. Fix `fetchUsers` dropdown**
+- Admin → show all users
+- Manager → show only subordinates in the filter dropdown
 
-Remove the expenses tab, type, and all expense-related code from `PendingApprovals.tsx` since it's now handled in the Expenses page. Keep only Leave and Regularization tabs.
+**5. Hide Approve/Reject actions**
+- Only show action buttons when the leave applicant is a direct/indirect subordinate of the current user, or user is admin
 
-### Files to Create
-- `src/components/expenses/MyTeamExpenses.tsx`
-
-### Files to Modify
-- `src/pages/Expenses.tsx` — wrap in Tabs, add "My Team" tab
-- `src/pages/PendingApprovals.tsx` — remove expenses tab and related logic
+No database changes needed — RLS is already correctly configured. This is a client-side filtering fix to match the hierarchy.
 
