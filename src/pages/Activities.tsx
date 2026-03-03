@@ -348,19 +348,19 @@ export default function Activities() {
         {/* Action Buttons Row */}
         <div className="grid grid-cols-3 gap-2 mt-3">
           <button
-            className={`flex items-center justify-center gap-1.5 h-10 rounded-xl text-xs font-medium transition-all ${activeTab === "activity" ? "bg-white text-foreground shadow-md" : "bg-white/15 text-primary-foreground/80 hover:bg-white/25"}`}
+            className={`flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl text-xs font-medium transition-all ${activeTab === "activity" ? "bg-white text-foreground shadow-md" : "bg-white/10 text-white/70 hover:bg-white/20"}`}
             onClick={() => setActiveTab("activity")}
           >
             <Clock className="h-4 w-4" />Timeline
           </button>
           <button
-            className="flex items-center justify-center gap-1.5 h-10 rounded-xl text-xs font-medium bg-white/15 text-primary-foreground/80 hover:bg-white/25 transition-all"
+            className="flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl text-xs font-medium bg-white/10 text-white/70 hover:bg-white/20 transition-all"
             onClick={() => navigate("/gps-tracking")}
           >
             <Navigation2 className="h-4 w-4" />GPS Track
           </button>
           <button
-            className="flex items-center justify-center gap-1.5 h-10 rounded-xl text-xs font-medium bg-white/15 text-primary-foreground/80 hover:bg-white/25 transition-all"
+            className="flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl text-xs font-medium bg-white/10 text-white/70 hover:bg-white/20 transition-all"
             onClick={handleOpenCreate}
           >
             <Sparkles className="h-4 w-4" />Activity
