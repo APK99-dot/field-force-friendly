@@ -1,251 +1,240 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Shield, Search, Trash2 } from "lucide-react";
+import { Shield, Save, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import HierarchicalPermissionEditor, { PermissionState } from "./HierarchicalPermissionEditor";
+import { PERMISSION_MODULES } from "./permissionModules";
+import { HIERARCHICAL_MODULES, getPermissionType, getParentModule } from "./hierarchicalPermissions";
 
-const PROJECT_MODULES = [
-  "attendance",
-  "activities",
-  "beats",
-  "expenses",
-  "visits",
-  "orders",
-  "retailers",
-  "projects",
-  "gps_tracking",
-  "leaves",
-];
-
-interface Permission {
+interface SecurityProfile {
   id: string;
-  profile_id: string;
-  object_name: string;
-  can_read: boolean;
-  can_create: boolean;
-  can_edit: boolean;
-  can_delete: boolean;
-  can_view_all: boolean;
-  can_modify_all: boolean;
+  profile_name: string;
+  is_system: boolean;
 }
 
-const PERMISSION_FIELDS = ["can_read", "can_create", "can_edit", "can_delete", "can_view_all", "can_modify_all"] as const;
-const FIELD_LABELS: Record<string, string> = {
-  can_read: "View",
-  can_create: "Create",
-  can_edit: "Edit",
-  can_delete: "Delete",
-  can_view_all: "View All",
-  can_modify_all: "Modify All",
-};
-
-interface Props {
-  profileId: string;
-  profileName: string;
+// Build initial empty permission state with all items
+function buildEmptyPermissions(): PermissionState {
+  const state: PermissionState = {};
+  for (const mod of PERMISSION_MODULES) {
+    state[mod.name] = {
+      canRead: false, canCreate: false, canEdit: false, canDelete: false,
+      permissionType: "module", parentModule: null,
+    };
+  }
+  for (const mod of HIERARCHICAL_MODULES) {
+    for (const f of mod.fields) {
+      state[f.name] = {
+        canRead: false, canCreate: false, canEdit: false, canDelete: false,
+        permissionType: "field", parentModule: mod.module,
+      };
+    }
+    for (const a of mod.actions) {
+      state[a.name] = {
+        canRead: false, canCreate: false, canEdit: false, canDelete: false,
+        permissionType: "action", parentModule: mod.module,
+      };
+    }
+    for (const w of mod.widgets) {
+      state[w.name] = {
+        canRead: false, canCreate: false, canEdit: false, canDelete: false,
+        permissionType: "widget", parentModule: mod.module,
+      };
+    }
+  }
+  return state;
 }
 
-export default function RolePermissionsMatrix({ profileId, profileName }: Props) {
+function buildAllEnabledPermissions(): PermissionState {
+  const state = buildEmptyPermissions();
+  Object.keys(state).forEach((key) => {
+    state[key] = { ...state[key], canRead: true, canCreate: true, canEdit: true, canDelete: true };
+  });
+  return state;
+}
+
+export default function RolePermissionsMatrix() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [addOpen, setAddOpen] = useState(false);
-  const [newObject, setNewObject] = useState("");
+  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
+  const [permissions, setPermissions] = useState<PermissionState>(buildEmptyPermissions());
+  const [isDirty, setIsDirty] = useState(false);
 
+  // Fetch all profiles
+  const profilesQuery = useQuery({
+    queryKey: ["security-profiles-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("security_profiles")
+        .select("id, name, is_system")
+        .order("is_system", { ascending: false })
+        .order("name");
+      if (error) throw error;
+      return (data || []).map((d) => ({ id: d.id, profile_name: d.name, is_system: d.is_system })) as SecurityProfile[];
+    },
+  });
+
+  // Auto-select System Administrator
+  useEffect(() => {
+    if (profilesQuery.data && !selectedProfileId) {
+      const sysAdmin = profilesQuery.data.find((p) => p.profile_name === "System Administrator");
+      if (sysAdmin) setSelectedProfileId(sysAdmin.id);
+      else if (profilesQuery.data.length > 0) setSelectedProfileId(profilesQuery.data[0].id);
+    }
+  }, [profilesQuery.data, selectedProfileId]);
+
+  const selectedProfile = profilesQuery.data?.find((p) => p.id === selectedProfileId);
+  const isSystemAdmin = selectedProfile?.profile_name === "System Administrator";
+
+  // Fetch permissions for selected profile
   const permsQuery = useQuery({
-    queryKey: ["profile-permissions", profileId],
+    queryKey: ["profile-permissions-hierarchical", selectedProfileId],
+    enabled: !!selectedProfileId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profile_object_permissions")
         .select("*")
-        .eq("profile_id", profileId)
-        .order("object_name");
+        .eq("profile_id", selectedProfileId);
       if (error) throw error;
-      return (data || []) as Permission[];
+      return data || [];
     },
   });
 
-  const togglePermission = useMutation({
-    mutationFn: async ({ permId, field, value }: { permId: string; field: string; value: boolean }) => {
-      const { error } = await supabase
-        .from("profile_object_permissions")
-        .update({ [field]: value })
-        .eq("id", permId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile-permissions", profileId] });
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
+  // Populate permissions state from DB
+  useEffect(() => {
+    if (isSystemAdmin) {
+      setPermissions(buildAllEnabledPermissions());
+      setIsDirty(false);
+      return;
+    }
+    const base = buildEmptyPermissions();
+    if (permsQuery.data) {
+      for (const row of permsQuery.data) {
+        if (base[row.object_name]) {
+          base[row.object_name] = {
+            ...base[row.object_name],
+            canRead: row.can_read,
+            canCreate: row.can_create,
+            canEdit: row.can_edit,
+            canDelete: row.can_delete,
+          };
+        }
+      }
+    }
+    setPermissions(base);
+    setIsDirty(false);
+  }, [permsQuery.data, isSystemAdmin, selectedProfileId]);
 
-  const addObject = useMutation({
+  const handleChange = useCallback((updated: PermissionState) => {
+    setPermissions(updated);
+    setIsDirty(true);
+  }, []);
+
+  // Save mutation
+  const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!newObject.trim()) throw new Error("Object name required");
-      const { error } = await supabase.from("profile_object_permissions").insert({
-        profile_id: profileId,
-        object_name: newObject.trim().toLowerCase(),
-      });
-      if (error) throw error;
+      if (!selectedProfileId) throw new Error("No profile selected");
+
+      // Delete existing permissions for this profile
+      const { error: delError } = await supabase
+        .from("profile_object_permissions")
+        .delete()
+        .eq("profile_id", selectedProfileId);
+      if (delError) throw delError;
+
+      // Insert all permissions
+      const rows = Object.entries(permissions).map(([objectName, p]) => ({
+        profile_id: selectedProfileId,
+        object_name: objectName,
+        permission_type: p.permissionType,
+        parent_module: p.parentModule,
+        can_read: p.canRead,
+        can_create: p.canCreate,
+        can_edit: p.canEdit,
+        can_delete: p.canDelete,
+        can_view_all: false,
+        can_modify_all: false,
+      }));
+
+      const { error: insError } = await supabase
+        .from("profile_object_permissions")
+        .insert(rows);
+      if (insError) throw insError;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile-permissions", profileId] });
-      toast.success("Object added");
-      setNewObject("");
-      setAddOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["profile-permissions-hierarchical", selectedProfileId] });
+      toast.success("Permissions saved successfully");
+      setIsDirty(false);
     },
     onError: (e: any) => toast.error(e.message),
   });
-
-  const removeObject = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("profile_object_permissions").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile-permissions", profileId] });
-      toast.success("Object removed");
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-
-  const toggleAll = useMutation({
-    mutationFn: async ({ permId, enable }: { permId: string; enable: boolean }) => {
-      const update: Record<string, boolean> = {};
-      PERMISSION_FIELDS.forEach((f) => { update[f] = enable; });
-      const { error } = await supabase.from("profile_object_permissions").update(update).eq("id", permId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile-permissions", profileId] });
-    },
-  });
-
-  const permissions = (permsQuery.data || []).filter((p) =>
-    p.object_name.toLowerCase().includes(search.toLowerCase())
-  );
 
   return (
     <div className="space-y-4">
       <Card>
         <CardContent className="p-5">
-          <div className="flex items-center justify-between mb-4">
+          {/* Profile Selector */}
+          <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2.5">
               <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Shield className="h-4.5 w-4.5 text-primary" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-semibold">{profileName}</h2>
-                  <Badge variant="outline" className="text-[10px]">{permissions.length} objects</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">Configure module access permissions</p>
+                <h2 className="text-lg font-semibold">Role Permissions</h2>
+                <p className="text-xs text-muted-foreground">Configure module, field, action & widget permissions</p>
               </div>
             </div>
-            <Dialog open={addOpen} onOpenChange={setAddOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm"><Plus className="h-4 w-4 mr-1" />Add Module</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Add Permission Module</DialogTitle></DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Module</Label>
-                    <Select value={newObject} onValueChange={setNewObject}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a module..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PROJECT_MODULES
-                          .filter((m) => !permissions.some((p) => p.object_name === m))
-                          .map((m) => (
-                            <SelectItem key={m} value={m} className="capitalize">
-                              {m.replace(/_/g, " ")}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button onClick={() => addObject.mutate()} disabled={addObject.isPending || !newObject} className="w-full">
-                    {addObject.isPending ? "Adding..." : "Add Module"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button
+              size="sm"
+              disabled={!isDirty || isSystemAdmin || saveMutation.isPending}
+              onClick={() => saveMutation.mutate()}
+            >
+              {saveMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Saving...</>
+              ) : (
+                <><Save className="h-4 w-4 mr-1" />Save Changes</>
+              )}
+            </Button>
           </div>
 
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search modules..." className="pl-9" />
+          <div className="mb-5">
+            <Select value={selectedProfileId} onValueChange={(v) => { setSelectedProfileId(v); setIsDirty(false); }}>
+              <SelectTrigger className="w-full max-w-xs">
+                <SelectValue placeholder="Select a security profile..." />
+              </SelectTrigger>
+              <SelectContent>
+                {profilesQuery.data?.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    <span className="flex items-center gap-2">
+                      {p.profile_name}
+                      {p.is_system && <Badge variant="secondary" className="text-[10px] ml-1">System</Badge>}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {permissions.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground text-sm">
-              No permission modules configured. Add one to get started.
+          {isSystemAdmin && (
+            <div className="mb-4 p-3 rounded-lg bg-muted/50 border border-border">
+              <p className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">System Administrator</span> has all permissions granted automatically and cannot be modified.
+              </p>
             </div>
+          )}
+
+          {selectedProfileId ? (
+            <HierarchicalPermissionEditor
+              permissions={permissions}
+              readOnly={isSystemAdmin}
+              onChange={handleChange}
+            />
           ) : (
-            <div className="overflow-x-auto -mx-5">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-xs font-medium text-muted-foreground pl-5">Module</TableHead>
-                    {PERMISSION_FIELDS.map((f) => (
-                      <TableHead key={f} className="text-xs font-medium text-muted-foreground text-center w-[80px]">
-                        {FIELD_LABELS[f]}
-                      </TableHead>
-                    ))}
-                    <TableHead className="text-xs font-medium text-muted-foreground text-center w-[70px]">All</TableHead>
-                    <TableHead className="text-xs font-medium text-muted-foreground text-center w-[50px] pr-5"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {permissions.map((perm) => {
-                    const allEnabled = PERMISSION_FIELDS.every((f) => perm[f]);
-                    return (
-                      <TableRow key={perm.id}>
-                        <TableCell className="font-medium text-sm capitalize py-2.5 pl-5">{perm.object_name}</TableCell>
-                        {PERMISSION_FIELDS.map((field) => (
-                          <TableCell key={field} className="text-center py-2.5">
-                            <div className="flex justify-center">
-                              <Switch
-                                checked={perm[field]}
-                                onCheckedChange={(v) => togglePermission.mutate({ permId: perm.id, field, value: v })}
-                                className="scale-[0.8]"
-                              />
-                            </div>
-                          </TableCell>
-                        ))}
-                        <TableCell className="text-center py-2.5">
-                          <div className="flex justify-center">
-                            <Switch
-                              checked={allEnabled}
-                              onCheckedChange={(v) => toggleAll.mutate({ permId: perm.id, enable: v })}
-                              className="scale-[0.8]"
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center py-2.5 pr-5">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => removeObject.mutate(perm.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+            <div className="py-8 text-center text-muted-foreground text-sm">
+              Select a security profile to configure permissions
             </div>
           )}
         </CardContent>

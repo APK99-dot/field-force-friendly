@@ -21,7 +21,7 @@ interface SecurityProfile {
 }
 
 interface Props {
-  onSelectProfile: (profile: SecurityProfile) => void;
+  onSelectProfile?: (profile: SecurityProfile) => void;
   selectedProfileId?: string;
 }
 
@@ -167,7 +167,7 @@ export default function SecurityProfilesList({ onSelectProfile, selectedProfileI
                 <TableRow
                   key={profile.id}
                   className={`cursor-pointer transition-colors ${selectedProfileId === profile.id ? "bg-primary/5" : ""}`}
-                  onClick={() => onSelectProfile(profile)}
+                  onClick={() => onSelectProfile?.(profile)}
                 >
                   <TableCell className="py-3">
                     <div className="flex items-center gap-2.5">

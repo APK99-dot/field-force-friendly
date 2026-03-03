@@ -2404,6 +2404,8 @@ export type Database = {
           can_view_all: boolean
           id: string
           object_name: string
+          parent_module: string | null
+          permission_type: string
           profile_id: string
         }
         Insert: {
@@ -2415,6 +2417,8 @@ export type Database = {
           can_view_all?: boolean
           id?: string
           object_name: string
+          parent_module?: string | null
+          permission_type?: string
           profile_id: string
         }
         Update: {
@@ -2426,6 +2430,8 @@ export type Database = {
           can_view_all?: boolean
           id?: string
           object_name?: string
+          parent_module?: string | null
+          permission_type?: string
           profile_id?: string
         }
         Relationships: [

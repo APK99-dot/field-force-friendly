@@ -9,20 +9,9 @@ import SecurityProfilesList from "@/components/security/SecurityProfilesList";
 import RolePermissionsMatrix from "@/components/security/RolePermissionsMatrix";
 import UserProfileAssignments from "@/components/security/UserProfileAssignments";
 
-interface SelectedProfile {
-  id: string;
-  name: string;
-}
-
 export default function SecurityManagement() {
   const navigate = useNavigate();
-  const [selectedProfile, setSelectedProfile] = useState<SelectedProfile | null>(null);
   const [activeTab, setActiveTab] = useState("profiles");
-
-  const handleSelectProfile = (profile: { id: string; name: string }) => {
-    setSelectedProfile(profile);
-    setActiveTab("permissions");
-  };
 
   return (
     <motion.div className="space-y-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -61,7 +50,7 @@ export default function SecurityManagement() {
             <div className="space-y-1.5 text-sm">
               <p>
                 <span className="font-semibold text-foreground">Role Permissions:</span>{" "}
-                <span className="text-muted-foreground">Control what modules each role can access (View, Create, Edit, Delete)</span>
+                <span className="text-muted-foreground">Control what modules, fields, actions & widgets each role can access (View, Create, Edit, Delete)</span>
               </p>
               <p>
                 <span className="font-semibold text-foreground">Permission Set Groups:</span>{" "}
@@ -102,26 +91,11 @@ export default function SecurityManagement() {
           </TabsList>
 
           <TabsContent value="profiles" className="mt-5">
-            <SecurityProfilesList
-              onSelectProfile={handleSelectProfile}
-              selectedProfileId={selectedProfile?.id}
-            />
+            <SecurityProfilesList />
           </TabsContent>
 
           <TabsContent value="permissions" className="mt-5">
-            {selectedProfile ? (
-              <RolePermissionsMatrix profileId={selectedProfile.id} profileName={selectedProfile.name} />
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Shield className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
-                  <p className="text-sm text-muted-foreground">Select a security profile from the Profiles tab to manage its permissions</p>
-                  <Button variant="outline" size="sm" className="mt-3" onClick={() => setActiveTab("profiles")}>
-                    Go to Profiles
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+            <RolePermissionsMatrix />
           </TabsContent>
 
           <TabsContent value="assignments" className="mt-5">
