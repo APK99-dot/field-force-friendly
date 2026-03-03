@@ -23,6 +23,7 @@ import ProjectDetailPage from "./pages/ProjectDetail";
 import TemplatesPage from "./pages/Templates";
 import PendingApprovals from "./pages/PendingApprovals";
 import Activities from "./pages/Activities";
+import ActivityTimeline from "./pages/ActivityTimeline";
 import SiteMasterPage from "./pages/SiteMaster";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
             <Route path="/templates/:id" element={<TemplatesPage />} />
             <Route path="/pending-approvals" element={<PendingApprovals />} />
             <Route path="/activities" element={<Activities />} />
+            <Route path="/activity-timeline" element={<ActivityTimeline />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
