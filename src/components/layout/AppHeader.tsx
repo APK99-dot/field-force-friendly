@@ -85,55 +85,80 @@ export function AppHeader() {
 
   return (
     <>
-      <div ref={menuRef} className="sticky top-0 z-50">
-        {/* Top Navbar */}
-        <nav className="gradient-hero text-primary-foreground shadow-lg">
-          <div className="px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {showBackButton && (
-                  <button
-                    onClick={handleBackClick}
-                    className="p-1 rounded-lg hover:bg-white/10 transition-colors"
-                  >
-                    <ArrowLeft size={16} />
-                  </button>
-                )}
-                <NavLink to="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity text-primary-foreground">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden bg-white/90 p-0.5">
-                    <Building2 className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h1 className="text-base font-semibold">Bharath Builders</h1>
-                  </div>
-                </NavLink>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <NotificationBell />
+      {/* Top Navbar */}
+      <nav className="sticky top-0 z-50 gradient-hero text-primary-foreground shadow-lg">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {showBackButton && (
                 <button
-                  onClick={() => setIsMenuOpen((prev) => !prev)}
-                  className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                  onClick={handleBackClick}
+                  className="p-1 rounded-lg hover:bg-white/10 transition-colors"
                 >
-                  {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                  <ArrowLeft size={16} />
                 </button>
-              </div>
+              )}
+              <NavLink to="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity text-primary-foreground">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden bg-white/90 p-0.5">
+                  <Building2 className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-base font-semibold">Bharath Builders</h1>
+                </div>
+              </NavLink>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <NotificationBell />
+              <button
+                onClick={() => setIsMenuOpen((prev) => !prev)}
+                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <Menu size={20} />
+              </button>
             </div>
           </div>
-        </nav>
+        </div>
+      </nav>
 
-        {/* Dropdown Menu Panel */}
-        <AnimatePresence>
-          {isMenuOpen && (
+      {/* Side Drawer Overlay + Panel */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <>
+            {/* Backdrop */}
             <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="absolute left-0 right-0 bg-card border-b border-border shadow-elevated overflow-y-auto max-h-[80vh] z-50"
+              className="fixed inset-0 bg-black/40 z-50"
+              onClick={() => setIsMenuOpen(false)}
+            />
+            {/* Drawer */}
+            <motion.div
+              ref={menuRef}
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed top-0 left-0 bottom-0 w-[280px] bg-card shadow-elevated overflow-y-auto z-50"
             >
               {/* User Profile Section */}
               <div className="gradient-hero text-primary-foreground px-4 py-4">
+                <div className="flex items-center justify-between mb-3">
+                  <NavLink to="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity text-primary-foreground">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-white/90 p-0.5">
+                      <Building2 className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="text-sm font-semibold">Bharath Builders</span>
+                  </NavLink>
+                  <button
+                    onClick={() => setIsMenuOpen(false)}
+                    className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
                 <button
                   onClick={() => {
                     navigate("/more");
@@ -211,9 +236,9 @@ export function AppHeader() {
                 </div>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Logout Confirmation */}
       <AlertDialog open={isLogoutDialogOpen} onOpenChange={setIsLogoutDialogOpen}>
