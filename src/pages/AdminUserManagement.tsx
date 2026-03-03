@@ -14,6 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   ArrowLeft,
   Search,
@@ -24,6 +27,11 @@ import {
   Edit,
   Trash2,
   Eye,
+  BarChart3,
+  UserPlus,
+  List,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -70,6 +78,16 @@ interface Employee {
   date_of_joining: string | null;
   band: string | null;
 }
+
+// Role color mapping matching reference
+const roleColorMap: Record<string, { border: string; text: string; bg: string; badge: string }> = {
+  "Admin": { border: "border-t-rose-500", text: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10", badge: "bg-rose-500" },
+  "Sales Manager": { border: "border-t-emerald-500", text: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10", badge: "bg-emerald-500" },
+  "Field User": { border: "border-t-blue-500", text: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10", badge: "bg-blue-500" },
+  "Data Viewer": { border: "border-t-amber-500", text: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10", badge: "bg-amber-500" },
+};
+const defaultRoleColor = { border: "border-t-slate-500", text: "text-slate-600 dark:text-slate-400", bg: "bg-slate-500/10", badge: "bg-slate-500" };
+const getRoleColor = (role: string) => roleColorMap[role] || defaultRoleColor;
 
 // Fetch hooks
 function useRoles() {
@@ -325,66 +343,66 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved }: {
   );
 }
 
-// Tree-style User Hierarchy
+// ===== User Hierarchy with tree/list toggle =====
 function UserHierarchy({ users, roles, profiles }: { users: AppUser[]; roles: Role[]; profiles: { id: string; profile_picture_url: string | null }[] }) {
+  const [viewMode, setViewMode] = useState<"tree" | "list">("tree");
   const roleMap = new Map(roles.map((r) => [r.id, r.name]));
-  const topLevel = users.filter((u) => !u.reporting_manager_id && u.is_active);
+  const activeUsers = users.filter(u => u.is_active);
+  const topLevel = activeUsers.filter((u) => !u.reporting_manager_id);
   const getChildren = (managerId: string) =>
-    users.filter((u) => u.reporting_manager_id === managerId && u.is_active);
+    activeUsers.filter((u) => u.reporting_manager_id === managerId);
 
+  // Collect unique roles for legend
   const allRoleNames = new Set<string>();
-  users.filter(u => u.is_active).forEach(u => {
+  activeUsers.forEach(u => {
     const rn = u.role_id ? roleMap.get(u.role_id) : null;
     if (rn) allRoleNames.add(rn);
   });
 
-  const roleColorMap: Record<string, string> = {
-    "Admin": "hsl(var(--accent))",
-    "Sales Manager": "hsl(var(--primary))",
-    "Field User": "hsl(142 71% 45%)",
-    "Data Viewer": "hsl(var(--muted-foreground))",
-  };
-
-  const renderTreeNode = (user: AppUser, _isLast: boolean, depth: number) => {
+  // Org chart tree node
+  const renderOrgNode = (user: AppUser): React.ReactNode => {
     const children = getChildren(user.id);
     const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
     const profile = profiles.find((p) => p.id === user.id);
-    const borderColor = roleColorMap[roleName] || "hsl(var(--border))";
+    const colors = getRoleColor(roleName);
 
     return (
       <div key={user.id} className="flex flex-col items-center">
-        <div className="flex flex-col items-center">
-          <div className="relative rounded-full p-[3px]" style={{ background: borderColor }}>
-            <Avatar className="h-14 w-14 border-2 border-background">
+        <div className="flex flex-col items-center w-24">
+          <div className={`rounded-full p-[2px] ring-2 ${colors.border.replace('border-t-', 'ring-')}`}>
+            <Avatar className="h-12 w-12">
               <AvatarImage src={profile?.profile_picture_url || undefined} />
-              <AvatarFallback className="bg-muted text-foreground font-semibold">
+              <AvatarFallback className={`text-sm font-semibold text-white ${colors.badge}`}>
                 {(user.full_name || "U").charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
           </div>
-          <p className="text-sm font-semibold mt-1.5 text-center max-w-[100px] truncate">
+          <p className="text-[11px] font-medium text-center mt-1 leading-tight truncate w-full">
             {user.full_name || user.email}
           </p>
-          <p className="text-xs text-center" style={{ color: borderColor }}>{roleName}</p>
+          <p className={`text-[9px] text-center truncate w-full ${colors.text}`}>{roleName}</p>
         </div>
         {children.length > 0 && (
           <>
-            <div className="w-px h-6 bg-border" />
-            {children.length > 1 && (
-              <div className="relative w-full flex justify-center">
-                <div className="h-px bg-border absolute top-0" style={{
-                  left: `${100 / (children.length * 2)}%`,
-                  right: `${100 / (children.length * 2)}%`,
-                }} />
+            <div className="w-px h-4 bg-border" />
+            <div className="relative flex items-start">
+              {children.length > 1 && (
+                <div
+                  className="absolute top-0 h-px bg-border"
+                  style={{
+                    left: `calc(50% - ${(children.length - 1) * 52}px)`,
+                    width: `${(children.length - 1) * 104}px`,
+                  }}
+                />
+              )}
+              <div className="flex gap-2">
+                {children.map(child => (
+                  <div key={child.id} className="flex flex-col items-center">
+                    <div className="w-px h-4 bg-border" />
+                    {renderOrgNode(child)}
+                  </div>
+                ))}
               </div>
-            )}
-            <div className="flex gap-6 md:gap-10">
-              {children.map((child, idx) => (
-                <div key={child.id} className="flex flex-col items-center">
-                  <div className="w-px h-6 bg-border" />
-                  {renderTreeNode(child, idx === children.length - 1, depth + 1)}
-                </div>
-              ))}
             </div>
           </>
         )}
@@ -392,7 +410,63 @@ function UserHierarchy({ users, roles, profiles }: { users: AppUser[]; roles: Ro
     );
   };
 
-  if (users.filter(u => u.is_active).length === 0) {
+  // List view row with collapsible children
+  const HierarchyRow = ({ user, level = 0 }: { user: AppUser; level?: number }) => {
+    const [isOpen, setIsOpen] = useState(level < 1);
+    const children = getChildren(user.id);
+    const hasReports = children.length > 0;
+    const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
+    const colors = getRoleColor(roleName);
+    const profile = profiles.find(p => p.id === user.id);
+
+    const levelAccents = [
+      'border-l-rose-500', 'border-l-purple-500', 'border-l-blue-500',
+      'border-l-emerald-500', 'border-l-amber-500', 'border-l-cyan-500',
+    ];
+    const accentClass = levelAccents[Math.min(level, levelAccents.length - 1)];
+
+    return (
+      <div className={level > 0 ? "ml-3 md:ml-5" : ""}>
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+          <div className={`flex items-center gap-2.5 p-2 rounded-lg border-l-[3px] transition-colors ${accentClass} ${hasReports ? "cursor-pointer hover:bg-muted/60" : ""}`}>
+            {hasReports ? (
+              <CollapsibleTrigger asChild>
+                <button className="shrink-0 p-0.5 rounded hover:bg-muted">
+                  {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+              </CollapsibleTrigger>
+            ) : (
+              <div className="w-[18px]" />
+            )}
+            <Avatar className="h-7 w-7 shrink-0">
+              <AvatarImage src={profile?.profile_picture_url || undefined} />
+              <AvatarFallback className={`text-[10px] font-semibold text-white ${colors.badge}`}>
+                {(user.full_name || "U").charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium truncate leading-tight">{user.full_name || user.email}</p>
+            </div>
+            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 shrink-0 font-medium border ${colors.bg} ${colors.text}`}>
+              {roleName}
+            </Badge>
+            {hasReports && (
+              <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{children.length}</span>
+            )}
+          </div>
+          {hasReports && (
+            <CollapsibleContent className="pt-1 space-y-1">
+              {children.map(child => (
+                <HierarchyRow key={child.id} user={child} level={level + 1} />
+              ))}
+            </CollapsibleContent>
+          )}
+        </Collapsible>
+      </div>
+    );
+  };
+
+  if (activeUsers.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <Network className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -402,21 +476,56 @@ function UserHierarchy({ users, roles, profiles }: { users: AppUser[]; roles: Ro
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-3">
-        {Array.from(allRoleNames).map((rn) => (
-          <Badge key={rn} variant="outline" className="text-xs gap-1.5">
-            <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: roleColorMap[rn] || "hsl(var(--border))" }} />
-            {rn}
-          </Badge>
-        ))}
-      </div>
-      <div className="overflow-x-auto py-6">
-        <div className="flex gap-10 justify-center min-w-max">
-          {topLevel.map((user, idx) => renderTreeNode(user, idx === topLevel.length - 1, 0))}
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Users className="h-4 w-4" /> User Hierarchy
+          </CardTitle>
+          <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as "tree" | "list")} size="sm">
+            <ToggleGroupItem value="tree" aria-label="Tree view" className="h-7 w-7 p-0">
+              <Network className="h-3.5 w-3.5" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="List view" className="h-7 w-7 p-0">
+              <List className="h-3.5 w-3.5" />
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
-      </div>
-    </div>
+        {/* Role color legend */}
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {Array.from(allRoleNames).map((rn) => {
+            const c = getRoleColor(rn);
+            return (
+              <span
+                key={rn}
+                className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${c.bg} ${c.text}`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${c.badge}`} />
+                {rn}
+              </span>
+            );
+          })}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {viewMode === "tree" ? (
+          <ScrollArea className="w-full">
+            <div className="flex justify-center py-4 min-w-max">
+              <div className="flex gap-6">
+                {topLevel.map(user => renderOrgNode(user))}
+              </div>
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        ) : (
+          <div className="space-y-1">
+            {topLevel.map(user => (
+              <HierarchyRow key={user.id} user={user} level={0} />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -455,7 +564,7 @@ function TablePagination({ total, page, pageSize, onPageChange }: {
 export default function AdminUserManagement() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("users");
+  const [activeTab, setActiveTab] = useState("overview");
   const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
   const [roleFilter, setRoleFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -530,72 +639,82 @@ export default function AdminUserManagement() {
     onError: (err: any) => toast.error(err.message || "Failed to delete user"),
   });
 
-  const stats = {
-    total: appUsers.length,
-    active: appUsers.filter((u) => u.is_active).length,
-    admins: appUsers.filter((u) => u.role_id && roleMap.get(u.role_id) === "Admin").length,
-  };
+  // Per-role stats
+  const roleCounts = roles.map(r => ({
+    name: r.name,
+    count: appUsers.filter(u => u.role_id === r.id).length,
+  }));
 
   return (
     <motion.div className="p-4 space-y-6 max-w-6xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/admin-controls")}>
-          <ArrowLeft className="h-5 w-5" />
+        <Button variant="ghost" size="sm" className="p-2" onClick={() => navigate("/admin-controls")}>
+          <ArrowLeft size={20} />
         </Button>
-        <div>
-          <h1 className="text-2xl font-bold">User Management</h1>
-          <p className="text-sm text-muted-foreground">Manage user accounts, roles, and organization hierarchy</p>
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+          <p className="text-muted-foreground">Manage users, roles, and team hierarchy</p>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold">{stats.total}</p>
-            <p className="text-xs text-muted-foreground">Total Users</p>
+      {/* Role-based stat cards */}
+      <div className="flex gap-3 overflow-x-auto pb-1">
+        {/* Total Users card */}
+        <Card className="min-w-[120px] flex-shrink-0 border-t-2 border-t-foreground">
+          <CardContent className="p-3 text-center">
+            <p className="text-xs text-muted-foreground mb-1">Total Users</p>
+            <div className="flex items-center justify-center gap-1.5">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xl font-bold">{appUsers.length}</span>
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-primary">{stats.active}</p>
-            <p className="text-xs text-muted-foreground">Active</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-accent-foreground">{stats.admins}</p>
-            <p className="text-xs text-muted-foreground">Admins</p>
-          </CardContent>
-        </Card>
+        {roleCounts.map((rc) => {
+          const colors = getRoleColor(rc.name);
+          return (
+            <Card key={rc.name} className={`min-w-[120px] flex-shrink-0 border-t-2 ${colors.border}`}>
+              <CardContent className="p-3 text-center">
+                <p className={`text-xs mb-1 ${colors.text}`}>{rc.name}</p>
+                <div className="flex items-center justify-center gap-1.5">
+                  <Users className={`h-4 w-4 ${colors.text}`} />
+                  <span className="text-xl font-bold">{rc.count}</span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full flex">
-          <TabsTrigger value="users" className="flex-1 text-xs sm:text-sm">
-            <Users className="h-3.5 w-3.5 mr-1" />
+          <TabsTrigger value="overview" className="flex-1 text-xs sm:text-sm gap-1.5">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="users" className="flex-1 text-xs sm:text-sm gap-1.5">
+            <Users className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Users & Roles</span>
             <span className="sm:hidden">Users</span>
-            <span className="hidden sm:inline">Users</span>
           </TabsTrigger>
-          <TabsTrigger value="create" className="flex-1 text-xs sm:text-sm">
-            <span className="sm:hidden">Create</span>
+          <TabsTrigger value="create" className="flex-1 text-xs sm:text-sm gap-1.5">
+            <UserPlus className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Create User</span>
+            <span className="sm:hidden">Create</span>
           </TabsTrigger>
-          <TabsTrigger value="hierarchy" className="flex-1 text-xs sm:text-sm">
-            <Network className="h-3.5 w-3.5 mr-1" />
-            <span className="sm:hidden">Hierarchy</span>
-            <span className="hidden sm:inline">Hierarchy</span>
-          </TabsTrigger>
-          <TabsTrigger value="roles" className="flex-1 text-xs sm:text-sm">
-            <Shield className="h-3.5 w-3.5 mr-1" />
-            <span className="sm:hidden">Roles</span>
-            <span className="hidden sm:inline">Roles</span>
+          <TabsTrigger value="roles" className="flex-1 text-xs sm:text-sm gap-1.5">
+            <Shield className="h-3.5 w-3.5" />
+            Roles
           </TabsTrigger>
         </TabsList>
 
-        {/* Users Tab */}
+        {/* Overview Tab - Hierarchy */}
+        <TabsContent value="overview" className="space-y-4">
+          <UserHierarchy users={appUsers} roles={roles} profiles={profiles} />
+        </TabsContent>
+
+        {/* Users & Roles Tab */}
         <TabsContent value="users" className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
@@ -640,6 +759,7 @@ export default function AdminUserManagement() {
                     const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
                     const manager = user.reporting_manager_id ? appUsers.find((u) => u.id === user.reporting_manager_id) : null;
                     const profile = profiles.find((p) => p.id === user.id);
+                    const colors = getRoleColor(roleName);
                     return (
                       <TableRow key={user.id}>
                         <TableCell>
@@ -657,7 +777,10 @@ export default function AdminUserManagement() {
                           </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          <Badge variant={roleName === "Admin" ? "default" : "outline"} className="text-xs">
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${colors.bg} ${colors.text}`}
+                          >
                             {roleName}
                           </Badge>
                         </TableCell>
@@ -703,20 +826,6 @@ export default function AdminUserManagement() {
           <CreateUserWizard onSuccess={() => { invalidateAll(); setActiveTab("users"); }} />
         </TabsContent>
 
-        {/* Hierarchy Tab */}
-        <TabsContent value="hierarchy">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Network className="h-5 w-5" /> User Hierarchy
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <UserHierarchy users={appUsers} roles={roles} profiles={profiles} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Roles Tab */}
         <TabsContent value="roles">
           <Card>
@@ -728,12 +837,23 @@ export default function AdminUserManagement() {
                 <p className="text-center py-8 text-muted-foreground">No roles configured.</p>
               ) : (
                 <div className="space-y-3">
-                  {roles.map((r) => (
-                    <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border">
-                      <div><p className="font-medium text-sm">{r.name}</p></div>
-                      {r.is_system && <Badge variant="outline" className="text-xs">System</Badge>}
-                    </div>
-                  ))}
+                  {roles.map((r) => {
+                    const colors = getRoleColor(r.name);
+                    return (
+                      <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border">
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2.5 w-2.5 rounded-full ${colors.badge}`} />
+                          <p className="font-medium text-sm">{r.name}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {appUsers.filter(u => u.role_id === r.id).length} users
+                          </Badge>
+                          {r.is_system && <Badge variant="outline" className="text-xs">System</Badge>}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
