@@ -45,7 +45,10 @@ const LiveAttendanceMonitoring = () => {
   useEffect(() => {
     fetchUsers();
     fetchAttendanceData();
-    const channel = supabase.channel('attendance-monitoring').on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => fetchAttendanceData()).subscribe();
+    const channel = supabase.channel('attendance-monitoring')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => fetchAttendanceData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => { fetchUsers(); fetchAttendanceData(); })
+      .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
 

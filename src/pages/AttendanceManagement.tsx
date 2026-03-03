@@ -84,6 +84,14 @@ export default function AttendanceManagement() {
     }
   }, [activeTab, selectedUser]);
 
+  // Auto-refresh when users are added/modified
+  useEffect(() => {
+    const channel = supabase.channel('attendance-mgmt-users')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => { fetchUsers(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const fetchUsers = async () => {
     try {
       const { data, error } = await supabase.from("users").select("id, full_name").eq("is_active", true).order("full_name");
