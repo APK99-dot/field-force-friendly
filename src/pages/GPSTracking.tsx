@@ -13,7 +13,12 @@ import {
 } from "@/components/ui/select";
 import { MapPin, AlertTriangle, RefreshCw } from "lucide-react";
 
-const LeafletMap = lazy(() => import("@/components/LeafletMap"));
+const LeafletMap = lazy(() =>
+  import("@/components/LeafletMap").catch(() => {
+    window.location.reload();
+    return import("@/components/LeafletMap");
+  })
+);
 
 type DateRange = "today" | "week" | "month";
 
