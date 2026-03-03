@@ -73,8 +73,41 @@ export default function AttendanceManagement() {
   const [allUsers, setAllUsers] = useState<Array<{ id: string; full_name: string }>>([]);
   const [showRejectionDialog, setShowRejectionDialog] = useState(false);
   const [rejectionTarget, setRejectionTarget] = useState<{ type: "leave" | "reg"; id: string } | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
+
+  // Determine current user role and subordinates on mount
+  useEffect(() => {
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setCurrentUserId(user.id);
+
+      // Check if admin
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+      const admin = roleData?.role === "admin";
+      setIsAdmin(admin);
+
+      if (!admin) {
+        // Fetch subordinates using reporting_manager_id from users table
+        const { data: subs } = await supabase
+          .from("users")
+          .select("id")
+          .eq("reporting_manager_id", user.id)
+          .eq("is_active", true);
+        setSubordinateIds(subs?.map(s => s.id) || []);
+      }
+    };
+    init();
+  }, []);
 
   useEffect(() => {
+    if (currentUserId === null) return;
     if (activeTab === "leave") {
       fetchLeaveApplications();
       fetchUsers();
@@ -82,7 +115,7 @@ export default function AttendanceManagement() {
       fetchRegularizationRequests();
       fetchUsers();
     }
-  }, [activeTab, selectedUser]);
+  }, [activeTab, selectedUser, currentUserId, isAdmin]);
 
   // Auto-refresh when users are added/modified
   useEffect(() => {
@@ -94,9 +127,20 @@ export default function AttendanceManagement() {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase.from("users").select("id, full_name").eq("is_active", true).order("full_name");
-      if (error) throw error;
-      setAllUsers(data || []);
+      if (isAdmin) {
+        const { data, error } = await supabase.from("users").select("id, full_name").eq("is_active", true).order("full_name");
+        if (error) throw error;
+        setAllUsers(data || []);
+      } else {
+        // Only show subordinates in the dropdown
+        if (subordinateIds.length === 0) {
+          setAllUsers([]);
+          return;
+        }
+        const { data, error } = await supabase.from("users").select("id, full_name").in("id", subordinateIds).eq("is_active", true).order("full_name");
+        if (error) throw error;
+        setAllUsers(data || []);
+      }
     } catch (error) {
       console.error("Error fetching users:", error);
     }
@@ -105,7 +149,21 @@ export default function AttendanceManagement() {
   const fetchLeaveApplications = async () => {
     try {
       setIsLoading(true);
+
+      // Non-admin with no subordinates → no results
+      if (!isAdmin && subordinateIds.length === 0) {
+        setLeaveApplications([]);
+        setIsLoading(false);
+        return;
+      }
+
       let query = supabase.from("leave_applications").select("*");
+
+      // Apply hierarchy filter for non-admins
+      if (!isAdmin) {
+        query = query.in("user_id", subordinateIds);
+      }
+
       if (selectedUser !== "all") query = query.eq("user_id", selectedUser);
       const { data, error } = await query.order("applied_date", { ascending: false });
       if (error) throw error;
@@ -113,8 +171,8 @@ export default function AttendanceManagement() {
       const userIds = [...new Set(data?.map((app) => app.user_id) || [])];
       const leaveTypeIds = [...new Set(data?.map((app) => app.leave_type_id) || [])];
 
-      const { data: profiles } = await supabase.from("users").select("id, full_name, username").in("id", userIds);
-      const { data: leaveTypes } = await supabase.from("leave_types").select("id, name").in("id", leaveTypeIds);
+      const { data: profiles } = await supabase.from("users").select("id, full_name, username").in("id", userIds.length ? userIds : ["__none__"]);
+      const { data: leaveTypes } = await supabase.from("leave_types").select("id, name").in("id", leaveTypeIds.length ? leaveTypeIds : ["__none__"]);
 
       const enrichedData = data?.map((app) => ({
         ...app,
@@ -134,13 +192,25 @@ export default function AttendanceManagement() {
   const fetchRegularizationRequests = async () => {
     try {
       setIsLoading(true);
+
+      if (!isAdmin && subordinateIds.length === 0) {
+        setRegularizationRequests([]);
+        setIsLoading(false);
+        return;
+      }
+
       let query = supabase.from("regularization_requests").select("*").eq("status", "pending");
+
+      if (!isAdmin) {
+        query = query.in("user_id", subordinateIds);
+      }
+
       if (selectedUser !== "all") query = query.eq("user_id", selectedUser);
       const { data, error } = await query.order("created_at", { ascending: false });
       if (error) throw error;
 
       const userIds = [...new Set(data?.map((req) => req.user_id) || [])];
-      const { data: profiles } = await supabase.from("users").select("id, full_name, username").in("id", userIds);
+      const { data: profiles } = await supabase.from("users").select("id, full_name, username").in("id", userIds.length ? userIds : ["__none__"]);
 
       const enrichedData = data?.map((req) => ({
         ...req,
@@ -402,7 +472,7 @@ export default function AttendanceManagement() {
                       <TableCell>{app.applied_date ? format(new Date(app.applied_date), "MMM dd, yyyy") : "--"}</TableCell>
                       <TableCell>{getStatusBadge(app.status)}</TableCell>
                       <TableCell>
-                        {app.status === "pending" && (
+                      {app.status === "pending" && (isAdmin || subordinateIds.includes(app.user_id)) && (
                           <div className="flex space-x-2">
                             <Button size="sm" onClick={() => handleLeaveStatusUpdate(app.id, "approved")} className="bg-green-600 hover:bg-green-700">
                               <Check className="h-4 w-4" />
@@ -483,6 +553,7 @@ export default function AttendanceManagement() {
                       <TableCell><div className="max-w-xs truncate">{req.reason}</div></TableCell>
                       <TableCell>{format(new Date(req.created_at), "MMM dd, yyyy")}</TableCell>
                       <TableCell>
+                      {(isAdmin || subordinateIds.includes(req.user_id)) && (
                         <div className="flex space-x-2">
                           <Button size="sm" onClick={() => handleRegularizationStatusUpdate(req.id, "approved")} className="bg-green-600 hover:bg-green-700">
                             <Check className="h-4 w-4" />
@@ -491,6 +562,7 @@ export default function AttendanceManagement() {
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
+                      )}
                       </TableCell>
                     </TableRow>
                   ))}
