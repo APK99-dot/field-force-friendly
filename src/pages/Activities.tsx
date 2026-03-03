@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense, lazy, useCallback } from "react";
 import { motion } from "framer-motion";
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO, isToday } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,10 +37,17 @@ import {
   Trash2,
   Edit,
   Loader2,
+  LogIn,
+  LogOut,
+  Route,
+  Octagon,
+  Timer,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useActivities, type Activity as ActivityType } from "@/hooks/useActivities";
 import { useUserProfile } from "@/hooks/useUserProfile";
+
+const LeafletMap = lazy(() => import("@/components/LeafletMap"));
 
 const activityTypes = [
   "Site Visit",
@@ -88,11 +95,13 @@ const defaultForm = {
   project_id: "",
   location_address: "",
   total_hours: 0,
+  owner_user_id: "",
 };
 
 export default function Activities() {
-  const { activities, loading, users, projects, fetchActivities, createActivity, updateActivity, deleteActivity } = useActivities();
-  const { isAdmin } = useUserProfile();
+  const { activities, loading, users, projects, fetchActivities, createActivity, updateActivity, deleteActivity, fetchAttendanceForDate, fetchGPSTrackingForDate } = useActivities();
+  const { isAdmin, role } = useUserProfile();
+  const isManagerOrAdmin = isAdmin || role === "sales_manager";
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState<"timeline" | "gps" | "activity">("timeline");
@@ -102,16 +111,57 @@ export default function Activities() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+
+  // Timeline state
+  const [attendance, setAttendance] = useState<{ check_in_time: string | null; check_out_time: string | null } | null>(null);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+
+  // GPS state
+  const [gpsData, setGpsData] = useState<{ points: any[]; stops: any[] }>({ points: [], stops: [] });
+  const [gpsLoading, setGpsLoading] = useState(false);
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const dateStr = format(selectedDate, "yyyy-MM-dd");
 
+  // Get current user id
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setCurrentUserId(data.user.id);
+    });
+  }, []);
+
+  const effectiveUserId = selectedUserId && selectedUserId !== "all" ? selectedUserId : currentUserId;
+
+  // Fetch attendance & GPS when tab/date/user changes
+  useEffect(() => {
+    if (!effectiveUserId) return;
+    if (activeTab === "timeline") {
+      setAttendanceLoading(true);
+      fetchAttendanceForDate(effectiveUserId, dateStr).then((data) => {
+        setAttendance(data);
+        setAttendanceLoading(false);
+      });
+    }
+  }, [activeTab, effectiveUserId, dateStr, fetchAttendanceForDate]);
+
+  useEffect(() => {
+    if (!effectiveUserId) return;
+    if (activeTab === "gps") {
+      setGpsLoading(true);
+      fetchGPSTrackingForDate(effectiveUserId, dateStr).then((data) => {
+        setGpsData(data);
+        setGpsLoading(false);
+      });
+    }
+  }, [activeTab, effectiveUserId, dateStr, fetchGPSTrackingForDate]);
+
   // Filter activities by selected date and optionally by user
   const dayActivities = useMemo(() => {
     return activities.filter((a) => {
       const dateMatch = a.activity_date === dateStr;
-      const userMatch = !selectedUserId || a.user_id === selectedUserId;
+      const userMatch = !selectedUserId || selectedUserId === "all" || a.user_id === selectedUserId;
       return dateMatch && userMatch;
     });
   }, [activities, dateStr, selectedUserId]);
@@ -126,6 +176,16 @@ export default function Activities() {
         (a.user_full_name || "").toLowerCase().includes(q)
     );
   }, [dayActivities, searchQuery]);
+
+  // Sort by start_time for timeline
+  const timelineSorted = useMemo(() => {
+    return [...filteredActivities].sort((a, b) => {
+      if (!a.start_time && !b.start_time) return 0;
+      if (!a.start_time) return 1;
+      if (!b.start_time) return -1;
+      return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+    });
+  }, [filteredActivities]);
 
   // Stats for selected date
   const stats = useMemo(() => {
@@ -147,8 +207,22 @@ export default function Activities() {
     return set;
   }, [activities]);
 
+  // GPS distance calculation
+  const gpsStats = useMemo(() => {
+    const pts = gpsData.points;
+    if (pts.length < 2) return { distance: 0, stops: gpsData.stops.length, duration: 0 };
+    let dist = 0;
+    for (let i = 1; i < pts.length; i++) {
+      dist += haversine(pts[i - 1].latitude, pts[i - 1].longitude, pts[i].latitude, pts[i].longitude);
+    }
+    const duration = pts.length >= 2
+      ? (new Date(pts[pts.length - 1].timestamp).getTime() - new Date(pts[0].timestamp).getTime()) / 3600000
+      : 0;
+    return { distance: Math.round(dist * 10) / 10, stops: gpsData.stops.length, duration: Math.round(duration * 10) / 10 };
+  }, [gpsData]);
+
   const handleOpenCreate = () => {
-    setForm({ ...defaultForm, activity_date: dateStr });
+    setForm({ ...defaultForm, activity_date: dateStr, owner_user_id: currentUserId });
     setEditingId(null);
     setShowForm(true);
   };
@@ -166,6 +240,7 @@ export default function Activities() {
       project_id: a.project_id || "",
       location_address: a.location_address || "",
       total_hours: a.total_hours || 0,
+      owner_user_id: a.user_id,
     });
     setEditingId(a.id);
     setShowForm(true);
@@ -191,7 +266,8 @@ export default function Activities() {
       if (editingId) {
         await updateActivity(editingId, payload);
       } else {
-        await createActivity(payload);
+        const targetUserId = isManagerOrAdmin && form.owner_user_id ? form.owner_user_id : undefined;
+        await createActivity(payload, targetUserId);
       }
       setShowForm(false);
       fetchActivities();
@@ -210,14 +286,13 @@ export default function Activities() {
 
   return (
     <motion.div className="space-y-0" variants={container} initial="hidden" animate="show">
-      {/* Gradient Header - Matching Visits/Staging-Quickapp */}
+      {/* Gradient Header */}
       <motion.div variants={item} className="gradient-hero text-primary-foreground p-4 pb-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold">Activities</h1>
             <p className="text-xs opacity-80">Log & track daily work</p>
           </div>
-          {/* User Select Dropdown */}
           <Select value={selectedUserId} onValueChange={setSelectedUserId}>
             <SelectTrigger className="w-[140px] h-8 bg-white/15 border-white/20 text-primary-foreground text-xs">
               <Users className="h-3.5 w-3.5 mr-1 opacity-80" />
@@ -268,7 +343,7 @@ export default function Activities() {
           })}
         </div>
 
-        {/* Action Buttons Row: Timeline, GPS Track, Activity */}
+        {/* Action Buttons Row */}
         <div className="grid grid-cols-3 gap-2 mt-3">
           <Button
             variant="ghost"
@@ -330,81 +405,78 @@ export default function Activities() {
         </div>
       </motion.div>
 
-      {/* Activity List */}
+      {/* Content based on active tab */}
       <motion.div variants={item} className="px-4 pb-24 pt-3 space-y-3">
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : filteredActivities.length === 0 ? (
-          <Card className="shadow-card">
-            <CardContent className="p-8 text-center">
-              <CalendarDays className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-              <p className="text-sm font-semibold text-muted-foreground">No activities found</p>
-              <p className="text-xs text-muted-foreground mt-1">Log a new activity for this date</p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredActivities.map((a) => (
-            <Card key={a.id} className="shadow-card">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Activity className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="font-semibold text-sm truncate">{a.activity_name}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground ml-6">{a.activity_type}</p>
-                    {a.location_address && (
-                      <p className="text-xs text-muted-foreground ml-6 mt-0.5">
-                        <MapPin className="h-3 w-3 inline mr-1" />{a.location_address}
-                      </p>
-                    )}
-                    {a.start_time && (
-                      <p className="text-xs text-muted-foreground ml-6 mt-0.5">
-                        <Clock className="h-3 w-3 inline mr-1" />
-                        {format(parseISO(a.start_time), "h:mm a")}
-                        {a.end_time && ` - ${format(parseISO(a.end_time), "h:mm a")}`}
-                        {a.total_hours ? ` (${a.total_hours}h)` : ""}
-                      </p>
-                    )}
-                    {a.project_name && (
-                      <p className="text-xs text-primary ml-6 mt-0.5">📁 {a.project_name}</p>
-                    )}
-                    {isAdmin && a.user_full_name && (
-                      <p className="text-xs text-muted-foreground ml-6 mt-0.5">👤 {a.user_full_name}</p>
-                    )}
-                    {a.description && (
-                      <p className="text-xs text-muted-foreground ml-6 mt-1 line-clamp-2">{a.description}</p>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <Badge variant="outline" className={statusColors[a.status] || ""}>
-                      {statusLabels[a.status] || a.status}
-                    </Badge>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenEdit(a)}>
-                        <Edit className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(a.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+        {activeTab === "timeline" && (
+          <TimelineView
+            activities={timelineSorted}
+            attendance={attendance}
+            attendanceLoading={attendanceLoading}
+            loading={loading}
+            isAdmin={isAdmin}
+            onEdit={handleOpenEdit}
+            onDelete={handleDelete}
+          />
+        )}
+
+        {activeTab === "gps" && (
+          <GPSTrackView
+            gpsData={gpsData}
+            gpsStats={gpsStats}
+            gpsLoading={gpsLoading}
+            activities={filteredActivities}
+          />
+        )}
+
+        {activeTab === "activity" && (
+          <>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredActivities.length === 0 ? (
+              <Card className="shadow-card">
+                <CardContent className="p-8 text-center">
+                  <CalendarDays className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-sm font-semibold text-muted-foreground">No activities found</p>
+                  <p className="text-xs text-muted-foreground mt-1">Log a new activity for this date</p>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredActivities.map((a) => (
+                <ActivityCard key={a.id} a={a} isAdmin={isAdmin} onEdit={handleOpenEdit} onDelete={handleDelete} />
+              ))
+            )}
+          </>
         )}
       </motion.div>
 
-      {/* Create/Edit Activity Dialog - Reusing existing form */}
+      {/* Create/Edit Activity Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Activity" : "Log New Activity"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 mt-2">
+            {/* Activity Owner - only for managers/admins */}
+            {isManagerOrAdmin && !editingId && (
+              <div>
+                <Label className="text-xs font-medium">Activity Owner</Label>
+                <Select value={form.owner_user_id} onValueChange={(v) => setForm({ ...form, owner_user_id: v })}>
+                  <SelectTrigger>
+                    <Users className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                    <SelectValue placeholder="Select owner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.full_name || "Unknown"} {u.id === currentUserId ? "(You)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <Label className="text-xs">Activity Name *</Label>
               <Input value={form.activity_name} onChange={(e) => setForm({ ...form, activity_name: e.target.value })} placeholder="e.g. Site inspection at Block A" />
@@ -487,4 +559,283 @@ export default function Activities() {
       </Dialog>
     </motion.div>
   );
+}
+
+// ---- Timeline View Component ----
+function TimelineView({
+  activities,
+  attendance,
+  attendanceLoading,
+  loading,
+  isAdmin,
+  onEdit,
+  onDelete,
+}: {
+  activities: ActivityType[];
+  attendance: { check_in_time: string | null; check_out_time: string | null } | null;
+  attendanceLoading: boolean;
+  loading: boolean;
+  isAdmin: boolean;
+  onEdit: (a: ActivityType) => void;
+  onDelete: (id: string) => void;
+}) {
+  if (loading || attendanceLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const hasCheckIn = attendance?.check_in_time;
+  const hasCheckOut = attendance?.check_out_time;
+
+  if (!hasCheckIn && activities.length === 0) {
+    return (
+      <Card className="shadow-card">
+        <CardContent className="p-8 text-center">
+          <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+          <p className="text-sm font-semibold text-muted-foreground">No day start recorded</p>
+          <p className="text-xs text-muted-foreground mt-1">No attendance or activities for this date</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="relative">
+      {/* Vertical line */}
+      <div className="absolute left-[22px] top-0 bottom-0 w-0.5 bg-border" />
+
+      {/* Day Started */}
+      {hasCheckIn && (
+        <TimelineNode
+          time={format(parseISO(attendance!.check_in_time!), "h:mm a")}
+          icon={<LogIn className="h-3.5 w-3.5 text-emerald-600" />}
+          color="bg-emerald-100 border-emerald-300"
+        >
+          <p className="text-sm font-semibold text-emerald-700">Day Started</p>
+          <p className="text-xs text-muted-foreground">Check-in recorded</p>
+        </TimelineNode>
+      )}
+
+      {/* Activity nodes */}
+      {activities.map((a) => (
+        <TimelineNode
+          key={a.id}
+          time={a.start_time ? format(parseISO(a.start_time), "h:mm a") : "--:--"}
+          icon={<Activity className="h-3.5 w-3.5 text-primary" />}
+          color="bg-primary/10 border-primary/30"
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm truncate">{a.activity_name}</span>
+                <Badge variant="outline" className={`text-[10px] py-0 ${statusColors[a.status]}`}>
+                  {statusLabels[a.status] || a.status}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">{a.activity_type}</p>
+              {a.location_address && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  <MapPin className="h-3 w-3 inline mr-1" />{a.location_address}
+                </p>
+              )}
+              {a.total_hours ? (
+                <p className="text-xs text-muted-foreground mt-0.5">Duration: {a.total_hours}h</p>
+              ) : null}
+              {isAdmin && a.user_full_name && (
+                <p className="text-xs text-muted-foreground mt-0.5">👤 {a.user_full_name}</p>
+              )}
+            </div>
+            <div className="flex gap-1 shrink-0 ml-2">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(a)}>
+                <Edit className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onDelete(a.id)}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </TimelineNode>
+      ))}
+
+      {/* Day Ended */}
+      {hasCheckOut && (
+        <TimelineNode
+          time={format(parseISO(attendance!.check_out_time!), "h:mm a")}
+          icon={<LogOut className="h-3.5 w-3.5 text-red-600" />}
+          color="bg-red-100 border-red-300"
+        >
+          <p className="text-sm font-semibold text-red-700">Day Ended</p>
+          <p className="text-xs text-muted-foreground">Check-out recorded</p>
+        </TimelineNode>
+      )}
+    </div>
+  );
+}
+
+function TimelineNode({ time, icon, color, children }: { time: string; icon: React.ReactNode; color: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-3 mb-4 relative">
+      <div className="flex flex-col items-center shrink-0 z-10">
+        <div className={`w-11 h-11 rounded-full border-2 flex items-center justify-center ${color} bg-card`}>
+          {icon}
+        </div>
+      </div>
+      <div className="flex-1 pt-1">
+        <p className="text-[10px] text-muted-foreground font-mono mb-0.5">{time}</p>
+        <Card className="shadow-card">
+          <CardContent className="p-3">{children}</CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ---- GPS Track View Component ----
+function GPSTrackView({
+  gpsData,
+  gpsStats,
+  gpsLoading,
+  activities,
+}: {
+  gpsData: { points: any[]; stops: any[] };
+  gpsStats: { distance: number; stops: number; duration: number };
+  gpsLoading: boolean;
+  activities: ActivityType[];
+}) {
+  if (gpsLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (gpsData.points.length === 0) {
+    return (
+      <Card className="shadow-card">
+        <CardContent className="p-8 text-center">
+          <Navigation2 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+          <p className="text-sm font-semibold text-muted-foreground">No GPS data</p>
+          <p className="text-xs text-muted-foreground mt-1">GPS tracking data will appear once the day is started</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const activityMarkers = activities
+    .filter((a) => a.location_lat && a.location_lng)
+    .map((a) => ({ lat: Number(a.location_lat), lng: Number(a.location_lng), name: a.activity_name }));
+
+  return (
+    <div className="space-y-3">
+      {/* Stats bar */}
+      <div className="grid grid-cols-3 gap-2">
+        <Card className="shadow-card">
+          <CardContent className="p-3 text-center">
+            <Route className="h-4 w-4 mx-auto text-primary mb-1" />
+            <p className="text-sm font-bold">{gpsStats.distance} km</p>
+            <p className="text-[10px] text-muted-foreground">Distance</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-card">
+          <CardContent className="p-3 text-center">
+            <Octagon className="h-4 w-4 mx-auto text-amber-500 mb-1" />
+            <p className="text-sm font-bold">{gpsStats.stops}</p>
+            <p className="text-[10px] text-muted-foreground">Stops</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-card">
+          <CardContent className="p-3 text-center">
+            <Timer className="h-4 w-4 mx-auto text-violet-500 mb-1" />
+            <p className="text-sm font-bold">{gpsStats.duration}h</p>
+            <p className="text-[10px] text-muted-foreground">Duration</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Map */}
+      <Card className="shadow-card overflow-hidden">
+        <CardContent className="p-0">
+          <div className="h-[400px] relative">
+            <Suspense fallback={
+              <div className="h-full w-full flex items-center justify-center bg-muted">
+                <p className="text-sm text-muted-foreground">Loading map...</p>
+              </div>
+            }>
+              <LeafletMap gpsPoints={gpsData.points} activityMarkers={activityMarkers} />
+            </Suspense>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ---- Activity Card Component ----
+function ActivityCard({ a, isAdmin, onEdit, onDelete }: { a: ActivityType; isAdmin: boolean; onEdit: (a: ActivityType) => void; onDelete: (id: string) => void }) {
+  return (
+    <Card className="shadow-card">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <Activity className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="font-semibold text-sm truncate">{a.activity_name}</span>
+            </div>
+            <p className="text-xs text-muted-foreground ml-6">{a.activity_type}</p>
+            {a.location_address && (
+              <p className="text-xs text-muted-foreground ml-6 mt-0.5">
+                <MapPin className="h-3 w-3 inline mr-1" />{a.location_address}
+              </p>
+            )}
+            {a.start_time && (
+              <p className="text-xs text-muted-foreground ml-6 mt-0.5">
+                <Clock className="h-3 w-3 inline mr-1" />
+                {format(parseISO(a.start_time), "h:mm a")}
+                {a.end_time && ` - ${format(parseISO(a.end_time), "h:mm a")}`}
+                {a.total_hours ? ` (${a.total_hours}h)` : ""}
+              </p>
+            )}
+            {a.project_name && (
+              <p className="text-xs text-primary ml-6 mt-0.5">📁 {a.project_name}</p>
+            )}
+            {a.user_full_name && (
+              <p className="text-xs text-muted-foreground ml-6 mt-0.5">👤 {a.user_full_name}</p>
+            )}
+            {a.description && (
+              <p className="text-xs text-muted-foreground ml-6 mt-1 line-clamp-2">{a.description}</p>
+            )}
+          </div>
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <Badge variant="outline" className={statusColors[a.status] || ""}>
+              {statusLabels[a.status] || a.status}
+            </Badge>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(a)}>
+                <Edit className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onDelete(a.id)}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---- Haversine distance calculation (km) ----
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
