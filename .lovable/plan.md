@@ -1,49 +1,42 @@
 
 
-## Fix Column Chooser and Table UX in User Management
+## Fix Edit User Button and Match Reference Edit Dialog
 
-### What's Wrong
-The "Columns" button currently does nothing -- it's a static button with no popover or functionality. The screenshot from the reference project shows a proper **Popover** with checkboxes to toggle column visibility. Additionally, the table needs to support showing/hiding columns like Full Name, Phone, Email Status, Joined Date dynamically.
+### Problem
+1. The "Edit" button in the table does nothing (`onClick={() => {}}`)
+2. The real `EditUserDialog` is buried inside the "..." dropdown menu
+3. The edit dialog doesn't match the reference screenshot -- it should have tabbed sections (Basic Info, Managers, Reset Password) and footer action buttons (Delete Data, Delete User, Cancel, Save Changes)
 
 ### Changes
 
 **File: `src/pages/AdminUserManagement.tsx`**
 
-1. **Add `allColumns` configuration array** (matching reference project pattern):
-   - `photo` (default: on, locked)
-   - `username` / User Name (default: on)
-   - `email` (default: on)
-   - `role` (default: on)
-   - `manager` / Reporting Manager (default: on)
-   - `active` (default: on)
-   - `email_status` / Email Status (default: off)
-   - `action` (default: on, locked)
-   - `full_name` / Full Name (default: off)
-   - `phone` / Phone (default: off)
+#### 1. Redesign `EditUserDialog` to match reference screenshot
+- Add internal `Tabs` with three tabs: **Basic Info**, **Managers**, **Reset Password**
+- **Basic Info tab**: Full Name, Username, Phone Number, Email (disabled), Role (Security Profile) dropdown
+- **Managers tab**: Primary Manager and Secondary Manager selectors
+- **Reset Password tab**: New password field with generate button
+- **Dialog title**: "Edit User: {name}" matching the screenshot
+- **Footer buttons**: Delete Data (outline/orange), Delete User (destructive/red), Cancel (outline), Save Changes (primary/dark)
 
-2. **Add `visibleColumns` state** initialized from columns where `default: true`.
+#### 2. Convert `EditUserDialog` to use controlled open state from parent
+- Remove the `DialogTrigger` wrapper from inside the component
+- Accept `open` and `onOpenChange` props instead
+- Add `editingUser` state to the main component to track which user is being edited
 
-3. **Replace the static Columns button** with a `Popover` + `PopoverContent` containing:
-   - "Choose columns" heading
-   - `ScrollArea` with `Checkbox` for each column
-   - `photo` and `action` checkboxes are disabled (always visible)
-   - Matches the exact layout from the reference: `PopoverContent className="w-56" align="end"`
+#### 3. Wire the Edit button in the table
+- Replace the dead `onClick={() => {}}` on the Edit button with `onClick={() => setEditingUser(user)}`
+- Remove `EditUserDialog` from inside the DropdownMenu
+- Keep only "Delete" in the dropdown menu
+- Render a single `EditUserDialog` instance at the page level, controlled by `editingUser` state
 
-4. **Make table columns conditional**: Wrap each `TableHead` and `TableCell` in `{visibleColumns.includes('key') && (...)}` checks so toggling a checkbox instantly shows/hides the column.
-
-5. **Add new column data rendering** for the newly available columns:
-   - **Full Name**: `user.full_name` (separate from User Name which shows `full_name || username`)
-   - **Phone**: `user.phone`
-   - **Email Status**: Badge showing "Verified" or "Pending" (currently not tracked, will show based on profile data or default to "Active")
-
-6. **Import additions**: Add `Popover, PopoverTrigger, PopoverContent` and `Checkbox` imports.
+#### 4. Add Delete Data functionality
+- "Delete Data" button clears operational records (attendance, visits, GPS, expenses, orders) but keeps the user account
+- "Delete User" button triggers the existing full delete confirmation dialog
 
 ### Technical Details
 
-- The `allColumns` array defines `{ key, label, default }` for each column
-- `visibleColumns` state: `useState<string[]>(allColumns.filter(c => c.default).map(c => c.key))`
-- The Popover uses `ScrollArea` with `h-[280px]` for consistent height
-- Photo and Action columns have `disabled` on their Checkbox to prevent hiding
-- No responsive `hidden sm:table-cell` classes needed anymore since column visibility is user-controlled
-- Remove the existing hardcoded `hidden sm:table-cell` / `hidden md:table-cell` classes from Email and Reporting Manager columns
-
+- The dialog uses the existing `Tabs` component for internal tab switching
+- Reset Password will call `supabase.auth.admin.updateUser()` via an edge function or show a placeholder
+- The `EditUserDialog` state fields reset via `useEffect` when user changes
+- Footer layout: `flex justify-between` with destructive buttons on the left, cancel/save on the right -- matching the screenshot exactly
