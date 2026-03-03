@@ -734,10 +734,6 @@ export default function AdminUserManagement() {
             <span className="hidden sm:inline">Create User</span>
             <span className="sm:hidden">Create</span>
           </TabsTrigger>
-          <TabsTrigger value="roles" className="flex-1 text-xs sm:text-sm gap-1.5">
-            <Shield className="h-3.5 w-3.5" />
-            Roles
-          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab - Hierarchy */}
@@ -946,39 +942,6 @@ export default function AdminUserManagement() {
           <CreateUserWizard onSuccess={() => { invalidateAll(); setActiveTab("users"); }} />
         </TabsContent>
 
-        {/* Roles Tab */}
-        <TabsContent value="roles">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Roles</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {roles.length === 0 ? (
-                <p className="text-center py-8 text-muted-foreground">No roles configured.</p>
-              ) : (
-                <div className="space-y-3">
-                  {roles.map((r) => {
-                    const colors = getRoleColor(r.name);
-                    return (
-                      <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border">
-                        <div className="flex items-center gap-2">
-                          <span className={`h-2.5 w-2.5 rounded-full ${colors.badge}`} />
-                          <p className="font-medium text-sm">{r.name}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {appUsers.filter(u => u.role_id === r.id).length} users
-                          </Badge>
-                          {r.is_system && <Badge variant="outline" className="text-xs">System</Badge>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Delete Confirmation */}
