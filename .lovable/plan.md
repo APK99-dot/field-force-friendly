@@ -1,48 +1,108 @@
 
 
-## Link Attendance Management to User Management (Real Users)
+## Expense Module Complete Restructure
 
-### Problem
-The Attendance Management module fetches employee data from the `profiles` table (10 entries), but the actual managed users live in the `users` table (5 entries). This means the attendance module shows stale/unmanaged users that don't appear in User Management, and the data is disconnected.
+This is a major restructure that removes all TA/DA/Beat Allowance logic and builds a clean Additional Expense Claim and Approval system.
 
-### Solution
-Update all attendance management components to source their user lists from the `users` table (filtered by `is_active = true`) instead of the `profiles` table. This ensures only actively managed employees appear across the attendance module.
+### What Gets Removed
+- TA/DA configuration from Admin Expense Master
+- `ProductivityTracking` component usage in expense module
+- `BeatAllowanceManagement` component (unused/dead code)
+- `useExpenses` hook (references TA/DA, unused)
+- Beat allowance calculations and references
+- Old `AdditionalExpenses` component (replaced with new inline form)
 
-### Files to Change
+### What Gets Created/Changed
 
-**1. `src/components/LiveAttendanceMonitoring.tsx`**
-- Change `fetchUsers()` to query `users` table (`id, full_name, username`) with `is_active = true` instead of `profiles`
-- Change `fetchAttendanceData()` to query `users` table for the "all users" list used to determine absent employees
-- This ensures the KPI cards (Total Employees, Present, Absent) reflect only managed users
+---
 
-**2. `src/components/attendance/LeaveBalancesManager.tsx`**
-- Change `fetchData()` to query `users` table (`id, full_name`) with `is_active = true` instead of `profiles`
-- Update the enrichment mapping to use users table data
-- Update `handleInitializeBalances()` to query active users from `users` table instead of filtering `profiles` by `user_status`
+### Database Changes (3 new tables, via migrations)
 
-**3. `src/pages/AttendanceManagement.tsx`**
-- Change `fetchUsers()` to query `users` table (`id, full_name`) with `is_active = true` instead of `profiles`
-- This fixes the Leave Management and Regularization user filter dropdowns
+**1. `expense_categories` table**
+- `id`, `name`, `monthly_limit` (nullable), `daily_limit` (nullable), `receipt_required_above` (nullable), `auto_approval_limit` (nullable), `is_active`, `created_at`, `updated_at`
+- RLS: Admins manage all, authenticated users can view
+- Seed with default categories: Travel, Food, Lodging, Internet, Fuel, Telephone Expense, Stay, Other
 
-### Technical Details
+**2. `expense_policy` table** (single-row config)
+- `id`, `submission_deadline` (integer, day of month), `allow_backdate` (boolean), `max_back_days` (integer), `multi_level_approval` (boolean), `month_lock_enabled` (boolean), `created_at`, `updated_at`
+- RLS: Admins manage, authenticated users can view
 
-Each component currently does:
-```typescript
-// OLD - queries profiles (10 rows, includes unmanaged users)
-const { data } = await supabase.from('profiles').select('id, full_name, username').order('full_name');
+**3. Modify `additional_expenses` table**
+- Add columns: `category_id` (uuid, nullable FK to expense_categories), `rejection_reason` (text), `month_key` (text, format YYYY-MM)
+- Keep existing `category` text column for backward compatibility
+
+---
+
+### Admin Side: `/admin/expenses` (rewrite `AdminExpenseManagement.tsx`)
+
+**3 Tabs:**
+
+**Tab 1 - Configuration**
+- Expense Categories CRUD: name, monthly limit, daily limit, receipt required above amount, auto-approval limit, active toggle
+- Policy Settings: submission deadline day, allow backdated entries toggle, max back days, multi-level approval toggle, month lock toggle
+
+**Tab 2 - Pending Approvals**
+- Table: User, Category, Date, Amount, Receipt, Description, Action (Approve/Reject)
+- Reject requires mandatory remark (uses existing `RejectionReasonDialog`)
+- Filters: Month selector, User dropdown, Category dropdown, Status dropdown
+- Fetches from `additional_expenses` joined with `users` for names
+
+**Tab 3 - Monthly Overview**
+- Summary cards: Total Claimed, Total Approved, Total Pending, Total Rejected
+- Table: User | Total Applied | Approved | Pending | Rejected
+- Click row to expand detailed breakdown
+- Export to XLS button
+
+---
+
+### User Side: `/expenses` (rewrite `Expenses.tsx`)
+
+**Section 1 - Summary Cards (top)**
+- Month selector dropdown (generates last 12 months)
+- 4 cards: Total Submitted, Total Approved, Total Pending, Total Rejected
+
+**Section 2 - Expense List**
+- Card-based list showing: Date, Category, Description, Amount, Status badge
+- Status: draft, submitted, approved, rejected
+- Actions: Edit (if draft/rejected), Delete (if draft only), View rejection reason
+- Filter by status
+
+**Section 3 - Add Expense (FAB button opens modal)**
+- Fields: Date, Category (dropdown from `expense_categories`), Amount, Description, Receipt upload
+- Policy validation: check backdating rules, submission deadline
+- Submit sets status to "submitted" and notifies reporting manager
+
+---
+
+### Files to Create
+1. None needed beyond the rewrites
+
+### Files to Modify
+1. **`src/pages/AdminExpenseManagement.tsx`** - Complete rewrite with 3 tabs (Configuration, Approvals, Overview)
+2. **`src/pages/Expenses.tsx`** - Complete rewrite with month filter, summary cards, expense list, add modal
+3. **`src/components/AdditionalExpenses.tsx`** - Rewrite to use `expense_categories` table for category dropdown instead of hardcoded list
+
+### Files to Delete (dead code)
+1. **`src/components/BeatAllowanceManagement.tsx`** - Unused, all TA/DA logic
+2. **`src/hooks/useExpenses.ts`** - Contains TA/DA calculations, unused
+3. **`src/components/ProductivityTracking.tsx`** - Remove from expense module (note: also used in admin page, will be removed from there)
+
+### Route Changes
+- Keep `/admin/expenses` route as-is (same component, rewritten)
+- Keep `/expenses` route as-is (same component, rewritten)
+
+### Migration Summary
+```text
+1. CREATE TABLE expense_categories (with seed data)
+2. CREATE TABLE expense_policy (with default row)
+3. ALTER TABLE additional_expenses ADD COLUMN rejection_reason, month_key, category_id
 ```
 
-Will be changed to:
-```typescript
-// NEW - queries users (only actively managed employees)
-const { data } = await supabase.from('users').select('id, full_name, username').eq('is_active', true).order('full_name');
-```
-
-The attendance enrichment (joining user names to attendance records) will also switch from `profiles` to `users`, keeping the same field names (`full_name`, `username`) so no downstream UI changes are needed.
-
-### Impact
-- Live Attendance will show exactly the 5 managed users
-- Leave Balances will initialize/display for managed users only
-- Leave Management and Regularization filters will list managed users only
-- Absent employee detection will be accurate (based on managed headcount)
+### Approval Flow
+- User submits expense -> status = "submitted"
+- If amount < category's `auto_approval_limit` -> auto-set to "approved"
+- Otherwise, manager/admin sees in Pending Approvals tab
+- Approve -> status = "approved"
+- Reject -> status = "rejected" + mandatory rejection_reason
+- Notification sent to reporting manager on submit (existing flow preserved)
 
