@@ -1,69 +1,108 @@
 
 
-## Simplify Expenses Page: Additional Expenses Only with Manager Approval
+## Timeline View, GPS Track View, and Manager Activity Assignment
 
 ### Overview
-Remove all TA/DA functionality from the Expenses page. Keep only the Additional Expenses feature where users can add expenses that get sent to their reporting manager for approval via the existing notification and approval workflow.
+Enhance the Activities page with three key improvements:
+1. **Timeline View** - Show activities as a chronological timeline with day-start/end markers and time-ordered activity cards
+2. **GPS Track View** - Embed GPS tracking inline within the Activities page (instead of navigating to a separate page), showing the user's tracked route for the selected date
+3. **Manager Activity Assignment** - Allow managers/admins to assign activities to subordinates by adding an "Activity Owner" field in the Log New Activity form
 
-### Changes Required
+---
 
-#### 1. Rewrite Expenses Page (`src/pages/Expenses.tsx`)
-- Replace the `BeatAllowanceManagement` component with a simplified page that only shows:
-  - A date filter (this week, last week, this month, etc.)
-  - A summary card showing total additional expenses and pending/approved/rejected counts
-  - A list of the user's additional expenses with status badges (pending/approved/rejected)
-  - A button to add new expenses (opens the existing `AdditionalExpenses` form in a dialog)
+### 1. Timeline View (replace current flat list when "Timeline" tab is active)
 
-#### 2. Update `AdditionalExpenses` Component (`src/components/AdditionalExpenses.tsx`)
-- After saving expenses, look up the user's `reporting_manager_id` from the `users` table
-- Send a notification to the reporting manager using the existing `send_notification` RPC (same pattern as leave applications and regularization requests)
-- Show the expense status (pending/approved/rejected) on each saved expense card
+**Current behavior:** The Timeline tab shows the same flat card list as the activity tab.
 
-#### 3. Database Migration: Add Delete Policy for Additional Expenses
-- The `additional_expenses` table already has a `status` column (default `'pending'`). This will be used for the approval workflow.
-- Add a missing RLS policy: allow users to delete their own pending expenses
-- Add RLS policy for managers to view subordinate expenses (for the approval flow)
+**New behavior:** When the Timeline tab is selected, render a vertical timeline UI:
+- A "Day Started" marker at the top showing check-in time (from the `attendance` table for that user/date)
+- Each activity rendered as a timeline node, sorted by `start_time` ascending
+- Each node shows: time (left side), activity name, type, status badge, duration, and location
+- A connecting vertical line between nodes
+- A "Day Ended" marker at the bottom if the user has checked out
+- If no attendance record exists, show "No day start recorded" placeholder
 
-#### 4. Add Expense Approval Tab to Pending Approvals Page (`src/pages/PendingApprovals.tsx`)
-- Add a third tab: "Expenses" alongside Leave and Regularisation
-- Fetch pending expenses from subordinates (same `reporting_manager_id` pattern already used)
-- Allow managers to approve/reject with the same UI pattern (approve/reject buttons, rejection reason dialog)
-- On approval/rejection, update the expense status and notify the employee
+**Data source:** Fetch attendance check-in/check-out for the selected user + date from the `attendance` table alongside the existing activity_events.
+
+---
+
+### 2. GPS Track View (inline within Activities page)
+
+**Current behavior:** The GPS Track tab button exists but doesn't show meaningful tracking data inline.
+
+**New behavior:** When the "GPS Track" tab is selected:
+- Fetch GPS tracking points from `gps_tracking` table for the selected user and date
+- Show the LeafletMap component with polyline connecting all GPS points chronologically
+- Show activity locations as markers on the map
+- Display a summary: total distance (calculated from GPS points), number of stops, and tracking duration
+- If no GPS data exists for the date, show an empty state
+
+**Data source:** `gps_tracking` table filtered by `user_id` and `date`, plus `gps_tracking_stops` for stop markers.
+
+---
+
+### 3. Manager Activity Assignment (Activity Owner in Log New Activity)
+
+**Current behavior:** Activities are always created with `user_id = auth.uid()` (the logged-in user). No way for a manager to assign activities to subordinates.
+
+**New behavior:**
+- In the "Log New Activity" dialog, add an "Activity Owner" dropdown at the top of the form
+- For regular users: this field is hidden or shows only their own name (read-only)
+- For managers/admins: the dropdown lists subordinate users (fetched via `get_user_hierarchy` RPC or the existing users list) plus themselves
+- When creating an activity, use the selected owner's user_id instead of always `auth.uid()`
+- Display the owner name on each activity card
+
+**Database change needed:**
+- The existing RLS policies only allow `INSERT` where `user_id = auth.uid()`. A new policy is needed to allow managers to insert activities for subordinates:
+  ```sql
+  CREATE POLICY "Managers can insert activities for subordinates"
+  ON public.activity_events FOR INSERT TO authenticated
+  WITH CHECK (
+    user_id = auth.uid() OR
+    user_id IN (SELECT sub.user_id FROM get_user_hierarchy(auth.uid()) sub)
+  );
+  ```
+- Update the existing INSERT policy or add this as an additional permissive policy.
+
+---
 
 ### Technical Details
 
-**Notification on expense submission** (in `AdditionalExpenses.tsx`):
-```typescript
-// After saving expenses, notify reporting manager
-const { data: userData } = await supabase
-  .from('users')
-  .select('reporting_manager_id, full_name')
-  .eq('id', userId)
-  .single();
+**Files to modify:**
 
-if (userData?.reporting_manager_id) {
-  await supabase.rpc('send_notification', {
-    user_id_param: userData.reporting_manager_id,
-    title_param: `Expense Claim - ${userData.full_name}`,
-    message_param: `New expense of Rs.${totalAmount} submitted for approval`,
-    type_param: 'expense_request',
-    related_table_param: 'additional_expenses',
-  });
-}
+1. **`src/pages/Activities.tsx`**
+   - Add timeline rendering logic when `activeTab === "timeline"`: vertical line, time markers, attendance day-start/end
+   - Add inline GPS map rendering when `activeTab === "gps"`: fetch gps_tracking data, render LeafletMap with polyline
+   - Add "Activity Owner" Select dropdown in the create/edit dialog (visible to admins/managers)
+   - Pass selected owner user_id to `createActivity`
+
+2. **`src/hooks/useActivities.ts`**
+   - Modify `createActivity` to accept an optional `target_user_id` parameter instead of always using `auth.uid()`
+   - Add a new `fetchAttendanceForDate(userId, date)` function to get check-in/check-out times
+   - Add a new `fetchGPSTrackingForDate(userId, date)` function to get GPS points
+
+3. **`src/components/LeafletMap.tsx`** (minor)
+   - Ensure it can accept an array of GPS points for polyline rendering (may need to check current props)
+
+4. **Database migration**
+   - Add RLS policy for managers to insert activities for subordinates
+   - The existing "Managers can view subordinate activities" SELECT policy already exists
+
+**Rendering approach for Timeline:**
+```text
+  09:15 AM  [*]---- Day Started (Check-in)
+             |
+  09:30 AM  [*]---- Site Visit - Block A Inspection [Completed]
+             |        Location: Sector 42
+             |        Duration: 1.5h
+             |
+  11:00 AM  [*]---- Client Meeting - ABC Corp [In Progress]
+             |        Duration: 2h
+             |
+  06:00 PM  [*]---- Day Ended (Check-out)
 ```
 
-**New RLS policies needed:**
-- Manager SELECT policy on `additional_expenses`: managers can view expenses where user_id is in their subordinates
-- User DELETE policy on `additional_expenses`: users can delete own expenses (only pending ones ideally)
-
-**PendingApprovals changes:**
-- Add expense tab fetching `additional_expenses` with status='pending' for subordinate user IDs
-- Approve updates status to 'approved', reject updates to 'rejected'
-- Notification sent back to the employee on decision
-
-**Files to modify:**
-1. `src/pages/Expenses.tsx` -- simplified page, no TA/DA
-2. `src/components/AdditionalExpenses.tsx` -- add manager notification on save, show status
-3. `src/pages/PendingApprovals.tsx` -- add Expenses tab for manager approval
-4. Database migration -- add manager SELECT + user DELETE RLS policies on `additional_expenses`
-
+**GPS Track inline view:**
+- Map showing polyline of GPS trail
+- Activity location pins overlaid
+- Summary stats bar: Distance traveled, Stops, Duration
