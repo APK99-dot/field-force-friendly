@@ -25,6 +25,8 @@ import CameraCapture from "@/components/CameraCapture";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+import ProfileSetupModal from "@/components/ProfileSetupModal";
+
 type ProcessingStep = "camera" | "location" | "uploading" | "verifying" | "saving" | null;
 
 export default function Attendance() {
@@ -50,6 +52,8 @@ export default function Attendance() {
   const [processingStep, setProcessingStep] = useState<ProcessingStep>(null);
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [showFaceRegistration, setShowFaceRegistration] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"checkin" | "checkout" | null>(null);
 
   const { compareImages, matching } = useFaceMatching();
 
@@ -134,15 +138,47 @@ export default function Attendance() {
 
   // --- Camera + Face Verification Flow ---
   const handleStartDay = () => {
+    // Force face registration if no profile picture
+    if (!profilePictureUrl) {
+      setPendingAction("checkin");
+      setShowFaceRegistration(true);
+      return;
+    }
     setCameraMode("checkin");
     setRetryCount(0);
     setCameraOpen(true);
   };
 
   const handleEndDay = () => {
+    // Force face registration if no profile picture
+    if (!profilePictureUrl) {
+      setPendingAction("checkout");
+      setShowFaceRegistration(true);
+      return;
+    }
     setCameraMode("checkout");
     setRetryCount(0);
     setCameraOpen(true);
+  };
+
+  const handleFaceRegistrationComplete = () => {
+    setShowFaceRegistration(false);
+    // Re-fetch profile picture
+    if (userId) {
+      supabase.from("profiles").select("profile_picture_url").eq("id", userId).single()
+        .then(({ data }) => {
+          if (data?.profile_picture_url) {
+            setProfilePictureUrl(data.profile_picture_url);
+            // Now proceed with the pending action
+            if (pendingAction) {
+              setCameraMode(pendingAction);
+              setRetryCount(0);
+              setCameraOpen(true);
+              setPendingAction(null);
+            }
+          }
+        });
+    }
   };
 
   const handleCameraCapture = async (blob: Blob) => {
@@ -791,6 +827,15 @@ export default function Attendance() {
         onCapture={handleCameraCapture}
         title={cameraMode === "checkin" ? "Check-in Selfie" : "Check-out Selfie"}
       />
+
+      {/* Face Registration Modal - shown when user tries to check in without a profile photo */}
+      {userId && showFaceRegistration && (
+        <ProfileSetupModal
+          userId={userId}
+          profilePictureUrl={null}
+          onComplete={handleFaceRegistrationComplete}
+        />
+      )}
       </>
       )}
     </motion.div>
