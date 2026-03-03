@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,15 +15,10 @@ import {
   AlertTriangle,
   Receipt,
   ClipboardList,
+  X,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NavLink } from "@/components/NavLink";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { motion, AnimatePresence } from "framer-motion";
 
 const navigationItems = [
   { icon: UserCheck, label: "Attendance", href: "/attendance", color: "from-blue-500 to-blue-600" },
@@ -54,8 +50,26 @@ export function AppHeader() {
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const { profile, isAdmin, initials } = useUserProfile();
   const displayName = profile?.full_name || profile?.username || "";
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const showBackButton = location.pathname !== "/dashboard" && location.pathname !== "/";
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isMenuOpen]);
+
+  // Close menu on route change
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
 
   const handleMenuItemClick = useCallback(() => {
     setIsMenuOpen(false);
@@ -71,127 +85,135 @@ export function AppHeader() {
 
   return (
     <>
-      {/* Top Navbar */}
-      <nav className="sticky top-0 z-50 gradient-hero text-primary-foreground shadow-lg">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {showBackButton && (
-                <button
-                  onClick={handleBackClick}
-                  className="p-1 rounded-lg hover:bg-white/10 transition-colors"
-                >
-                  <ArrowLeft size={16} />
-                </button>
-              )}
-              <NavLink to="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity text-primary-foreground">
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden bg-white/90 p-0.5">
-                  <Building2 className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-base font-semibold">Bharath Builders</h1>
-                </div>
-              </NavLink>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <NotificationBell />
-              <button
-                onClick={() => setIsMenuOpen(true)}
-                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-              >
-                <Menu size={20} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Right-side Slide Drawer */}
-      <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-          {/* User Profile Section */}
-          <SheetHeader className="pb-3 border-b bg-gradient-primary text-primary-foreground rounded-lg -mx-6 -mt-6 px-6 pt-4 mb-6 pr-12">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                  navigate("/more");
-                  handleMenuItemClick();
-                }}
-                className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-              >
-              <Avatar className="h-12 w-12 border-2 border-primary-foreground/30">
-                  <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col items-start">
-                  <SheetTitle className="text-lg font-bold text-primary-foreground">
-                    {displayName}
-                  </SheetTitle>
-                  <div className="flex items-center gap-1.5 text-xs opacity-90 text-primary-foreground mt-1">
-                    <Shield className="h-3.5 w-3.5" />
-                    <span className="font-medium">{isAdmin ? "Admin" : "User"}</span>
+      <div ref={menuRef} className="sticky top-0 z-50">
+        {/* Top Navbar */}
+        <nav className="gradient-hero text-primary-foreground shadow-lg">
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {showBackButton && (
+                  <button
+                    onClick={handleBackClick}
+                    className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                  >
+                    <ArrowLeft size={16} />
+                  </button>
+                )}
+                <NavLink to="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity text-primary-foreground">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden bg-white/90 p-0.5">
+                    <Building2 className="w-6 h-6 text-primary" />
                   </div>
-                </div>
-              </button>
-            </div>
-          </SheetHeader>
-
-          {/* Admin Controls */}
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Admin Controls</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {adminItems.map((item) => (
-                <NavLink
-                  key={item.href}
-                  to={item.href}
-                  onClick={handleMenuItemClick}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors"
-                >
-                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${item.color} shadow-md`}>
-                    <item.icon className="h-5 w-5 text-white" />
+                  <div>
+                    <h1 className="text-base font-semibold">Bharath Builders</h1>
                   </div>
-                  <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
                 </NavLink>
-              ))}
-            </div>
-          </div>
-
-          {/* Navigation Grid */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground px-1">Navigation</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {navigationItems.map((item) => (
-                <NavLink
-                  key={item.label}
-                  to={item.href}
-                  onClick={handleMenuItemClick}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors"
-                >
-                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${item.color} shadow-md`}>
-                    <item.icon className="h-5 w-5 text-white" />
-                  </div>
-                  <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
-                </NavLink>
-              ))}
-            </div>
-          </div>
-
-          {/* Logout */}
-          <div className="mt-6 pt-4 border-t">
-            <button
-              onClick={() => setIsLogoutDialogOpen(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 transition-colors group"
-            >
-              <div className="w-9 h-9 rounded-lg bg-destructive/10 flex items-center justify-center group-hover:bg-destructive/20 transition-colors">
-                <LogOut className="h-4 w-4 text-destructive" />
               </div>
-              <span className="text-sm font-medium">Logout</span>
-            </button>
+
+              <div className="flex items-center gap-1">
+                <NotificationBell />
+                <button
+                  onClick={() => setIsMenuOpen((prev) => !prev)}
+                  className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
+              </div>
+            </div>
           </div>
-        </SheetContent>
-      </Sheet>
+        </nav>
+
+        {/* Dropdown Menu Panel */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="absolute left-0 right-0 bg-card border-b border-border shadow-elevated overflow-y-auto max-h-[80vh] z-50"
+            >
+              {/* User Profile Section */}
+              <div className="gradient-hero text-primary-foreground px-4 py-4">
+                <button
+                  onClick={() => {
+                    navigate("/more");
+                    handleMenuItemClick();
+                  }}
+                  className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                >
+                  <Avatar className="h-12 w-12 border-2 border-primary-foreground/30">
+                    <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col items-start">
+                    <span className="text-lg font-bold">{displayName}</span>
+                    <div className="flex items-center gap-1.5 text-xs opacity-90 mt-0.5">
+                      <Shield className="h-3.5 w-3.5" />
+                      <span className="font-medium">{isAdmin ? "Admin" : "User"}</span>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              <div className="p-4 space-y-5">
+                {/* Admin Controls */}
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Admin Controls</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    {adminItems.map((item) => (
+                      <NavLink
+                        key={item.href}
+                        to={item.href}
+                        onClick={handleMenuItemClick}
+                        className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors"
+                      >
+                        <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${item.color} shadow-md`}>
+                          <item.icon className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Navigation Grid */}
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Navigation</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    {navigationItems.map((item) => (
+                      <NavLink
+                        key={item.label}
+                        to={item.href}
+                        onClick={handleMenuItemClick}
+                        className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors"
+                      >
+                        <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${item.color} shadow-md`}>
+                          <item.icon className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Logout */}
+                <div className="pt-2 border-t">
+                  <button
+                    onClick={() => setIsLogoutDialogOpen(true)}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 transition-colors group"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-destructive/10 flex items-center justify-center group-hover:bg-destructive/20 transition-colors">
+                      <LogOut className="h-4 w-4 text-destructive" />
+                    </div>
+                    <span className="text-sm font-medium">Logout</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Logout Confirmation */}
       <AlertDialog open={isLogoutDialogOpen} onOpenChange={setIsLogoutDialogOpen}>
