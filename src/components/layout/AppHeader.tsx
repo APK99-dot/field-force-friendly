@@ -141,7 +141,7 @@ export function AppHeader() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 bottom-0 w-[280px] bg-card shadow-elevated overflow-y-auto z-50"
+              className="fixed top-0 right-0 bottom-0 w-[75vw] max-w-[320px] sm:w-[320px] bg-card shadow-elevated overflow-y-auto z-50"
             >
               {/* User Profile Section */}
               <div className="gradient-hero text-primary-foreground px-4 py-4">
