@@ -111,18 +111,10 @@ export default function CompanyProfile() {
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>
       ) : (
         <Tabs defaultValue="branding" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList>
             <TabsTrigger value="branding" className="flex items-center gap-1.5 text-xs sm:text-sm">
               <Globe className="h-4 w-4" />
               Header Branding
-            </TabsTrigger>
-            <TabsTrigger value="details" className="flex items-center gap-1.5 text-xs sm:text-sm">
-              <Building2 className="h-4 w-4" />
-              Company Details
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-1.5 text-xs sm:text-sm">
-              <FileText className="h-4 w-4" />
-              Document Settings
             </TabsTrigger>
           </TabsList>
 
@@ -199,66 +191,6 @@ export default function CompanyProfile() {
                 <Button onClick={handleSave} disabled={saveMutation.isPending}>
                   {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Branding
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Company Details Tab */}
-          <TabsContent value="details">
-            <Card>
-              <CardContent className="p-6 space-y-6">
-                <div>
-                  <h2 className="text-xl font-bold">Company Details</h2>
-                  <p className="text-sm text-muted-foreground mt-1">Basic company contact information</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Company Name</Label>
-                    <Input value={form?.company_name || ""} onChange={(e) => updateField("company_name", e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Email</Label>
-                    <Input value={form?.email || ""} onChange={(e) => updateField("email", e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Phone</Label>
-                    <Input value={form?.phone || ""} onChange={(e) => updateField("phone", e.target.value)} />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label>Address</Label>
-                    <Input value={form?.address || ""} onChange={(e) => updateField("address", e.target.value)} />
-                  </div>
-                </div>
-                <Button onClick={handleSave} disabled={saveMutation.isPending}>
-                  {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                  Save Details
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Document Settings Tab */}
-          <TabsContent value="documents">
-            <Card>
-              <CardContent className="p-6 space-y-6">
-                <div>
-                  <h2 className="text-xl font-bold">Document Settings</h2>
-                  <p className="text-sm text-muted-foreground mt-1">Tax and registration details for invoices and documents</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>GST Number</Label>
-                    <Input value={form?.gst_number || ""} onChange={(e) => updateField("gst_number", e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>PAN Number</Label>
-                    <Input value={form?.pan_number || ""} onChange={(e) => updateField("pan_number", e.target.value)} />
-                  </div>
-                </div>
-                <Button onClick={handleSave} disabled={saveMutation.isPending}>
-                  {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                  Save Document Settings
                 </Button>
               </CardContent>
             </Card>
