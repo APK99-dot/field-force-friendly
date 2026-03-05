@@ -25,6 +25,7 @@ import PendingApprovals from "./pages/PendingApprovals";
 import Activities from "./pages/Activities";
 import ActivityTimeline from "./pages/ActivityTimeline";
 import SiteMasterPage from "./pages/SiteMaster";
+import InstallApp from "./pages/InstallApp";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/activities" element={<Activities />} />
             <Route path="/activity-timeline" element={<ActivityTimeline />} />
           </Route>
+          <Route path="/install" element={<InstallApp />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
