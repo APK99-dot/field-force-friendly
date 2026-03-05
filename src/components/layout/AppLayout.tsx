@@ -4,6 +4,7 @@ import { AppHeader } from "./AppHeader";
 import { BottomNav } from "./BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import ProfileSetupModal from "@/components/ProfileSetupModal";
+import PWAInstallBanner from "@/components/PWAInstallBanner";
 
 export function AppLayout() {
   const navigate = useNavigate();
