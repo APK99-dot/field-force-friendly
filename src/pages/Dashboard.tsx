@@ -20,7 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDashboard } from "@/hooks/useDashboard";
 import { supabase } from "@/integrations/supabase/client";
-import PWAInstallBanner from "@/components/PWAInstallBanner";
+
 
 const container = {
   hidden: { opacity: 0 },
