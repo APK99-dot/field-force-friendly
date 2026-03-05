@@ -20,7 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDashboard } from "@/hooks/useDashboard";
 import { supabase } from "@/integrations/supabase/client";
-import PWAInstallBanner from "@/components/PWAInstallBanner";
+
 
 const container = {
   hidden: { opacity: 0 },
@@ -104,9 +104,6 @@ export default function Dashboard() {
         initial="hidden"
         animate="show"
       >
-        {/* PWA Install Banner */}
-        <PWAInstallBanner />
-
         {/* Check-in Status Banner */}
         <motion.div variants={item}>
           {!dayStarted ? (
