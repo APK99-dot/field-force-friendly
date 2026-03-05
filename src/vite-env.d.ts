@@ -5,10 +5,6 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-declare global {
-  interface Window {
-    __deferredPWAPrompt?: BeforeInstallPromptEvent;
-  }
+interface Window {
+  __deferredPWAPrompt?: BeforeInstallPromptEvent;
 }
-
-export {};
