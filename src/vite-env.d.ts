@@ -10,3 +10,5 @@ declare global {
     __deferredPWAPrompt?: BeforeInstallPromptEvent;
   }
 }
+
+export {};
