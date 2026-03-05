@@ -302,7 +302,7 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit User: {user.full_name || user.email}</DialogTitle>
           <DialogDescription>Update user profile, managers and password</DialogDescription>
