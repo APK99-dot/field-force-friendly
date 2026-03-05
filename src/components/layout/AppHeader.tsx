@@ -3,6 +3,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationBell } from "@/components/NotificationBell";
+import { useQuery } from "@tanstack/react-query";
 import {
   Menu,
   ArrowLeft,
@@ -52,6 +53,18 @@ export function AppHeader() {
   const displayName = profile?.full_name || profile?.username || "";
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const { data: companyProfile } = useQuery({
+    queryKey: ["company-profile"],
+    queryFn: async () => {
+      const { data } = await supabase.from("company_profile").select("company_name, logo_url").limit(1).maybeSingle();
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const companyName = companyProfile?.company_name || "Company";
+  const companyLogo = companyProfile?.logo_url || null;
+
   const showBackButton = location.pathname !== "/dashboard" && location.pathname !== "/";
 
   // Close menu on outside click
@@ -100,10 +113,14 @@ export function AppHeader() {
               )}
               <NavLink to="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity text-primary-foreground">
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden bg-white/90 p-0.5">
-                  <Building2 className="w-6 h-6 text-primary" />
+                  {companyLogo ? (
+                    <img src={companyLogo} alt="Logo" className="w-full h-full object-contain" />
+                  ) : (
+                    <Building2 className="w-6 h-6 text-primary" />
+                  )}
                 </div>
                 <div>
-                  <h1 className="text-base font-semibold">Bharath Builders</h1>
+                  <h1 className="text-base font-semibold">{companyName}</h1>
                 </div>
               </NavLink>
             </div>
