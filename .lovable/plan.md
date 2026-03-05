@@ -1,38 +1,32 @@
 
 
-## Plan: Status Change with Location & Timestamp Capture
+## Problem Analysis
 
-### What Changes
+The core issue is a **race condition**: the browser's `beforeinstallprompt` event fires once, early during page load. At that point, the user is on `/auth` and `AppLayout` (which contains `PWAInstallBanner`) is not mounted. By the time the user logs in and reaches `/dashboard`, the event has already fired and been lost.
 
-When a user taps on an activity's status badge (e.g., "Planned"), a quick-action dropdown appears allowing them to change the status. On status change, the app automatically:
-1. Captures the user's current GPS location via the browser Geolocation API
-2. Records the current timestamp
-3. Updates the activity record with the new status, location coordinates, location address (via reverse geocoding), and start/end time based on status transition
-4. All data is stored in the existing `activity_events` table columns (`location_lat`, `location_lng`, `location_address`, `start_time`, `end_time`)
-5. Admin can see all this data in the activity cards and admin panel
+The 3-second fallback timer does show the banner, but since `deferredPrompt` is null, the "Install Now" button just dismisses instead of triggering installation -- making it appear broken.
 
-### Technical Details
+Additionally, the `BottomNav` component may visually overlap the fixed-bottom banner.
 
-**1. Add a `status_changed_at` and `status_change_location` columns** (migration)
-- Add `status_changed_at` (timestamptz) and `status_change_lat`/`status_change_lng` (numeric) columns to `activity_events` to track specifically when and where status was changed (separate from the activity's own time/location)
+## Plan
 
-**2. Update `ActivityCard` component** (`src/pages/Activities.tsx`)
-- Make the status Badge clickable — wrap it in a Popover or DropdownMenu
-- Show status options (Planned, In Progress, Completed)
-- On selection, call browser `navigator.geolocation.getCurrentPosition()` to capture lat/lng
-- Use a simple reverse geocode (or just store coordinates) to get an address
-- Call `updateActivity` with the new status + location + timestamp
+### 1. Capture `beforeinstallprompt` globally before React mounts
 
-**3. Update `useActivities` hook** (`src/hooks/useActivities.ts`)
-- Update `updateActivity` to also save `status_changed_at`, `status_change_lat`, `status_change_lng`, and `location_address`
-- Add these fields to the `Activity` interface
+In `index.html`, add a small inline script that listens for `beforeinstallprompt` immediately and stores it on `window.__deferredPWAPrompt`. This ensures the event is never lost regardless of which route the user is on.
 
-**4. Display in activity cards**
-- Show location and timestamp of last status change on the card (small text below status badge)
-- Admin panel already shows all activities — the new fields will be visible
+### 2. Update PWAInstallBanner to read the global prompt
 
-### Files Modified
-- `src/pages/Activities.tsx` — Clickable status badge with dropdown, geolocation capture
-- `src/hooks/useActivities.ts` — Updated interface and update function
-- Database migration — Add `status_changed_at`, `status_change_lat`, `status_change_lng` columns
+Modify the component to:
+- Check `window.__deferredPWAPrompt` on mount (to recover a prompt that fired before mount)
+- Still listen for the event in case it fires later
+- Add bottom padding to account for `BottomNav` overlap (e.g., `bottom-16` or similar)
+
+### 3. Add TypeScript declaration
+
+Add a global type declaration for `window.__deferredPWAPrompt` to avoid TS errors.
+
+### Files to modify
+- `index.html` -- add inline script to capture prompt globally
+- `src/components/PWAInstallBanner.tsx` -- read global prompt, fix bottom positioning
+- `src/vite-env.d.ts` -- add Window interface extension
 
