@@ -145,40 +145,34 @@ export function AppHeader() {
             >
               {/* User Profile Section */}
               <div className="gradient-hero text-primary-foreground px-4 py-4">
-                <div className="flex items-center justify-between mb-3">
-                  <NavLink to="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity text-primary-foreground">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-white/90 p-0.5">
-                      <Building2 className="w-5 h-5 text-primary" />
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => {
+                      navigate("/more");
+                      handleMenuItemClick();
+                    }}
+                    className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                  >
+                    <Avatar className="h-12 w-12 border-2 border-primary-foreground/30">
+                      <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col items-start">
+                      <span className="text-lg font-bold">{displayName}</span>
+                      <div className="flex items-center gap-1.5 text-xs opacity-90 mt-0.5">
+                        <Shield className="h-3.5 w-3.5" />
+                        <span className="font-medium">{isAdmin ? "Admin" : "User"}</span>
+                      </div>
                     </div>
-                    <span className="text-sm font-semibold">Bharath Builders</span>
-                  </NavLink>
+                  </button>
                   <button
                     onClick={() => setIsMenuOpen(false)}
-                    className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
                   >
-                    <X size={18} />
+                    <X size={20} />
                   </button>
                 </div>
-                <button
-                  onClick={() => {
-                    navigate("/more");
-                    handleMenuItemClick();
-                  }}
-                  className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-                >
-                  <Avatar className="h-12 w-12 border-2 border-primary-foreground/30">
-                    <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col items-start">
-                    <span className="text-lg font-bold">{displayName}</span>
-                    <div className="flex items-center gap-1.5 text-xs opacity-90 mt-0.5">
-                      <Shield className="h-3.5 w-3.5" />
-                      <span className="font-medium">{isAdmin ? "Admin" : "User"}</span>
-                    </div>
-                  </div>
-                </button>
               </div>
 
               <div className="p-4 space-y-5">
