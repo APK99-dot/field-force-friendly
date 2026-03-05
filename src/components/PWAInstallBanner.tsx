@@ -3,18 +3,16 @@ import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
 export default function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // Already installed as standalone
     if (window.matchMedia("(display-mode: standalone)").matches) return;
+
+    // Dismissed recently
     const dismissedAt = localStorage.getItem("pwa-banner-dismissed");
     if (dismissedAt && Date.now() - Number(dismissedAt) < 24 * 60 * 60 * 1000) return;
 
@@ -27,13 +25,23 @@ export default function PWAInstallBanner() {
       return;
     }
 
+    // Check if prompt was already captured globally before this component mounted
+    if (window.__deferredPWAPrompt) {
+      setDeferredPrompt(window.__deferredPWAPrompt);
+      setShowBanner(true);
+    }
+
+    // Also listen for the event in case it fires after mount
     const handler = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      const prompt = e as BeforeInstallPromptEvent;
+      window.__deferredPWAPrompt = prompt;
+      setDeferredPrompt(prompt);
       setShowBanner(true);
     };
     window.addEventListener("beforeinstallprompt", handler);
 
+    // Fallback: show banner after 3s even without the prompt (for browsers that don't support it)
     const fallbackTimer = setTimeout(() => {
       if (!window.matchMedia("(display-mode: standalone)").matches) {
         setShowBanner(true);
@@ -47,11 +55,14 @@ export default function PWAInstallBanner() {
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    // Re-read from global in case state missed it
+    const prompt = deferredPrompt || window.__deferredPWAPrompt;
+    if (!prompt) return;
+    await prompt.prompt();
+    const { outcome } = await prompt.userChoice;
     if (outcome === "accepted") setShowBanner(false);
     setDeferredPrompt(null);
+    window.__deferredPWAPrompt = undefined;
   };
 
   const handleDismiss = () => {
@@ -67,10 +78,9 @@ export default function PWAInstallBanner() {
         initial={{ opacity: 0, y: 60 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 60 }}
-        className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.1)] p-4"
+        className="fixed bottom-16 md:bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.1)] p-4"
       >
         <div className="max-w-lg mx-auto">
-          {/* Header row */}
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <Download className="h-5 w-5 text-foreground" />
@@ -83,15 +93,14 @@ export default function PWAInstallBanner() {
 
           <p className="text-xs text-muted-foreground mb-3">
             {isIOS
-              ? "Add Field Force Friendly to your Home Screen for a better experience"
-              : "Install Field Force Friendly for a better experience"}
+              ? "Tap the Share button, then 'Add to Home Screen' for a better experience"
+              : "Install this app for a better experience"}
           </p>
 
-          {/* Action buttons */}
           <div className="flex items-center gap-2">
             <Button
               className="flex-1 h-11 text-sm font-semibold"
-              onClick={deferredPrompt ? handleInstall : handleDismiss}
+              onClick={deferredPrompt || window.__deferredPWAPrompt ? handleInstall : handleDismiss}
             >
               <Download className="h-4 w-4 mr-2" />
               Install Now
