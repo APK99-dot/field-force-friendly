@@ -59,6 +59,7 @@ export function AppLayout() {
           }}
         />
       )}
+      <PWAInstallBanner />
     </div>
   );
 }

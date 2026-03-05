@@ -104,9 +104,6 @@ export default function Dashboard() {
         initial="hidden"
         animate="show"
       >
-        {/* PWA Install Banner */}
-        <PWAInstallBanner />
-
         {/* Check-in Status Banner */}
         <motion.div variants={item}>
           {!dayStarted ? (
