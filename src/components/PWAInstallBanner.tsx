@@ -8,6 +8,13 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+const getGlobalPrompt = (): BeforeInstallPromptEvent | null =>
+  (window as any).__deferredPWAPrompt ?? null;
+
+const setGlobalPrompt = (e: BeforeInstallPromptEvent | undefined) => {
+  (window as any).__deferredPWAPrompt = e;
+};
+
 export default function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showBanner, setShowBanner] = useState(false);
@@ -15,6 +22,7 @@ export default function PWAInstallBanner() {
 
   useEffect(() => {
     if (window.matchMedia("(display-mode: standalone)").matches) return;
+
     const dismissedAt = localStorage.getItem("pwa-banner-dismissed");
     if (dismissedAt && Date.now() - Number(dismissedAt) < 24 * 60 * 60 * 1000) return;
 
@@ -27,9 +35,18 @@ export default function PWAInstallBanner() {
       return;
     }
 
+    // Recover prompt captured globally before component mounted
+    const globalPrompt = getGlobalPrompt();
+    if (globalPrompt) {
+      setDeferredPrompt(globalPrompt);
+      setShowBanner(true);
+    }
+
     const handler = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      const prompt = e as BeforeInstallPromptEvent;
+      setGlobalPrompt(prompt);
+      setDeferredPrompt(prompt);
       setShowBanner(true);
     };
     window.addEventListener("beforeinstallprompt", handler);
@@ -47,11 +64,13 @@ export default function PWAInstallBanner() {
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    const prompt = deferredPrompt || getGlobalPrompt();
+    if (!prompt) return;
+    await prompt.prompt();
+    const { outcome } = await prompt.userChoice;
     if (outcome === "accepted") setShowBanner(false);
     setDeferredPrompt(null);
+    setGlobalPrompt(undefined);
   };
 
   const handleDismiss = () => {
@@ -61,16 +80,17 @@ export default function PWAInstallBanner() {
 
   if (!showBanner) return null;
 
+  const hasPrompt = !!(deferredPrompt || getGlobalPrompt());
+
   return (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0, y: 60 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 60 }}
-        className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.1)] p-4"
+        className="fixed bottom-16 md:bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.1)] p-4"
       >
         <div className="max-w-lg mx-auto">
-          {/* Header row */}
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <Download className="h-5 w-5 text-foreground" />
@@ -83,15 +103,14 @@ export default function PWAInstallBanner() {
 
           <p className="text-xs text-muted-foreground mb-3">
             {isIOS
-              ? "Add Field Force Friendly to your Home Screen for a better experience"
-              : "Install Field Force Friendly for a better experience"}
+              ? "Tap the Share button, then 'Add to Home Screen' for a better experience"
+              : "Install this app for a better experience"}
           </p>
 
-          {/* Action buttons */}
           <div className="flex items-center gap-2">
             <Button
               className="flex-1 h-11 text-sm font-semibold"
-              onClick={deferredPrompt ? handleInstall : handleDismiss}
+              onClick={hasPrompt ? handleInstall : handleDismiss}
             >
               <Download className="h-4 w-4 mr-2" />
               Install Now
