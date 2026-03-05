@@ -25,6 +25,7 @@ import PendingApprovals from "./pages/PendingApprovals";
 import Activities from "./pages/Activities";
 import ActivityTimeline from "./pages/ActivityTimeline";
 import SiteMasterPage from "./pages/SiteMaster";
+import InstallApp from "./pages/InstallApp";
 
 const queryClient = new QueryClient();
 
