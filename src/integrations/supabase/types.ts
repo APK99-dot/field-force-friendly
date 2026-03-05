@@ -2751,6 +2751,38 @@ export type Database = {
         }
         Relationships: []
       }
+      site_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          site_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          site_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          site_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_assignments_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "project_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           assigned_at: string
