@@ -3,16 +3,26 @@ import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+const getGlobalPrompt = (): BeforeInstallPromptEvent | null =>
+  (window as any).__deferredPWAPrompt ?? null;
+
+const setGlobalPrompt = (e: BeforeInstallPromptEvent | undefined) => {
+  (window as any).__deferredPWAPrompt = e;
+};
+
 export default function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    // Already installed as standalone
     if (window.matchMedia("(display-mode: standalone)").matches) return;
 
-    // Dismissed recently
     const dismissedAt = localStorage.getItem("pwa-banner-dismissed");
     if (dismissedAt && Date.now() - Number(dismissedAt) < 24 * 60 * 60 * 1000) return;
 
@@ -25,23 +35,22 @@ export default function PWAInstallBanner() {
       return;
     }
 
-    // Check if prompt was already captured globally before this component mounted
-    if (window.__deferredPWAPrompt) {
-      setDeferredPrompt(window.__deferredPWAPrompt);
+    // Recover prompt captured globally before component mounted
+    const globalPrompt = getGlobalPrompt();
+    if (globalPrompt) {
+      setDeferredPrompt(globalPrompt);
       setShowBanner(true);
     }
 
-    // Also listen for the event in case it fires after mount
     const handler = (e: Event) => {
       e.preventDefault();
       const prompt = e as BeforeInstallPromptEvent;
-      window.__deferredPWAPrompt = prompt;
+      setGlobalPrompt(prompt);
       setDeferredPrompt(prompt);
       setShowBanner(true);
     };
     window.addEventListener("beforeinstallprompt", handler);
 
-    // Fallback: show banner after 3s even without the prompt (for browsers that don't support it)
     const fallbackTimer = setTimeout(() => {
       if (!window.matchMedia("(display-mode: standalone)").matches) {
         setShowBanner(true);
@@ -55,14 +64,13 @@ export default function PWAInstallBanner() {
   }, []);
 
   const handleInstall = async () => {
-    // Re-read from global in case state missed it
-    const prompt = deferredPrompt || window.__deferredPWAPrompt;
+    const prompt = deferredPrompt || getGlobalPrompt();
     if (!prompt) return;
     await prompt.prompt();
     const { outcome } = await prompt.userChoice;
     if (outcome === "accepted") setShowBanner(false);
     setDeferredPrompt(null);
-    window.__deferredPWAPrompt = undefined;
+    setGlobalPrompt(undefined);
   };
 
   const handleDismiss = () => {
@@ -71,6 +79,8 @@ export default function PWAInstallBanner() {
   };
 
   if (!showBanner) return null;
+
+  const hasPrompt = !!(deferredPrompt || getGlobalPrompt());
 
   return (
     <AnimatePresence>
@@ -100,7 +110,7 @@ export default function PWAInstallBanner() {
           <div className="flex items-center gap-2">
             <Button
               className="flex-1 h-11 text-sm font-semibold"
-              onClick={deferredPrompt || window.__deferredPWAPrompt ? handleInstall : handleDismiss}
+              onClick={hasPrompt ? handleInstall : handleDismiss}
             >
               <Download className="h-4 w-4 mr-2" />
               Install Now
