@@ -86,6 +86,9 @@ Deno.serve(async (req) => {
       user: "Field User",
       sales_manager: "Sales Manager",
       data_viewer: "Data Viewer",
+      site_engineer: "Site Engineer",
+      sales_marketing_executive: "Sales and Marketing Executive",
+      accountant: "Accountant",
     };
     let roleId = null;
     if (role && roleNameMap[role]) {
