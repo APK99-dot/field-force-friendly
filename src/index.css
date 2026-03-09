@@ -122,6 +122,12 @@
   }
   body, #root {
     padding-top: env(safe-area-inset-top);
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+    overflow-x: hidden;
   }
   body {
     @apply bg-background text-foreground antialiased;

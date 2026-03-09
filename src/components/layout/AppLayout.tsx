@@ -43,7 +43,7 @@ export function AppLayout() {
   const showProfileSetup = userId && onboardingCompleted === false && profilePictureUrl === null;
 
   return (
-    <div className="min-h-screen flex flex-col w-full bg-background">
+    <div className="min-h-screen flex flex-col w-full max-w-full bg-background overflow-x-hidden">
       <AppHeader />
       <main className="flex-1 overflow-y-auto">
         <Outlet />
