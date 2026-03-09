@@ -120,13 +120,12 @@
   * {
     @apply border-border;
   }
-  body, #root {
-    padding-top: env(safe-area-inset-top);
+  html, body, #root {
+    margin: 0;
+    padding: 0;
     width: 100%;
     max-width: 100%;
-    margin: 0;
-    padding-left: 0;
-    padding-right: 0;
+    height: 100%;
     overflow-x: hidden;
   }
   body {
