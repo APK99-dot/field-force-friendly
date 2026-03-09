@@ -1,26 +1,38 @@
 
 
-## Problem
-The app UI overlaps with the system status bar on Android APK WebView and iOS Safari/PWA because there's no safe-area-inset handling for the top of the screen.
+## Plan: Status Change with Location & Timestamp Capture
 
-## Plan
+### What Changes
 
-### 1. `index.html` — Add `viewport-fit=cover` to the viewport meta tag
+When a user taps on an activity's status badge (e.g., "Planned"), a quick-action dropdown appears allowing them to change the status. On status change, the app automatically:
+1. Captures the user's current GPS location via the browser Geolocation API
+2. Records the current timestamp
+3. Updates the activity record with the new status, location coordinates, location address (via reverse geocoding), and start/end time based on status transition
+4. All data is stored in the existing `activity_events` table columns (`location_lat`, `location_lng`, `location_address`, `start_time`, `end_time`)
+5. Admin can see all this data in the activity cards and admin panel
 
-### 2. `src/index.css` — Add safe-area top padding to body/#root
-```css
-body, #root {
-  padding-top: env(safe-area-inset-top);
-}
-```
+### Technical Details
 
-### 3. `src/components/layout/AppHeader.tsx` — Add safe-area top padding to the sticky navbar
-Change the nav element to include `safe-top` class (already defined in CSS as `padding-top: env(safe-area-inset-top)`).
+**1. Add a `status_changed_at` and `status_change_location` columns** (migration)
+- Add `status_changed_at` (timestamptz) and `status_change_lat`/`status_change_lng` (numeric) columns to `activity_events` to track specifically when and where status was changed (separate from the activity's own time/location)
 
-### Files
-- `index.html` — viewport meta update
-- `src/index.css` — body/root safe-area padding
-- `src/components/layout/AppHeader.tsx` — navbar safe-area class
+**2. Update `ActivityCard` component** (`src/pages/Activities.tsx`)
+- Make the status Badge clickable — wrap it in a Popover or DropdownMenu
+- Show status options (Planned, In Progress, Completed)
+- On selection, call browser `navigator.geolocation.getCurrentPosition()` to capture lat/lng
+- Use a simple reverse geocode (or just store coordinates) to get an address
+- Call `updateActivity` with the new status + location + timestamp
 
-No changes to scrolling, bottom nav, or existing layout structure.
+**3. Update `useActivities` hook** (`src/hooks/useActivities.ts`)
+- Update `updateActivity` to also save `status_changed_at`, `status_change_lat`, `status_change_lng`, and `location_address`
+- Add these fields to the `Activity` interface
+
+**4. Display in activity cards**
+- Show location and timestamp of last status change on the card (small text below status badge)
+- Admin panel already shows all activities — the new fields will be visible
+
+### Files Modified
+- `src/pages/Activities.tsx` — Clickable status badge with dropdown, geolocation capture
+- `src/hooks/useActivities.ts` — Updated interface and update function
+- Database migration — Add `status_changed_at`, `status_change_lat`, `status_change_lng` columns
 
