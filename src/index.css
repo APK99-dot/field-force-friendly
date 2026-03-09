@@ -120,6 +120,9 @@
   * {
     @apply border-border;
   }
+  body, #root {
+    padding-top: env(safe-area-inset-top);
+  }
   body {
     @apply bg-background text-foreground antialiased;
   }
