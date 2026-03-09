@@ -161,7 +161,7 @@ export function AppHeader() {
               className="fixed top-0 right-0 bottom-0 w-[75vw] max-w-[320px] sm:w-[320px] bg-card shadow-elevated overflow-y-auto z-50"
             >
               {/* User Profile Section */}
-              <div className="gradient-hero text-primary-foreground px-4 py-4">
+              <div className="gradient-hero text-primary-foreground px-4 py-4 safe-top">
                 <div className="flex items-center justify-between">
                   <button
                     onClick={() => {
