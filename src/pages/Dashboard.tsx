@@ -84,15 +84,6 @@ export default function Dashboard() {
                 <h1 className="text-base font-bold leading-tight">{displayName}</h1>
                 <p className="text-[10px] opacity-70">{isAdmin ? "Admin" : "Team Member"}</p>
               </div>
-            </div>
-            <Button
-              size="sm"
-              className="bg-white/20 hover:bg-white/30 text-white border-0 h-9 px-3"
-              onClick={() => navigate("/projects")}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              <span className="text-xs">New Project</span>
-            </Button>
           </div>
         </div>
       </div>
