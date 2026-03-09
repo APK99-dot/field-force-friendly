@@ -69,7 +69,7 @@ export default function Dashboard() {
       <div className="relative overflow-hidden gradient-hero text-primary-foreground">
         <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent" />
         <div className="relative p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center">
             <div
               className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => navigate("/more")}
@@ -84,6 +84,7 @@ export default function Dashboard() {
                 <h1 className="text-base font-bold leading-tight">{displayName}</h1>
                 <p className="text-[10px] opacity-70">{isAdmin ? "Admin" : "Team Member"}</p>
               </div>
+            </div>
           </div>
         </div>
       </div>
