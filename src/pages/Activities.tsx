@@ -908,15 +908,12 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete }: { a: ActivityType; isAdm
       };
 
       // Capture GPS location
-      if (navigator.geolocation) {
-        try {
-          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
-          });
-          updates.status_change_lat = pos.coords.latitude;
-          updates.status_change_lng = pos.coords.longitude;
-          updates.location_lat = pos.coords.latitude;
-          updates.location_lng = pos.coords.longitude;
+      try {
+        const pos = await getCurrentPosition();
+        updates.status_change_lat = pos.latitude;
+        updates.status_change_lng = pos.longitude;
+        updates.location_lat = pos.latitude;
+        updates.location_lng = pos.longitude;
 
           // Reverse geocode
           try {

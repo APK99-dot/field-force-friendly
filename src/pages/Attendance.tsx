@@ -192,10 +192,7 @@ export default function Attendance() {
       setProcessingStep("location");
       let location: any = null;
       try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
-        );
-        location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy };
+        location = await getCurrentPosition();
       } catch {}
 
       // Step 2: Upload photo
