@@ -13,6 +13,7 @@ import { CheckCircle, XCircle, LogOut, Loader2, Clock, Edit3, Camera, Shield, Ma
 import jsPDF from "jspdf";
 
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentPosition } from "@/utils/nativePermissions";
 import MyTeamAttendance from "@/components/attendance/MyTeamAttendance";
 import { useAttendance, isWeekOffDate } from "@/hooks/useAttendance";
 import { useFaceMatching } from "@/hooks/useFaceMatching";
@@ -191,10 +192,7 @@ export default function Attendance() {
       setProcessingStep("location");
       let location: any = null;
       try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
-        );
-        location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy };
+        location = await getCurrentPosition();
       } catch {}
 
       // Step 2: Upload photo

@@ -1,66 +1,38 @@
 
 
-## Plan: Set Up Capacitor for APK Generation with Native Permissions
+## Plan: Status Change with Location & Timestamp Capture
 
-### What This Does
-Converts the existing PWA into a native Android APK using Capacitor, ensuring camera, location, and other required permissions work properly within the native WebView.
+### What Changes
 
-### Features Requiring Native Permissions
+When a user taps on an activity's status badge (e.g., "Planned"), a quick-action dropdown appears allowing them to change the status. On status change, the app automatically:
+1. Captures the user's current GPS location via the browser Geolocation API
+2. Records the current timestamp
+3. Updates the activity record with the new status, location coordinates, location address (via reverse geocoding), and start/end time based on status transition
+4. All data is stored in the existing `activity_events` table columns (`location_lat`, `location_lng`, `location_address`, `start_time`, `end_time`)
+5. Admin can see all this data in the activity cards and admin panel
 
-| Feature | Permission Needed |
-|---------|------------------|
-| Attendance selfie (face verification) | Camera (`getUserMedia`) |
-| Check-in/Check-out location | Geolocation |
-| GPS Tracking (current location, day tracking) | Geolocation |
-| Activity status change location capture | Geolocation |
-| Visit check-in/check-out location | Geolocation |
-| Photo uploads (profile, attendance) | Camera + Storage |
+### Technical Details
 
-### Technical Steps
+**1. Add a `status_changed_at` and `status_change_location` columns** (migration)
+- Add `status_changed_at` (timestamptz) and `status_change_lat`/`status_change_lng` (numeric) columns to `activity_events` to track specifically when and where status was changed (separate from the activity's own time/location)
 
-**1. Install Capacitor dependencies**
-- `@capacitor/core`, `@capacitor/cli`, `@capacitor/ios`, `@capacitor/android`
-- `@capacitor/camera`, `@capacitor/geolocation` (native plugins for reliable access)
+**2. Update `ActivityCard` component** (`src/pages/Activities.tsx`)
+- Make the status Badge clickable — wrap it in a Popover or DropdownMenu
+- Show status options (Planned, In Progress, Completed)
+- On selection, call browser `navigator.geolocation.getCurrentPosition()` to capture lat/lng
+- Use a simple reverse geocode (or just store coordinates) to get an address
+- Call `updateActivity` with the new status + location + timestamp
 
-**2. Create `capacitor.config.ts`**
-- Set `appId: "app.lovable.8df6a1b7334f41738b22176a340f5d67"`
-- Set `appName: "field-force-friendly"`
-- Configure live-reload server URL pointing to the sandbox preview
-- Add Android-specific settings for permissions
+**3. Update `useActivities` hook** (`src/hooks/useActivities.ts`)
+- Update `updateActivity` to also save `status_changed_at`, `status_change_lat`, `status_change_lng`, and `location_address`
+- Add these fields to the `Activity` interface
 
-**3. Add Android permission declarations**
-- Create/update `android/app/src/main/AndroidManifest.xml` permissions (this happens automatically via `npx cap add android`, but we document the required permissions):
-  - `CAMERA`
-  - `ACCESS_FINE_LOCATION`
-  - `ACCESS_COARSE_LOCATION`
-  - `ACCESS_BACKGROUND_LOCATION` (for GPS tracking)
-  - `INTERNET`
-  - `READ_EXTERNAL_STORAGE` / `WRITE_EXTERNAL_STORAGE`
+**4. Display in activity cards**
+- Show location and timestamp of last status change on the card (small text below status badge)
+- Admin panel already shows all activities — the new fields will be visible
 
-**4. Create a Capacitor permission helper utility** (`src/utils/nativePermissions.ts`)
-- Detect if running inside Capacitor (`Capacitor.isNativePlatform()`)
-- Provide helper functions that use Capacitor plugins (Camera, Geolocation) when native, and fall back to browser APIs when running as PWA
-- This ensures the same codebase works in both browser and APK
-
-**5. Update camera and location usage across the app**
-- `CameraCapture.tsx` — Use `@capacitor/camera` when native, fallback to `getUserMedia`
-- `useAttendance.ts`, `useVisits.ts`, `Activities.tsx`, `GPSTracking.tsx` — Use `@capacitor/geolocation` when native, fallback to browser geolocation
-- This dual approach keeps the PWA working while enabling full native access in the APK
-
-**6. Post-setup instructions for the user**
-- Export project to GitHub
-- Run `npm install` → `npx cap add android` → `npm run build` → `npx cap sync`
-- Open in Android Studio: `npx cap open android`
-- Build APK from Android Studio
-
-### Files to Create/Modify
-- `capacitor.config.ts` — New config file
-- `src/utils/nativePermissions.ts` — New permission helper
-- `src/components/CameraCapture.tsx` — Add Capacitor camera fallback
-- `src/hooks/useAttendance.ts` — Use Capacitor geolocation
-- `src/hooks/useVisits.ts` — Use Capacitor geolocation
-- `src/pages/GPSTracking.tsx` — Use Capacitor geolocation
-- `src/pages/Activities.tsx` — Use Capacitor geolocation
-- `src/pages/Attendance.tsx` — Use Capacitor geolocation
-- `package.json` — New Capacitor dependencies
+### Files Modified
+- `src/pages/Activities.tsx` — Clickable status badge with dropdown, geolocation capture
+- `src/hooks/useActivities.ts` — Updated interface and update function
+- Database migration — Add `status_changed_at`, `status_change_lat`, `status_change_lng` columns
 

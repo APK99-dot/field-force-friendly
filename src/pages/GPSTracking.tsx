@@ -19,6 +19,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { MapPin, AlertTriangle, RefreshCw, Clock, Navigation, Users, CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentPosition } from "@/utils/nativePermissions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -114,29 +115,19 @@ export default function GPSTracking() {
 
   // Get current location
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          setLocationError(false);
-        },
-        () => setLocationError(true),
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    } else {
-      setLocationError(true);
-    }
+    getCurrentPosition()
+      .then((pos) => {
+        setLocation({ lat: pos.latitude, lng: pos.longitude });
+        setLocationError(false);
+      })
+      .catch(() => setLocationError(true));
   }, []);
 
   const retryLocation = () => {
     setLocationError(false);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => setLocationError(true),
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    }
+    getCurrentPosition()
+      .then((pos) => setLocation({ lat: pos.latitude, lng: pos.longitude }))
+      .catch(() => setLocationError(true));
   };
 
   // Fetch subordinate current locations

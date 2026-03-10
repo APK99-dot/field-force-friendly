@@ -45,6 +45,7 @@ import {
   Timer,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentPosition } from "@/utils/nativePermissions";
 import { useActivities, type Activity as ActivityType } from "@/hooks/useActivities";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
@@ -907,28 +908,24 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete }: { a: ActivityType; isAdm
       };
 
       // Capture GPS location
-      if (navigator.geolocation) {
-        try {
-          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
-          });
-          updates.status_change_lat = pos.coords.latitude;
-          updates.status_change_lng = pos.coords.longitude;
-          updates.location_lat = pos.coords.latitude;
-          updates.location_lng = pos.coords.longitude;
+      try {
+        const pos = await getCurrentPosition();
+        updates.status_change_lat = pos.latitude;
+        updates.status_change_lng = pos.longitude;
+        updates.location_lat = pos.latitude;
+        updates.location_lng = pos.longitude;
 
-          // Reverse geocode
-          try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`);
-            const geo = await res.json();
-            if (geo.display_name) {
-              updates.location_address = geo.display_name;
-            }
-          } catch {}
-        } catch (geoErr) {
-          console.warn("Geolocation failed:", geoErr);
-          toast.error("Could not capture location. Status updated without location.");
-        }
+        // Reverse geocode
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.latitude}&lon=${pos.longitude}&format=json`);
+          const geo = await res.json();
+          if (geo.display_name) {
+            updates.location_address = geo.display_name;
+          }
+        } catch {}
+      } catch (geoErr) {
+        console.warn("Geolocation failed:", geoErr);
+        toast.error("Could not capture location. Status updated without location.");
       }
 
       // Set start/end time based on transition

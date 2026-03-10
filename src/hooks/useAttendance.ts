@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { getCurrentPosition } from "@/utils/nativePermissions";
 
 interface AttendanceRecord {
   id: string;
@@ -132,10 +133,7 @@ export function useAttendance(userId: string | undefined) {
     let location = data?.location || null;
     if (!location) {
       try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
-        );
-        location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy };
+        location = await getCurrentPosition();
       } catch {}
     }
 
@@ -167,10 +165,7 @@ export function useAttendance(userId: string | undefined) {
     let location = data?.location || null;
     if (!location) {
       try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
-        );
-        location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy };
+        location = await getCurrentPosition();
       } catch {}
     }
 
