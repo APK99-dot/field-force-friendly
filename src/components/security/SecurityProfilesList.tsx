@@ -181,15 +181,15 @@ export default function SecurityProfilesList({ onSelectProfile, selectedProfileI
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-xl font-semibold">Security Profiles</h2>
-              <p className="text-sm text-muted-foreground">Define user roles with different permission sets</p>
+        <CardContent className="p-4 md:p-5">
+          <div className="flex items-start sm:items-center justify-between mb-5 gap-3">
+            <div className="min-w-0">
+              <h2 className="text-lg md:text-xl font-semibold">Security Profiles</h2>
+              <p className="text-xs md:text-sm text-muted-foreground">Define user roles with different permission sets</p>
             </div>
             <Dialog open={addOpen} onOpenChange={setAddOpen}>
               <DialogTrigger asChild>
-                <Button><Plus className="h-4 w-4 mr-1.5" />Create Profile</Button>
+                <Button size="sm" className="shrink-0"><Plus className="h-4 w-4 mr-1.5" />Create Profile</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>Create Security Profile</DialogTitle></DialogHeader>
@@ -210,79 +210,116 @@ export default function SecurityProfilesList({ onSelectProfile, selectedProfileI
             </Dialog>
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-xs font-medium text-muted-foreground">Profile Name</TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground">Description</TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground text-center">Type</TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground text-center">Users</TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {profiles.map((profile) => (
-                <TableRow
-                  key={profile.id}
-                  className={`cursor-pointer transition-colors ${selectedProfileId === profile.id ? "bg-primary/5" : ""}`}
-                  onClick={() => onSelectProfile?.(profile)}
-                >
-                  <TableCell className="py-3">
-                    <div className="flex items-center gap-2.5">
-                      <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="font-medium text-sm">{profile.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3 text-sm text-muted-foreground max-w-[300px]">
-                    {profile.description || "—"}
-                  </TableCell>
-                  <TableCell className="py-3 text-center">
-                    <Badge
-                      variant={profile.is_system ? "secondary" : "outline"}
-                      className="text-[11px] px-2 py-0.5"
-                    >
-                      {profile.is_system ? "System" : "Custom"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="py-3 text-center">
-                    <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground">
-                      <Users2 className="h-3.5 w-3.5" />
-                      <span className="font-medium">{userCounts[profile.id] || 0}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={(e) => { e.stopPropagation(); openEdit(profile); }}
-                      >
-                        <Pencil className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                      {profile.name !== "System Administrator" && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => { e.stopPropagation(); openDelete(profile); }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+          {/* Desktop Table */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-xs font-medium text-muted-foreground">Profile Name</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground">Description</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground text-center">Type</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground text-center">Users</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {profiles.map((profile) => (
+                  <TableRow
+                    key={profile.id}
+                    className={`cursor-pointer transition-colors ${selectedProfileId === profile.id ? "bg-primary/5" : ""}`}
+                    onClick={() => onSelectProfile?.(profile)}
+                  >
+                    <TableCell className="py-3">
+                      <div className="flex items-center gap-2.5">
+                        <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="font-medium text-sm">{profile.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-3 text-sm text-muted-foreground max-w-[300px]">
+                      {profile.description || "—"}
+                    </TableCell>
+                    <TableCell className="py-3 text-center">
+                      <Badge variant={profile.is_system ? "secondary" : "outline"} className="text-[11px] px-2 py-0.5">
+                        {profile.is_system ? "System" : "Custom"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="py-3 text-center">
+                      <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground">
+                        <Users2 className="h-3.5 w-3.5" />
+                        <span className="font-medium">{userCounts[profile.id] || 0}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(profile); }}>
+                          <Pencil className="h-4 w-4 text-muted-foreground" />
                         </Button>
-                      )}
+                        {profile.name !== "System Administrator" && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openDelete(profile); }}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {profiles.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
+                      No security profiles found. Create one to get started.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Card List */}
+          <div className="md:hidden space-y-3">
+            {profiles.map((profile) => (
+              <div
+                key={profile.id}
+                className={`border border-border rounded-lg p-3.5 cursor-pointer transition-colors ${selectedProfileId === profile.id ? "bg-primary/5 border-primary/30" : ""}`}
+                onClick={() => onSelectProfile?.(profile)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="font-medium text-sm truncate">{profile.name}</span>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {profiles.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
-                    No security profiles found. Create one to get started.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                    <p className="text-xs text-muted-foreground line-clamp-2 ml-6">
+                      {profile.description || "No description"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(profile); }}>
+                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                    {profile.name !== "System Administrator" && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openDelete(profile); }}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-2 ml-6">
+                  <Badge variant={profile.is_system ? "secondary" : "outline"} className="text-[10px] px-1.5 py-0">
+                    {profile.is_system ? "System" : "Custom"}
+                  </Badge>
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <Users2 className="h-3 w-3" />
+                    {userCounts[profile.id] || 0} users
+                  </span>
+                </div>
+              </div>
+            ))}
+            {profiles.length === 0 && (
+              <p className="text-center py-8 text-muted-foreground text-sm">
+                No security profiles found. Create one to get started.
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 
