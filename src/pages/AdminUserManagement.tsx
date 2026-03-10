@@ -752,26 +752,25 @@ export default function AdminUserManagement() {
       </div>
 
       {/* Role-based stat cards */}
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      <div className="grid grid-cols-3 md:flex gap-2 md:gap-3 md:overflow-x-auto pb-1">
         {/* Total Users card */}
-        <Card className="min-w-[120px] flex-shrink-0 border-t-2 border-t-foreground">
-          <CardContent className="p-3 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Total Users</p>
-            <div className="flex items-center justify-center gap-1.5">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xl font-bold">{appUsers.length}</span>
+        <Card className="border-t-2 border-t-foreground">
+          <CardContent className="p-2.5 md:p-3 text-center">
+            <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Total</p>
+            <div className="flex items-center justify-center gap-1">
+              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-lg md:text-xl font-bold">{appUsers.length}</span>
             </div>
           </CardContent>
         </Card>
-        {roleCounts.map((rc) => {
+        {roleCounts.slice(0, 5).map((rc) => {
           const colors = getRoleColor(rc.name);
           return (
-            <Card key={rc.name} className={`min-w-[120px] flex-shrink-0 border-t-2 ${colors.border}`}>
-              <CardContent className="p-3 text-center">
-                <p className={`text-xs mb-1 ${colors.text}`}>{rc.name}</p>
-                <div className="flex items-center justify-center gap-1.5">
-                  <Users className={`h-4 w-4 ${colors.text}`} />
-                  <span className="text-xl font-bold">{rc.count}</span>
+            <Card key={rc.name} className={`border-t-2 ${colors.border} md:min-w-[120px] md:flex-shrink-0`}>
+              <CardContent className="p-2.5 md:p-3 text-center">
+                <p className={`text-[10px] md:text-xs mb-0.5 truncate ${colors.text}`}>{rc.name}</p>
+                <div className="flex items-center justify-center gap-1">
+                  <span className="text-lg md:text-xl font-bold">{rc.count}</span>
                 </div>
               </CardContent>
             </Card>
