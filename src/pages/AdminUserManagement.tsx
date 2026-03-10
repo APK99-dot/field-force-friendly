@@ -387,12 +387,12 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
             </div>
           </TabsContent>
         </Tabs>
-        <div className="flex items-center justify-between mt-4 pt-4 border-t">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mt-4 pt-4 border-t gap-2">
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950"
+              className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950 text-xs"
               onClick={handleDeleteData}
               disabled={deletingData}
             >
@@ -401,15 +401,16 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
             <Button
               variant="destructive"
               size="sm"
+              className="text-xs"
               onClick={() => { onOpenChange(false); onDeleteUser(user); }}
             >
               Delete User
             </Button>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleSave} disabled={loading}>
-              {loading ? "Saving..." : "Save Changes"}
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" size="sm" className="text-xs" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button size="sm" className="text-xs" onClick={handleSave} disabled={loading}>
+              {loading ? "Saving..." : "Save"}
             </Button>
           </div>
         </div>
