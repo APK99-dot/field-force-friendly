@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { getCurrentPosition } from "@/utils/nativePermissions";
 
 export function useVisits(userId: string | undefined, selectedDate: string) {
   const queryClient = useQueryClient();
