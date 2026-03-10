@@ -57,31 +57,29 @@ export default function SecurityManagement() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div className="overflow-x-auto -mx-4 px-4">
-            <TabsList className="bg-transparent border-b border-border rounded-none w-max min-w-full justify-start h-auto p-0 gap-0">
+          <TabsList className="bg-transparent border-b border-border rounded-none w-full justify-start h-auto p-0 gap-0">
               <TabsTrigger
                 value="profiles"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 md:px-4 py-2.5 text-xs md:text-sm gap-1.5 text-muted-foreground data-[state=active]:text-foreground whitespace-nowrap"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none flex-1 px-2 md:px-4 py-2.5 text-xs md:text-sm gap-1 md:gap-1.5 text-muted-foreground data-[state=active]:text-foreground"
               >
-                <KeyRound className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                <KeyRound className="h-3.5 w-3.5 hidden md:inline-block" />
                 Profiles
               </TabsTrigger>
               <TabsTrigger
                 value="permissions"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 md:px-4 py-2.5 text-xs md:text-sm gap-1.5 text-muted-foreground data-[state=active]:text-foreground whitespace-nowrap"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none flex-1 px-2 md:px-4 py-2.5 text-xs md:text-sm gap-1 md:gap-1.5 text-muted-foreground data-[state=active]:text-foreground"
               >
-                <Shield className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                Role Permissions
+                <Shield className="h-3.5 w-3.5 hidden md:inline-block" />
+                Permissions
               </TabsTrigger>
               <TabsTrigger
                 value="assignments"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 md:px-4 py-2.5 text-xs md:text-sm gap-1.5 text-muted-foreground data-[state=active]:text-foreground whitespace-nowrap"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none flex-1 px-2 md:px-4 py-2.5 text-xs md:text-sm gap-1 md:gap-1.5 text-muted-foreground data-[state=active]:text-foreground"
               >
-                <Users2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                Permission Groups
+                <Users2 className="h-3.5 w-3.5 hidden md:inline-block" />
+                Groups
               </TabsTrigger>
             </TabsList>
-          </div>
 
           <TabsContent value="profiles" className="mt-5">
             <SecurityProfilesList />
