@@ -915,18 +915,17 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete }: { a: ActivityType; isAdm
         updates.location_lat = pos.latitude;
         updates.location_lng = pos.longitude;
 
-          // Reverse geocode
-          try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`);
-            const geo = await res.json();
-            if (geo.display_name) {
-              updates.location_address = geo.display_name;
-            }
-          } catch {}
-        } catch (geoErr) {
-          console.warn("Geolocation failed:", geoErr);
-          toast.error("Could not capture location. Status updated without location.");
-        }
+        // Reverse geocode
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.latitude}&lon=${pos.longitude}&format=json`);
+          const geo = await res.json();
+          if (geo.display_name) {
+            updates.location_address = geo.display_name;
+          }
+        } catch {}
+      } catch (geoErr) {
+        console.warn("Geolocation failed:", geoErr);
+        toast.error("Could not capture location. Status updated without location.");
       }
 
       // Set start/end time based on transition
