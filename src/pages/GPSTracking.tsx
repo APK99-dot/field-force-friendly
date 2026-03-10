@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import { motion } from "framer-motion";
-import { format, subDays } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,9 +11,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MapPin, AlertTriangle, RefreshCw, Clock, Navigation } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { MapPin, AlertTriangle, RefreshCw, Clock, Navigation, Users, CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const LeafletMap = lazy(() =>
   import("@/components/LeafletMap").catch(() => {
@@ -22,7 +29,7 @@ const LeafletMap = lazy(() =>
   })
 );
 
-type DateRange = "today" | "week" | "month";
+type DateRangeOption = "today" | "this_week" | "this_month" | "custom";
 
 interface TeamMember {
   id: string;
@@ -45,18 +52,41 @@ interface GPSStop {
   reason: string | null;
 }
 
+interface SubordinateLocation {
+  user_id: string;
+  full_name: string;
+  latitude: number;
+  longitude: number;
+  timestamp: string;
+}
+
+interface ActivityAtLocation {
+  lat: number;
+  lng: number;
+  name: string;
+  activity_type?: string;
+  status?: string;
+  timestamp?: string;
+}
+
 export default function GPSTracking() {
   const [activeTab, setActiveTab] = useState("current");
-  const [dateRange, setDateRange] = useState<DateRange>("today");
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState(false);
 
+  // Current Location - subordinates
+  const [subordinateLocations, setSubordinateLocations] = useState<SubordinateLocation[]>([]);
+  const [showSubordinates, setShowSubordinates] = useState(false);
+
   // Day Tracking state
-  const [trackingDate, setTrackingDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [dateRangeOption, setDateRangeOption] = useState<DateRangeOption>("today");
+  const [customFromDate, setCustomFromDate] = useState<Date | undefined>(new Date());
+  const [customToDate, setCustomToDate] = useState<Date | undefined>(new Date());
   const [selectedUser, setSelectedUser] = useState<string>("me");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [gpsPoints, setGpsPoints] = useState<GPSPoint[]>([]);
   const [gpsStops, setGpsStops] = useState<GPSStop[]>([]);
+  const [activityMarkers, setActivityMarkers] = useState<ActivityAtLocation[]>([]);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -82,7 +112,7 @@ export default function GPSTracking() {
     fetchTeam();
   }, [currentUserId]);
 
-  // Get current location for Current Location tab
+  // Get current location
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -109,59 +139,171 @@ export default function GPSTracking() {
     }
   };
 
-  // Fetch GPS tracking data for Day Tracking
+  // Fetch subordinate current locations
+  const fetchSubordinateLocations = useCallback(async () => {
+    if (!currentUserId) return;
+    try {
+      // Get subordinates
+      const { data: subs } = await supabase.rpc("get_user_hierarchy", { _manager_id: currentUserId });
+      if (!subs || subs.length === 0) {
+        setSubordinateLocations([]);
+        return;
+      }
+      const subIds = subs.map((s: any) => s.user_id);
+      const today = format(new Date(), "yyyy-MM-dd");
+
+      // Get latest GPS point for each subordinate today
+      const { data: gpsData } = await supabase
+        .from("gps_tracking")
+        .select("user_id, latitude, longitude, timestamp")
+        .in("user_id", subIds)
+        .eq("date", today)
+        .order("timestamp", { ascending: false });
+
+      // Get user names
+      const { data: users } = await supabase
+        .from("users")
+        .select("id, full_name")
+        .in("id", subIds);
+
+      const nameMap = new Map((users || []).map((u: any) => [u.id, u.full_name || "Unknown"]));
+
+      // Get latest per user
+      const latestMap = new Map<string, any>();
+      (gpsData || []).forEach((p: any) => {
+        if (!latestMap.has(p.user_id)) latestMap.set(p.user_id, p);
+      });
+
+      const locations: SubordinateLocation[] = [];
+      latestMap.forEach((p, userId) => {
+        locations.push({
+          user_id: userId,
+          full_name: nameMap.get(userId) || "Unknown",
+          latitude: p.latitude,
+          longitude: p.longitude,
+          timestamp: p.timestamp,
+        });
+      });
+      setSubordinateLocations(locations);
+    } catch (err: any) {
+      console.error("Error fetching subordinate locations:", err);
+    }
+  }, [currentUserId]);
+
+  useEffect(() => {
+    if (activeTab === "current" && showSubordinates) {
+      fetchSubordinateLocations();
+    }
+  }, [activeTab, showSubordinates, fetchSubordinateLocations]);
+
+  // Compute date range for Day Tracking
+  const getDateRange = useCallback((): { from: string; to: string } => {
+    const today = new Date();
+    switch (dateRangeOption) {
+      case "today":
+        return { from: format(today, "yyyy-MM-dd"), to: format(today, "yyyy-MM-dd") };
+      case "this_week":
+        return {
+          from: format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+          to: format(endOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+        };
+      case "this_month":
+        return {
+          from: format(startOfMonth(today), "yyyy-MM-dd"),
+          to: format(endOfMonth(today), "yyyy-MM-dd"),
+        };
+      case "custom":
+        return {
+          from: customFromDate ? format(customFromDate, "yyyy-MM-dd") : format(today, "yyyy-MM-dd"),
+          to: customToDate ? format(customToDate, "yyyy-MM-dd") : format(today, "yyyy-MM-dd"),
+        };
+      default:
+        return { from: format(today, "yyyy-MM-dd"), to: format(today, "yyyy-MM-dd") };
+    }
+  }, [dateRangeOption, customFromDate, customToDate]);
+
+  // Fetch GPS tracking data + activities for Day Tracking
   const fetchTrackingData = useCallback(async () => {
     if (!currentUserId) return;
     const userId = selectedUser === "me" ? currentUserId : selectedUser;
+    const { from, to } = getDateRange();
     setTrackingLoading(true);
     try {
-      const [pointsRes, stopsRes] = await Promise.all([
+      const [pointsRes, stopsRes, activitiesRes] = await Promise.all([
         supabase
           .from("gps_tracking")
           .select("latitude, longitude, timestamp, speed, accuracy")
           .eq("user_id", userId)
-          .eq("date", trackingDate)
+          .gte("date", from)
+          .lte("date", to)
           .order("timestamp", { ascending: true }),
         supabase
           .from("gps_tracking_stops")
           .select("latitude, longitude, timestamp, duration_minutes, reason")
           .eq("user_id", userId)
-          .gte("timestamp", `${trackingDate}T00:00:00`)
-          .lte("timestamp", `${trackingDate}T23:59:59`),
+          .gte("timestamp", `${from}T00:00:00`)
+          .lte("timestamp", `${to}T23:59:59`),
+        supabase
+          .from("activity_events")
+          .select("activity_name, activity_type, status, status_change_lat, status_change_lng, status_changed_at, location_lat, location_lng, start_time")
+          .eq("user_id", userId)
+          .gte("activity_date", from)
+          .lte("activity_date", to),
       ]);
 
       setGpsPoints(pointsRes.data || []);
       setGpsStops(stopsRes.data || []);
+
+      // Build activity markers from activities that have location data
+      const markers: ActivityAtLocation[] = [];
+      (activitiesRes.data || []).forEach((a: any) => {
+        const lat = a.status_change_lat || a.location_lat;
+        const lng = a.status_change_lng || a.location_lng;
+        if (lat && lng) {
+          markers.push({
+            lat: Number(lat),
+            lng: Number(lng),
+            name: `${a.activity_name} (${a.activity_type})`,
+            activity_type: a.activity_type,
+            status: a.status,
+            timestamp: a.status_changed_at || a.start_time,
+          });
+        }
+      });
+      setActivityMarkers(markers);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setTrackingLoading(false);
     }
-  }, [currentUserId, selectedUser, trackingDate, toast]);
+  }, [currentUserId, selectedUser, getDateRange, toast]);
 
-  // Fetch tracking data when tab/date/user changes
+  // Fetch tracking data when tab/filters change
   useEffect(() => {
     if (activeTab === "tracking") {
       fetchTrackingData();
     }
   }, [activeTab, fetchTrackingData]);
 
-  const dateRangeLabels: Record<DateRange, string> = {
-    today: "Today",
-    week: "This Week",
-    month: "This Month",
-  };
+  // Build map markers for stops + activities
+  const allMapMarkers = [
+    ...gpsStops.map((s) => ({
+      lat: s.latitude,
+      lng: s.longitude,
+      name: s.reason || `Stop (${s.duration_minutes || 0} min)`,
+    })),
+    ...activityMarkers.map((a) => ({
+      lat: a.lat,
+      lng: a.lng,
+      name: `${a.name}${a.status ? ` · ${a.status}` : ""}${a.timestamp ? ` · ${format(new Date(a.timestamp), "hh:mm a")}` : ""}`,
+    })),
+  ];
 
-  // Generate last 7 days for date picker
-  const dateOptions = Array.from({ length: 7 }, (_, i) => {
-    const d = subDays(new Date(), i);
-    return { value: format(d, "yyyy-MM-dd"), label: format(d, "EEE, MMM d") };
-  });
-
-  const activityMarkers = gpsStops.map((s) => ({
+  // Subordinate markers for current location tab
+  const subordinateMapMarkers = subordinateLocations.map((s) => ({
     lat: s.latitude,
     lng: s.longitude,
-    name: s.reason || `Stop (${s.duration_minutes || 0} min)`,
+    name: `${s.full_name} · ${format(new Date(s.timestamp), "hh:mm a")}`,
   }));
 
   const totalDistance = gpsPoints.length > 1
@@ -183,6 +325,8 @@ export default function GPSTracking() {
   const firstPoint = gpsPoints.length > 0 ? gpsPoints[0] : null;
   const lastPoint = gpsPoints.length > 0 ? gpsPoints[gpsPoints.length - 1] : null;
 
+  const { from: displayFrom, to: displayTo } = getDateRange();
+
   return (
     <motion.div
       className="p-4 space-y-4 max-w-4xl mx-auto"
@@ -200,25 +344,55 @@ export default function GPSTracking() {
           <TabsTrigger value="tracking" className="flex-1">Day Tracking</TabsTrigger>
         </TabsList>
 
+        {/* ========== CURRENT LOCATION TAB ========== */}
         <TabsContent value="current" className="mt-4 space-y-4">
           <Card className="shadow-card">
-            <CardContent className="p-4 space-y-2">
-              <p className="text-sm font-medium">Select Date Range</p>
-              <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(dateRangeLabels).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Showing: {format(new Date(), "MMMM do, yyyy")}
-              </p>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Today</p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(), "EEEE, MMMM do, yyyy")}
+                  </p>
+                </div>
+                <Button
+                  variant={showSubordinates ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowSubordinates(!showSubordinates)}
+                >
+                  <Users className="h-3.5 w-3.5 mr-1.5" />
+                  Team
+                </Button>
+              </div>
             </CardContent>
           </Card>
+
+          {showSubordinates && subordinateLocations.length > 0 && (
+            <Card className="shadow-card">
+              <CardContent className="p-4 space-y-2">
+                <p className="text-sm font-medium flex items-center gap-1.5">
+                  <Users className="h-4 w-4 text-primary" />
+                  Team Members Online ({subordinateLocations.length})
+                </p>
+                {subordinateLocations.map((s) => (
+                  <div key={s.user_id} className="flex items-center justify-between text-xs border-b border-border pb-1.5 last:border-0 last:pb-0">
+                    <span className="font-medium">{s.full_name}</span>
+                    <span className="text-muted-foreground">
+                      Last seen {format(new Date(s.timestamp), "hh:mm a")}
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {showSubordinates && subordinateLocations.length === 0 && (
+            <Card className="shadow-card">
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground">No subordinate location data available for today</p>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="shadow-card overflow-hidden">
             <CardContent className="p-0">
@@ -228,7 +402,10 @@ export default function GPSTracking() {
                     <p className="text-sm text-muted-foreground">Loading map...</p>
                   </div>
                 }>
-                  <LeafletMap location={location} />
+                  <LeafletMap
+                    location={location}
+                    activityMarkers={showSubordinates ? subordinateMapMarkers : undefined}
+                  />
                 </Suspense>
 
                 {locationError && (
@@ -249,23 +426,61 @@ export default function GPSTracking() {
           </Card>
         </TabsContent>
 
+        {/* ========== DAY TRACKING TAB ========== */}
         <TabsContent value="tracking" className="mt-4 space-y-4">
           {/* Filters */}
           <Card className="shadow-card">
             <CardContent className="p-4 space-y-3">
               <p className="text-sm font-medium">Select Date Range</p>
-              <Select value={trackingDate} onValueChange={setTrackingDate}>
+              <Select value={dateRangeOption} onValueChange={(v) => setDateRangeOption(v as DateRangeOption)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {dateOptions.map((d) => (
-                    <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
-                  ))}
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="this_week">This Week</SelectItem>
+                  <SelectItem value="this_month">This Month</SelectItem>
+                  <SelectItem value="custom">Custom Date Range</SelectItem>
                 </SelectContent>
               </Select>
+
+              {dateRangeOption === "custom" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">From</p>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal", !customFromDate && "text-muted-foreground")}>
+                          <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
+                          {customFromDate ? format(customFromDate, "MMM d, yyyy") : "Pick date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={customFromDate} onSelect={setCustomFromDate} initialFocus className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">To</p>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal", !customToDate && "text-muted-foreground")}>
+                          <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
+                          {customToDate ? format(customToDate, "MMM d, yyyy") : "Pick date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={customToDate} onSelect={setCustomToDate} initialFocus className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+              )}
+
               <p className="text-xs text-muted-foreground">
-                Showing: {format(new Date(trackingDate + "T00:00:00"), "MMMM do, yyyy")}
+                Showing: {format(new Date(displayFrom + "T00:00:00"), "MMM d")}
+                {displayFrom !== displayTo && ` — ${format(new Date(displayTo + "T00:00:00"), "MMM d, yyyy")}`}
+                {displayFrom === displayTo && `, ${format(new Date(displayFrom + "T00:00:00"), "yyyy")}`}
               </p>
 
               <p className="text-sm font-medium">Select Team Member</p>
@@ -305,8 +520,8 @@ export default function GPSTracking() {
               <Card className="shadow-card">
                 <CardContent className="p-3 text-center">
                   <Clock className="h-4 w-4 mx-auto mb-1 text-primary" />
-                  <p className="text-xs text-muted-foreground">Stops</p>
-                  <p className="text-sm font-semibold">{gpsStops.length}</p>
+                  <p className="text-xs text-muted-foreground">Activities</p>
+                  <p className="text-sm font-semibold">{activityMarkers.length}</p>
                 </CardContent>
               </Card>
             </div>
@@ -339,7 +554,7 @@ export default function GPSTracking() {
                   <div className="h-full w-full flex items-center justify-center bg-muted">
                     <p className="text-sm text-muted-foreground">Loading tracking data...</p>
                   </div>
-                ) : gpsPoints.length > 0 ? (
+                ) : gpsPoints.length > 0 || activityMarkers.length > 0 ? (
                   <Suspense fallback={
                     <div className="h-full w-full flex items-center justify-center bg-muted">
                       <p className="text-sm text-muted-foreground">Loading map...</p>
@@ -347,7 +562,7 @@ export default function GPSTracking() {
                   }>
                     <LeafletMap
                       gpsPoints={gpsPoints}
-                      activityMarkers={activityMarkers}
+                      activityMarkers={allMapMarkers}
                     />
                   </Suspense>
                 ) : (
@@ -355,7 +570,7 @@ export default function GPSTracking() {
                     <MapPin className="h-12 w-12 mb-3 text-muted-foreground/50" />
                     <p className="text-sm font-semibold text-muted-foreground">No tracking data</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      No GPS data found for this date
+                      No GPS data found for this period
                     </p>
                   </div>
                 )}
@@ -363,15 +578,29 @@ export default function GPSTracking() {
             </CardContent>
           </Card>
 
-          {/* Stops list */}
-          {gpsStops.length > 0 && (
+          {/* Activity & Stops list */}
+          {(activityMarkers.length > 0 || gpsStops.length > 0) && (
             <Card className="shadow-card">
               <CardContent className="p-4 space-y-3">
-                <p className="text-sm font-medium">Stops</p>
-                {gpsStops.map((stop, i) => (
-                  <div key={i} className="flex items-start gap-3 text-xs border-b border-border pb-2 last:border-0 last:pb-0">
+                <p className="text-sm font-medium">Locations & Activities</p>
+                {activityMarkers.map((a, i) => (
+                  <div key={`act-${i}`} className="flex items-start gap-3 text-xs border-b border-border pb-2 last:border-0 last:pb-0">
                     <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <MapPin className="h-3 w-3 text-primary" />
+                      <Navigation className="h-3 w-3 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">{a.name}</p>
+                      <p className="text-muted-foreground">
+                        {a.status && <span className="capitalize">{a.status}</span>}
+                        {a.timestamp && ` · ${format(new Date(a.timestamp), "hh:mm a")}`}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {gpsStops.map((stop, i) => (
+                  <div key={`stop-${i}`} className="flex items-start gap-3 text-xs border-b border-border pb-2 last:border-0 last:pb-0">
+                    <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <MapPin className="h-3 w-3 text-accent-foreground" />
                     </div>
                     <div className="flex-1">
                       <p className="font-medium">{stop.reason || "Stop"}</p>
