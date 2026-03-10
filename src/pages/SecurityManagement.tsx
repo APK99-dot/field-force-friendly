@@ -18,15 +18,6 @@ export default function SecurityManagement() {
       {/* Hero Header */}
       <div className="gradient-hero px-4 pt-4 pb-6 -mx-4 -mt-4 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-8">
         <div className="max-w-6xl mx-auto">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-white/80 hover:text-white hover:bg-white/10 mb-3 -ml-2"
-            onClick={() => navigate("/admin-controls")}
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back
-          </Button>
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
               <Shield className="h-5 w-5 text-white" />
