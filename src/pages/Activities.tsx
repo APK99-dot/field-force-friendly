@@ -45,6 +45,7 @@ import {
   Timer,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentPosition } from "@/utils/nativePermissions";
 import { useActivities, type Activity as ActivityType } from "@/hooks/useActivities";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
