@@ -345,67 +345,16 @@ export default function GPSTracking() {
         </TabsList>
 
         {/* ========== CURRENT LOCATION TAB ========== */}
-        <TabsContent value="current" className="mt-4 space-y-4">
-          <Card className="shadow-card">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Today</p>
-                  <p className="text-xs text-muted-foreground">
-                    {format(new Date(), "EEEE, MMMM do, yyyy")}
-                  </p>
-                </div>
-                <Button
-                  variant={showSubordinates ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setShowSubordinates(!showSubordinates)}
-                >
-                  <Users className="h-3.5 w-3.5 mr-1.5" />
-                  Team
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {showSubordinates && subordinateLocations.length > 0 && (
-            <Card className="shadow-card">
-              <CardContent className="p-4 space-y-2">
-                <p className="text-sm font-medium flex items-center gap-1.5">
-                  <Users className="h-4 w-4 text-primary" />
-                  Team Members Online ({subordinateLocations.length})
-                </p>
-                {subordinateLocations.map((s) => (
-                  <div key={s.user_id} className="flex items-center justify-between text-xs border-b border-border pb-1.5 last:border-0 last:pb-0">
-                    <span className="font-medium">{s.full_name}</span>
-                    <span className="text-muted-foreground">
-                      Last seen {format(new Date(s.timestamp), "hh:mm a")}
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {showSubordinates && subordinateLocations.length === 0 && (
-            <Card className="shadow-card">
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">No subordinate location data available for today</p>
-              </CardContent>
-            </Card>
-          )}
-
+        <TabsContent value="current" className="mt-4">
           <Card className="shadow-card overflow-hidden">
             <CardContent className="p-0">
-              <div className="h-[400px] relative">
+              <div className="h-[500px] relative">
                 <Suspense fallback={
                   <div className="h-full w-full flex items-center justify-center bg-muted">
                     <p className="text-sm text-muted-foreground">Loading map...</p>
                   </div>
                 }>
-                  <LeafletMap
-                    location={location}
-                    activityMarkers={showSubordinates ? subordinateMapMarkers : undefined}
-                  />
+                  <LeafletMap location={location} />
                 </Suspense>
 
                 {locationError && (
