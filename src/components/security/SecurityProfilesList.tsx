@@ -6,8 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Shield, Pencil, Trash2, Users2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -32,6 +38,11 @@ export default function SecurityProfilesList({ onSelectProfile, selectedProfileI
   const [editProfile, setEditProfile] = useState<SecurityProfile | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+
+  // Delete state
+  const [deleteTarget, setDeleteTarget] = useState<SecurityProfile | null>(null);
+  const [reassignProfileId, setReassignProfileId] = useState<string>("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const profilesQuery = useQuery({
     queryKey: ["security-profiles"],
@@ -100,17 +111,53 @@ export default function SecurityProfilesList({ onSelectProfile, selectedProfileI
     onError: (e: any) => toast.error(e.message),
   });
 
-  const deleteProfile = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("security_profiles").delete().eq("id", id);
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      const assignedCount = userCounts[deleteTarget.id] || 0;
+
+      if (assignedCount > 0) {
+        if (!reassignProfileId) {
+          toast.error("Please select a profile to reassign users to");
+          setDeleteLoading(false);
+          return;
+        }
+        // Reassign users to the selected profile
+        const { error: reassignError } = await supabase
+          .from("user_security_profiles")
+          .update({ profile_id: reassignProfileId })
+          .eq("profile_id", deleteTarget.id);
+        if (reassignError) throw reassignError;
+      }
+
+      // Delete related permissions first
+      const { error: permError } = await supabase
+        .from("profile_object_permissions")
+        .delete()
+        .eq("profile_id", deleteTarget.id);
+      if (permError) throw permError;
+
+      // Now delete the profile
+      const { error, count } = await supabase
+        .from("security_profiles")
+        .delete()
+        .eq("id", deleteTarget.id)
+        .select();
+
       if (error) throw error;
-    },
-    onSuccess: () => {
+
       queryClient.invalidateQueries({ queryKey: ["security-profiles"] });
-      toast.success("Profile deleted");
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
+      queryClient.invalidateQueries({ queryKey: ["security-profile-user-counts"] });
+      toast.success("Profile deleted permanently");
+      setDeleteTarget(null);
+      setReassignProfileId("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete profile");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const profiles = profilesQuery.data || [];
   const userCounts = userCountsQuery.data || {};
@@ -120,6 +167,16 @@ export default function SecurityProfilesList({ onSelectProfile, selectedProfileI
     setName(p.name);
     setDescription(p.description || "");
   };
+
+  const openDelete = (p: SecurityProfile) => {
+    setDeleteTarget(p);
+    setReassignProfileId("");
+  };
+
+  const deleteTargetUserCount = deleteTarget ? (userCounts[deleteTarget.id] || 0) : 0;
+  const availableReassignProfiles = profiles.filter(
+    (p) => deleteTarget && p.id !== deleteTarget.id
+  );
 
   return (
     <div className="space-y-4">
@@ -204,35 +261,14 @@ export default function SecurityProfilesList({ onSelectProfile, selectedProfileI
                         <Pencil className="h-4 w-4 text-muted-foreground" />
                       </Button>
                       {profile.name !== "System Administrator" && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete "{profile.name}"?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will permanently delete this security profile and remove it from all assigned users. This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                onClick={() => deleteProfile.mutate(profile.id)}
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => { e.stopPropagation(); openDelete(profile); }}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       )}
                     </div>
                   </TableCell>
@@ -267,6 +303,53 @@ export default function SecurityProfilesList({ onSelectProfile, selectedProfileI
               {updateProfile.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setReassignProfileId(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete "{deleteTarget?.name}"?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              This will <strong>permanently delete</strong> this security profile and all its permissions. This action cannot be undone.
+            </p>
+
+            {deleteTargetUserCount > 0 && (
+              <div className="border border-destructive/30 bg-destructive/5 rounded-lg p-4 space-y-3">
+                <p className="text-sm font-medium text-destructive">
+                  ⚠️ {deleteTargetUserCount} user{deleteTargetUserCount > 1 ? "s are" : " is"} assigned to this profile
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Please select a profile to reassign these users to before deleting:
+                </p>
+                <Select value={reassignProfileId} onValueChange={setReassignProfileId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a profile to reassign users..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableReassignProfiles.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setDeleteTarget(null); setReassignProfileId(""); }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteLoading || (deleteTargetUserCount > 0 && !reassignProfileId)}
+              onClick={handleDelete}
+            >
+              {deleteLoading ? "Deleting..." : "Delete Permanently"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
