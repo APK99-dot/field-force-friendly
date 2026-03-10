@@ -139,11 +139,10 @@ export default function SecurityProfilesList({ onSelectProfile, selectedProfileI
       if (permError) throw permError;
 
       // Now delete the profile
-      const { error, count } = await supabase
+      const { error } = await supabase
         .from("security_profiles")
         .delete()
-        .eq("id", deleteTarget.id)
-        .select();
+        .eq("id", deleteTarget.id);
 
       if (error) throw error;
 
