@@ -13,6 +13,7 @@ import { CheckCircle, XCircle, LogOut, Loader2, Clock, Edit3, Camera, Shield, Ma
 import jsPDF from "jspdf";
 
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentPosition } from "@/utils/nativePermissions";
 import MyTeamAttendance from "@/components/attendance/MyTeamAttendance";
 import { useAttendance, isWeekOffDate } from "@/hooks/useAttendance";
 import { useFaceMatching } from "@/hooks/useFaceMatching";
