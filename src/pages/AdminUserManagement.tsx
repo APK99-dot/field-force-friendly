@@ -387,12 +387,12 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
             </div>
           </TabsContent>
         </Tabs>
-        <div className="flex items-center justify-between mt-4 pt-4 border-t">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mt-4 pt-4 border-t gap-2">
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950"
+              className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950 text-xs"
               onClick={handleDeleteData}
               disabled={deletingData}
             >
@@ -401,15 +401,16 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
             <Button
               variant="destructive"
               size="sm"
+              className="text-xs"
               onClick={() => { onOpenChange(false); onDeleteUser(user); }}
             >
               Delete User
             </Button>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleSave} disabled={loading}>
-              {loading ? "Saving..." : "Save Changes"}
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" size="sm" className="text-xs" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button size="sm" className="text-xs" onClick={handleSave} disabled={loading}>
+              {loading ? "Saving..." : "Save"}
             </Button>
           </div>
         </div>
@@ -612,23 +613,16 @@ function TablePagination({ total, page, pageSize, onPageChange }: {
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t">
-      <p className="text-sm text-muted-foreground">
-        Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
+    <div className="flex items-center justify-between px-4 py-3 border-t gap-2">
+      <p className="text-xs text-muted-foreground shrink-0">
+        {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
       </p>
       <div className="flex gap-1">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-          Previous
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)} className="h-7 px-2 text-xs">
+          Prev
         </Button>
-        {Array.from({ length: totalPages }, (_, i) => i + 1).slice(
-          Math.max(0, page - 3),
-          Math.min(totalPages, page + 2)
-        ).map((p) => (
-          <Button key={p} variant={p === page ? "default" : "outline"} size="sm" onClick={() => onPageChange(p)}>
-            {p}
-          </Button>
-        ))}
-        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
+        <span className="flex items-center text-xs text-muted-foreground px-1">{page}/{totalPages}</span>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} className="h-7 px-2 text-xs">
           Next
         </Button>
       </div>
@@ -746,39 +740,38 @@ export default function AdminUserManagement() {
   }));
 
   return (
-    <motion.div className="p-4 space-y-6 max-w-6xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.div className="p-3 md:p-4 space-y-4 md:space-y-6 max-w-6xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" className="p-2" onClick={() => navigate("/admin-controls")}>
-          <ArrowLeft size={20} />
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="sm" className="p-2 shrink-0" onClick={() => navigate("/admin-controls")}>
+          <ArrowLeft size={18} />
         </Button>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold text-foreground">User Management</h1>
-          <p className="text-muted-foreground">Manage users, roles, and team hierarchy</p>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl md:text-3xl font-bold text-foreground">User Management</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">Manage users, roles, and hierarchy</p>
         </div>
       </div>
 
       {/* Role-based stat cards */}
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      <div className="grid grid-cols-3 md:flex gap-2 md:gap-3 md:overflow-x-auto pb-1">
         {/* Total Users card */}
-        <Card className="min-w-[120px] flex-shrink-0 border-t-2 border-t-foreground">
-          <CardContent className="p-3 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Total Users</p>
-            <div className="flex items-center justify-center gap-1.5">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xl font-bold">{appUsers.length}</span>
+        <Card className="border-t-2 border-t-foreground">
+          <CardContent className="p-2.5 md:p-3 text-center">
+            <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Total</p>
+            <div className="flex items-center justify-center gap-1">
+              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-lg md:text-xl font-bold">{appUsers.length}</span>
             </div>
           </CardContent>
         </Card>
-        {roleCounts.map((rc) => {
+        {roleCounts.slice(0, 5).map((rc) => {
           const colors = getRoleColor(rc.name);
           return (
-            <Card key={rc.name} className={`min-w-[120px] flex-shrink-0 border-t-2 ${colors.border}`}>
-              <CardContent className="p-3 text-center">
-                <p className={`text-xs mb-1 ${colors.text}`}>{rc.name}</p>
-                <div className="flex items-center justify-center gap-1.5">
-                  <Users className={`h-4 w-4 ${colors.text}`} />
-                  <span className="text-xl font-bold">{rc.count}</span>
+            <Card key={rc.name} className={`border-t-2 ${colors.border} md:min-w-[120px] md:flex-shrink-0`}>
+              <CardContent className="p-2.5 md:p-3 text-center">
+                <p className={`text-[10px] md:text-xs mb-0.5 truncate ${colors.text}`}>{rc.name}</p>
+                <div className="flex items-center justify-center gap-1">
+                  <span className="text-lg md:text-xl font-bold">{rc.count}</span>
                 </div>
               </CardContent>
             </Card>
@@ -810,21 +803,20 @@ export default function AdminUserManagement() {
           <UserHierarchy users={appUsers} roles={roles} profiles={profiles} />
         </TabsContent>
 
-        {/* Users & Roles Tab */}
         <TabsContent value="users" className="space-y-4">
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl">Users & Roles Management</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">View and manage all user accounts and their assigned roles</p>
+            <CardHeader className="p-3 md:p-6">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <CardTitle className="text-base md:text-xl">Users & Roles</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">{filteredUsers.length} users total</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="gap-1.5">
+                      <Button variant="outline" size="sm" className="h-8 w-8 p-0 md:w-auto md:px-3 md:gap-1.5">
                         <Columns3 className="h-4 w-4" />
-                        <span className="hidden sm:inline">Columns</span>
+                        <span className="hidden md:inline">Columns</span>
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-56" align="end">
@@ -832,10 +824,7 @@ export default function AdminUserManagement() {
                       <ScrollArea className="h-[280px]">
                         <div className="space-y-3">
                           {allColumns.map((col) => (
-                            <label
-                              key={col.key}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
+                            <label key={col.key} className="flex items-center gap-2 cursor-pointer">
                               <Checkbox
                                 checked={visibleColumns.includes(col.key)}
                                 disabled={col.locked}
@@ -848,25 +837,19 @@ export default function AdminUserManagement() {
                       </ScrollArea>
                     </PopoverContent>
                   </Popover>
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={invalidateAll}>
+                  <Button variant="outline" size="sm" className="h-8 w-8 p-0 md:w-auto md:px-3 md:gap-1.5" onClick={invalidateAll}>
                     <RefreshCw className="h-4 w-4" />
-                    <span className="hidden sm:inline">Refresh</span>
+                    <span className="hidden md:inline">Refresh</span>
                   </Button>
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-3">
-                <div>
-                  <p className="text-base font-semibold">Total Users: {filteredUsers.length}</p>
-                  <p className="text-xs text-muted-foreground">{filteredUsers.length} users with security profiles assigned</p>
                 </div>
               </div>
               <div className="relative mt-3">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search by name, email, username, or role..." 
-                  className="pl-9" 
-                  value={searchQuery} 
-                  onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} 
+                <Input
+                  placeholder="Search name, email..."
+                  className="pl-9 h-9 text-sm"
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
                 />
               </div>
             </CardHeader>
@@ -876,131 +859,166 @@ export default function AdminUserManagement() {
               ) : filteredUsers.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No users found. Create your first user in the "Create User" tab.</p>
+                  <p className="text-sm">No users found.</p>
                 </div>
               ) : (
                 <>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {isColVisible("photo") && <TableHead className="w-[60px]">Photo</TableHead>}
-                        {isColVisible("username") && <TableHead>User Name</TableHead>}
-                        {isColVisible("full_name") && <TableHead>Full Name</TableHead>}
-                        {isColVisible("email") && <TableHead>Email</TableHead>}
-                        {isColVisible("phone") && <TableHead>Phone</TableHead>}
-                        {isColVisible("role") && <TableHead>Role</TableHead>}
-                        {isColVisible("manager") && <TableHead>Reporting Manager</TableHead>}
-                        {isColVisible("email_status") && <TableHead>Email Status</TableHead>}
-                        {isColVisible("joined") && <TableHead>Joined Date</TableHead>}
-                        {isColVisible("active") && <TableHead>Active</TableHead>}
-                        {isColVisible("action") && <TableHead>Actions</TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedUsers.map((user) => {
-                        const employee = employees.find((e) => e.user_id === user.id);
-                        const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
-                        const manager = user.reporting_manager_id ? appUsers.find((u) => u.id === user.reporting_manager_id) : null;
-                        const profile = profiles.find((p) => p.id === user.id);
-                        const colors = getRoleColor(roleName);
-                        return (
-                          <TableRow key={user.id}>
-                            {isColVisible("photo") && (
-                              <TableCell>
-                                <Avatar className="h-9 w-9">
-                                  <AvatarImage src={profile?.profile_picture_url || undefined} />
-                                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                                    {(user.full_name || user.email || "U").charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                              </TableCell>
-                            )}
-                            {isColVisible("username") && (
-                              <TableCell>
-                                <p className="text-sm font-medium truncate">{user.full_name || user.username || "—"}</p>
-                              </TableCell>
-                            )}
-                            {isColVisible("full_name") && (
-                              <TableCell>
-                                <p className="text-sm truncate">{user.full_name || "—"}</p>
-                              </TableCell>
-                            )}
-                            {isColVisible("email") && (
-                              <TableCell>
-                                <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-                              </TableCell>
-                            )}
-                            {isColVisible("phone") && (
-                              <TableCell>
-                                <p className="text-sm text-muted-foreground">{user.phone || "—"}</p>
-                              </TableCell>
-                            )}
-                            {isColVisible("role") && (
-                              <TableCell>
-                                <Badge variant="outline" className={`text-xs ${colors.bg} ${colors.text}`}>
-                                  {roleName}
-                                </Badge>
-                              </TableCell>
-                            )}
-                            {isColVisible("manager") && (
-                              <TableCell className="text-sm">
-                                {manager?.full_name || manager?.email || "—"}
-                              </TableCell>
-                            )}
-                            {isColVisible("email_status") && (
-                              <TableCell>
-                                <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                                  Verified
-                                </Badge>
-                              </TableCell>
-                            )}
-                            {isColVisible("joined") && (
-                              <TableCell className="text-sm text-muted-foreground">
-                                {employee?.date_of_joining || "—"}
-                              </TableCell>
-                            )}
-                            {isColVisible("active") && (
-                              <TableCell>
-                                <div className="flex items-center gap-2">
+                  {/* Desktop Table */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {isColVisible("photo") && <TableHead className="w-[60px]">Photo</TableHead>}
+                          {isColVisible("username") && <TableHead>User Name</TableHead>}
+                          {isColVisible("full_name") && <TableHead>Full Name</TableHead>}
+                          {isColVisible("email") && <TableHead>Email</TableHead>}
+                          {isColVisible("phone") && <TableHead>Phone</TableHead>}
+                          {isColVisible("role") && <TableHead>Role</TableHead>}
+                          {isColVisible("manager") && <TableHead>Manager</TableHead>}
+                          {isColVisible("email_status") && <TableHead>Email Status</TableHead>}
+                          {isColVisible("joined") && <TableHead>Joined</TableHead>}
+                          {isColVisible("active") && <TableHead>Active</TableHead>}
+                          {isColVisible("action") && <TableHead>Actions</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedUsers.map((user) => {
+                          const employee = employees.find((e) => e.user_id === user.id);
+                          const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
+                          const manager = user.reporting_manager_id ? appUsers.find((u) => u.id === user.reporting_manager_id) : null;
+                          const profile = profiles.find((p) => p.id === user.id);
+                          const colors = getRoleColor(roleName);
+                          return (
+                            <TableRow key={user.id}>
+                              {isColVisible("photo") && (
+                                <TableCell>
+                                  <Avatar className="h-9 w-9">
+                                    <AvatarImage src={profile?.profile_picture_url || undefined} />
+                                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                                      {(user.full_name || user.email || "U").charAt(0).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </TableCell>
+                              )}
+                              {isColVisible("username") && (
+                                <TableCell><p className="text-sm font-medium truncate">{user.full_name || user.username || "—"}</p></TableCell>
+                              )}
+                              {isColVisible("full_name") && (
+                                <TableCell><p className="text-sm truncate">{user.full_name || "—"}</p></TableCell>
+                              )}
+                              {isColVisible("email") && (
+                                <TableCell><p className="text-sm text-muted-foreground truncate">{user.email}</p></TableCell>
+                              )}
+                              {isColVisible("phone") && (
+                                <TableCell><p className="text-sm text-muted-foreground">{user.phone || "—"}</p></TableCell>
+                              )}
+                              {isColVisible("role") && (
+                                <TableCell>
+                                  <Badge variant="outline" className={`text-xs ${colors.bg} ${colors.text}`}>{roleName}</Badge>
+                                </TableCell>
+                              )}
+                              {isColVisible("manager") && (
+                                <TableCell className="text-sm">{manager?.full_name || manager?.email || "—"}</TableCell>
+                              )}
+                              {isColVisible("email_status") && (
+                                <TableCell>
+                                  <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">Verified</Badge>
+                                </TableCell>
+                              )}
+                              {isColVisible("joined") && (
+                                <TableCell className="text-sm text-muted-foreground">{employee?.date_of_joining || "—"}</TableCell>
+                              )}
+                              {isColVisible("active") && (
+                                <TableCell>
                                   <Switch
                                     checked={user.is_active}
                                     onCheckedChange={(checked) => toggleActive.mutate({ userId: user.id, isActive: checked })}
                                   />
-                                  <span className={`text-xs font-medium ${user.is_active ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
-                                    {user.is_active ? "Active" : "Inactive"}
-                                  </span>
-                                </div>
-                              </TableCell>
-                            )}
-                            {isColVisible("action") && (
-                              <TableCell>
-                                <div className="flex items-center gap-1">
-                                  <UserDetailDialog user={user} employee={employee} roleName={roleName} />
-                                  <Button variant="ghost" size="sm" className="gap-1 text-xs h-8 px-2" onClick={() => setEditingUser(user)}>
-                                    <Pencil className="h-3.5 w-3.5" />
-                                    Edit
-                                  </Button>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => setEditingUser(user)}>
-                                        <Edit className="h-4 w-4 mr-2" /> Edit
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(user)}>
-                                        <Trash2 className="h-4 w-4 mr-2" /> Delete
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </div>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                                </TableCell>
+                              )}
+                              {isColVisible("action") && (
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    <UserDetailDialog user={user} employee={employee} roleName={roleName} />
+                                    <Button variant="ghost" size="sm" className="gap-1 text-xs h-8 px-2" onClick={() => setEditingUser(user)}>
+                                      <Pencil className="h-3.5 w-3.5" /> Edit
+                                    </Button>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                                          <Edit className="h-4 w-4 mr-2" /> Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(user)}>
+                                          <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Mobile Card List */}
+                  <div className="md:hidden divide-y">
+                    {paginatedUsers.map((user) => {
+                      const employee = employees.find((e) => e.user_id === user.id);
+                      const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
+                      const manager = user.reporting_manager_id ? appUsers.find((u) => u.id === user.reporting_manager_id) : null;
+                      const profile = profiles.find((p) => p.id === user.id);
+                      const colors = getRoleColor(roleName);
+                      return (
+                        <div key={user.id} className="p-3 flex items-start gap-3">
+                          <Avatar className="h-9 w-9 shrink-0 mt-0.5">
+                            <AvatarImage src={profile?.profile_picture_url || undefined} />
+                            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                              {(user.full_name || user.email || "U").charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium truncate">{user.full_name || user.username || "—"}</p>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Switch
+                                  checked={user.is_active}
+                                  onCheckedChange={(checked) => toggleActive.mutate({ userId: user.id, isActive: checked })}
+                                  className="scale-75"
+                                />
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-3.5 w-3.5" /></Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                                      <Edit className="h-4 w-4 mr-2" /> Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(user)}>
+                                      <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${colors.bg} ${colors.text}`}>{roleName}</Badge>
+                              {manager && (
+                                <span className="text-[10px] text-muted-foreground truncate">→ {manager.full_name || manager.email}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
                   <TablePagination total={filteredUsers.length} page={page} pageSize={pageSize} onPageChange={setPage} />
                 </>
               )}
