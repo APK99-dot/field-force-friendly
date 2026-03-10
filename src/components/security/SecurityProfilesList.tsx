@@ -318,11 +318,11 @@ export default function SecurityProfilesList({ onSelectProfile, selectedProfileI
             </p>
 
             {deleteTargetUserCount > 0 && (
-              <div className="border border-orange-200 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-800 rounded-lg p-4 space-y-3">
-                <p className="text-sm font-medium text-orange-800 dark:text-orange-300">
+              <div className="border border-destructive/30 bg-destructive/5 rounded-lg p-4 space-y-3">
+                <p className="text-sm font-medium text-destructive">
                   ⚠️ {deleteTargetUserCount} user{deleteTargetUserCount > 1 ? "s are" : " is"} assigned to this profile
                 </p>
-                <p className="text-xs text-orange-700 dark:text-orange-400">
+                <p className="text-xs text-muted-foreground">
                   Please select a profile to reassign these users to before deleting:
                 </p>
                 <Select value={reassignProfileId} onValueChange={setReassignProfileId}>
