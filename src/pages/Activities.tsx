@@ -115,6 +115,7 @@ export default function Activities() {
   const [form, setForm] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
 
   // Dynamic activity types from DB
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
