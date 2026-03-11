@@ -1,5 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -32,16 +33,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 
-const navigationItems = [
-  { icon: UserCheck, label: "Attendance", href: "/attendance", color: "from-blue-500 to-blue-600" },
-  { icon: Navigation2, label: "GPS Track", href: "/gps-tracking", color: "from-purple-500 to-purple-600" },
-  
-  { icon: Receipt, label: "Expenses", href: "/expenses", color: "from-orange-500 to-orange-600" },
-  { icon: ClipboardList, label: "Activities", href: "/activities", color: "from-teal-500 to-teal-600" },
+const allNavigationItems = [
+  { icon: UserCheck, label: "Attendance", href: "/attendance", color: "from-blue-500 to-blue-600", module: "module_attendance" },
+  { icon: Navigation2, label: "GPS Track", href: "/gps-tracking", color: "from-purple-500 to-purple-600", module: "module_gps_tracking" },
+  { icon: Receipt, label: "Expenses", href: "/expenses", color: "from-orange-500 to-orange-600", module: "module_expenses" },
+  { icon: ClipboardList, label: "Activities", href: "/activities", color: "from-teal-500 to-teal-600", module: "module_activities" },
 ];
 
 const adminItems = [
-  { icon: Shield, label: "Admin Controls", href: "/admin-controls", color: "from-emerald-500 to-emerald-600" },
+  { icon: Shield, label: "Admin Controls", href: "/admin-controls", color: "from-emerald-500 to-emerald-600", module: "module_admin_panel" },
 ];
 
 export function AppHeader() {
@@ -50,6 +50,7 @@ export function AppHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const { profile, isAdmin, initials } = useUserProfile();
+  const { hasModuleAccess } = useProfilePermissions();
   const displayName = profile?.full_name || profile?.username || "";
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -66,6 +67,16 @@ export function AppHeader() {
   const companyLogo = companyProfile?.logo_url || null;
 
   const showBackButton = location.pathname !== "/dashboard" && location.pathname !== "/";
+
+  const navigationItems = useMemo(
+    () => allNavigationItems.filter((item) => hasModuleAccess(item.module)),
+    [hasModuleAccess]
+  );
+
+  const visibleAdminItems = useMemo(
+    () => adminItems.filter((item) => hasModuleAccess(item.module)),
+    [hasModuleAccess]
+  );
 
   // Close menu on outside click
   useEffect(() => {
@@ -194,44 +205,48 @@ export function AppHeader() {
 
               <div className="p-4 space-y-5">
                 {/* Admin Controls */}
-                <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Admin Controls</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    {adminItems.map((item) => (
-                      <NavLink
-                        key={item.href}
-                        to={item.href}
-                        onClick={handleMenuItemClick}
-                        className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors"
-                      >
-                        <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${item.color} shadow-md`}>
-                          <item.icon className="h-5 w-5 text-white" />
-                        </div>
-                        <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
-                      </NavLink>
-                    ))}
+                {visibleAdminItems.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Admin Controls</h3>
+                    <div className="grid grid-cols-3 gap-3">
+                      {visibleAdminItems.map((item) => (
+                        <NavLink
+                          key={item.href}
+                          to={item.href}
+                          onClick={handleMenuItemClick}
+                          className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors"
+                        >
+                          <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${item.color} shadow-md`}>
+                            <item.icon className="h-5 w-5 text-white" />
+                          </div>
+                          <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
+                        </NavLink>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Navigation Grid */}
-                <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Navigation</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    {navigationItems.map((item) => (
-                      <NavLink
-                        key={item.label}
-                        to={item.href}
-                        onClick={handleMenuItemClick}
-                        className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors"
-                      >
-                        <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${item.color} shadow-md`}>
-                          <item.icon className="h-5 w-5 text-white" />
-                        </div>
-                        <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
-                      </NavLink>
-                    ))}
+                {navigationItems.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Navigation</h3>
+                    <div className="grid grid-cols-3 gap-3">
+                      {navigationItems.map((item) => (
+                        <NavLink
+                          key={item.label}
+                          to={item.href}
+                          onClick={handleMenuItemClick}
+                          className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors"
+                        >
+                          <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${item.color} shadow-md`}>
+                            <item.icon className="h-5 w-5 text-white" />
+                          </div>
+                          <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
+                        </NavLink>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Logout */}
                 <div className="pt-2 border-t">

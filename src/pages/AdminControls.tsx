@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,14 +14,16 @@ import {
   Search,
   MapPin,
 } from "lucide-react";
+import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 
-const adminModules = [
+const allAdminModules = [
   {
     title: "User Management",
     description: "Manage user accounts, roles, and permissions",
     icon: Users,
     color: "bg-orange-100 text-orange-600",
     path: "/admin/users",
+    permission: "field_admin_user_management",
   },
   {
     title: "Attendance Management",
@@ -29,6 +31,7 @@ const adminModules = [
     icon: CalendarDays,
     color: "bg-purple-100 text-purple-600",
     path: "/admin/attendance",
+    permission: "field_admin_attendance_mgmt",
   },
   {
     title: "Expense Management",
@@ -36,6 +39,7 @@ const adminModules = [
     icon: DollarSign,
     color: "bg-yellow-100 text-yellow-600",
     path: "/admin/expenses",
+    permission: "field_admin_expense_mgmt",
   },
   {
     title: "Security & Access",
@@ -43,6 +47,7 @@ const adminModules = [
     icon: Lock,
     color: "bg-blue-100 text-blue-600",
     path: "/admin/security",
+    permission: "field_admin_security_access",
   },
   {
     title: "Company Profile",
@@ -50,6 +55,7 @@ const adminModules = [
     icon: Building2,
     color: "bg-indigo-100 text-indigo-600",
     path: "/admin/company",
+    permission: "field_admin_company_profile",
   },
   {
     title: "Project / Site Master",
@@ -57,6 +63,7 @@ const adminModules = [
     icon: MapPin,
     color: "bg-teal-100 text-teal-600",
     path: "/admin/sites",
+    permission: null,
   },
 ];
 
@@ -72,8 +79,18 @@ const item = {
 export default function AdminControls() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const { hasModuleAccess, hasFieldPermission } = useProfilePermissions();
 
-  const filteredModules = adminModules.filter(
+  const visibleModules = useMemo(() => {
+    // If user has full admin panel access, show all
+    const hasFullAdmin = hasModuleAccess("module_admin_panel");
+    return allAdminModules.filter((m) => {
+      if (!m.permission) return hasFullAdmin;
+      return hasFullAdmin || hasFieldPermission(m.permission, "read");
+    });
+  }, [hasModuleAccess, hasFieldPermission]);
+
+  const filteredModules = visibleModules.filter(
     (m) =>
       m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       m.description.toLowerCase().includes(searchQuery.toLowerCase())
