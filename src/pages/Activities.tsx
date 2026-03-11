@@ -177,10 +177,17 @@ export default function Activities() {
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const dateStr = format(selectedDate, "yyyy-MM-dd");
 
-  // Get current user id
+  // Get current user id and fetch subordinates
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setCurrentUserId(data.user.id);
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (data.user) {
+        setCurrentUserId(data.user.id);
+        // Fetch subordinates using the DB function
+        const { data: subs } = await supabase.rpc("get_user_hierarchy", { _manager_id: data.user.id });
+        if (subs && subs.length > 0) {
+          setSubordinateIds(subs.map((s: any) => s.user_id));
+        }
+      }
     });
   }, []);
 
