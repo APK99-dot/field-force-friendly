@@ -127,6 +127,17 @@ export function useAttendance(userId: string | undefined) {
     fetchData();
   }, [fetchData]);
 
+  // Refetch when page becomes visible (e.g., returning from admin)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchData();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [fetchData]);
+
   const checkIn = async (data?: CheckInData) => {
     if (!userId) return;
     
