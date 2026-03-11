@@ -26,11 +26,13 @@ const LeaveBalancesManager = () => {
   const [filterLeaveType, setFilterLeaveType] = useState('all');
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
   const [isInitializing, setIsInitializing] = useState(false);
+  const [isRecalcMonthly, setIsRecalcMonthly] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBalance, setEditingBalance] = useState<LeaveBalance | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({ user_id: '', leave_type_id: '', opening_balance: 0, used_balance: 0 });
   const [employeeDOJs, setEmployeeDOJs] = useState<Record<string, string | null>>({});
+  const { recalculate } = useMonthlyLeaveAccrual();
 
   const currentYear = new Date().getFullYear();
   const years = [currentYear - 1, currentYear, currentYear + 1];
