@@ -726,6 +726,7 @@ export default function AdminUserManagement() {
     queryClient.invalidateQueries({ queryKey: ["admin-app-users"] });
     queryClient.invalidateQueries({ queryKey: ["admin-employees"] });
     queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-user-security-assignments"] });
   };
 
   const toggleActive = useMutation({
