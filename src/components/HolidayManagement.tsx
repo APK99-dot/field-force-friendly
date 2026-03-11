@@ -132,7 +132,7 @@ const HolidayManagement = ({ readOnly = false }: HolidayManagementProps) => {
               <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
                 <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Add Holiday</Button></DialogTrigger>
                 <DialogContent><DialogHeader><DialogTitle>Add New Holiday</DialogTitle><DialogDescription>Create a new holiday entry for {currentYear}</DialogDescription></DialogHeader>
-                  <HolidayForm date={selectedDate} setDate={setSelectedDate} onSave={createHoliday} saveLabel="Create Holiday" />
+                  {renderForm(selectedDate, setSelectedDate, createHoliday, "Create Holiday")}
                 </DialogContent>
               </Dialog>
             )}
