@@ -523,7 +523,7 @@ function UserHierarchy({ users, roles, profiles }: { users: AppUser[]; roles: Ro
     const [isOpen, setIsOpen] = useState(level < 1);
     const children = getChildren(user.id);
     const hasReports = children.length > 0;
-    const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
+    const roleName = userRoleMap.get(user.id) || (user.role_id ? roleMap.get(user.role_id) || "—" : "—");
     const colors = getRoleColor(roleName);
     const profile = profiles.find(p => p.id === user.id);
 
