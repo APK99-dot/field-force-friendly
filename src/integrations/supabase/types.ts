@@ -618,6 +618,57 @@ export type Database = {
         }
         Relationships: []
       }
+      global_leave_policy: {
+        Row: {
+          allow_backdated_leave: boolean
+          allow_negative_balance: boolean
+          carry_forward_enabled: boolean
+          created_at: string
+          half_day_enabled: boolean
+          id: string
+          max_backdate_days: number
+          max_carry_forward_days: number
+          max_continuous_days: number
+          max_negative_days: number
+          notice_period_days: number
+          reset_cycle: string
+          sandwich_rule_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          allow_backdated_leave?: boolean
+          allow_negative_balance?: boolean
+          carry_forward_enabled?: boolean
+          created_at?: string
+          half_day_enabled?: boolean
+          id?: string
+          max_backdate_days?: number
+          max_carry_forward_days?: number
+          max_continuous_days?: number
+          max_negative_days?: number
+          notice_period_days?: number
+          reset_cycle?: string
+          sandwich_rule_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          allow_backdated_leave?: boolean
+          allow_negative_balance?: boolean
+          carry_forward_enabled?: boolean
+          created_at?: string
+          half_day_enabled?: boolean
+          id?: string
+          max_backdate_days?: number
+          max_carry_forward_days?: number
+          max_continuous_days?: number
+          max_negative_days?: number
+          notice_period_days?: number
+          reset_cycle?: string
+          sandwich_rule_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       gps_tracking: {
         Row: {
           accuracy: number | null
@@ -863,6 +914,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "leave_policy_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: true
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_type_policy_override: {
+        Row: {
+          created_at: string
+          custom_reset_cycle: string | null
+          id: string
+          leave_type_id: string
+          max_carry_forward_days: number | null
+          max_continuous_days: number | null
+          max_negative_days: number | null
+          min_notice_days: number | null
+          override_carry_forward: boolean | null
+          override_negative_balance: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custom_reset_cycle?: string | null
+          id?: string
+          leave_type_id: string
+          max_carry_forward_days?: number | null
+          max_continuous_days?: number | null
+          max_negative_days?: number | null
+          min_notice_days?: number | null
+          override_carry_forward?: boolean | null
+          override_negative_balance?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custom_reset_cycle?: string | null
+          id?: string
+          leave_type_id?: string
+          max_carry_forward_days?: number | null
+          max_continuous_days?: number | null
+          max_negative_days?: number | null
+          min_notice_days?: number | null
+          override_carry_forward?: boolean | null
+          override_negative_balance?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_type_policy_override_leave_type_id_fkey"
             columns: ["leave_type_id"]
             isOneToOne: true
             referencedRelation: "leave_types"
@@ -2540,6 +2641,45 @@ export type Database = {
           is_active?: boolean
           site_code?: string | null
           site_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      regularization_policy: {
+        Row: {
+          approval_mode: string
+          auto_approve_within_hours: number | null
+          created_at: string
+          daily_limit: number
+          id: string
+          max_backdate_days: number
+          monthly_limit: number
+          post_approval_status: string
+          require_reason: boolean
+          updated_at: string
+        }
+        Insert: {
+          approval_mode?: string
+          auto_approve_within_hours?: number | null
+          created_at?: string
+          daily_limit?: number
+          id?: string
+          max_backdate_days?: number
+          monthly_limit?: number
+          post_approval_status?: string
+          require_reason?: boolean
+          updated_at?: string
+        }
+        Update: {
+          approval_mode?: string
+          auto_approve_within_hours?: number | null
+          created_at?: string
+          daily_limit?: number
+          id?: string
+          max_backdate_days?: number
+          monthly_limit?: number
+          post_approval_status?: string
+          require_reason?: boolean
           updated_at?: string
         }
         Relationships: []
