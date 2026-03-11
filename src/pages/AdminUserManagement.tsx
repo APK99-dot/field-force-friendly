@@ -360,6 +360,10 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div className="space-y-2">
+              <Label>Date of Joining</Label>
+              <Input type="date" value={dateOfJoining} onChange={(e) => setDateOfJoining(e.target.value)} />
+            </div>
+            <div className="space-y-2">
               <Label>Email</Label>
               <Input value={user.email} disabled className="bg-muted" />
               <p className="text-xs text-muted-foreground">Email cannot be changed</p>
