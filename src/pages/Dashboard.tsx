@@ -64,7 +64,6 @@ export default function Dashboard() {
   };
 
   const overviewCards = [
-    { label: "Active Projects", value: activeProjects, icon: FolderOpen, colorClass: "bg-primary/5 text-primary", path: "/projects", module: null },
     { label: "My Tasks", value: myTasks.total, icon: ListTodo, colorClass: "bg-info/5 text-info", path: "/projects", module: null },
     { label: "Completed", value: myTasks.completed, icon: CheckSquare, colorClass: "bg-success/5 text-success", path: "/projects", module: null },
     { label: "In Progress", value: myTasks.inProgress, icon: Loader, colorClass: "bg-warning/5 text-warning", path: "/projects", module: null },
