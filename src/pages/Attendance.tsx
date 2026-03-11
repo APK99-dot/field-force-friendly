@@ -398,6 +398,7 @@ export default function Attendance() {
       </div>
 
       {/* My Attendance / My Team Toggle */}
+      {hasTeam && (
       <div className="grid grid-cols-2 gap-0 rounded-full border overflow-hidden">
         <button
           onClick={() => setActiveView("my")}
@@ -422,8 +423,9 @@ export default function Attendance() {
           My Team
         </button>
       </div>
+      )}
 
-      {activeView === "team" ? (
+      {activeView === "team" && hasTeam ? (
         <MyTeamAttendance />
       ) : (
       <>
