@@ -203,21 +203,13 @@ export default function Profile() {
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <label
-              htmlFor="photo-upload"
+            <button
+              onClick={() => setCameraOpen(true)}
+              disabled={uploading}
               className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-primary-foreground/90 flex items-center justify-center cursor-pointer hover:bg-primary-foreground transition-colors shadow-md"
             >
               <Camera className="h-3.5 w-3.5 text-primary" />
-              <input
-                id="photo-upload"
-                type="file"
-                accept="image/*"
-                capture="user"
-                className="hidden"
-                onChange={handlePhotoUpload}
-                disabled={uploading}
-              />
-            </label>
+            </button>
           </div>
           <div className="text-center">
             <h1 className="text-lg font-bold">{data.full_name || "Your Name"}</h1>
