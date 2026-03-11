@@ -30,7 +30,7 @@ export default function SecurityManagement() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 space-y-5 pt-5">
+      <div className="max-w-6xl mx-auto px-3 md:px-4 space-y-4 md:space-y-5 pt-4 md:pt-5">
         {/* How Security Works Card */}
         <Card className="border-border/60">
           <CardContent className="p-5">
