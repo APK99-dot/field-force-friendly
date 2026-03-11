@@ -37,6 +37,8 @@ const LeaveApplicationModal: React.FC<LeaveApplicationModalProps> = ({
   const [endDate, setEndDate] = useState<Date>();
   const [reason, setReason] = useState('');
   const [leaveDay, setLeaveDay] = useState<'full' | 'half'>('full');
+  const [startPickerOpen, setStartPickerOpen] = useState(false);
+  const [endPickerOpen, setEndPickerOpen] = useState(false);
 
   useEffect(() => {
     if (defaultLeaveTypeId) setLeaveTypeId(defaultLeaveTypeId);
