@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import CameraCapture from "@/components/CameraCapture";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [data, setData] = useState<ProfileData>({
     full_name: "",
     username: "",
@@ -91,21 +93,17 @@ export default function Profile() {
     });
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleCameraCapture = async (blob: Blob) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
-      const filePath = `${user.id}/profile.${ext}`;
+      const filePath = `${user.id}/profile.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from("employee-photos")
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, blob, { upsert: true, contentType: "image/jpeg" });
 
       if (uploadError) throw uploadError;
 
@@ -205,21 +203,13 @@ export default function Profile() {
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <label
-              htmlFor="photo-upload"
+            <button
+              onClick={() => setCameraOpen(true)}
+              disabled={uploading}
               className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-primary-foreground/90 flex items-center justify-center cursor-pointer hover:bg-primary-foreground transition-colors shadow-md"
             >
               <Camera className="h-3.5 w-3.5 text-primary" />
-              <input
-                id="photo-upload"
-                type="file"
-                accept="image/*"
-                capture="user"
-                className="hidden"
-                onChange={handlePhotoUpload}
-                disabled={uploading}
-              />
-            </label>
+            </button>
           </div>
           <div className="text-center">
             <h1 className="text-lg font-bold">{data.full_name || "Your Name"}</h1>
@@ -438,6 +428,13 @@ export default function Profile() {
           </CardContent>
         </Card>
       </div>
+
+      <CameraCapture
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={handleCameraCapture}
+        title="Profile Photo"
+      />
     </motion.div>
   );
 }
