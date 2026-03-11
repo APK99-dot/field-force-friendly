@@ -171,6 +171,14 @@ const CreateUserWizard: React.FC<CreateUserWizardProps> = ({ onSuccess }) => {
 
       await supabase.from('employees').upsert(empPayload as any, { onConflict: 'user_id' });
 
+      // Assign security profile
+      if (formData.role_id) {
+        await supabase.from('user_security_profiles').upsert(
+          { user_id: userId, profile_id: formData.role_id },
+          { onConflict: 'user_id' }
+        );
+      }
+
       // Upload document files
       const currentUser = (await supabase.auth.getUser()).data.user;
       for (const docFile of files) {
