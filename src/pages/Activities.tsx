@@ -115,6 +115,7 @@ export default function Activities() {
   const [form, setForm] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
 
   // Dynamic activity types from DB
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
@@ -176,14 +177,29 @@ export default function Activities() {
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const dateStr = format(selectedDate, "yyyy-MM-dd");
 
-  // Get current user id
+  // Get current user id and fetch subordinates
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setCurrentUserId(data.user.id);
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (data.user) {
+        setCurrentUserId(data.user.id);
+        // Fetch subordinates using the DB function
+        const { data: subs } = await supabase.rpc("get_user_hierarchy", { _manager_id: data.user.id });
+        if (subs && subs.length > 0) {
+          setSubordinateIds(subs.map((s: any) => s.user_id));
+        }
+      }
     });
   }, []);
 
   const effectiveUserId = selectedUserId && selectedUserId !== "all" ? selectedUserId : currentUserId;
+
+  // Filter users to only show subordinates (+ self) for the dropdown
+  const hasSubordinates = subordinateIds.length > 0;
+  const selectableUsers = useMemo(() => {
+    if (!hasSubordinates) return [];
+    const subSet = new Set(subordinateIds);
+    return users.filter((u) => subSet.has(u.id) || u.id === currentUserId);
+  }, [users, subordinateIds, currentUserId, hasSubordinates]);
 
   // Fetch attendance & GPS when tab/date/user changes
   useEffect(() => {
@@ -366,18 +382,20 @@ export default function Activities() {
             <h1 className="text-lg font-bold">Activities</h1>
             <p className="text-xs opacity-80">Log & track daily work</p>
           </div>
-          <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-            <SelectTrigger className="w-[140px] h-8 bg-white/15 border-white/20 text-primary-foreground text-xs">
-              <Users className="h-3.5 w-3.5 mr-1 opacity-80" />
-              <SelectValue placeholder="Select" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Users</SelectItem>
-              {users.map((u) => (
-                <SelectItem key={u.id} value={u.id}>{u.full_name || "Unknown"}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {hasSubordinates && (
+            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <SelectTrigger className="w-[140px] h-8 bg-white/15 border-white/20 text-primary-foreground text-xs">
+                <Users className="h-3.5 w-3.5 mr-1 opacity-80" />
+                <SelectValue placeholder="My Activities" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Users</SelectItem>
+                {selectableUsers.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{u.full_name || "Unknown"}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {/* Week Info + Navigation */}
