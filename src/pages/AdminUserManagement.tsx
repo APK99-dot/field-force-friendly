@@ -700,8 +700,15 @@ export default function AdminUserManagement() {
   const { data: employees = [] } = useEmployees();
   const { data: roles = [] } = useRoles();
   const { data: profiles = [] } = useProfiles();
+  const { data: secAssignments = [] } = useUserSecurityAssignments();
 
   const queryClient = useQueryClient();
+  // Build user→security profile name map from assignments
+  const userRoleMap = new Map<string, string>();
+  secAssignments.forEach((a) => {
+    if (a.security_profiles?.name) userRoleMap.set(a.user_id, a.security_profiles.name);
+  });
+  // Fallback: old roleMap from roles table for users not yet assigned a security profile
   const roleMap = new Map(roles.map((r) => [r.id, r.name]));
 
   const filteredUsers = appUsers.filter((u) => {
