@@ -62,7 +62,14 @@ export default function Expenses() {
   });
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => { if (user) setUserId(user.id); });
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUserId(user.id);
+        supabase.rpc('get_user_hierarchy', { _manager_id: user.id }).then(({ data }) => {
+          setHasTeam(!!data && data.length > 0);
+        });
+      }
+    });
     supabase.from('expense_categories').select('*').eq('is_active', true).order('name').then(({ data }) => {
       if (data) setCategories(data as ExpenseCategory[]);
     });
