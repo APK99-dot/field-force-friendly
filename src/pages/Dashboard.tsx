@@ -86,6 +86,9 @@ export default function Dashboard() {
               onClick={() => navigate("/more")}
             >
               <Avatar className="h-10 w-10 border-2 border-white/30">
+                {profile?.profile_picture_url ? (
+                  <AvatarImage src={profile.profile_picture_url} alt="Profile" />
+                ) : null}
                 <AvatarFallback className="bg-white/20 text-primary-foreground font-bold text-sm">
                   {initials}
                 </AvatarFallback>
