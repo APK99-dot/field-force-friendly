@@ -35,6 +35,7 @@ const HolidayManagement = ({ readOnly = false }: HolidayManagementProps) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [editDate, setEditDate] = useState<Date | undefined>(new Date());
   const [formData, setFormData] = useState({ holiday_name: '', description: '' });
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const currentYear = new Date().getFullYear();
 
   useEffect(() => { fetchHolidays(); }, []);
