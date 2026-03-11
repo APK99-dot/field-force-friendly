@@ -490,7 +490,7 @@ export default function Activities() {
               </Card>
             ) : (
               filteredActivities.map((a) => (
-                <ActivityCard key={a.id} a={a} isAdmin={isAdmin} onEdit={handleOpenEdit} onDelete={handleDelete} />
+                <ActivityCard key={a.id} a={a} isAdmin={isAdmin} onEdit={handleOpenEdit} onDelete={handleDelete} onStatusChanged={() => fetchActivities()} updateActivity={updateActivity} />
               ))
             )}
           </>
@@ -894,8 +894,7 @@ function GPSTrackView({
 }
 
 // ---- Activity Card Component ----
-function ActivityCard({ a, isAdmin, onEdit, onDelete }: { a: ActivityType; isAdmin: boolean; onEdit: (a: ActivityType) => void; onDelete: (id: string) => void }) {
-  const { updateActivity, fetchActivities } = useActivities();
+function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateActivity }: { a: ActivityType; isAdmin: boolean; onEdit: (a: ActivityType) => void; onDelete: (id: string) => void; onStatusChanged: () => void; updateActivity: (id: string, updates: Partial<ActivityType>) => Promise<void> }) {
   const [changingStatus, setChangingStatus] = useState(false);
 
   const handleStatusChange = async (newStatus: string) => {
@@ -936,8 +935,8 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete }: { a: ActivityType; isAdm
       }
 
       await updateActivity(a.id, updates);
-      fetchActivities();
       toast.success(`Status changed to ${statusLabels[newStatus]}`);
+      onStatusChanged();
     } catch (err: any) {
       toast.error(err.message || "Failed to update status");
     } finally {
