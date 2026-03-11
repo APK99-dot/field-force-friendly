@@ -81,7 +81,6 @@ export const HIERARCHICAL_MODULES: HierarchicalModule[] = [
     ],
   },
 ];
-];
 
 // Helper functions
 export function getModuleByName(moduleName: string): HierarchicalModule | undefined {
