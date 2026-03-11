@@ -92,17 +92,17 @@ export default function PermissionLayerTable({
   };
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
+    <div className="overflow-x-auto -mx-3 md:mx-0 scrollbar-thin">
+      <Table className="min-w-[480px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="text-xs font-medium text-muted-foreground pl-5 min-w-[200px]">Name</TableHead>
+            <TableHead className="text-xs font-medium text-muted-foreground pl-3 md:pl-5 min-w-[140px] md:min-w-[200px]">Name</TableHead>
             {FIELDS.map((f) => (
-              <TableHead key={f} className="text-xs font-medium text-muted-foreground text-center w-[80px]">
+              <TableHead key={f} className="text-xs font-medium text-muted-foreground text-center w-[60px] md:w-[80px]">
                 {FIELD_LABELS[f]}
               </TableHead>
             ))}
-            <TableHead className="text-xs font-medium text-muted-foreground text-center w-[70px] pr-5">All</TableHead>
+            <TableHead className="text-xs font-medium text-muted-foreground text-center w-[50px] md:w-[70px] pr-3 md:pr-5">All</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
