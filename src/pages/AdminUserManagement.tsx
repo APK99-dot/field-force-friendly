@@ -219,6 +219,7 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
   const [managerId, setManagerId] = useState(user.reporting_manager_id || "none");
   const [secondaryManagerId, setSecondaryManagerId] = useState("none");
   const [newPassword, setNewPassword] = useState("");
+  const [dateOfJoining, setDateOfJoining] = useState(employee?.date_of_joining || "");
   const [loading, setLoading] = useState(false);
   const [deletingData, setDeletingData] = useState(false);
   const [editTab, setEditTab] = useState("basic");
@@ -293,6 +294,7 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
         user_id: user.id,
         manager_id: managerId === "none" ? null : managerId,
         secondary_manager_id: secondaryManagerId === "none" ? null : secondaryManagerId,
+        date_of_joining: dateOfJoining || null,
       }, { onConflict: "user_id" });
       if (empError) throw empError;
 
@@ -357,6 +359,10 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
             <div className="space-y-2">
               <Label>Phone Number</Label>
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Date of Joining</Label>
+              <Input type="date" value={dateOfJoining} onChange={(e) => setDateOfJoining(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Email</Label>
