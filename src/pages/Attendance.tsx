@@ -68,6 +68,11 @@ export default function Attendance() {
           .then(({ data }) => {
             if (data?.profile_picture_url) setProfilePictureUrl(data.profile_picture_url);
           });
+        // Check if user has subordinates
+        supabase.rpc("get_user_hierarchy", { _manager_id: user.id })
+          .then(({ data }) => {
+            setHasTeam(!!data && data.length > 0);
+          });
       }
     });
   }, []);
