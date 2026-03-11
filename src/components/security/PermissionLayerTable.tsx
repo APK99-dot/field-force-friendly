@@ -117,7 +117,7 @@ export default function PermissionLayerTable({
                       className="bg-muted/50 cursor-pointer hover:bg-muted/70"
                       onClick={() => toggleGroup(groupKey)}
                     >
-                      <TableCell className="font-semibold text-sm py-2 pl-3" colSpan={1}>
+                      <TableCell className="font-semibold text-xs md:text-sm py-2 pl-3" colSpan={1}>
                         <div className="flex items-center gap-1.5">
                           {isCollapsed ? (
                             <ChevronRight className="h-4 w-4" />
