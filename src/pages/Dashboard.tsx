@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDashboard } from "@/hooks/useDashboard";
@@ -86,6 +86,9 @@ export default function Dashboard() {
               onClick={() => navigate("/more")}
             >
               <Avatar className="h-10 w-10 border-2 border-white/30">
+                {profile?.profile_picture_url ? (
+                  <AvatarImage src={profile.profile_picture_url} alt="Profile" />
+                ) : null}
                 <AvatarFallback className="bg-white/20 text-primary-foreground font-bold text-sm">
                   {initials}
                 </AvatarFallback>
