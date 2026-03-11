@@ -61,6 +61,7 @@ const App = () => (
             <Route path="/pending-approvals" element={<PendingApprovals />} />
             <Route path="/activities" element={<Activities />} />
             <Route path="/activity-timeline" element={<ActivityTimeline />} />
+            <Route path="/profile" element={<Profile />} />
           </Route>
           <Route path="/install" element={<InstallApp />} />
           <Route path="*" element={<NotFound />} />
