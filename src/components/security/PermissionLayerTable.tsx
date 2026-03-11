@@ -169,7 +169,7 @@ export default function PermissionLayerTable({
                             </div>
                           </TableCell>
                         ))}
-                        <TableCell className="text-center py-2.5 pr-5">
+                        <TableCell className="text-center py-2.5 pr-3 md:pr-5">
                           <div className="flex justify-center">
                             <Checkbox
                               checked={FIELDS.every((f) => row[f])}

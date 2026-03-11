@@ -33,12 +33,12 @@ export default function SecurityManagement() {
       <div className="max-w-6xl mx-auto px-3 md:px-4 space-y-4 md:space-y-5 pt-4 md:pt-5">
         {/* How Security Works Card */}
         <Card className="border-border/60">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-2 mb-3">
+          <CardContent className="p-3 md:p-5">
+            <div className="flex items-center gap-2 mb-2 md:mb-3">
               <Lock className="h-4 w-4 text-foreground" />
-              <h2 className="font-semibold text-base">How Security Works</h2>
+              <h2 className="font-semibold text-sm md:text-base">How Security Works</h2>
             </div>
-            <div className="space-y-1.5 text-sm">
+            <div className="space-y-1.5 text-xs md:text-sm">
               <p>
                 <span className="font-semibold text-foreground">Role Permissions:</span>{" "}
                 <span className="text-muted-foreground">Control what modules, fields, actions & widgets each role can access (View, Create, Edit, Delete)</span>

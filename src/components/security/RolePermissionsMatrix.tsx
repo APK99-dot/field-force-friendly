@@ -186,9 +186,9 @@ export default function RolePermissionsMatrix() {
             </Button>
           </div>
 
-          <div className="mb-5">
+          <div className="mb-4 md:mb-5">
             <Select value={selectedProfileId} onValueChange={(v) => { setSelectedProfileId(v); setIsDirty(false); }}>
-              <SelectTrigger className="w-full max-w-xs">
+              <SelectTrigger className="w-full md:max-w-xs">
                 <SelectValue placeholder="Select a security profile..." />
               </SelectTrigger>
               <SelectContent>

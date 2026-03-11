@@ -615,11 +615,11 @@ function UserHierarchy({ users, roles, profiles, userRoleMap }: { users: AppUser
           })}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
         {viewMode === "tree" ? (
           <ScrollArea className="w-full">
             <div className="flex justify-center py-4 min-w-max">
-              <div className="flex gap-6">
+              <div className="flex gap-4 md:gap-6">
                 {topLevel.map(user => renderOrgNode(user))}
               </div>
             </div>
