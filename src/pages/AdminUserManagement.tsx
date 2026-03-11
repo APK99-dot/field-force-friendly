@@ -473,40 +473,44 @@ function UserHierarchy({ users, roles, profiles, userRoleMap }: { users: AppUser
     const roleName = userRoleMap.get(user.id) || (user.role_id ? roleMap.get(user.role_id) || "—" : "—");
     const profile = profiles.find((p) => p.id === user.id);
     const colors = getRoleColor(roleName);
+    // Compact node width for mobile: 64px mobile, 96px desktop
+    const nodeW = 64;
+    const nodeWMd = 96;
+    const halfGap = 2; // gap-1 = 4px, half = 2
 
     return (
       <div key={user.id} className="flex flex-col items-center">
-        <div className="flex flex-col items-center w-24">
+        <div className="flex flex-col items-center w-16 md:w-24">
           <div className={`rounded-full p-[2px] ring-2 ${colors.border.replace('border-t-', 'ring-')}`}>
-            <Avatar className="h-12 w-12">
+            <Avatar className="h-8 w-8 md:h-12 md:w-12">
               <AvatarImage src={profile?.profile_picture_url || undefined} />
-              <AvatarFallback className={`text-sm font-semibold text-white ${colors.badge}`}>
+              <AvatarFallback className={`text-[10px] md:text-sm font-semibold text-white ${colors.badge}`}>
                 {(user.full_name || "U").charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
           </div>
-          <p className="text-[11px] font-medium text-center mt-1 leading-tight truncate w-full">
+          <p className="text-[9px] md:text-[11px] font-medium text-center mt-0.5 md:mt-1 leading-tight truncate w-full">
             {user.full_name || user.email}
           </p>
-          <p className={`text-[9px] text-center truncate w-full ${colors.text}`}>{roleName}</p>
+          <p className={`text-[8px] md:text-[9px] text-center truncate w-full ${colors.text}`}>{roleName}</p>
         </div>
         {children.length > 0 && (
           <>
-            <div className="w-px h-4 bg-border" />
+            <div className="w-px h-2 md:h-4 bg-border" />
             <div className="relative flex items-start">
               {children.length > 1 && (
                 <div
                   className="absolute top-0 h-px bg-border"
                   style={{
-                    left: `calc(50% - ${(children.length - 1) * 52}px)`,
-                    width: `${(children.length - 1) * 104}px`,
+                    left: `calc(50% - ${(children.length - 1) * 34}px)`,
+                    width: `${(children.length - 1) * 68}px`,
                   }}
                 />
               )}
-              <div className="flex gap-2">
+              <div className="flex gap-1 md:gap-2">
                 {children.map(child => (
                   <div key={child.id} className="flex flex-col items-center">
-                    <div className="w-px h-4 bg-border" />
+                    <div className="w-px h-2 md:h-4 bg-border" />
                     {renderOrgNode(child)}
                   </div>
                 ))}
