@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Search, RefreshCw, Download, Edit, Plus, Users, FileSpreadsheet } from 'lucide-react';
+import { Search, RefreshCw, Download, Edit, Plus, Users, FileSpreadsheet, CalendarClock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useMonthlyLeaveAccrual } from '@/hooks/useMonthlyLeaveAccrual';
 
 interface LeaveBalance {
   id: string; user_id: string; leave_type_id: string; opening_balance: number; used_balance: number; remaining_balance: number | null; year: number;
