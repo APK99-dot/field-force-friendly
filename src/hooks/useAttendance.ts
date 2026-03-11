@@ -108,7 +108,6 @@ export function useAttendance(userId: string | undefined) {
 
       setTodayRecord(todayRes.data);
       setMonthRecords(monthRes.data || []);
-      console.log("[useAttendance] holidays fetched:", holidayRes.data, "error:", holidayRes.error);
       setHolidays(holidayRes.data || []);
       setWeekOffConfig(weekOffRes.data || []);
       const normalizedLeaves = (leaveRes.data || []).map((l: any) => ({
