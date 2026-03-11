@@ -90,7 +90,15 @@ const HolidayManagement = ({ readOnly = false }: HolidayManagementProps) => {
     setIsEditOpen(true);
   };
 
-  const HolidayForm = ({ date, setDate, onSave, saveLabel }: { date?: Date; setDate: (d?: Date) => void; onSave: () => void; saveLabel: string }) => (
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, holiday_name: e.target.value }));
+  };
+
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setFormData(prev => ({ ...prev, description: e.target.value }));
+  };
+
+  const renderForm = (date: Date | undefined, setDate: (d?: Date) => void, onSave: () => void, saveLabel: string) => (
     <div className="space-y-4">
       <div>
         <Label>Date</Label>
@@ -103,8 +111,8 @@ const HolidayManagement = ({ readOnly = false }: HolidayManagementProps) => {
           <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={date} onSelect={setDate} initialFocus /></PopoverContent>
         </Popover>
       </div>
-      <div><Label>Holiday Name</Label><Input value={formData.holiday_name} onChange={(e) => setFormData({...formData, holiday_name: e.target.value})} placeholder="e.g., Independence Day" /></div>
-      <div><Label>Description (Optional)</Label><Textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} placeholder="Additional details" /></div>
+      <div><Label>Holiday Name</Label><Input value={formData.holiday_name} onChange={handleNameChange} placeholder="e.g., Independence Day" /></div>
+      <div><Label>Description (Optional)</Label><Textarea value={formData.description} onChange={handleDescriptionChange} placeholder="Additional details" /></div>
       <DialogFooter><Button variant="outline" onClick={() => { setIsCreateOpen(false); setIsEditOpen(false); }}>Cancel</Button><Button onClick={onSave}>{saveLabel}</Button></DialogFooter>
     </div>
   );
