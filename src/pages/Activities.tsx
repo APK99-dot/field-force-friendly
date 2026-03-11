@@ -935,8 +935,8 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateAct
       }
 
       await updateActivity(a.id, updates);
-      fetchActivities();
       toast.success(`Status changed to ${statusLabels[newStatus]}`);
+      onStatusChanged();
     } catch (err: any) {
       toast.error(err.message || "Failed to update status");
     } finally {
