@@ -55,13 +55,21 @@ export default function Expenses() {
   const [formFile, setFormFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [hasTeam, setHasTeam] = useState(false);
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = subMonths(new Date(), i);
     return { value: format(d, 'yyyy-MM'), label: format(d, 'MMM yyyy') };
   });
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => { if (user) setUserId(user.id); });
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUserId(user.id);
+        supabase.rpc('get_user_hierarchy', { _manager_id: user.id }).then(({ data }) => {
+          setHasTeam(!!data && data.length > 0);
+        });
+      }
+    });
     supabase.from('expense_categories').select('*').eq('is_active', true).order('name').then(({ data }) => {
       if (data) setCategories(data as ExpenseCategory[]);
     });
@@ -190,9 +198,9 @@ export default function Expenses() {
       <h1 className="text-xl font-bold">Expenses</h1>
 
       <Tabs defaultValue="my-expenses" className="w-full">
-        <TabsList className="w-full">
+        <TabsList className={hasTeam ? "w-full" : "w-full"}>
           <TabsTrigger value="my-expenses" className="flex-1">My Expenses</TabsTrigger>
-          <TabsTrigger value="my-team" className="flex-1">My Team</TabsTrigger>
+          {hasTeam && <TabsTrigger value="my-team" className="flex-1">My Team</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="my-expenses">
