@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -99,11 +99,11 @@ const getRoleColor = (role: string) => roleColorMap[role] || defaultRoleColor;
 // Fetch hooks
 function useRoles() {
   return useQuery({
-    queryKey: ["roles"],
+    queryKey: ["security-profiles-as-roles"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("roles").select("*").order("name");
+      const { data, error } = await supabase.from("security_profiles").select("id, name, is_system").order("name");
       if (error) throw error;
-      return (data || []) as Role[];
+      return (data || []).map(d => ({ id: d.id, name: d.name, is_system: d.is_system })) as Role[];
     },
   });
 }
@@ -210,17 +210,29 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
   const [deletingData, setDeletingData] = useState(false);
   const [editTab, setEditTab] = useState("basic");
 
-  // Reset state when user changes
-  useState(() => {
+  // Fetch current security profile assignment
+  useEffect(() => {
+    const fetchSecurityProfile = async () => {
+      const { data } = await supabase
+        .from("user_security_profiles")
+        .select("profile_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data?.profile_id) {
+        setRoleId(data.profile_id);
+      } else {
+        setRoleId(user.role_id || "");
+      }
+    };
+    fetchSecurityProfile();
     setFullName(user.full_name || "");
     setUsername(user.username || "");
     setPhone(user.phone || "");
-    setRoleId(user.role_id || "");
     setManagerId(user.reporting_manager_id || "none");
     setSecondaryManagerId("none");
     setNewPassword("");
     setEditTab("basic");
-  });
+  }, [user.id]);
 
   const roleEnumMap: Record<string, string> = {};
   roles.forEach((r) => {
@@ -251,10 +263,18 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
       }).eq("id", user.id);
       if (profileError) throw profileError;
 
-      if (roleId && roleEnumMap[roleId]) {
-        await supabase.from("user_roles").update({
-          role: roleEnumMap[roleId] as any,
-        }).eq("user_id", user.id);
+      // Update security profile assignment
+      if (roleId) {
+        const { data: existing } = await supabase
+          .from("user_security_profiles")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (existing) {
+          await supabase.from("user_security_profiles").update({ profile_id: roleId }).eq("id", existing.id);
+        } else {
+          await supabase.from("user_security_profiles").insert({ user_id: user.id, profile_id: roleId });
+        }
       }
 
       const { error: empError } = await supabase.from("employees").upsert({

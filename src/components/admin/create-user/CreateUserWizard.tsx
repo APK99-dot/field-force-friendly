@@ -40,7 +40,7 @@ const CreateUserWizard: React.FC<CreateUserWizardProps> = ({ onSuccess }) => {
     const fetchData = async () => {
       const [managersRes, rolesRes] = await Promise.all([
         supabase.from('profiles').select('id, username, full_name').order('full_name'),
-        supabase.from('roles').select('id, name').order('name'),
+        supabase.from('security_profiles').select('id, name').order('name'),
       ]);
       if (!managersRes.error && managersRes.data) setManagers(managersRes.data);
       if (!rolesRes.error && rolesRes.data) setRoles(rolesRes.data);
@@ -170,6 +170,14 @@ const CreateUserWizard: React.FC<CreateUserWizardProps> = ({ onSuccess }) => {
       if (formData.education) empPayload.education = formData.education;
 
       await supabase.from('employees').upsert(empPayload as any, { onConflict: 'user_id' });
+
+      // Assign security profile
+      if (formData.role_id) {
+        await supabase.from('user_security_profiles').upsert(
+          { user_id: userId, profile_id: formData.role_id },
+          { onConflict: 'user_id' }
+        );
+      }
 
       // Upload document files
       const currentUser = (await supabase.auth.getUser()).data.user;
