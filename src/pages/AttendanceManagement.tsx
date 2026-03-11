@@ -16,6 +16,7 @@ import HolidayManagement from "@/components/HolidayManagement";
 import LeaveBalancesManager from "@/components/attendance/LeaveBalancesManager";
 import LeaveTypesManager from "@/components/attendance/LeaveTypesManager";
 import AttendancePolicyConfig from "@/components/attendance/AttendancePolicyConfig";
+import AttendanceReportGenerator from "@/components/attendance/AttendanceReportGenerator";
 import WorkingDaysConfig from "@/components/attendance/WorkingDaysConfig";
 import RejectionReasonDialog from "@/components/RejectionReasonDialog";
 
