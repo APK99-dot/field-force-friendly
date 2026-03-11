@@ -8,8 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import HierarchicalPermissionEditor, { PermissionState } from "./HierarchicalPermissionEditor";
-import { PERMISSION_MODULES } from "./permissionModules";
-import { HIERARCHICAL_MODULES, getPermissionType, getParentModule } from "./hierarchicalPermissions";
+import { usePermissionDefinitions, PermissionDefinition } from "@/hooks/usePermissionDefinitions";
 
 interface SecurityProfile {
   id: string;
@@ -17,40 +16,23 @@ interface SecurityProfile {
   is_system: boolean;
 }
 
-// Build initial empty permission state with all items
-function buildEmptyPermissions(): PermissionState {
+function buildPermissionsFromDefinitions(definitions: PermissionDefinition[]): PermissionState {
   const state: PermissionState = {};
-  for (const mod of PERMISSION_MODULES) {
-    state[mod.name] = {
-      canRead: false, canCreate: false, canEdit: false, canDelete: false,
-      permissionType: "module", parentModule: null,
+  for (const def of definitions) {
+    state[def.name] = {
+      canRead: false,
+      canCreate: false,
+      canEdit: false,
+      canDelete: false,
+      permissionType: def.type,
+      parentModule: def.parent_module,
     };
-  }
-  for (const mod of HIERARCHICAL_MODULES) {
-    for (const f of mod.fields) {
-      state[f.name] = {
-        canRead: false, canCreate: false, canEdit: false, canDelete: false,
-        permissionType: "field", parentModule: mod.module,
-      };
-    }
-    for (const a of mod.actions) {
-      state[a.name] = {
-        canRead: false, canCreate: false, canEdit: false, canDelete: false,
-        permissionType: "action", parentModule: mod.module,
-      };
-    }
-    for (const w of mod.widgets) {
-      state[w.name] = {
-        canRead: false, canCreate: false, canEdit: false, canDelete: false,
-        permissionType: "widget", parentModule: mod.module,
-      };
-    }
   }
   return state;
 }
 
-function buildAllEnabledPermissions(): PermissionState {
-  const state = buildEmptyPermissions();
+function buildAllEnabledFromDefinitions(definitions: PermissionDefinition[]): PermissionState {
+  const state = buildPermissionsFromDefinitions(definitions);
   Object.keys(state).forEach((key) => {
     state[key] = { ...state[key], canRead: true, canCreate: true, canEdit: true, canDelete: true };
   });
@@ -60,8 +42,10 @@ function buildAllEnabledPermissions(): PermissionState {
 export default function RolePermissionsMatrix() {
   const queryClient = useQueryClient();
   const [selectedProfileId, setSelectedProfileId] = useState<string>("");
-  const [permissions, setPermissions] = useState<PermissionState>(buildEmptyPermissions());
+  const [permissions, setPermissions] = useState<PermissionState>({});
   const [isDirty, setIsDirty] = useState(false);
+
+  const { data: definitions = [] } = usePermissionDefinitions();
 
   // Fetch all profiles
   const profilesQuery = useQuery({
@@ -103,14 +87,16 @@ export default function RolePermissionsMatrix() {
     },
   });
 
-  // Populate permissions state from DB
+  // Populate permissions state from DB + definitions
   useEffect(() => {
+    if (definitions.length === 0) return;
+
     if (isSystemAdmin) {
-      setPermissions(buildAllEnabledPermissions());
+      setPermissions(buildAllEnabledFromDefinitions(definitions));
       setIsDirty(false);
       return;
     }
-    const base = buildEmptyPermissions();
+    const base = buildPermissionsFromDefinitions(definitions);
     if (permsQuery.data) {
       for (const row of permsQuery.data) {
         if (base[row.object_name]) {
@@ -126,7 +112,7 @@ export default function RolePermissionsMatrix() {
     }
     setPermissions(base);
     setIsDirty(false);
-  }, [permsQuery.data, isSystemAdmin, selectedProfileId]);
+  }, [permsQuery.data, isSystemAdmin, selectedProfileId, definitions]);
 
   const handleChange = useCallback((updated: PermissionState) => {
     setPermissions(updated);
@@ -138,14 +124,12 @@ export default function RolePermissionsMatrix() {
     mutationFn: async () => {
       if (!selectedProfileId) throw new Error("No profile selected");
 
-      // Delete existing permissions for this profile
       const { error: delError } = await supabase
         .from("profile_object_permissions")
         .delete()
         .eq("profile_id", selectedProfileId);
       if (delError) throw delError;
 
-      // Insert all permissions
       const rows = Object.entries(permissions).map(([objectName, p]) => ({
         profile_id: selectedProfileId,
         object_name: objectName,
@@ -166,6 +150,7 @@ export default function RolePermissionsMatrix() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile-permissions-hierarchical", selectedProfileId] });
+      queryClient.invalidateQueries({ queryKey: ["user-profile-permissions"] });
       toast.success("Permissions saved successfully");
       setIsDirty(false);
     },
@@ -229,6 +214,7 @@ export default function RolePermissionsMatrix() {
           {selectedProfileId ? (
             <HierarchicalPermissionEditor
               permissions={permissions}
+              definitions={definitions}
               readOnly={isSystemAdmin}
               onChange={handleChange}
             />
