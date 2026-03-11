@@ -160,7 +160,7 @@ export default function RolePermissionsMatrix() {
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="p-5">
+        <CardContent className="p-3 md:p-5">
           {/* Profile Selector */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
