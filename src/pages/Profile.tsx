@@ -93,21 +93,17 @@ export default function Profile() {
     });
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleCameraCapture = async (blob: Blob) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
-      const filePath = `${user.id}/profile.${ext}`;
+      const filePath = `${user.id}/profile.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from("employee-photos")
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, blob, { upsert: true, contentType: "image/jpeg" });
 
       if (uploadError) throw uploadError;
 
