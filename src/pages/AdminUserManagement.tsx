@@ -294,6 +294,7 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
         user_id: user.id,
         manager_id: managerId === "none" ? null : managerId,
         secondary_manager_id: secondaryManagerId === "none" ? null : secondaryManagerId,
+        date_of_joining: dateOfJoining || null,
       }, { onConflict: "user_id" });
       if (empError) throw empError;
 
