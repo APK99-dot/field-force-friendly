@@ -99,11 +99,11 @@ const getRoleColor = (role: string) => roleColorMap[role] || defaultRoleColor;
 // Fetch hooks
 function useRoles() {
   return useQuery({
-    queryKey: ["roles"],
+    queryKey: ["security-profiles-as-roles"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("roles").select("*").order("name");
+      const { data, error } = await supabase.from("security_profiles").select("id, name, is_system").order("name");
       if (error) throw error;
-      return (data || []) as Role[];
+      return (data || []).map(d => ({ id: d.id, name: d.name, is_system: d.is_system })) as Role[];
     },
   });
 }
