@@ -839,7 +839,7 @@ export default function AdminUserManagement() {
 
         {/* Overview Tab - Hierarchy */}
         <TabsContent value="overview" className="space-y-4">
-          <UserHierarchy users={appUsers} roles={roles} profiles={profiles} />
+          <UserHierarchy users={appUsers} roles={roles} profiles={profiles} userRoleMap={userRoleMap} />
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
