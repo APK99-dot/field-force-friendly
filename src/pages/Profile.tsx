@@ -47,6 +47,7 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [data, setData] = useState<ProfileData>({
     full_name: "",
     username: "",
