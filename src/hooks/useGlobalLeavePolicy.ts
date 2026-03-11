@@ -52,11 +52,11 @@ export function useGlobalLeavePolicy() {
     setLoading(true);
     try {
       const [policyRes, overridesRes] = await Promise.all([
-        supabase.from('global_leave_policy').select('*').limit(1).maybeSingle(),
-        supabase.from('leave_type_policy_override').select('*'),
+        supabase.from('global_leave_policy' as any).select('*').limit(1).maybeSingle(),
+        supabase.from('leave_type_policy_override' as any).select('*'),
       ]);
-      setPolicy(policyRes.data as GlobalLeavePolicy | null);
-      setOverrides((overridesRes.data || []) as LeaveTypePolicyOverride[]);
+      setPolicy(policyRes.data as any as GlobalLeavePolicy | null);
+      setOverrides((overridesRes.data || []) as any as LeaveTypePolicyOverride[]);
     } catch (err) {
       console.error('Error fetching global leave policy:', err);
     } finally {
@@ -69,10 +69,10 @@ export function useGlobalLeavePolicy() {
   const savePolicy = async (data: Partial<GlobalLeavePolicy>) => {
     try {
       if (policy?.id) {
-        const { error } = await supabase.from('global_leave_policy').update(data).eq('id', policy.id);
+        const { error } = await supabase.from('global_leave_policy' as any).update(data as any).eq('id', policy.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('global_leave_policy').insert(data);
+        const { error } = await supabase.from('global_leave_policy' as any).insert(data as any);
         if (error) throw error;
       }
       toast.success('Leave policy saved');
@@ -86,10 +86,10 @@ export function useGlobalLeavePolicy() {
     try {
       const existing = overrides.find(o => o.leave_type_id === leaveTypeId);
       if (existing) {
-        const { error } = await supabase.from('leave_type_policy_override').update(data).eq('id', existing.id);
+        const { error } = await supabase.from('leave_type_policy_override' as any).update(data as any).eq('id', existing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('leave_type_policy_override').insert({ leave_type_id: leaveTypeId, ...data });
+        const { error } = await supabase.from('leave_type_policy_override' as any).insert({ leave_type_id: leaveTypeId, ...data } as any);
         if (error) throw error;
       }
       toast.success('Override saved');
@@ -101,7 +101,7 @@ export function useGlobalLeavePolicy() {
 
   const deleteOverride = async (leaveTypeId: string) => {
     try {
-      const { error } = await supabase.from('leave_type_policy_override').delete().eq('leave_type_id', leaveTypeId);
+      const { error } = await supabase.from('leave_type_policy_override' as any).delete().eq('leave_type_id', leaveTypeId);
       if (error) throw error;
       toast.success('Override removed');
       await fetchPolicy();

@@ -576,6 +576,7 @@ export default function AttendanceManagement() {
       )}
 
       {activeTab === "leave-balances" && <LeaveBalancesManager />}
+      {activeTab === "reports" && <AttendanceReportGenerator />}
       {activeTab === "leave-types" && <LeaveTypesManager />}
       {activeTab === "holidays" && <HolidayManagement />}
       {activeTab === "working-days" && <WorkingDaysConfig />}

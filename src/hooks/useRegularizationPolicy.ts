@@ -20,8 +20,8 @@ export function useRegularizationPolicy() {
   const fetchPolicy = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await supabase.from('regularization_policy').select('*').limit(1).maybeSingle();
-      setPolicy(data as RegularizationPolicy | null);
+      const { data } = await supabase.from('regularization_policy' as any).select('*').limit(1).maybeSingle();
+      setPolicy(data as any as RegularizationPolicy | null);
     } catch (err) {
       console.error('Error fetching regularization policy:', err);
     } finally {
@@ -34,10 +34,10 @@ export function useRegularizationPolicy() {
   const savePolicy = async (data: Partial<RegularizationPolicy>) => {
     try {
       if (policy?.id) {
-        const { error } = await supabase.from('regularization_policy').update(data).eq('id', policy.id);
+        const { error } = await supabase.from('regularization_policy' as any).update(data as any).eq('id', policy.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('regularization_policy').insert(data);
+        const { error } = await supabase.from('regularization_policy' as any).insert(data as any);
         if (error) throw error;
       }
       toast.success('Regularization policy saved');
