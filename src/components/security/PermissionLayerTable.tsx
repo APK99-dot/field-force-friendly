@@ -66,7 +66,7 @@ export default function PermissionLayerTable({
     const allEnabled = FIELDS.every((f) => row[f]);
     return (
       <TableRow key={row.objectName}>
-        <TableCell className="font-medium text-sm py-2.5 pl-5">{row.label}</TableCell>
+        <TableCell className="font-medium text-xs md:text-sm py-2.5 pl-3 md:pl-5">{row.label}</TableCell>
         {FIELDS.map((field) => (
           <TableCell key={field} className="text-center py-2.5">
             <div className="flex justify-center">
