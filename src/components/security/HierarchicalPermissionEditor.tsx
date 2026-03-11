@@ -91,9 +91,22 @@ export default function HierarchicalPermissionEditor({ permissions, definitions,
     };
   });
 
+  // Build a map of module name -> sort_order for ordering groups
+  const moduleSortOrder: Record<string, number> = {};
+  modules.forEach((m) => {
+    moduleSortOrder[m.name] = m.sort_order;
+  });
+
   const buildLayerRows = (type: "field" | "action" | "widget"): PermissionRow[] => {
     const items = getByType(definitions, type);
-    return items.map((item) => {
+    // Sort by parent module's sort_order first, then by item's own sort_order
+    const sorted = [...items].sort((a, b) => {
+      const parentA = moduleSortOrder[a.parent_module || ""] ?? 999;
+      const parentB = moduleSortOrder[b.parent_module || ""] ?? 999;
+      if (parentA !== parentB) return parentA - parentB;
+      return a.sort_order - b.sort_order;
+    });
+    return sorted.map((item) => {
       const p = permissions[item.name];
       return {
         objectName: item.name,
