@@ -10,9 +10,7 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   { id: "module_attendance", name: "module_attendance", label: "Attendance" },
   { id: "module_activities", name: "module_activities", label: "Activities" },
   { id: "module_expenses", name: "module_expenses", label: "Expenses" },
-  { id: "module_projects", name: "module_projects", label: "Projects" },
   { id: "module_gps_tracking", name: "module_gps_tracking", label: "GPS Tracking" },
-  { id: "module_leaves", name: "module_leaves", label: "Leaves" },
 ];
 
 // Admin sub-module path map

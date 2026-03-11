@@ -80,25 +80,6 @@ export const HIERARCHICAL_MODULES: HierarchicalModule[] = [
       { name: "widget_activity_summary", label: "Activity Summary" },
     ],
   },
-  {
-    module: "module_leaves",
-    label: "Leaves",
-    fields: [
-      { name: "field_leave_type", label: "Leave Type" },
-      { name: "field_leave_dates", label: "Leave Dates" },
-      { name: "field_leave_reason", label: "Reason" },
-      { name: "field_leave_balance", label: "Leave Balance" },
-      { name: "field_leave_status", label: "Status" },
-    ],
-    actions: [
-      { name: "action_leave_apply", label: "Apply Leave" },
-      { name: "action_leave_cancel", label: "Cancel Leave" },
-    ],
-    widgets: [
-      { name: "widget_leave_balance_cards", label: "Leave Balance Cards" },
-      { name: "widget_leave_application_list", label: "Leave Applications List" },
-    ],
-  },
 ];
 
 // Helper functions
