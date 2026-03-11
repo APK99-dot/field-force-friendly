@@ -193,6 +193,14 @@ export default function Activities() {
 
   const effectiveUserId = selectedUserId && selectedUserId !== "all" ? selectedUserId : currentUserId;
 
+  // Filter users to only show subordinates (+ self) for the dropdown
+  const hasSubordinates = subordinateIds.length > 0;
+  const selectableUsers = useMemo(() => {
+    if (!hasSubordinates) return [];
+    const subSet = new Set(subordinateIds);
+    return users.filter((u) => subSet.has(u.id) || u.id === currentUserId);
+  }, [users, subordinateIds, currentUserId, hasSubordinates]);
+
   // Fetch attendance & GPS when tab/date/user changes
   useEffect(() => {
     if (!effectiveUserId) return;
