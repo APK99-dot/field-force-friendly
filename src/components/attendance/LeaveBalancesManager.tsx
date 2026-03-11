@@ -188,6 +188,13 @@ const LeaveBalancesManager = () => {
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" onClick={handleInitializeBalances} disabled={isInitializing}><Plus className="h-4 w-4 mr-2" />Initialize Year</Button>
               <Button variant="outline" onClick={handleRecalculateBalances} disabled={isInitializing}><RefreshCw className={`h-4 w-4 mr-2 ${isInitializing ? 'animate-spin' : ''}`} />Recalculate</Button>
+              <Button variant="default" onClick={async () => {
+                setIsRecalcMonthly(true);
+                const ok = await recalculate();
+                if (ok) { toast.success('Monthly accruals recalculated with carry-forward'); fetchData(); }
+                else toast.error('Failed to recalculate monthly accruals');
+                setIsRecalcMonthly(false);
+              }} disabled={isRecalcMonthly}><CalendarClock className={`h-4 w-4 mr-2 ${isRecalcMonthly ? 'animate-spin' : ''}`} />Recalculate Monthly</Button>
               <Button variant="outline" onClick={handleExport}><Download className="h-4 w-4 mr-2" />Export</Button>
               <Button onClick={() => { setEditingBalance(null); setFormData({ user_id: '', leave_type_id: '', opening_balance: 0, used_balance: 0 }); setIsDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" />Add Balance</Button>
             </div>
