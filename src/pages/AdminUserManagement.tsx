@@ -219,6 +219,7 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
   const [managerId, setManagerId] = useState(user.reporting_manager_id || "none");
   const [secondaryManagerId, setSecondaryManagerId] = useState("none");
   const [newPassword, setNewPassword] = useState("");
+  const [dateOfJoining, setDateOfJoining] = useState(employee?.date_of_joining || "");
   const [loading, setLoading] = useState(false);
   const [deletingData, setDeletingData] = useState(false);
   const [editTab, setEditTab] = useState("basic");
