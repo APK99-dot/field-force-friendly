@@ -1009,7 +1009,7 @@ export default function AdminUserManagement() {
                   <div className="md:hidden divide-y">
                     {paginatedUsers.map((user) => {
                       const employee = employees.find((e) => e.user_id === user.id);
-                      const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
+                      const roleName = userRoleMap.get(user.id) || (user.role_id ? roleMap.get(user.role_id) || "—" : "—");
                       const manager = user.reporting_manager_id ? appUsers.find((u) => u.id === user.reporting_manager_id) : null;
                       const profile = profiles.find((p) => p.id === user.id);
                       const colors = getRoleColor(roleName);
