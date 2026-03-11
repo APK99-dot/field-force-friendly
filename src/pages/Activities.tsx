@@ -490,7 +490,7 @@ export default function Activities() {
               </Card>
             ) : (
               filteredActivities.map((a) => (
-                <ActivityCard key={a.id} a={a} isAdmin={isAdmin} onEdit={handleOpenEdit} onDelete={handleDelete} />
+                <ActivityCard key={a.id} a={a} isAdmin={isAdmin} onEdit={handleOpenEdit} onDelete={handleDelete} onStatusChanged={() => fetchActivities()} updateActivity={updateActivity} />
               ))
             )}
           </>
