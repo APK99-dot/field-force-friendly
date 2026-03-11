@@ -53,10 +53,10 @@ export default function Dashboard() {
   const {
     dayStarted,
     attendance,
-    activeProjects,
     myTasks,
     pendingLeaves,
     pendingExpenses,
+    todayActivities,
   } = useDashboard(userId);
 
   const handleStartDay = () => {
