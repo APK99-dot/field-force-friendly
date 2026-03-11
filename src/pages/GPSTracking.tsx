@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import { motion } from "framer-motion";
-import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,11 +17,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { MapPin, AlertTriangle, RefreshCw, Clock, Navigation, Users, CalendarIcon } from "lucide-react";
+import { MapPin, AlertTriangle, RefreshCw, Clock, Navigation, CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentPosition } from "@/utils/nativePermissions";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useGPSTeamMembers } from "@/hooks/useGPSTeamMembers";
 
 const LeafletMap = lazy(() =>
   import("@/components/LeafletMap").catch(() => {
@@ -31,11 +32,6 @@ const LeafletMap = lazy(() =>
 );
 
 type DateRangeOption = "today" | "this_week" | "this_month" | "custom";
-
-interface TeamMember {
-  id: string;
-  full_name: string;
-}
 
 interface GPSPoint {
   latitude: number;
@@ -53,14 +49,6 @@ interface GPSStop {
   reason: string | null;
 }
 
-interface SubordinateLocation {
-  user_id: string;
-  full_name: string;
-  latitude: number;
-  longitude: number;
-  timestamp: string;
-}
-
 interface ActivityAtLocation {
   lat: number;
   lng: number;
@@ -70,124 +58,92 @@ interface ActivityAtLocation {
   timestamp?: string;
 }
 
+const MapFallback = () => (
+  <div className="h-full w-full flex items-center justify-center bg-muted">
+    <p className="text-sm text-muted-foreground">Loading map...</p>
+  </div>
+);
+
 export default function GPSTracking() {
   const [activeTab, setActiveTab] = useState("current");
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const { currentUserId, isAdmin, teamMembers } = useGPSTeamMembers();
+  const { toast } = useToast();
+
+  // ===== Current Location state =====
+  const [currentSelectedUser, setCurrentSelectedUser] = useState<string>("me");
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState(false);
+  const [fetchingUserLocation, setFetchingUserLocation] = useState(false);
 
-  // Current Location - subordinates
-  const [subordinateLocations, setSubordinateLocations] = useState<SubordinateLocation[]>([]);
-  const [showSubordinates, setShowSubordinates] = useState(false);
-
-  // Day Tracking state
+  // ===== Day Tracking state =====
   const [dateRangeOption, setDateRangeOption] = useState<DateRangeOption>("today");
   const [customFromDate, setCustomFromDate] = useState<Date | undefined>(new Date());
   const [customToDate, setCustomToDate] = useState<Date | undefined>(new Date());
   const [selectedUser, setSelectedUser] = useState<string>("me");
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [gpsPoints, setGpsPoints] = useState<GPSPoint[]>([]);
   const [gpsStops, setGpsStops] = useState<GPSStop[]>([]);
   const [activityMarkers, setActivityMarkers] = useState<ActivityAtLocation[]>([]);
   const [trackingLoading, setTrackingLoading] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const { toast } = useToast();
 
-  // Get current user
+  // Get own location
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setCurrentUserId(data.user.id);
-    });
-  }, []);
+    if (currentSelectedUser === "me") {
+      getCurrentPosition()
+        .then((pos) => {
+          setCurrentLocation({ lat: pos.latitude, lng: pos.longitude });
+          setLocationError(false);
+        })
+        .catch(() => setLocationError(true));
+    }
+  }, [currentSelectedUser]);
 
-  // Fetch team members (reportees)
+  // Fetch selected user's latest GPS location
   useEffect(() => {
-    if (!currentUserId) return;
-    const fetchTeam = async () => {
-      const { data } = await supabase
-        .from("users")
-        .select("id, full_name")
-        .eq("is_active", true)
-        .order("full_name");
-      setTeamMembers((data || []).map((u: any) => ({ id: u.id, full_name: u.full_name || u.id })));
+    if (!currentUserId || currentSelectedUser === "me") return;
+
+    const fetchUserLocation = async () => {
+      setFetchingUserLocation(true);
+      setLocationError(false);
+      try {
+        const today = format(new Date(), "yyyy-MM-dd");
+        const { data } = await supabase
+          .from("gps_tracking")
+          .select("latitude, longitude, timestamp")
+          .eq("user_id", currentSelectedUser)
+          .eq("date", today)
+          .order("timestamp", { ascending: false })
+          .limit(1);
+
+        if (data && data.length > 0) {
+          setCurrentLocation({ lat: Number(data[0].latitude), lng: Number(data[0].longitude) });
+        } else {
+          setCurrentLocation(null);
+          setLocationError(true);
+        }
+      } catch {
+        setLocationError(true);
+      } finally {
+        setFetchingUserLocation(false);
+      }
     };
-    fetchTeam();
-  }, [currentUserId]);
-
-  // Get current location
-  useEffect(() => {
-    getCurrentPosition()
-      .then((pos) => {
-        setLocation({ lat: pos.latitude, lng: pos.longitude });
-        setLocationError(false);
-      })
-      .catch(() => setLocationError(true));
-  }, []);
+    fetchUserLocation();
+  }, [currentUserId, currentSelectedUser]);
 
   const retryLocation = () => {
     setLocationError(false);
-    getCurrentPosition()
-      .then((pos) => setLocation({ lat: pos.latitude, lng: pos.longitude }))
-      .catch(() => setLocationError(true));
+    if (currentSelectedUser === "me") {
+      getCurrentPosition()
+        .then((pos) => setCurrentLocation({ lat: pos.latitude, lng: pos.longitude }))
+        .catch(() => setLocationError(true));
+    } else {
+      // Re-trigger by toggling user
+      const u = currentSelectedUser;
+      setCurrentSelectedUser("me");
+      setTimeout(() => setCurrentSelectedUser(u), 50);
+    }
   };
 
-  // Fetch subordinate current locations
-  const fetchSubordinateLocations = useCallback(async () => {
-    if (!currentUserId) return;
-    try {
-      // Get subordinates
-      const { data: subs } = await supabase.rpc("get_user_hierarchy", { _manager_id: currentUserId });
-      if (!subs || subs.length === 0) {
-        setSubordinateLocations([]);
-        return;
-      }
-      const subIds = subs.map((s: any) => s.user_id);
-      const today = format(new Date(), "yyyy-MM-dd");
-
-      // Get latest GPS point for each subordinate today
-      const { data: gpsData } = await supabase
-        .from("gps_tracking")
-        .select("user_id, latitude, longitude, timestamp")
-        .in("user_id", subIds)
-        .eq("date", today)
-        .order("timestamp", { ascending: false });
-
-      // Get user names
-      const { data: users } = await supabase
-        .from("users")
-        .select("id, full_name")
-        .in("id", subIds);
-
-      const nameMap = new Map((users || []).map((u: any) => [u.id, u.full_name || "Unknown"]));
-
-      // Get latest per user
-      const latestMap = new Map<string, any>();
-      (gpsData || []).forEach((p: any) => {
-        if (!latestMap.has(p.user_id)) latestMap.set(p.user_id, p);
-      });
-
-      const locations: SubordinateLocation[] = [];
-      latestMap.forEach((p, userId) => {
-        locations.push({
-          user_id: userId,
-          full_name: nameMap.get(userId) || "Unknown",
-          latitude: p.latitude,
-          longitude: p.longitude,
-          timestamp: p.timestamp,
-        });
-      });
-      setSubordinateLocations(locations);
-    } catch (err: any) {
-      console.error("Error fetching subordinate locations:", err);
-    }
-  }, [currentUserId]);
-
-  useEffect(() => {
-    if (activeTab === "current" && showSubordinates) {
-      fetchSubordinateLocations();
-    }
-  }, [activeTab, showSubordinates, fetchSubordinateLocations]);
-
-  // Compute date range for Day Tracking
+  // ===== Day Tracking logic =====
   const getDateRange = useCallback((): { from: string; to: string } => {
     const today = new Date();
     switch (dateRangeOption) {
@@ -213,7 +169,6 @@ export default function GPSTracking() {
     }
   }, [dateRangeOption, customFromDate, customToDate]);
 
-  // Fetch GPS tracking data + activities for Day Tracking
   const fetchTrackingData = useCallback(async () => {
     if (!currentUserId) return;
     const userId = selectedUser === "me" ? currentUserId : selectedUser;
@@ -245,7 +200,6 @@ export default function GPSTracking() {
       setGpsPoints(pointsRes.data || []);
       setGpsStops(stopsRes.data || []);
 
-      // Build activity markers from activities that have location data
       const markers: ActivityAtLocation[] = [];
       (activitiesRes.data || []).forEach((a: any) => {
         const lat = a.status_change_lat || a.location_lat;
@@ -269,14 +223,13 @@ export default function GPSTracking() {
     }
   }, [currentUserId, selectedUser, getDateRange, toast]);
 
-  // Fetch tracking data when tab/filters change
   useEffect(() => {
     if (activeTab === "tracking") {
       fetchTrackingData();
     }
   }, [activeTab, fetchTrackingData]);
 
-  // Build map markers for stops + activities
+  // Build markers
   const allMapMarkers = [
     ...gpsStops.map((s) => ({
       lat: s.latitude,
@@ -289,13 +242,6 @@ export default function GPSTracking() {
       name: `${a.name}${a.status ? ` · ${a.status}` : ""}${a.timestamp ? ` · ${format(new Date(a.timestamp), "hh:mm a")}` : ""}`,
     })),
   ];
-
-  // Subordinate markers for current location tab
-  const subordinateMapMarkers = subordinateLocations.map((s) => ({
-    lat: s.latitude,
-    lng: s.longitude,
-    name: `${s.full_name} · ${format(new Date(s.timestamp), "hh:mm a")}`,
-  }));
 
   const totalDistance = gpsPoints.length > 1
     ? gpsPoints.reduce((acc, p, i) => {
@@ -315,8 +261,29 @@ export default function GPSTracking() {
 
   const firstPoint = gpsPoints.length > 0 ? gpsPoints[0] : null;
   const lastPoint = gpsPoints.length > 0 ? gpsPoints[gpsPoints.length - 1] : null;
-
   const { from: displayFrom, to: displayTo } = getDateRange();
+
+  const hasTeamMembers = teamMembers.length > 0;
+
+  const selectedCurrentUserName = currentSelectedUser === "me"
+    ? "My Location"
+    : teamMembers.find(m => m.id === currentSelectedUser)?.full_name || "Selected User";
+
+  const UserSelector = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="me">My Data</SelectItem>
+        {teamMembers
+          .filter((m) => m.id !== currentUserId)
+          .map((m) => (
+            <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
+          ))}
+      </SelectContent>
+    </Select>
+  );
 
   return (
     <motion.div
@@ -336,28 +303,47 @@ export default function GPSTracking() {
         </TabsList>
 
         {/* ========== CURRENT LOCATION TAB ========== */}
-        <TabsContent value="current" className="mt-4">
+        <TabsContent value="current" className="mt-4 space-y-3">
+          {/* User selector for admins/managers */}
+          {hasTeamMembers && (
+            <Card className="shadow-card">
+              <CardContent className="p-4 space-y-2">
+                <p className="text-sm font-medium">Select User</p>
+                <UserSelector value={currentSelectedUser} onChange={setCurrentSelectedUser} />
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="shadow-card overflow-hidden">
             <CardContent className="p-0">
               <div className="h-[500px] relative">
-                <Suspense fallback={
-                  <div className="h-full w-full flex items-center justify-center bg-muted">
-                    <p className="text-sm text-muted-foreground">Loading map...</p>
-                  </div>
-                }>
-                  <LeafletMap location={location} />
-                </Suspense>
+                {fetchingUserLocation ? (
+                  <MapFallback />
+                ) : (
+                  <Suspense fallback={<MapFallback />}>
+                    <LeafletMap
+                      location={currentLocation}
+                      activityMarkers={currentLocation ? [{
+                        lat: currentLocation.lat,
+                        lng: currentLocation.lng,
+                        name: selectedCurrentUserName,
+                      }] : []}
+                    />
+                  </Suspense>
+                )}
 
-                {locationError && (
+                {locationError && !fetchingUserLocation && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-10">
                     <AlertTriangle className="h-10 w-10 text-accent mb-2" />
                     <p className="font-semibold text-sm">Location Unavailable</p>
                     <p className="text-xs text-muted-foreground text-center max-w-xs mt-1">
-                      Location permission denied. Please enable location access in your device settings.
+                      {currentSelectedUser === "me"
+                        ? "Location permission denied. Please enable location access in your device settings."
+                        : "No GPS data found for this user today."}
                     </p>
                     <Button variant="outline" size="sm" className="mt-3" onClick={retryLocation}>
                       <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                      Retry Location
+                      Retry
                     </Button>
                   </div>
                 )}
@@ -368,9 +354,15 @@ export default function GPSTracking() {
 
         {/* ========== DAY TRACKING TAB ========== */}
         <TabsContent value="tracking" className="mt-4 space-y-4">
-          {/* Filters */}
           <Card className="shadow-card">
             <CardContent className="p-4 space-y-3">
+              {hasTeamMembers && (
+                <>
+                  <p className="text-sm font-medium">Select Team Member</p>
+                  <UserSelector value={selectedUser} onChange={setSelectedUser} />
+                </>
+              )}
+
               <p className="text-sm font-medium">Select Date Range</p>
               <Select value={dateRangeOption} onValueChange={(v) => setDateRangeOption(v as DateRangeOption)}>
                 <SelectTrigger>
@@ -422,21 +414,6 @@ export default function GPSTracking() {
                 {displayFrom !== displayTo && ` — ${format(new Date(displayTo + "T00:00:00"), "MMM d, yyyy")}`}
                 {displayFrom === displayTo && `, ${format(new Date(displayFrom + "T00:00:00"), "yyyy")}`}
               </p>
-
-              <p className="text-sm font-medium">Select Team Member</p>
-              <Select value={selectedUser} onValueChange={setSelectedUser}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="me">My Data</SelectItem>
-                  {teamMembers
-                    .filter((m) => m.id !== currentUserId)
-                    .map((m) => (
-                      <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
             </CardContent>
           </Card>
 
@@ -491,15 +468,9 @@ export default function GPSTracking() {
             <CardContent className="p-0">
               <div className="h-[400px] relative">
                 {trackingLoading ? (
-                  <div className="h-full w-full flex items-center justify-center bg-muted">
-                    <p className="text-sm text-muted-foreground">Loading tracking data...</p>
-                  </div>
+                  <MapFallback />
                 ) : gpsPoints.length > 0 || activityMarkers.length > 0 ? (
-                  <Suspense fallback={
-                    <div className="h-full w-full flex items-center justify-center bg-muted">
-                      <p className="text-sm text-muted-foreground">Loading map...</p>
-                    </div>
-                  }>
+                  <Suspense fallback={<MapFallback />}>
                     <LeafletMap
                       gpsPoints={gpsPoints}
                       activityMarkers={allMapMarkers}
@@ -509,9 +480,7 @@ export default function GPSTracking() {
                   <div className="h-full w-full flex flex-col items-center justify-center bg-muted/50">
                     <MapPin className="h-12 w-12 mb-3 text-muted-foreground/50" />
                     <p className="text-sm font-semibold text-muted-foreground">No tracking data</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      No GPS data found for this period
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">No GPS data found for this period</p>
                   </div>
                 )}
               </div>
