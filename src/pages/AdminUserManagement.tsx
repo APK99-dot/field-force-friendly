@@ -453,7 +453,7 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
 
 // ===== User Hierarchy with tree/list toggle =====
 function UserHierarchy({ users, roles, profiles, userRoleMap }: { users: AppUser[]; roles: Role[]; profiles: { id: string; profile_picture_url: string | null }[]; userRoleMap: Map<string, string> }) {
-  const [viewMode, setViewMode] = useState<"tree" | "list">("tree");
+  const [viewMode, setViewMode] = useState<"tree" | "list">("list");
   const roleMap = new Map(roles.map((r) => [r.id, r.name]));
   const activeUsers = users.filter(u => u.is_active);
   const topLevel = activeUsers.filter((u) => !u.reporting_manager_id);
