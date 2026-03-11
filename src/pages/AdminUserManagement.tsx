@@ -470,7 +470,7 @@ function UserHierarchy({ users, roles, profiles }: { users: AppUser[]; roles: Ro
   // Org chart tree node
   const renderOrgNode = (user: AppUser): React.ReactNode => {
     const children = getChildren(user.id);
-    const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
+    const roleName = userRoleMap.get(user.id) || (user.role_id ? roleMap.get(user.role_id) || "—" : "—");
     const profile = profiles.find((p) => p.id === user.id);
     const colors = getRoleColor(roleName);
 
