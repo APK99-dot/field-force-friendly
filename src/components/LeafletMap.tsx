@@ -1,4 +1,5 @@
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
@@ -38,6 +39,30 @@ interface LeafletMapProps {
   activityMarkers?: ActivityMarker[];
 }
 
+function MapAutoFit({ location, gpsPoints, activityMarkers }: LeafletMapProps) {
+  const map = useMap();
+
+  useEffect(() => {
+    const bounds = L.latLngBounds([]);
+
+    if (gpsPoints && gpsPoints.length > 0) {
+      gpsPoints.forEach(p => bounds.extend([p.latitude, p.longitude]));
+    }
+    if (activityMarkers && activityMarkers.length > 0) {
+      activityMarkers.forEach(m => bounds.extend([m.lat, m.lng]));
+    }
+    if (location && (!gpsPoints || gpsPoints.length === 0)) {
+      bounds.extend([location.lat, location.lng]);
+    }
+
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+    }
+  }, [map, location, gpsPoints, activityMarkers]);
+
+  return null;
+}
+
 export default function LeafletMap({ location, gpsPoints, activityMarkers }: LeafletMapProps) {
   const polylinePositions: [number, number][] = (gpsPoints || []).map(p => [p.latitude, p.longitude]);
 
@@ -60,9 +85,10 @@ export default function LeafletMap({ location, gpsPoints, activityMarkers }: Lea
         attribution='&copy; <a href="https://osm.org">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      <MapAutoFit location={location} gpsPoints={gpsPoints} activityMarkers={activityMarkers} />
       {location && !gpsPoints?.length && (
         <Marker position={[location.lat, location.lng]}>
-          <Popup>Your current location</Popup>
+          <Popup>Current location</Popup>
         </Marker>
       )}
       {polylinePositions.length > 1 && (
