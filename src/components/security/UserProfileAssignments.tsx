@@ -135,15 +135,15 @@ export default function UserProfileAssignments() {
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold">Permission Set Groups</h2>
-              <p className="text-sm text-muted-foreground">Override role permissions for specific users</p>
+        <CardContent className="p-3 md:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+            <div className="min-w-0">
+              <h2 className="text-base md:text-xl font-semibold">Permission Set Groups</h2>
+              <p className="text-xs md:text-sm text-muted-foreground">Override role permissions for specific users</p>
             </div>
             <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
               <DialogTrigger asChild>
-                <Button><UserPlus className="h-4 w-4 mr-1.5" />Assign User</Button>
+                <Button size="sm" className="shrink-0 self-end sm:self-auto"><UserPlus className="h-4 w-4 mr-1.5" />Assign User</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>Assign Security Profile</DialogTitle></DialogHeader>
