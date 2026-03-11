@@ -54,6 +54,7 @@ const overviewTabs = [
   { key: "leave", label: "Leave Management", icon: Calendar },
   { key: "regularization", label: "Regularization", icon: Users },
   { key: "leave-balances", label: "Leave Balances", icon: ClipboardList },
+  { key: "reports", label: "Reports", icon: BarChart3 },
 ];
 
 const configTabs = [
