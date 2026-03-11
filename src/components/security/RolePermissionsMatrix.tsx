@@ -162,25 +162,26 @@ export default function RolePermissionsMatrix() {
       <Card>
         <CardContent className="p-5">
           {/* Profile Selector */}
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Shield className="h-4.5 w-4.5 text-primary" />
               </div>
-              <div>
-                <h2 className="text-lg font-semibold">Role Permissions</h2>
-                <p className="text-xs text-muted-foreground">Configure module, field, action & widget permissions</p>
+              <div className="min-w-0">
+                <h2 className="text-base md:text-lg font-semibold">Role Permissions</h2>
+                <p className="text-[11px] md:text-xs text-muted-foreground">Configure module, field, action & widget permissions</p>
               </div>
             </div>
             <Button
               size="sm"
+              className="shrink-0 self-end sm:self-auto"
               disabled={!isDirty || isSystemAdmin || saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
             >
               {saveMutation.isPending ? (
-                <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Saving...</>
+                <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Saving</>
               ) : (
-                <><Save className="h-4 w-4 mr-1" />Save Changes</>
+                <><Save className="h-4 w-4 mr-1" />Save</>
               )}
             </Button>
           </div>
