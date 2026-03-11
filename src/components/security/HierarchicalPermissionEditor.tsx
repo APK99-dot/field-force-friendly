@@ -127,14 +127,15 @@ export default function HierarchicalPermissionEditor({ permissions, definitions,
 
   return (
     <Tabs defaultValue="modules" className="w-full">
-      <TabsList className="bg-transparent border-b border-border rounded-none w-full justify-start h-auto p-0 gap-0">
+      <TabsList className="bg-transparent border-b border-border rounded-none w-full justify-start h-auto p-0 gap-0 overflow-x-auto">
         {["modules", "fields", "actions", "widgets"].map((tab) => (
           <TabsTrigger
             key={tab}
             value={tab}
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2 text-sm capitalize text-muted-foreground data-[state=active]:text-foreground"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-2 md:px-4 py-2 text-xs md:text-sm capitalize text-muted-foreground data-[state=active]:text-foreground whitespace-nowrap"
           >
-            {tab === "modules" ? "Module Permission" : `${tab.charAt(0).toUpperCase() + tab.slice(1).replace(/s$/, "")} Permission`}
+            <span className="hidden md:inline">{tab === "modules" ? "Module Permission" : `${tab.charAt(0).toUpperCase() + tab.slice(1).replace(/s$/, "")} Permission`}</span>
+            <span className="md:hidden">{tab === "modules" ? "Module" : tab.charAt(0).toUpperCase() + tab.slice(1).replace(/s$/, "")}</span>
           </TabsTrigger>
         ))}
       </TabsList>

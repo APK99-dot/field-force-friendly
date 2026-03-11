@@ -453,7 +453,7 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
 
 // ===== User Hierarchy with tree/list toggle =====
 function UserHierarchy({ users, roles, profiles, userRoleMap }: { users: AppUser[]; roles: Role[]; profiles: { id: string; profile_picture_url: string | null }[]; userRoleMap: Map<string, string> }) {
-  const [viewMode, setViewMode] = useState<"tree" | "list">("tree");
+  const [viewMode, setViewMode] = useState<"tree" | "list">("list");
   const roleMap = new Map(roles.map((r) => [r.id, r.name]));
   const activeUsers = users.filter(u => u.is_active);
   const topLevel = activeUsers.filter((u) => !u.reporting_manager_id);
@@ -585,9 +585,9 @@ function UserHierarchy({ users, roles, profiles, userRoleMap }: { users: AppUser
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="px-3 py-3 md:px-6 md:pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-sm md:text-base">
             <Users className="h-4 w-4" /> User Hierarchy
           </CardTitle>
           <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as "tree" | "list")} size="sm">
@@ -615,11 +615,11 @@ function UserHierarchy({ users, roles, profiles, userRoleMap }: { users: AppUser
           })}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
         {viewMode === "tree" ? (
           <ScrollArea className="w-full">
             <div className="flex justify-center py-4 min-w-max">
-              <div className="flex gap-6">
+              <div className="flex gap-4 md:gap-6">
                 {topLevel.map(user => renderOrgNode(user))}
               </div>
             </div>

@@ -135,15 +135,15 @@ export default function UserProfileAssignments() {
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold">Permission Set Groups</h2>
-              <p className="text-sm text-muted-foreground">Override role permissions for specific users</p>
+        <CardContent className="p-3 md:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+            <div className="min-w-0">
+              <h2 className="text-base md:text-xl font-semibold">Permission Set Groups</h2>
+              <p className="text-xs md:text-sm text-muted-foreground">Override role permissions for specific users</p>
             </div>
             <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
               <DialogTrigger asChild>
-                <Button><UserPlus className="h-4 w-4 mr-1.5" />Assign User</Button>
+                <Button size="sm" className="shrink-0 self-end sm:self-auto"><UserPlus className="h-4 w-4 mr-1.5" />Assign User</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>Assign Security Profile</DialogTitle></DialogHeader>
@@ -190,42 +190,69 @@ export default function UserProfileAssignments() {
               {search ? "No matching users found" : "No users have been assigned to a permission set group yet"}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="text-xs font-medium text-muted-foreground">User</TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground">Security Profile</TableHead>
-                  <TableHead className="text-xs font-medium text-muted-foreground text-right w-16">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="text-xs font-medium text-muted-foreground">User</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">Security Profile</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground text-right w-16">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {assignments.map((a) => (
+                      <TableRow key={a.id}>
+                        <TableCell className="py-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
+                                {(a.full_name || "?").slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="text-sm font-medium">{a.full_name}</p>
+                              <p className="text-[11px] text-muted-foreground">{a.username}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-2.5">
+                          <Badge variant="outline" className="text-xs font-normal">{a.profile_name}</Badge>
+                        </TableCell>
+                        <TableCell className="py-2.5 text-right">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeAssignment.mutate(a.id)}>
+                            <X className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card List */}
+              <div className="md:hidden space-y-2">
                 {assignments.map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell className="py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
-                            {(a.full_name || "?").slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-medium">{a.full_name}</p>
-                          <p className="text-[11px] text-muted-foreground">{a.username}</p>
-                        </div>
+                  <div key={a.id} className="flex items-center gap-2.5 p-2.5 border border-border rounded-lg">
+                    <Avatar className="h-8 w-8 shrink-0">
+                      <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-medium">
+                        {(a.full_name || "?").slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{a.full_name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">{a.profile_name}</Badge>
                       </div>
-                    </TableCell>
-                    <TableCell className="py-2.5">
-                      <Badge variant="outline" className="text-xs font-normal">{a.profile_name}</Badge>
-                    </TableCell>
-                    <TableCell className="py-2.5 text-right">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeAssignment.mutate(a.id)}>
-                        <X className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeAssignment.mutate(a.id)}>
+                      <X className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

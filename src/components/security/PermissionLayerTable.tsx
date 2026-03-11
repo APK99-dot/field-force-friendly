@@ -66,7 +66,7 @@ export default function PermissionLayerTable({
     const allEnabled = FIELDS.every((f) => row[f]);
     return (
       <TableRow key={row.objectName}>
-        <TableCell className="font-medium text-sm py-2.5 pl-5">{row.label}</TableCell>
+        <TableCell className="font-medium text-xs md:text-sm py-2.5 pl-3 md:pl-5">{row.label}</TableCell>
         {FIELDS.map((field) => (
           <TableCell key={field} className="text-center py-2.5">
             <div className="flex justify-center">
@@ -78,7 +78,7 @@ export default function PermissionLayerTable({
             </div>
           </TableCell>
         ))}
-        <TableCell className="text-center py-2.5 pr-5">
+        <TableCell className="text-center py-2.5 pr-3 md:pr-5">
           <div className="flex justify-center">
             <Checkbox
               checked={allEnabled}
@@ -92,17 +92,17 @@ export default function PermissionLayerTable({
   };
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
+    <div className="overflow-x-auto -mx-3 md:mx-0 scrollbar-thin">
+      <Table className="min-w-[480px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="text-xs font-medium text-muted-foreground pl-5 min-w-[200px]">Name</TableHead>
+            <TableHead className="text-xs font-medium text-muted-foreground pl-3 md:pl-5 min-w-[140px] md:min-w-[200px]">Name</TableHead>
             {FIELDS.map((f) => (
-              <TableHead key={f} className="text-xs font-medium text-muted-foreground text-center w-[80px]">
+              <TableHead key={f} className="text-xs font-medium text-muted-foreground text-center w-[60px] md:w-[80px]">
                 {FIELD_LABELS[f]}
               </TableHead>
             ))}
-            <TableHead className="text-xs font-medium text-muted-foreground text-center w-[70px] pr-5">All</TableHead>
+            <TableHead className="text-xs font-medium text-muted-foreground text-center w-[50px] md:w-[70px] pr-3 md:pr-5">All</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -117,7 +117,7 @@ export default function PermissionLayerTable({
                       className="bg-muted/50 cursor-pointer hover:bg-muted/70"
                       onClick={() => toggleGroup(groupKey)}
                     >
-                      <TableCell className="font-semibold text-sm py-2 pl-3" colSpan={1}>
+                      <TableCell className="font-semibold text-xs md:text-sm py-2 pl-3" colSpan={1}>
                         <div className="flex items-center gap-1.5">
                           {isCollapsed ? (
                             <ChevronRight className="h-4 w-4" />
@@ -141,7 +141,7 @@ export default function PermissionLayerTable({
                           </div>
                         </TableCell>
                       ))}
-                      <TableCell className="text-center py-2 pr-5">
+                      <TableCell className="text-center py-2 pr-3 md:pr-5">
                         <div className="flex justify-center">
                           <Checkbox
                             checked={groupAllEnabled}
@@ -157,7 +157,7 @@ export default function PermissionLayerTable({
                     </TableRow>
                     {!isCollapsed && groupRows.map((row) => (
                       <TableRow key={row.objectName}>
-                        <TableCell className={cn("font-medium text-sm py-2.5 pl-8")}>{row.label}</TableCell>
+                        <TableCell className={cn("font-medium text-xs md:text-sm py-2.5 pl-6 md:pl-8")}>{row.label}</TableCell>
                         {FIELDS.map((field) => (
                           <TableCell key={field} className="text-center py-2.5">
                             <div className="flex justify-center">
@@ -169,7 +169,7 @@ export default function PermissionLayerTable({
                             </div>
                           </TableCell>
                         ))}
-                        <TableCell className="text-center py-2.5 pr-5">
+                        <TableCell className="text-center py-2.5 pr-3 md:pr-5">
                           <div className="flex justify-center">
                             <Checkbox
                               checked={FIELDS.every((f) => row[f])}
