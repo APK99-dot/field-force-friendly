@@ -585,9 +585,9 @@ function UserHierarchy({ users, roles, profiles, userRoleMap }: { users: AppUser
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="px-3 py-3 md:px-6 md:pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-sm md:text-base">
             <Users className="h-4 w-4" /> User Hierarchy
           </CardTitle>
           <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as "tree" | "list")} size="sm">
