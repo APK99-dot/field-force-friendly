@@ -141,6 +141,19 @@ function useProfiles() {
   });
 }
 
+function useUserSecurityAssignments() {
+  return useQuery({
+    queryKey: ["admin-user-security-assignments"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_security_profiles")
+        .select("user_id, profile_id, security_profiles(name)");
+      if (error) throw error;
+      return (data || []) as { user_id: string; profile_id: string; security_profiles: { name: string } | null }[];
+    },
+  });
+}
+
 // User Detail Dialog
 function UserDetailDialog({ user, employee, roleName }: { user: AppUser; employee?: Employee; roleName: string }) {
   const { data: profiles = [] } = useProfiles();
