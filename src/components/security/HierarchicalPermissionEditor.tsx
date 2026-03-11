@@ -1,7 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PERMISSION_MODULES } from "./permissionModules";
-import { HIERARCHICAL_MODULES, getItemLabel } from "./hierarchicalPermissions";
 import PermissionLayerTable, { PermissionRow } from "./PermissionLayerTable";
+import { PermissionDefinition, getModules, getByType } from "@/hooks/usePermissionDefinitions";
 
 export interface PermissionState {
   [objectName: string]: {
@@ -16,13 +15,14 @@ export interface PermissionState {
 
 interface Props {
   permissions: PermissionState;
+  definitions: PermissionDefinition[];
   readOnly?: boolean;
   onChange: (updated: PermissionState) => void;
 }
 
 type CrudField = "canRead" | "canCreate" | "canEdit" | "canDelete";
 
-export default function HierarchicalPermissionEditor({ permissions, readOnly = false, onChange }: Props) {
+export default function HierarchicalPermissionEditor({ permissions, definitions, readOnly = false, onChange }: Props) {
   const toggleField = (objectName: string, field: CrudField, value: boolean) => {
     const updated = { ...permissions };
     if (updated[objectName]) {
@@ -50,7 +50,6 @@ export default function HierarchicalPermissionEditor({ permissions, readOnly = f
     if (updated[objectName]) {
       updated[objectName] = { ...updated[objectName], [field]: value };
     }
-    // Cascade to all children
     Object.keys(updated).forEach((key) => {
       if (updated[key].parentModule === objectName) {
         updated[key] = { ...updated[key], [field]: value };
@@ -77,8 +76,10 @@ export default function HierarchicalPermissionEditor({ permissions, readOnly = f
     onChange(updated);
   };
 
-  // Build rows for each tab
-  const moduleRows: PermissionRow[] = PERMISSION_MODULES.map((m) => {
+  // Build rows dynamically from definitions
+  const modules = getModules(definitions);
+
+  const moduleRows: PermissionRow[] = modules.map((m) => {
     const p = permissions[m.name];
     return {
       objectName: m.name,
@@ -90,28 +91,25 @@ export default function HierarchicalPermissionEditor({ permissions, readOnly = f
     };
   });
 
-  const buildLayerRows = (layer: "fields" | "actions" | "widgets"): PermissionRow[] => {
-    const rows: PermissionRow[] = [];
-    for (const mod of HIERARCHICAL_MODULES) {
-      for (const item of mod[layer]) {
-        const p = permissions[item.name];
-        rows.push({
-          objectName: item.name,
-          label: item.label,
-          parentModule: mod.module,
-          canRead: p?.canRead ?? false,
-          canCreate: p?.canCreate ?? false,
-          canEdit: p?.canEdit ?? false,
-          canDelete: p?.canDelete ?? false,
-        });
-      }
-    }
-    return rows;
+  const buildLayerRows = (type: "field" | "action" | "widget"): PermissionRow[] => {
+    const items = getByType(definitions, type);
+    return items.map((item) => {
+      const p = permissions[item.name];
+      return {
+        objectName: item.name,
+        label: item.label,
+        parentModule: item.parent_module || undefined,
+        canRead: p?.canRead ?? false,
+        canCreate: p?.canCreate ?? false,
+        canEdit: p?.canEdit ?? false,
+        canDelete: p?.canDelete ?? false,
+      };
+    });
   };
 
   const groupLabels: Record<string, string> = {};
-  HIERARCHICAL_MODULES.forEach((m) => {
-    groupLabels[m.module] = m.label;
+  modules.forEach((m) => {
+    groupLabels[m.name] = m.label;
   });
 
   return (
@@ -139,7 +137,7 @@ export default function HierarchicalPermissionEditor({ permissions, readOnly = f
 
       <TabsContent value="fields" className="mt-4">
         <PermissionLayerTable
-          rows={buildLayerRows("fields")}
+          rows={buildLayerRows("field")}
           grouped
           groupLabels={groupLabels}
           readOnly={readOnly}
@@ -150,7 +148,7 @@ export default function HierarchicalPermissionEditor({ permissions, readOnly = f
 
       <TabsContent value="actions" className="mt-4">
         <PermissionLayerTable
-          rows={buildLayerRows("actions")}
+          rows={buildLayerRows("action")}
           grouped
           groupLabels={groupLabels}
           readOnly={readOnly}
@@ -161,7 +159,7 @@ export default function HierarchicalPermissionEditor({ permissions, readOnly = f
 
       <TabsContent value="widgets" className="mt-4">
         <PermissionLayerTable
-          rows={buildLayerRows("widgets")}
+          rows={buildLayerRows("widget")}
           grouped
           groupLabels={groupLabels}
           readOnly={readOnly}

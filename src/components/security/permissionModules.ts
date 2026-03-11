@@ -1,19 +1,18 @@
+// This file provides backward compatibility for components that still reference
+// static permission module names. The actual source of truth is now the
+// permission_definitions table in the database.
+
 export interface PermissionModule {
   id: string;
   name: string;
   label: string;
 }
 
-// Top-level modules for Bharath Builders
-export const PERMISSION_MODULES: PermissionModule[] = [
-  { id: "module_admin_panel", name: "module_admin_panel", label: "Admin Panel" },
-  { id: "module_attendance", name: "module_attendance", label: "Attendance" },
-  { id: "module_activities", name: "module_activities", label: "Activities" },
-  { id: "module_expenses", name: "module_expenses", label: "Expenses" },
-  { id: "module_gps_tracking", name: "module_gps_tracking", label: "GPS Tracking" },
-];
+// Legacy static list — kept only for ADMIN_MODULE_PATH_MAP references.
+// The dynamic system reads from the DB via usePermissionDefinitions hook.
+export const PERMISSION_MODULES: PermissionModule[] = [];
 
-// Admin sub-module path map
+// Admin sub-module path map (used by useProfilePermissions for route gating)
 export const ADMIN_MODULE_PATH_MAP: Record<string, string> = {
   admin_dashboard: "/admin",
   admin_user_management: "/admin-user-management",

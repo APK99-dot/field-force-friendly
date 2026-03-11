@@ -1134,6 +1134,50 @@ export type Database = {
           },
         ]
       }
+      permission_definitions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          name: string
+          parent_module: string | null
+          sort_order: number
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          name: string
+          parent_module?: string | null
+          sort_order?: number
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          name?: string
+          parent_module?: string | null
+          sort_order?: number
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permission_definitions_parent_module_fkey"
+            columns: ["parent_module"]
+            isOneToOne: false
+            referencedRelation: "permission_definitions"
+            referencedColumns: ["name"]
+          },
+        ]
+      }
       permissions: {
         Row: {
           can_create: boolean
