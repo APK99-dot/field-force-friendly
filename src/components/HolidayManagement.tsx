@@ -175,7 +175,7 @@ const HolidayManagement = ({ readOnly = false }: HolidayManagementProps) => {
       {!readOnly && (
         <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
           <DialogContent><DialogHeader><DialogTitle>Edit Holiday</DialogTitle><DialogDescription>Update holiday information</DialogDescription></DialogHeader>
-            <HolidayForm date={editDate} setDate={setEditDate} onSave={updateHoliday} saveLabel="Update Holiday" />
+            {renderForm(editDate, setEditDate, updateHoliday, "Update Holiday")}
           </DialogContent>
         </Dialog>
       )}
