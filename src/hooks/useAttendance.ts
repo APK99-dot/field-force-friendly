@@ -203,7 +203,6 @@ export function useAttendance(userId: string | undefined) {
   // Build attendance map
   const attendanceMap: Record<string, string> = {};
   const holidayDates = new Set(holidays.map((h) => h.date));
-  console.log("[useAttendance] holidays state:", holidays.length, "holidayDates:", [...holidayDates]);
 
   monthRecords.forEach((r) => {
     if ((r.status === "present" || r.status === "regularized") && r.check_in_time) {
