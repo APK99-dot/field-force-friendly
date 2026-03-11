@@ -34,6 +34,7 @@ export default function Attendance() {
   const [activeView, setActiveView] = useState<"my" | "team">("my");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [userId, setUserId] = useState<string>();
+  const [hasTeam, setHasTeam] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [regModalOpen, setRegModalOpen] = useState(false);
   const [selectedRecordForReg, setSelectedRecordForReg] = useState<any>(null);
