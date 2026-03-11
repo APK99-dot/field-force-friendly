@@ -428,6 +428,13 @@ export default function Profile() {
           </CardContent>
         </Card>
       </div>
+
+      <CameraCapture
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={handleCameraCapture}
+        title="Profile Photo"
+      />
     </motion.div>
   );
 }
