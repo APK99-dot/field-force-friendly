@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Check, X, User, Calendar, Users, ClipboardList, Settings, CalendarDays, FileText } from "lucide-react";
+import { ArrowLeft, Check, X, User, Calendar, Users, ClipboardList, Settings, CalendarDays, FileText, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -16,6 +16,7 @@ import HolidayManagement from "@/components/HolidayManagement";
 import LeaveBalancesManager from "@/components/attendance/LeaveBalancesManager";
 import LeaveTypesManager from "@/components/attendance/LeaveTypesManager";
 import AttendancePolicyConfig from "@/components/attendance/AttendancePolicyConfig";
+import AttendanceReportGenerator from "@/components/attendance/AttendanceReportGenerator";
 import WorkingDaysConfig from "@/components/attendance/WorkingDaysConfig";
 import RejectionReasonDialog from "@/components/RejectionReasonDialog";
 
@@ -53,6 +54,7 @@ const overviewTabs = [
   { key: "leave", label: "Leave Management", icon: Calendar },
   { key: "regularization", label: "Regularization", icon: Users },
   { key: "leave-balances", label: "Leave Balances", icon: ClipboardList },
+  { key: "reports", label: "Reports", icon: BarChart3 },
 ];
 
 const configTabs = [
@@ -574,6 +576,7 @@ export default function AttendanceManagement() {
       )}
 
       {activeTab === "leave-balances" && <LeaveBalancesManager />}
+      {activeTab === "reports" && <AttendanceReportGenerator />}
       {activeTab === "leave-types" && <LeaveTypesManager />}
       {activeTab === "holidays" && <HolidayManagement />}
       {activeTab === "working-days" && <WorkingDaysConfig />}
