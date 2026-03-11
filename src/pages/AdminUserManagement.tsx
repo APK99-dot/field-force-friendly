@@ -210,17 +210,29 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
   const [deletingData, setDeletingData] = useState(false);
   const [editTab, setEditTab] = useState("basic");
 
-  // Reset state when user changes
-  useState(() => {
+  // Fetch current security profile assignment
+  useEffect(() => {
+    const fetchSecurityProfile = async () => {
+      const { data } = await supabase
+        .from("user_security_profiles")
+        .select("profile_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data?.profile_id) {
+        setRoleId(data.profile_id);
+      } else {
+        setRoleId(user.role_id || "");
+      }
+    };
+    fetchSecurityProfile();
     setFullName(user.full_name || "");
     setUsername(user.username || "");
     setPhone(user.phone || "");
-    setRoleId(user.role_id || "");
     setManagerId(user.reporting_manager_id || "none");
     setSecondaryManagerId("none");
     setNewPassword("");
     setEditTab("basic");
-  });
+  }, [user.id]);
 
   const roleEnumMap: Record<string, string> = {};
   roles.forEach((r) => {
