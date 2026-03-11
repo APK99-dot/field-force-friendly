@@ -52,34 +52,20 @@ export function useDashboard(userId: string | undefined) {
     enabled: !!userId,
   });
 
-  const activeProjectsQuery = useQuery({
-    queryKey: ["dashboard-active-projects", userId],
-    queryFn: async () => {
-      if (!userId) return 0;
-      const { count, error } = await supabase
-        .from("pm_projects")
-        .select("*", { count: "exact", head: true })
-        .in("status", ["active", "planning"]);
-      if (error) throw error;
-      return count || 0;
-    },
-    enabled: !!userId,
-  });
-
-  const myTasksQuery = useQuery({
-    queryKey: ["dashboard-my-tasks", userId],
+  const myActivitiesQuery = useQuery({
+    queryKey: ["dashboard-my-activities", userId],
     queryFn: async () => {
       if (!userId) return { total: 0, completed: 0, inProgress: 0 };
       const { data, error } = await supabase
-        .from("pm_tasks")
+        .from("activity_events")
         .select("status")
-        .eq("assignee_id", userId);
+        .eq("user_id", userId);
       if (error) throw error;
-      const tasks = data || [];
+      const activities = data || [];
       return {
-        total: tasks.length,
-        completed: tasks.filter((t) => t.status === "done").length,
-        inProgress: tasks.filter((t) => t.status === "in_progress").length,
+        total: activities.length,
+        completed: activities.filter((a) => a.status === "completed").length,
+        inProgress: activities.filter((a) => a.status === "in_progress").length,
       };
     },
     enabled: !!userId,
