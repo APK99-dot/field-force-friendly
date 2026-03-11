@@ -382,18 +382,20 @@ export default function Activities() {
             <h1 className="text-lg font-bold">Activities</h1>
             <p className="text-xs opacity-80">Log & track daily work</p>
           </div>
-          <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-            <SelectTrigger className="w-[140px] h-8 bg-white/15 border-white/20 text-primary-foreground text-xs">
-              <Users className="h-3.5 w-3.5 mr-1 opacity-80" />
-              <SelectValue placeholder="Select" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Users</SelectItem>
-              {users.map((u) => (
-                <SelectItem key={u.id} value={u.id}>{u.full_name || "Unknown"}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {hasSubordinates && (
+            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <SelectTrigger className="w-[140px] h-8 bg-white/15 border-white/20 text-primary-foreground text-xs">
+                <Users className="h-3.5 w-3.5 mr-1 opacity-80" />
+                <SelectValue placeholder="My Activities" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Users</SelectItem>
+                {selectableUsers.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{u.full_name || "Unknown"}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {/* Week Info + Navigation */}
