@@ -104,6 +104,21 @@ export function useDashboard(userId: string | undefined) {
     enabled: !!userId,
   });
 
+  const todayActivitiesQuery = useQuery({
+    queryKey: ["dashboard-today-activities", userId, today],
+    queryFn: async () => {
+      if (!userId) return 0;
+      const { count, error } = await supabase
+        .from("activity_events")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("activity_date", today);
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!userId,
+  });
+
   const attendance = attendanceQuery.data;
   const isCheckedIn = !!attendance?.check_in_time && !attendance?.check_out_time;
   const isCheckedOut = !!attendance?.check_out_time;
