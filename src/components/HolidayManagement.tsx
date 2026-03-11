@@ -103,13 +103,13 @@ const HolidayManagement = ({ readOnly = false }: HolidayManagementProps) => {
     <div className="space-y-4">
       <div>
         <Label>Date</Label>
-        <Popover>
+        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}>
               <CalendarIcon className="mr-2 h-4 w-4" />{date ? format(date, "PPP") : "Pick a date"}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={date} onSelect={setDate} initialFocus /></PopoverContent>
+          <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={date} onSelect={(d) => { setDate(d); setDatePickerOpen(false); }} initialFocus /></PopoverContent>
         </Popover>
       </div>
       <div><Label>Holiday Name</Label><Input value={formData.holiday_name} onChange={handleNameChange} placeholder="e.g., Independence Day" /></div>
