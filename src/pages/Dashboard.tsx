@@ -54,7 +54,7 @@ export default function Dashboard() {
   const {
     dayStarted,
     attendance,
-    myTasks,
+    myActivities,
     pendingLeaves,
     pendingExpenses,
     todayActivities,

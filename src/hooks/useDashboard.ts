@@ -118,8 +118,7 @@ export function useDashboard(userId: string | undefined) {
     isCheckedOut,
     pendingLeaves: pendingLeavesQuery.data || 0,
     leaveBalances: leaveBalanceQuery.data || [],
-    activeProjects: activeProjectsQuery.data || 0,
-    myTasks: myTasksQuery.data || { total: 0, completed: 0, inProgress: 0 },
+    myActivities: myActivitiesQuery.data || { total: 0, completed: 0, inProgress: 0 },
     pendingExpenses: pendingExpensesQuery.data || { count: 0, total: 0 },
     todayActivities: todayActivitiesQuery.data || 0,
   };
