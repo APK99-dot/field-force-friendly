@@ -40,7 +40,7 @@ const CreateUserWizard: React.FC<CreateUserWizardProps> = ({ onSuccess }) => {
     const fetchData = async () => {
       const [managersRes, rolesRes] = await Promise.all([
         supabase.from('profiles').select('id, username, full_name').order('full_name'),
-        supabase.from('roles').select('id, name').order('name'),
+        supabase.from('security_profiles').select('id, name').order('name'),
       ]);
       if (!managersRes.error && managersRes.data) setManagers(managersRes.data);
       if (!rolesRes.error && rolesRes.data) setRoles(rolesRes.data);

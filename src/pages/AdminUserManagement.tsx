@@ -251,10 +251,18 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
       }).eq("id", user.id);
       if (profileError) throw profileError;
 
-      if (roleId && roleEnumMap[roleId]) {
-        await supabase.from("user_roles").update({
-          role: roleEnumMap[roleId] as any,
-        }).eq("user_id", user.id);
+      // Update security profile assignment
+      if (roleId) {
+        const { data: existing } = await supabase
+          .from("user_security_profiles")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (existing) {
+          await supabase.from("user_security_profiles").update({ profile_id: roleId }).eq("id", existing.id);
+        } else {
+          await supabase.from("user_security_profiles").insert({ user_id: user.id, profile_id: roleId });
+        }
       }
 
       const { error: empError } = await supabase.from("employees").upsert({
