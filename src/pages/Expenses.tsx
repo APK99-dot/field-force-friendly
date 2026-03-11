@@ -55,6 +55,7 @@ export default function Expenses() {
   const [formFile, setFormFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [hasTeam, setHasTeam] = useState(false);
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = subMonths(new Date(), i);
     return { value: format(d, 'yyyy-MM'), label: format(d, 'MMM yyyy') };
