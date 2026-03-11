@@ -65,9 +65,9 @@ export default function Dashboard() {
   };
 
   const overviewCards = [
-    { label: "My Tasks", value: myTasks.total, icon: ListTodo, colorClass: "bg-info/5 text-info", path: "/projects", module: null },
-    { label: "Completed", value: myTasks.completed, icon: CheckSquare, colorClass: "bg-success/5 text-success", path: "/projects", module: null },
-    { label: "In Progress", value: myTasks.inProgress, icon: Loader, colorClass: "bg-warning/5 text-warning", path: "/projects", module: null },
+    { label: "My Activities", value: myActivities.total, icon: ListTodo, colorClass: "bg-info/5 text-info", path: "/activities", module: "module_activities" },
+    { label: "Completed", value: myActivities.completed, icon: CheckSquare, colorClass: "bg-success/5 text-success", path: "/activities?status=completed", module: "module_activities" },
+    { label: "In Progress", value: myActivities.inProgress, icon: Loader, colorClass: "bg-warning/5 text-warning", path: "/activities?status=in_progress", module: "module_activities" },
     { label: "Today's Activities", value: todayActivities, icon: Activity, colorClass: "bg-primary/5 text-primary", path: "/activities", module: "module_activities" },
     { label: "Pending Leaves", value: pendingLeaves, icon: CalendarOff, colorClass: "bg-accent/5 text-accent", path: "/attendance", module: "module_attendance" },
     { label: "Pending Expenses", value: pendingExpenses.count, icon: Receipt, colorClass: "bg-destructive/5 text-destructive", path: "/expenses", module: "module_expenses" },
