@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   Home,
   Clock,
@@ -6,16 +7,24 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 
-const tabs = [
-  { label: "Home", icon: Home, to: "/dashboard" },
-  { label: "Attendance", icon: Clock, to: "/attendance" },
-  { label: "Activities", icon: ClipboardList, to: "/activities" },
-  { label: "Projects", icon: FolderKanban, to: "/projects" },
-  { label: "More", icon: MoreHorizontal, to: "/more" },
+const allTabs = [
+  { label: "Home", icon: Home, to: "/dashboard", module: null },
+  { label: "Attendance", icon: Clock, to: "/attendance", module: "module_attendance" },
+  { label: "Activities", icon: ClipboardList, to: "/activities", module: "module_activities" },
+  { label: "Projects", icon: FolderKanban, to: "/projects", module: null },
+  { label: "More", icon: MoreHorizontal, to: "/more", module: null },
 ];
 
 export function BottomNav() {
+  const { hasModuleAccess } = useProfilePermissions();
+
+  const tabs = useMemo(
+    () => allTabs.filter((tab) => !tab.module || hasModuleAccess(tab.module)),
+    [hasModuleAccess]
+  );
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card shadow-bottom-nav border-t border-border safe-bottom md:hidden">
       <div className="flex items-center justify-around h-16">

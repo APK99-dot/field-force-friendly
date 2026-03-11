@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,33 +6,31 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Shield,
   Clock,
-  Car,
   Navigation2,
   Receipt,
   FolderKanban,
-  MapPin,
   LogOut,
   ChevronRight,
   Search,
   Settings,
   User,
-  Users,
   HelpCircle,
   FileText,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 
 const adminItems = [
-  { icon: Shield, label: "Admin Controls", href: "/admin-controls", color: "from-emerald-500 to-emerald-600" },
+  { icon: Shield, label: "Admin Controls", href: "/admin-controls", color: "from-emerald-500 to-emerald-600", module: "module_admin_panel" },
 ];
 
-const navigationItems = [
-  { icon: Clock, label: "Attendance", href: "/attendance", color: "from-blue-500 to-blue-600" },
-  { icon: Navigation2, label: "GPS Track", href: "/gps-tracking", color: "from-purple-500 to-purple-600" },
-  { icon: FolderKanban, label: "Projects", href: "/projects", color: "from-indigo-500 to-indigo-600" },
-  { icon: Receipt, label: "Expenses", href: "/expenses", color: "from-orange-500 to-orange-600" },
+const allNavigationItems = [
+  { icon: Clock, label: "Attendance", href: "/attendance", color: "from-blue-500 to-blue-600", module: "module_attendance" },
+  { icon: Navigation2, label: "GPS Track", href: "/gps-tracking", color: "from-purple-500 to-purple-600", module: "module_gps_tracking" },
+  { icon: FolderKanban, label: "Projects", href: "/projects", color: "from-indigo-500 to-indigo-600", module: null },
+  { icon: Receipt, label: "Expenses", href: "/expenses", color: "from-orange-500 to-orange-600", module: "module_expenses" },
 ];
 
 const accountItems = [
@@ -53,7 +52,18 @@ const item = {
 export default function More() {
   const navigate = useNavigate();
   const { profile, isAdmin, initials } = useUserProfile();
+  const { hasModuleAccess } = useProfilePermissions();
   const displayName = profile?.full_name || profile?.username || "";
+
+  const navigationItems = useMemo(
+    () => allNavigationItems.filter((i) => !i.module || hasModuleAccess(i.module)),
+    [hasModuleAccess]
+  );
+
+  const visibleAdminItems = useMemo(
+    () => adminItems.filter((i) => hasModuleAccess(i.module)),
+    [hasModuleAccess]
+  );
 
   return (
     <motion.div
@@ -85,48 +95,52 @@ export default function More() {
 
       <div className="p-4 space-y-6">
         {/* Admin Controls Section */}
-        <motion.div variants={item}>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Admin Controls</h3>
-          <div className="grid grid-cols-3 gap-3">
-            {adminItems.map((navItem) => (
-              <NavLink
-                key={navItem.href}
-                to={navItem.href}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors"
-              >
-                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${navItem.color} shadow-md`}>
-                  <navItem.icon className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xs font-medium text-center leading-tight">{navItem.label}</span>
-              </NavLink>
-            ))}
-          </div>
-        </motion.div>
+        {visibleAdminItems.length > 0 && (
+          <motion.div variants={item}>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Admin Controls</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {visibleAdminItems.map((navItem) => (
+                <NavLink
+                  key={navItem.href}
+                  to={navItem.href}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors"
+                >
+                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${navItem.color} shadow-md`}>
+                    <navItem.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="text-xs font-medium text-center leading-tight">{navItem.label}</span>
+                </NavLink>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* Navigation Section */}
-        <motion.div variants={item}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-muted-foreground px-1">Navigation</h3>
-            <div className="flex items-center gap-1">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <Settings className="h-4 w-4 text-muted-foreground" />
+        {navigationItems.length > 0 && (
+          <motion.div variants={item}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-muted-foreground px-1">Navigation</h3>
+              <div className="flex items-center gap-1">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Settings className="h-4 w-4 text-muted-foreground" />
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {navigationItems.map((navItem) => (
-              <NavLink
-                key={navItem.href}
-                to={navItem.href}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors"
-              >
-                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${navItem.color} shadow-md`}>
-                  <navItem.icon className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xs font-medium text-center leading-tight">{navItem.label}</span>
-              </NavLink>
-            ))}
-          </div>
-        </motion.div>
+            <div className="grid grid-cols-3 gap-3">
+              {navigationItems.map((navItem) => (
+                <NavLink
+                  key={navItem.href}
+                  to={navItem.href}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors"
+                >
+                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${navItem.color} shadow-md`}>
+                    <navItem.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="text-xs font-medium text-center leading-tight">{navItem.label}</span>
+                </NavLink>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* Account Settings */}
         <motion.div variants={item} className="space-y-1.5">
