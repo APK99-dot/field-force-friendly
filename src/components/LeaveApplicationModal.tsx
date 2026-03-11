@@ -173,7 +173,7 @@ const LeaveApplicationModal: React.FC<LeaveApplicationModalProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Start Date *</Label>
-              <Popover>
+              <Popover open={startPickerOpen} onOpenChange={setStartPickerOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -181,7 +181,7 @@ const LeaveApplicationModal: React.FC<LeaveApplicationModalProps> = ({
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={startDate} onSelect={setStartDate} disabled={(date) => { const today = new Date(); today.setHours(0,0,0,0); return date < today; }} initialFocus className="p-3 pointer-events-auto" />
+                  <Calendar mode="single" selected={startDate} onSelect={(date) => { setStartDate(date); setStartPickerOpen(false); }} disabled={(date) => { const today = new Date(); today.setHours(0,0,0,0); return date < today; }} initialFocus className="p-3 pointer-events-auto" />
                 </PopoverContent>
               </Popover>
             </div>
