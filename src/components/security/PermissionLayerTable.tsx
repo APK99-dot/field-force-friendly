@@ -157,7 +157,7 @@ export default function PermissionLayerTable({
                     </TableRow>
                     {!isCollapsed && groupRows.map((row) => (
                       <TableRow key={row.objectName}>
-                        <TableCell className={cn("font-medium text-sm py-2.5 pl-8")}>{row.label}</TableCell>
+                        <TableCell className={cn("font-medium text-xs md:text-sm py-2.5 pl-6 md:pl-8")}>{row.label}</TableCell>
                         {FIELDS.map((field) => (
                           <TableCell key={field} className="text-center py-2.5">
                             <div className="flex justify-center">
