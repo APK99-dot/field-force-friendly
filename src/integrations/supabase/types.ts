@@ -1004,6 +1004,53 @@ export type Database = {
         }
         Relationships: []
       }
+      monthly_leave_accrual: {
+        Row: {
+          allocated: number
+          carried_forward: number
+          created_at: string
+          id: string
+          leave_type_id: string
+          month: number
+          updated_at: string
+          used: number
+          user_id: string
+          year: number
+        }
+        Insert: {
+          allocated?: number
+          carried_forward?: number
+          created_at?: string
+          id?: string
+          leave_type_id: string
+          month: number
+          updated_at?: string
+          used?: number
+          user_id: string
+          year: number
+        }
+        Update: {
+          allocated?: number
+          carried_forward?: number
+          created_at?: string
+          id?: string
+          leave_type_id?: string
+          month?: number
+          updated_at?: string
+          used?: number
+          user_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_leave_accrual_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -3239,6 +3286,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      recalculate_monthly_leave_accruals: {
+        Args: { _target_user_id?: string }
+        Returns: undefined
       }
       send_notification: {
         Args: {
