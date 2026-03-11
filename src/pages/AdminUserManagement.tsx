@@ -463,7 +463,7 @@ function UserHierarchy({ users, roles, profiles }: { users: AppUser[]; roles: Ro
   // Collect unique roles for legend
   const allRoleNames = new Set<string>();
   activeUsers.forEach(u => {
-    const rn = u.role_id ? roleMap.get(u.role_id) : null;
+    const rn = userRoleMap.get(u.id) || (u.role_id ? roleMap.get(u.role_id) : null);
     if (rn) allRoleNames.add(rn);
   });
 
