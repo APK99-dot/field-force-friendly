@@ -141,6 +141,19 @@ function useProfiles() {
   });
 }
 
+function useUserSecurityAssignments() {
+  return useQuery({
+    queryKey: ["admin-user-security-assignments"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_security_profiles")
+        .select("user_id, profile_id, security_profiles(name)");
+      if (error) throw error;
+      return (data || []) as { user_id: string; profile_id: string; security_profiles: { name: string } | null }[];
+    },
+  });
+}
+
 // User Detail Dialog
 function UserDetailDialog({ user, employee, roleName }: { user: AppUser; employee?: Employee; roleName: string }) {
   const { data: profiles = [] } = useProfiles();
@@ -439,7 +452,7 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
 }
 
 // ===== User Hierarchy with tree/list toggle =====
-function UserHierarchy({ users, roles, profiles }: { users: AppUser[]; roles: Role[]; profiles: { id: string; profile_picture_url: string | null }[] }) {
+function UserHierarchy({ users, roles, profiles, userRoleMap }: { users: AppUser[]; roles: Role[]; profiles: { id: string; profile_picture_url: string | null }[]; userRoleMap: Map<string, string> }) {
   const [viewMode, setViewMode] = useState<"tree" | "list">("tree");
   const roleMap = new Map(roles.map((r) => [r.id, r.name]));
   const activeUsers = users.filter(u => u.is_active);
@@ -450,14 +463,14 @@ function UserHierarchy({ users, roles, profiles }: { users: AppUser[]; roles: Ro
   // Collect unique roles for legend
   const allRoleNames = new Set<string>();
   activeUsers.forEach(u => {
-    const rn = u.role_id ? roleMap.get(u.role_id) : null;
+    const rn = userRoleMap.get(u.id) || (u.role_id ? roleMap.get(u.role_id) : null);
     if (rn) allRoleNames.add(rn);
   });
 
   // Org chart tree node
   const renderOrgNode = (user: AppUser): React.ReactNode => {
     const children = getChildren(user.id);
-    const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
+    const roleName = userRoleMap.get(user.id) || (user.role_id ? roleMap.get(user.role_id) || "—" : "—");
     const profile = profiles.find((p) => p.id === user.id);
     const colors = getRoleColor(roleName);
 
@@ -510,7 +523,7 @@ function UserHierarchy({ users, roles, profiles }: { users: AppUser[]; roles: Ro
     const [isOpen, setIsOpen] = useState(level < 1);
     const children = getChildren(user.id);
     const hasReports = children.length > 0;
-    const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
+    const roleName = userRoleMap.get(user.id) || (user.role_id ? roleMap.get(user.role_id) || "—" : "—");
     const colors = getRoleColor(roleName);
     const profile = profiles.find(p => p.id === user.id);
 
@@ -687,8 +700,15 @@ export default function AdminUserManagement() {
   const { data: employees = [] } = useEmployees();
   const { data: roles = [] } = useRoles();
   const { data: profiles = [] } = useProfiles();
+  const { data: secAssignments = [] } = useUserSecurityAssignments();
 
   const queryClient = useQueryClient();
+  // Build user→security profile name map from assignments
+  const userRoleMap = new Map<string, string>();
+  secAssignments.forEach((a) => {
+    if (a.security_profiles?.name) userRoleMap.set(a.user_id, a.security_profiles.name);
+  });
+  // Fallback: old roleMap from roles table for users not yet assigned a security profile
   const roleMap = new Map(roles.map((r) => [r.id, r.name]));
 
   const filteredUsers = appUsers.filter((u) => {
@@ -706,6 +726,7 @@ export default function AdminUserManagement() {
     queryClient.invalidateQueries({ queryKey: ["admin-app-users"] });
     queryClient.invalidateQueries({ queryKey: ["admin-employees"] });
     queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-user-security-assignments"] });
   };
 
   const toggleActive = useMutation({
@@ -819,7 +840,7 @@ export default function AdminUserManagement() {
 
         {/* Overview Tab - Hierarchy */}
         <TabsContent value="overview" className="space-y-4">
-          <UserHierarchy users={appUsers} roles={roles} profiles={profiles} />
+          <UserHierarchy users={appUsers} roles={roles} profiles={profiles} userRoleMap={userRoleMap} />
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
@@ -903,7 +924,7 @@ export default function AdminUserManagement() {
                       <TableBody>
                         {paginatedUsers.map((user) => {
                           const employee = employees.find((e) => e.user_id === user.id);
-                          const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
+                          const roleName = userRoleMap.get(user.id) || (user.role_id ? roleMap.get(user.role_id) || "—" : "—");
                           const manager = user.reporting_manager_id ? appUsers.find((u) => u.id === user.reporting_manager_id) : null;
                           const profile = profiles.find((p) => p.id === user.id);
                           const colors = getRoleColor(roleName);
@@ -989,7 +1010,7 @@ export default function AdminUserManagement() {
                   <div className="md:hidden divide-y">
                     {paginatedUsers.map((user) => {
                       const employee = employees.find((e) => e.user_id === user.id);
-                      const roleName = user.role_id ? roleMap.get(user.role_id) || "—" : "—";
+                      const roleName = userRoleMap.get(user.id) || (user.role_id ? roleMap.get(user.role_id) || "—" : "—");
                       const manager = user.reporting_manager_id ? appUsers.find((u) => u.id === user.reporting_manager_id) : null;
                       const profile = profiles.find((p) => p.id === user.id);
                       const colors = getRoleColor(roleName);
