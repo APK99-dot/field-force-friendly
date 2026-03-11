@@ -1,78 +1,38 @@
 
 
-# Monthly Leave Allocation with Carry-Forward Logic
+## Plan: Status Change with Location & Timestamp Capture
 
-## Summary
-Enhance the leave system to allocate leaves monthly (based on DOJ), carry forward unused leaves each month, and display monthly breakdown in the user-facing Attendance → Leaves section.
+### What Changes
 
-## Database Changes
+When a user taps on an activity's status badge (e.g., "Planned"), a quick-action dropdown appears allowing them to change the status. On status change, the app automatically:
+1. Captures the user's current GPS location via the browser Geolocation API
+2. Records the current timestamp
+3. Updates the activity record with the new status, location coordinates, location address (via reverse geocoding), and start/end time based on status transition
+4. All data is stored in the existing `activity_events` table columns (`location_lat`, `location_lng`, `location_address`, `start_time`, `end_time`)
+5. Admin can see all this data in the activity cards and admin panel
 
-### 1. New table: `monthly_leave_accrual`
-Tracks per-user, per-leave-type, per-month allocation and carry-forward:
+### Technical Details
 
-```sql
-CREATE TABLE public.monthly_leave_accrual (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  leave_type_id uuid NOT NULL,
-  year integer NOT NULL,
-  month integer NOT NULL, -- 1-12
-  allocated numeric NOT NULL DEFAULT 0,
-  carried_forward numeric NOT NULL DEFAULT 0,
-  used numeric NOT NULL DEFAULT 0,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (user_id, leave_type_id, year, month)
-);
-```
-With RLS: admins full access, users can view own records.
+**1. Add a `status_changed_at` and `status_change_location` columns** (migration)
+- Add `status_changed_at` (timestamptz) and `status_change_lat`/`status_change_lng` (numeric) columns to `activity_events` to track specifically when and where status was changed (separate from the activity's own time/location)
 
-### 2. Database function: `recalculate_monthly_leave_accruals`
-A SQL/plpgsql function that, for a given user (or all users):
-- Determines DOJ from `employees` table
-- For each active leave type, calculates monthly allocation = `annual_quota / 12`
-- Starting from DOJ month (or Jan if joined before that year), iterates month by month
-- For each month: `carried_forward` = previous month's `(carried_forward + allocated - used)`
-- `used` is computed from approved `leave_applications` whose dates fall in that month
-- Upserts into `monthly_leave_accrual`
-- Updates the `leave_balance` table's `opening_balance` and `remaining_balance` to reflect cumulative totals
+**2. Update `ActivityCard` component** (`src/pages/Activities.tsx`)
+- Make the status Badge clickable — wrap it in a Popover or DropdownMenu
+- Show status options (Planned, In Progress, Completed)
+- On selection, call browser `navigator.geolocation.getCurrentPosition()` to capture lat/lng
+- Use a simple reverse geocode (or just store coordinates) to get an address
+- Call `updateActivity` with the new status + location + timestamp
 
-This function will be callable from the admin UI ("Recalculate" button) and can be scheduled via a cron edge function for automatic monthly updates.
+**3. Update `useActivities` hook** (`src/hooks/useActivities.ts`)
+- Update `updateActivity` to also save `status_changed_at`, `status_change_lat`, `status_change_lng`, and `location_address`
+- Add these fields to the `Activity` interface
 
-### 3. Edge function: `monthly-leave-cron`
-A scheduled edge function that runs on the 1st of each month to call `recalculate_monthly_leave_accruals` for all active users, ensuring carry-forward happens automatically.
+**4. Display in activity cards**
+- Show location and timestamp of last status change on the card (small text below status badge)
+- Admin panel already shows all activities — the new fields will be visible
 
-## Frontend Changes
-
-### 1. `LeaveBalanceCards.tsx` — User-facing leave tab
-- Fetch from `monthly_leave_accrual` for the current month alongside `leave_balance`
-- Display additional fields: **Monthly Allocated**, **Carried Forward**, **Used**, **Remaining**
-- Show a small summary line like "2 carried from Feb" under each leave type
-
-### 2. `LeaveBalancesManager.tsx` — Admin leave balances
-- Add a "Recalculate Monthly" button that calls the DB function
-- Show carry-forward column in the table
-- Optionally add a monthly breakdown expandable row
-
-### 3. `LeaveApplicationModal.tsx`
-- No structural changes needed; balance validation will naturally use the updated `leave_balance` remaining values
-
-## Flow
-
-```text
-DOJ (e.g. Mar 15) → Monthly allocation starts March
-  March: allocated=1, carried=0, used=0 → remaining=1
-  April: allocated=1, carried=1, used=0 → remaining=2
-  May:   allocated=1, carried=2, used=1 → remaining=2
-  ...
-leave_balance.opening_balance = sum(allocated) + sum(carried_forward adjustments)
-leave_balance.remaining_balance = cumulative remaining
-```
-
-## Files to Create/Modify
-- **Migration SQL**: Create `monthly_leave_accrual` table + `recalculate_monthly_leave_accruals` function
-- **`supabase/functions/monthly-leave-cron/index.ts`**: Edge function for automatic monthly recalculation
-- **`src/components/LeaveBalanceCards.tsx`**: Show monthly breakdown with carry-forward
-- **`src/components/attendance/LeaveBalancesManager.tsx`**: Add recalculate monthly button, carry-forward column
-- **`src/hooks/useMonthlyLeaveAccrual.ts`**: New hook to fetch monthly accrual data
+### Files Modified
+- `src/pages/Activities.tsx` — Clickable status badge with dropdown, geolocation capture
+- `src/hooks/useActivities.ts` — Updated interface and update function
+- Database migration — Add `status_changed_at`, `status_change_lat`, `status_change_lng` columns
 

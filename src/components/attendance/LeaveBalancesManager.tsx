@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Search, RefreshCw, Download, Edit, Plus, Users, FileSpreadsheet } from 'lucide-react';
+import { Search, RefreshCw, Download, Edit, Plus, Users, FileSpreadsheet, CalendarClock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useMonthlyLeaveAccrual } from '@/hooks/useMonthlyLeaveAccrual';
 
 interface LeaveBalance {
   id: string; user_id: string; leave_type_id: string; opening_balance: number; used_balance: number; remaining_balance: number | null; year: number;
@@ -25,11 +26,13 @@ const LeaveBalancesManager = () => {
   const [filterLeaveType, setFilterLeaveType] = useState('all');
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
   const [isInitializing, setIsInitializing] = useState(false);
+  const [isRecalcMonthly, setIsRecalcMonthly] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBalance, setEditingBalance] = useState<LeaveBalance | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({ user_id: '', leave_type_id: '', opening_balance: 0, used_balance: 0 });
   const [employeeDOJs, setEmployeeDOJs] = useState<Record<string, string | null>>({});
+  const { recalculate } = useMonthlyLeaveAccrual();
 
   const currentYear = new Date().getFullYear();
   const years = [currentYear - 1, currentYear, currentYear + 1];
@@ -185,6 +188,13 @@ const LeaveBalancesManager = () => {
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" onClick={handleInitializeBalances} disabled={isInitializing}><Plus className="h-4 w-4 mr-2" />Initialize Year</Button>
               <Button variant="outline" onClick={handleRecalculateBalances} disabled={isInitializing}><RefreshCw className={`h-4 w-4 mr-2 ${isInitializing ? 'animate-spin' : ''}`} />Recalculate</Button>
+              <Button variant="default" onClick={async () => {
+                setIsRecalcMonthly(true);
+                const ok = await recalculate();
+                if (ok) { toast.success('Monthly accruals recalculated with carry-forward'); fetchData(); }
+                else toast.error('Failed to recalculate monthly accruals');
+                setIsRecalcMonthly(false);
+              }} disabled={isRecalcMonthly}><CalendarClock className={`h-4 w-4 mr-2 ${isRecalcMonthly ? 'animate-spin' : ''}`} />Recalculate Monthly</Button>
               <Button variant="outline" onClick={handleExport}><Download className="h-4 w-4 mr-2" />Export</Button>
               <Button onClick={() => { setEditingBalance(null); setFormData({ user_id: '', leave_type_id: '', opening_balance: 0, used_balance: 0 }); setIsDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" />Add Balance</Button>
             </div>
