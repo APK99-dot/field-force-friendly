@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { downloadCSV } from '@/utils/fileDownloader';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
+import { downloadXLSX as downloadXLSXNative, downloadPDF as downloadPDFNative } from '@/utils/nativeDownload';
 
 interface ReportExpense {
   id: string;
