@@ -519,6 +519,96 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_approval_rules: {
+        Row: {
+          category_id: string | null
+          condition_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          max_amount: number | null
+          min_amount: number | null
+          priority: number
+          rule_name: string
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          condition_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          min_amount?: number | null
+          priority?: number
+          rule_name: string
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          category_id?: string | null
+          condition_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          min_amount?: number | null
+          priority?: number
+          rule_name?: string
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_approval_rules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expense_approval_rules_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "expense_approval_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_approval_workflows: {
+        Row: {
+          approval_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          steps: number
+          updated_at: string
+        }
+        Insert: {
+          approval_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          steps?: number
+          updated_at?: string
+        }
+        Update: {
+          approval_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          steps?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       expense_categories: {
         Row: {
           auto_approval_limit: number | null
@@ -593,6 +683,7 @@ export type Database = {
           max_back_days: number
           month_lock_enabled: boolean
           multi_level_approval: boolean
+          policy_notes: string | null
           submission_deadline: number
           updated_at: string
         }
@@ -603,6 +694,7 @@ export type Database = {
           max_back_days?: number
           month_lock_enabled?: boolean
           multi_level_approval?: boolean
+          policy_notes?: string | null
           submission_deadline?: number
           updated_at?: string
         }
@@ -613,6 +705,7 @@ export type Database = {
           max_back_days?: number
           month_lock_enabled?: boolean
           multi_level_approval?: boolean
+          policy_notes?: string | null
           submission_deadline?: number
           updated_at?: string
         }
