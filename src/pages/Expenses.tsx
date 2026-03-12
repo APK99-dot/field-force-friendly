@@ -14,7 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subMonths } from 'date-fns';
 import { toast } from 'sonner';
-import MyTeamExpenses from '@/components/expenses/MyTeamExpenses';
+import TeamExpenseSummary from '@/components/expenses/TeamExpenseSummary';
 
 interface Expense {
   id: string;
@@ -65,8 +65,15 @@ export default function Expenses() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         setUserId(user.id);
-        supabase.rpc('get_user_hierarchy', { _manager_id: user.id }).then(({ data }) => {
-          setHasTeam(!!data && data.length > 0);
+        // Check if admin
+        supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle().then(({ data: roleData }) => {
+          if (roleData) {
+            setHasTeam(true);
+          } else {
+            supabase.rpc('get_user_hierarchy', { _manager_id: user.id }).then(({ data }) => {
+              setHasTeam(!!data && data.length > 0);
+            });
+          }
         });
       }
     });
@@ -198,9 +205,9 @@ export default function Expenses() {
       <h1 className="text-xl font-bold">Expenses</h1>
 
       <Tabs defaultValue="my-expenses" className="w-full">
-        <TabsList className={hasTeam ? "w-full" : "w-full"}>
+        <TabsList className="w-full">
           <TabsTrigger value="my-expenses" className="flex-1">My Expenses</TabsTrigger>
-          {hasTeam && <TabsTrigger value="my-team" className="flex-1">My Team</TabsTrigger>}
+          {hasTeam && <TabsTrigger value="team-summary" className="flex-1">Team Summary</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="my-expenses">
@@ -285,8 +292,8 @@ export default function Expenses() {
           </div>
         </TabsContent>
 
-        <TabsContent value="my-team">
-          <MyTeamExpenses />
+        <TabsContent value="team-summary">
+          <TeamExpenseSummary />
         </TabsContent>
       </Tabs>
 
