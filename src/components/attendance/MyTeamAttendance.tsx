@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, CloudOff, XCircle, Search, Eye, ChevronRight, ChevronDown, Users } from "lucide-react";
+import { CheckCircle, CloudOff, XCircle, Search, Eye, ChevronRight, ChevronDown, Users, FileBarChart } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import TeamAttendanceReportGenerator from "./TeamAttendanceReportGenerator";
 
 interface TeamMember {
   id: string;
@@ -45,7 +46,7 @@ export default function MyTeamAttendance() {
   const [memberHistory, setMemberHistory] = useState<MemberAttendance[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [expandedManagers, setExpandedManagers] = useState<Set<string>>(new Set());
-
+  const [showReport, setShowReport] = useState(false);
   const today = format(new Date(), "yyyy-MM-dd");
 
   useEffect(() => {
@@ -307,9 +308,18 @@ export default function MyTeamAttendance() {
 
   return (
     <div className="space-y-4">
+      {/* Report Generator */}
+      {showReport && (
+        <TeamAttendanceReportGenerator onClose={() => setShowReport(false)} />
+      )}
+
       {/* Member Count */}
-      <div className="text-center">
+      <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-muted-foreground">{stats.total} Members</span>
+        <Button variant="outline" size="sm" onClick={() => setShowReport(!showReport)} className="gap-1.5">
+          <FileBarChart className="h-4 w-4" />
+          Generate Report
+        </Button>
       </div>
 
       {/* Stats Cards */}
