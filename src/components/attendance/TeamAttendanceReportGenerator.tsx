@@ -174,7 +174,7 @@ export default function TeamAttendanceReportGenerator({ onClose }: Props) {
     doc.setFontSize(9);
     doc.text(`Summary: ${summary.present} Present | ${summary.absent} Absent | ${summary.leave} Leave | Total Hours: ${summary.totalHours.toFixed(2)}`, 14, y);
 
-    doc.save(`Team_Attendance_${fromDate}_to_${toDate}.pdf`);
+    downloadPDFNative(doc, `Team_Attendance_${fromDate}_to_${toDate}.pdf`);
     toast.success('PDF report downloaded');
   };
 
