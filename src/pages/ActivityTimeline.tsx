@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useActivities, type Activity as ActivityType } from "@/hooks/useActivities";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import jsPDF from "jspdf";
+import { downloadPDF as downloadPDFNative } from "@/utils/nativeDownload";
 
 const statusColors: Record<string, string> = {
   planned: "bg-muted text-muted-foreground",
