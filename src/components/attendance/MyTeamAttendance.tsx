@@ -46,7 +46,7 @@ export default function MyTeamAttendance() {
   const [memberHistory, setMemberHistory] = useState<MemberAttendance[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [expandedManagers, setExpandedManagers] = useState<Set<string>>(new Set());
-
+  const [showReport, setShowReport] = useState(false);
   const today = format(new Date(), "yyyy-MM-dd");
 
   useEffect(() => {
