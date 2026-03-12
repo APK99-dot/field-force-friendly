@@ -14,7 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subMonths } from 'date-fns';
 import { toast } from 'sonner';
-import MyTeamExpenses from '@/components/expenses/MyTeamExpenses';
+import TeamExpenseSummary from '@/components/expenses/TeamExpenseSummary';
 
 interface Expense {
   id: string;
