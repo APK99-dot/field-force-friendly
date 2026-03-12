@@ -84,7 +84,7 @@ function blobToBase64(blob: Blob): Promise<string> {
  * Call this instead of XLSX.writeFile().
  */
 export async function downloadXLSX(wb: any, filename: string): Promise<void> {
-  // Dynamic import to avoid loading xlsx at module level
+  // Use static import - xlsx is already statically imported by consumers
   const XLSX = await import('xlsx');
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
