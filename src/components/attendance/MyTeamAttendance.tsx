@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, CloudOff, XCircle, Search, Eye, ChevronRight, ChevronDown, Users } from "lucide-react";
+import { CheckCircle, CloudOff, XCircle, Search, Eye, ChevronRight, ChevronDown, Users, FileBarChart } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import TeamAttendanceReportGenerator from "./TeamAttendanceReportGenerator";
 
 interface TeamMember {
   id: string;
