@@ -168,11 +168,7 @@ const LeaveBalancesManager = () => {
 
   const handleExport = () => {
     const csv = ['Employee,Leave Type,Opening,Used,Remaining,Year', ...filteredBalances.map(b => [b.profiles?.full_name || 'Unknown', b.leave_types?.name || 'Unknown', b.opening_balance, b.used_balance, b.remaining_balance || 0, b.year].join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `leave_balances_${filterYear}.csv`;
-    a.click();
+    downloadCSVString(csv, `leave_balances_${filterYear}.csv`);
   };
 
   const filteredBalances = balances.filter(b => !searchQuery || b.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()));

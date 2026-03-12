@@ -233,7 +233,7 @@ export default function ExpenseReportGenerator({ isAdmin }: Props) {
     doc.text('TOTAL', colX[3], y);
     doc.text(`₹${totalAmount.toFixed(2)}`, colX[4], y);
 
-    doc.save(`Expense_Report_${filterDateFrom}_to_${filterDateTo}.pdf`);
+    downloadPDFNative(doc, `Expense_Report_${filterDateFrom}_to_${filterDateTo}.pdf`);
     toast.success('PDF report downloaded');
   };
 

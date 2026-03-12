@@ -366,7 +366,7 @@ export default function Attendance() {
       doc.text("No activities recorded for this date.", 14, y);
     }
 
-    doc.save(`timeline-${timelineDate}.pdf`);
+    downloadPDFNative(doc, `timeline-${timelineDate}.pdf`);
   };
 
   const handleRefresh = () => {

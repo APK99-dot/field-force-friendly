@@ -237,7 +237,7 @@ export default function ActivityReportGenerator({ isAdmin }: Props) {
     doc.text('TOTAL HOURS', colX[4], y);
     doc.text(totalHours.toFixed(1), colX[5], y);
 
-    doc.save(`Activity_Report_${filterDateFrom}_to_${filterDateTo}.pdf`);
+    downloadPDFNative(doc, `Activity_Report_${filterDateFrom}_to_${filterDateTo}.pdf`);
     toast.success('PDF report downloaded');
   };
 

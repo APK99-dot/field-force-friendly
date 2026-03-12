@@ -109,7 +109,7 @@ export default function ActivityTimeline() {
       doc.text(`DAY END - ${format(parseISO(attendance.check_out_time), "h:mm a")}`, 14, y);
     }
 
-    doc.save(`timeline-${dateStr}.pdf`);
+    downloadPDFNative(doc, `timeline-${dateStr}.pdf`);
   }, [selectedDate, attendance, dayActivities, dateStr]);
 
   const isLoading = loading || attendanceLoading;
