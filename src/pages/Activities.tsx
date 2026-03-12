@@ -50,6 +50,7 @@ import { useActivities, type Activity as ActivityType } from "@/hooks/useActivit
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
+import ActivityReportGenerator from "@/components/activities/ActivityReportGenerator";
 import {
   DropdownMenu,
   DropdownMenuContent,
