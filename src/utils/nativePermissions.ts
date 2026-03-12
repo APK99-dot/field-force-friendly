@@ -1,32 +1,40 @@
-import { Capacitor } from '@capacitor/core';
-import { Geolocation as CapGeolocation } from '@capacitor/geolocation';
-import { Camera as CapCamera, CameraResultType, CameraSource } from '@capacitor/camera';
+/**
+ * Platform-aware permission & hardware helpers.
+ * Works in three contexts:
+ *   1. Pure web browser
+ *   2. Capacitor local (plugins available)
+ *   3. Capacitor remote-URL WebView (plugins may NOT be bridged)
+ *
+ * Strategy: always try native plugin first, catch errors, fall back to web API.
+ */
 
-export const isNative = () => Capacitor.isNativePlatform();
+let _isNativeCached: boolean | null = null;
 
-/** Get current position — uses Capacitor plugin on native, browser API on web */
-export async function getCurrentPosition(options?: { enableHighAccuracy?: boolean; timeout?: number }) {
-  const opts = { enableHighAccuracy: true, timeout: 10000, ...options };
-
-  if (isNative()) {
-    const pos = await CapGeolocation.getCurrentPosition({
-      enableHighAccuracy: opts.enableHighAccuracy,
-      timeout: opts.timeout,
-    });
-    return {
-      latitude: pos.coords.latitude,
-      longitude: pos.coords.longitude,
-      accuracy: pos.coords.accuracy,
-    };
+/** Check if running inside a Capacitor native shell */
+export function isNative(): boolean {
+  if (_isNativeCached !== null) return _isNativeCached;
+  try {
+    // Dynamic check — avoids import errors if @capacitor/core isn't resolved
+    const { Capacitor } = require('@capacitor/core');
+    _isNativeCached = Capacitor.isNativePlatform();
+  } catch {
+    _isNativeCached = false;
   }
+  return _isNativeCached;
+}
 
-  // Web fallback
-  const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: opts.enableHighAccuracy,
-      timeout: opts.timeout,
-    })
-  );
+/** Try to use Capacitor Geolocation plugin */
+async function nativeGetPosition(opts: { enableHighAccuracy: boolean; timeout: number }) {
+  const { Geolocation } = await import('@capacitor/geolocation');
+  // Request permission first (required on Android)
+  const permResult = await Geolocation.requestPermissions();
+  if (permResult.location === 'denied') {
+    throw new Error('Location permission denied by user');
+  }
+  const pos = await Geolocation.getCurrentPosition({
+    enableHighAccuracy: opts.enableHighAccuracy,
+    timeout: opts.timeout,
+  });
   return {
     latitude: pos.coords.latitude,
     longitude: pos.coords.longitude,
@@ -34,38 +42,92 @@ export async function getCurrentPosition(options?: { enableHighAccuracy?: boolea
   };
 }
 
+/** Web fallback for geolocation */
+function webGetPosition(opts: { enableHighAccuracy: boolean; timeout: number }): Promise<{ latitude: number; longitude: number; accuracy: number }> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      return reject(new Error('Geolocation not supported'));
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        resolve({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        }),
+      (err) => reject(err),
+      {
+        enableHighAccuracy: opts.enableHighAccuracy,
+        timeout: opts.timeout,
+      }
+    );
+  });
+}
+
+/** Get current position — tries native plugin, falls back to web API */
+export async function getCurrentPosition(options?: { enableHighAccuracy?: boolean; timeout?: number }) {
+  const opts = { enableHighAccuracy: true, timeout: 15000, ...options };
+
+  // Try native plugin first
+  if (isNative()) {
+    try {
+      return await nativeGetPosition(opts);
+    } catch (nativeErr) {
+      console.warn('Native geolocation failed, falling back to web API:', nativeErr);
+    }
+  }
+
+  // Web fallback (also used when native plugin fails)
+  return webGetPosition(opts);
+}
+
 /** Take a photo — uses Capacitor Camera on native, returns null on web (web uses CameraCapture component) */
 export async function takeNativePhoto(): Promise<Blob | null> {
   if (!isNative()) return null;
 
-  const image = await CapCamera.getPhoto({
-    quality: 85,
-    resultType: CameraResultType.Uri,
-    source: CameraSource.Camera,
-    width: 640,
-    height: 480,
-  });
+  try {
+    const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
+    
+    // Request permission first
+    const permResult = await Camera.requestPermissions();
+    if (permResult.camera === 'denied') {
+      console.warn('Camera permission denied');
+      return null;
+    }
 
-  if (image.webPath) {
-    const response = await fetch(image.webPath);
-    return await response.blob();
+    const image = await Camera.getPhoto({
+      quality: 85,
+      resultType: CameraResultType.Uri,
+      source: CameraSource.Camera,
+      width: 640,
+      height: 480,
+    });
+
+    if (image.webPath) {
+      const response = await fetch(image.webPath);
+      return await response.blob();
+    }
+  } catch (err) {
+    console.warn('Native camera failed:', err);
   }
   return null;
 }
 
-/** Request all needed permissions on native */
+/** Request all needed permissions — tries native, silently skips on failure */
 export async function requestNativePermissions() {
-  if (!isNative()) return;
-
+  // Try native geolocation permission
   try {
-    await CapGeolocation.requestPermissions();
+    const { Geolocation } = await import('@capacitor/geolocation');
+    await Geolocation.requestPermissions();
   } catch (e) {
-    console.warn('Geolocation permission request failed:', e);
+    console.warn('Native geolocation permission request skipped:', e);
   }
 
+  // Try native camera permission
   try {
-    await CapCamera.requestPermissions();
+    const { Camera } = await import('@capacitor/camera');
+    await Camera.requestPermissions();
   } catch (e) {
-    console.warn('Camera permission request failed:', e);
+    console.warn('Native camera permission request skipped:', e);
   }
 }
