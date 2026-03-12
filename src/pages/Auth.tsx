@@ -28,6 +28,14 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
     try {
+      // If remember me, set a longer session expiry marker
+      if (rememberMe) {
+        const expiresAt = Date.now() + rememberDuration * 24 * 60 * 60 * 1000;
+        localStorage.setItem("remember_me_expires", expiresAt.toString());
+      } else {
+        localStorage.removeItem("remember_me_expires");
+      }
+
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
