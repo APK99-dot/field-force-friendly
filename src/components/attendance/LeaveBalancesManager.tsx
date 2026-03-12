@@ -210,8 +210,8 @@ const LeaveBalancesManager = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-muted/50 rounded-lg p-4"><div className="text-sm text-muted-foreground">Total Employees</div><div className="text-2xl font-bold">{new Set(balances.map(b => b.user_id)).size}</div></div>
             <div className="bg-muted/50 rounded-lg p-4"><div className="text-sm text-muted-foreground">Total Records</div><div className="text-2xl font-bold">{balances.length}</div></div>
-            <div className="bg-muted/50 rounded-lg p-4"><div className="text-sm text-muted-foreground">Total Allocated</div><div className="text-2xl font-bold">{balances.reduce((s, b) => s + b.opening_balance, 0)} days</div></div>
-            <div className="bg-muted/50 rounded-lg p-4"><div className="text-sm text-muted-foreground">Total Used</div><div className="text-2xl font-bold">{balances.reduce((s, b) => s + b.used_balance, 0)} days</div></div>
+            <div className="bg-muted/50 rounded-lg p-4"><div className="text-sm text-muted-foreground">Total Allocated</div><div className="text-2xl font-bold">{Math.round(balances.reduce((s, b) => s + b.opening_balance, 0))} days</div></div>
+            <div className="bg-muted/50 rounded-lg p-4"><div className="text-sm text-muted-foreground">Total Used</div><div className="text-2xl font-bold">{Math.round(balances.reduce((s, b) => s + b.used_balance, 0))} days</div></div>
           </div>
 
           {filteredBalances.length === 0 ? (
