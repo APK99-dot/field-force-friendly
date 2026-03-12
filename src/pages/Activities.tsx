@@ -50,6 +50,7 @@ import { useActivities, type Activity as ActivityType } from "@/hooks/useActivit
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
+import ActivityReportGenerator from "@/components/activities/ActivityReportGenerator";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -476,6 +477,13 @@ export default function Activities() {
           <p className="text-[10px] text-muted-foreground">Hours</p>
         </div>
       </motion.div>
+
+      {/* Activity Report Generator - visible to admins and managers with subordinates */}
+      {(isAdmin || hasSubordinates) && (
+        <motion.div variants={item} className="px-4">
+          <ActivityReportGenerator isAdmin={!!isAdmin} />
+        </motion.div>
+      )}
 
       {/* Search + New Button */}
       <motion.div variants={item} className="px-4 space-y-3">
