@@ -198,9 +198,9 @@ export default function Expenses() {
       <h1 className="text-xl font-bold">Expenses</h1>
 
       <Tabs defaultValue="my-expenses" className="w-full">
-        <TabsList className={hasTeam ? "w-full" : "w-full"}>
+        <TabsList className="w-full">
           <TabsTrigger value="my-expenses" className="flex-1">My Expenses</TabsTrigger>
-          {hasTeam && <TabsTrigger value="my-team" className="flex-1">My Team</TabsTrigger>}
+          {hasTeam && <TabsTrigger value="team-summary" className="flex-1">Team Summary</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="my-expenses">
