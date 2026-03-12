@@ -182,7 +182,7 @@ export default function ActivityReportGenerator({ isAdmin }: Props) {
       wch: Math.max(k.length, ...rows.map(r => String((r as any)[k]).length)) + 2
     }));
     ws['!cols'] = colWidths;
-    XLSX.writeFile(wb, `Activity_Report_${filterDateFrom}_to_${filterDateTo}.xlsx`);
+    downloadXLSXNative(wb, `Activity_Report_${filterDateFrom}_to_${filterDateTo}.xlsx`);
     toast.success('Excel report downloaded');
   };
 
