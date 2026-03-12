@@ -65,8 +65,15 @@ export default function Expenses() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         setUserId(user.id);
-        supabase.rpc('get_user_hierarchy', { _manager_id: user.id }).then(({ data }) => {
-          setHasTeam(!!data && data.length > 0);
+        // Check if admin
+        supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle().then(({ data: roleData }) => {
+          if (roleData) {
+            setHasTeam(true);
+          } else {
+            supabase.rpc('get_user_hierarchy', { _manager_id: user.id }).then(({ data }) => {
+              setHasTeam(!!data && data.length > 0);
+            });
+          }
         });
       }
     });
