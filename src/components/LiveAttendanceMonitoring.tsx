@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Search, Download, Users, Clock, MapPin, UserCheck, User, Calendar, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
+import { downloadCSVString } from '@/utils/nativeDownload';
 
 interface UserInfo {
   id: string;

@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Search, RefreshCw, Download, Edit, Plus, Users, FileSpreadsheet, CalendarClock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useMonthlyLeaveAccrual } from '@/hooks/useMonthlyLeaveAccrual';
+import { downloadCSVString } from '@/utils/nativeDownload';
 
 interface LeaveBalance {
   id: string; user_id: string; leave_type_id: string; opening_balance: number; used_balance: number; remaining_balance: number | null; year: number;
