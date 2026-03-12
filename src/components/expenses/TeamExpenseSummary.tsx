@@ -361,6 +361,9 @@ export default function TeamExpenseSummary() {
                   </div>
                 )}
               </div>
+
+              {/* Report Generator */}
+              <ExpenseReportGenerator isAdmin={isAdmin} />
             </div>
           )}
         </TabsContent>
