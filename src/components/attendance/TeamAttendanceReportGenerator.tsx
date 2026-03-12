@@ -132,7 +132,7 @@ export default function TeamAttendanceReportGenerator({ onClose }: Props) {
     ws['!cols'] = colWidths;
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Attendance Report');
-    XLSX.writeFile(wb, `Team_Attendance_${fromDate}_to_${toDate}.xlsx`);
+    downloadXLSXNative(wb, `Team_Attendance_${fromDate}_to_${toDate}.xlsx`);
     toast.success('Excel report downloaded');
   };
 
