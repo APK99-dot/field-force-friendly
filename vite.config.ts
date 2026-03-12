@@ -80,6 +80,20 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-popover', '@radix-ui/react-select', '@radix-ui/react-tabs'],
+          charts: ['recharts'],
+          xlsx: ['xlsx'],
+          pdf: ['jspdf'],
+        },
+      },
+    },
+  },
   optimizeDeps: {
     include: ["react", "react-dom", "react-dom/client", "@tanstack/react-query"],
   },
