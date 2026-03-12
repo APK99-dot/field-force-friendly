@@ -285,8 +285,8 @@ export default function Expenses() {
           </div>
         </TabsContent>
 
-        <TabsContent value="my-team">
-          <MyTeamExpenses />
+        <TabsContent value="team-summary">
+          <TeamExpenseSummary />
         </TabsContent>
       </Tabs>
 
