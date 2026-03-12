@@ -28,6 +28,16 @@ export default function CameraCapture({ open, onClose, onCapture, title = "Take 
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
       }
+
+      // On native (Capacitor WebView), try requesting camera permission via native plugin first
+      // This triggers the Android-level permission dialog
+      try {
+        const { Camera: CapCamera } = await import('@capacitor/camera');
+        await CapCamera.requestPermissions();
+      } catch {
+        // Not on native or plugin unavailable — fine, continue with web API
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode, width: { ideal: 640 }, height: { ideal: 480 } },
         audio: false,
