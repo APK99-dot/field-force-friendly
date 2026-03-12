@@ -308,9 +308,18 @@ export default function MyTeamAttendance() {
 
   return (
     <div className="space-y-4">
+      {/* Report Generator */}
+      {showReport && (
+        <TeamAttendanceReportGenerator onClose={() => setShowReport(false)} />
+      )}
+
       {/* Member Count */}
-      <div className="text-center">
+      <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-muted-foreground">{stats.total} Members</span>
+        <Button variant="outline" size="sm" onClick={() => setShowReport(!showReport)} className="gap-1.5">
+          <FileBarChart className="h-4 w-4" />
+          Generate Report
+        </Button>
       </div>
 
       {/* Stats Cards */}
