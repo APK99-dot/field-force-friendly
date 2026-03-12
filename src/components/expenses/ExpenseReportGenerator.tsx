@@ -176,7 +176,7 @@ export default function ExpenseReportGenerator({ isAdmin }: Props) {
     }));
     ws['!cols'] = colWidths;
 
-    XLSX.writeFile(wb, `Expense_Report_${filterDateFrom}_to_${filterDateTo}.xlsx`);
+    downloadXLSXNative(wb, `Expense_Report_${filterDateFrom}_to_${filterDateTo}.xlsx`);
     toast.success('Excel report downloaded');
   };
 
