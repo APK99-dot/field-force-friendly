@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, subMonths, addMonths, parse } from 'date-fns';
 import { toast } from 'sonner';
 import RejectionReasonDialog from '@/components/RejectionReasonDialog';
+import ExpenseReportGenerator from '@/components/expenses/ExpenseReportGenerator';
 
 interface TeamExpense {
   id: string;
@@ -360,6 +361,9 @@ export default function TeamExpenseSummary() {
                   </div>
                 )}
               </div>
+
+              {/* Report Generator */}
+              <ExpenseReportGenerator isAdmin={isAdmin} />
             </div>
           )}
         </TabsContent>
