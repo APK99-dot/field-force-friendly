@@ -18,9 +18,15 @@ export function AppLayout() {
       if (!session) {
         navigate("/auth", { replace: true });
       } else {
+        // Check remember-me expiry
+        const expiresAt = localStorage.getItem("remember_me_expires");
+        if (expiresAt && Date.now() > Number(expiresAt)) {
+          localStorage.removeItem("remember_me_expires");
+          supabase.auth.signOut().then(() => navigate("/auth", { replace: true }));
+          return;
+        }
         setReady(true);
         setUserId(session.user.id);
-        // Check profile setup
         supabase.from("profiles").select("profile_picture_url, onboarding_completed").eq("id", session.user.id).single()
           .then(({ data }) => {
             setProfilePictureUrl(data?.profile_picture_url ?? null);

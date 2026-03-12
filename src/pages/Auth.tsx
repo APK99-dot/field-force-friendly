@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Building2, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -12,6 +13,8 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberDuration, setRememberDuration] = useState<15 | 30>(30);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -25,6 +28,14 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
     try {
+      // If remember me, set a longer session expiry marker
+      if (rememberMe) {
+        const expiresAt = Date.now() + rememberDuration * 24 * 60 * 60 * 1000;
+        localStorage.setItem("remember_me_expires", expiresAt.toString());
+      } else {
+        localStorage.removeItem("remember_me_expires");
+      }
+
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
@@ -112,6 +123,42 @@ export default function Auth() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
+            </div>
+
+            {/* Remember Me */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="remember-me"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked === true)}
+                />
+                <Label htmlFor="remember-me" className="text-sm font-medium text-foreground cursor-pointer">
+                  Remember Me
+                </Label>
+              </div>
+              {rememberMe && (
+                <div className="flex gap-2 pl-6">
+                  <Button
+                    type="button"
+                    variant={rememberDuration === 15 ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 rounded-lg text-xs"
+                    onClick={() => setRememberDuration(15)}
+                  >
+                    15 Days
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={rememberDuration === 30 ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 rounded-lg text-xs"
+                    onClick={() => setRememberDuration(30)}
+                  >
+                    30 Days
+                  </Button>
+                </div>
+              )}
             </div>
 
             <Button
