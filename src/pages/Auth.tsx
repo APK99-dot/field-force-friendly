@@ -125,6 +125,42 @@ export default function Auth() {
               </div>
             </div>
 
+            {/* Remember Me */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="remember-me"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked === true)}
+                />
+                <Label htmlFor="remember-me" className="text-sm font-medium text-foreground cursor-pointer">
+                  Remember Me
+                </Label>
+              </div>
+              {rememberMe && (
+                <div className="flex gap-2 pl-6">
+                  <Button
+                    type="button"
+                    variant={rememberDuration === 15 ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 rounded-lg text-xs"
+                    onClick={() => setRememberDuration(15)}
+                  >
+                    15 Days
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={rememberDuration === 30 ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 rounded-lg text-xs"
+                    onClick={() => setRememberDuration(30)}
+                  >
+                    30 Days
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <Button
               type="submit"
               className="w-full h-12 rounded-xl bg-foreground text-background font-semibold text-sm hover:bg-foreground/90 transition-colors"
