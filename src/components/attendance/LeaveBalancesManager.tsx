@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Search, RefreshCw, Download, Edit, Plus, Users, FileSpreadsheet, CalendarClock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useMonthlyLeaveAccrual } from '@/hooks/useMonthlyLeaveAccrual';
+import { downloadCSVString } from '@/utils/nativeDownload';
 
 interface LeaveBalance {
   id: string; user_id: string; leave_type_id: string; opening_balance: number; used_balance: number; remaining_balance: number | null; year: number;
@@ -168,11 +169,7 @@ const LeaveBalancesManager = () => {
 
   const handleExport = () => {
     const csv = ['Employee,Leave Type,Opening,Used,Remaining,Year', ...filteredBalances.map(b => [b.profiles?.full_name || 'Unknown', b.leave_types?.name || 'Unknown', b.opening_balance, b.used_balance, b.remaining_balance || 0, b.year].join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `leave_balances_${filterYear}.csv`;
-    a.click();
+    downloadCSVString(csv, `leave_balances_${filterYear}.csv`);
   };
 
   const filteredBalances = balances.filter(b => !searchQuery || b.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()));

@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
+import { downloadXLSX as downloadXLSXNative, downloadPDF as downloadPDFNative } from '@/utils/nativeDownload';
 
 interface ReportRow {
   user_id: string;
@@ -132,7 +133,7 @@ export default function TeamAttendanceReportGenerator({ onClose }: Props) {
     ws['!cols'] = colWidths;
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Attendance Report');
-    XLSX.writeFile(wb, `Team_Attendance_${fromDate}_to_${toDate}.xlsx`);
+    downloadXLSXNative(wb, `Team_Attendance_${fromDate}_to_${toDate}.xlsx`);
     toast.success('Excel report downloaded');
   };
 
@@ -174,7 +175,7 @@ export default function TeamAttendanceReportGenerator({ onClose }: Props) {
     doc.setFontSize(9);
     doc.text(`Summary: ${summary.present} Present | ${summary.absent} Absent | ${summary.leave} Leave | Total Hours: ${summary.totalHours.toFixed(2)}`, 14, y);
 
-    doc.save(`Team_Attendance_${fromDate}_to_${toDate}.pdf`);
+    downloadPDFNative(doc, `Team_Attendance_${fromDate}_to_${toDate}.pdf`);
     toast.success('PDF report downloaded');
   };
 

@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Search, Download, Users, Clock, MapPin, UserCheck, User, Calendar, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
+import { downloadCSVString } from '@/utils/nativeDownload';
 
 interface UserInfo {
   id: string;
@@ -141,8 +142,7 @@ const LiveAttendanceMonitoring = () => {
 
   const exportData = () => {
     const csv = ['Employee,Date,Check In,Check Out,Hours,Status', ...filteredData.map(r => [r.profiles?.full_name || 'Unknown', r.date, r.check_in_time ? format(new Date(r.check_in_time), 'HH:mm') : '--', r.check_out_time ? format(new Date(r.check_out_time), 'HH:mm') : '--', r.active_market_hours ? `${r.active_market_hours.toFixed(1)}h` : '--', r.status].join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `attendance-report-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
+    downloadCSVString(csv, `attendance-report-${format(new Date(), 'yyyy-MM-dd')}.csv`);
   };
 
   const getStatusBadge = (status: string) => {

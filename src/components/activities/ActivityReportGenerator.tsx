@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
+import { downloadXLSX as downloadXLSXNative, downloadPDF as downloadPDFNative } from '@/utils/nativeDownload';
 
 interface ReportActivity {
   id: string;
@@ -181,7 +182,7 @@ export default function ActivityReportGenerator({ isAdmin }: Props) {
       wch: Math.max(k.length, ...rows.map(r => String((r as any)[k]).length)) + 2
     }));
     ws['!cols'] = colWidths;
-    XLSX.writeFile(wb, `Activity_Report_${filterDateFrom}_to_${filterDateTo}.xlsx`);
+    downloadXLSXNative(wb, `Activity_Report_${filterDateFrom}_to_${filterDateTo}.xlsx`);
     toast.success('Excel report downloaded');
   };
 
@@ -236,7 +237,7 @@ export default function ActivityReportGenerator({ isAdmin }: Props) {
     doc.text('TOTAL HOURS', colX[4], y);
     doc.text(totalHours.toFixed(1), colX[5], y);
 
-    doc.save(`Activity_Report_${filterDateFrom}_to_${filterDateTo}.pdf`);
+    downloadPDFNative(doc, `Activity_Report_${filterDateFrom}_to_${filterDateTo}.pdf`);
     toast.success('PDF report downloaded');
   };
 

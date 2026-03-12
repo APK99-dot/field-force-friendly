@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { downloadCSV } from '@/utils/fileDownloader';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
+import { downloadXLSX as downloadXLSXNative, downloadPDF as downloadPDFNative } from '@/utils/nativeDownload';
 
 interface ReportExpense {
   id: string;
@@ -175,7 +176,7 @@ export default function ExpenseReportGenerator({ isAdmin }: Props) {
     }));
     ws['!cols'] = colWidths;
 
-    XLSX.writeFile(wb, `Expense_Report_${filterDateFrom}_to_${filterDateTo}.xlsx`);
+    downloadXLSXNative(wb, `Expense_Report_${filterDateFrom}_to_${filterDateTo}.xlsx`);
     toast.success('Excel report downloaded');
   };
 
@@ -232,7 +233,7 @@ export default function ExpenseReportGenerator({ isAdmin }: Props) {
     doc.text('TOTAL', colX[3], y);
     doc.text(`₹${totalAmount.toFixed(2)}`, colX[4], y);
 
-    doc.save(`Expense_Report_${filterDateFrom}_to_${filterDateTo}.pdf`);
+    downloadPDFNative(doc, `Expense_Report_${filterDateFrom}_to_${filterDateTo}.pdf`);
     toast.success('PDF report downloaded');
   };
 
