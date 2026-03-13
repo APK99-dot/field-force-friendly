@@ -104,14 +104,9 @@ export default function AdminControls() {
       animate="show"
     >
       {/* Header */}
-      <motion.div variants={item} className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Admin Controls</h1>
-          <p className="text-sm text-muted-foreground">Manage different aspects of your system</p>
-        </div>
+      <motion.div variants={item}>
+        <h1 className="text-2xl font-bold">Admin Controls</h1>
+        <p className="text-sm text-muted-foreground">Manage different aspects of your system</p>
       </motion.div>
 
       {/* Search */}
