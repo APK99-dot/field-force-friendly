@@ -9,6 +9,7 @@ import { useNativeStartup } from "@/hooks/useNativeStartup";
 
 export function AppLayout() {
   const navigate = useNavigate();
+  useNativeStartup(); // Request camera, location permissions on native app launch
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null | undefined>(undefined);
