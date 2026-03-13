@@ -783,10 +783,10 @@ export default function AdminUserManagement() {
     onError: (err: any) => toast.error(err.message || "Failed to delete user"),
   });
 
-  // Per-role stats
+  // Per-role stats (using security profile assignments, not legacy role_id)
   const roleCounts = roles.map(r => ({
     name: r.name,
-    count: appUsers.filter(u => u.role_id === r.id).length,
+    count: secAssignments.filter(sa => sa.profile_id === r.id).length,
   }));
 
   return (
