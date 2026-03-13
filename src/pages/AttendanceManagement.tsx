@@ -361,14 +361,9 @@ export default function AttendanceManagement() {
   return (
     <motion.div className="p-2 sm:p-4 space-y-3 sm:space-y-6 max-w-6xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       {/* Page Header */}
-      <div className="flex items-center gap-2 sm:gap-4">
-        <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => navigate("/admin-controls")}>
-          <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-        </Button>
-        <div>
-          <h1 className="text-lg sm:text-3xl font-bold tracking-tight">Attendance Management</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">Monitor attendance, manage leaves & policies</p>
-        </div>
+      <div>
+        <h1 className="text-lg sm:text-3xl font-bold tracking-tight">Attendance Management</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground">Monitor attendance, manage leaves & policies</p>
       </div>
 
       {/* Section Toggle */}
