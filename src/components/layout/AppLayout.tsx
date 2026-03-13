@@ -5,6 +5,7 @@ import { BottomNav } from "./BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import ProfileSetupModal from "@/components/ProfileSetupModal";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
+import { useNativeStartup } from "@/hooks/useNativeStartup";
 
 export function AppLayout() {
   const navigate = useNavigate();
