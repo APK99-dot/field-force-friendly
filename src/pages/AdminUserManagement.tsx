@@ -786,7 +786,7 @@ export default function AdminUserManagement() {
   // Per-role stats (using security profile assignments, not legacy role_id)
   const roleCounts = roles.map(r => ({
     name: r.name,
-    count: securityAssignments.filter(sa => sa.profile_id === r.id).length,
+    count: secAssignments.filter(sa => sa.profile_id === r.id).length,
   }));
 
   return (
