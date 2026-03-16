@@ -391,7 +391,7 @@ export default function Activities() {
               activity_date: dateStr,
             }, targetUserId, true);
           }
-          toast({ title: "Activity Created", description: `Activity logged for ${payload.total_days} days` });
+          toast.success(`Activity logged for ${payload.total_days} days`);
         } else {
           await createActivity(payload, targetUserId);
         }
