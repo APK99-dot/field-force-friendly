@@ -273,7 +273,17 @@ export default function Activities() {
   // Check which days have activities (green dot)
   const daysWithActivities = useMemo(() => {
     const set = new Set<string>();
-    activities.forEach((a) => set.add(a.activity_date));
+    activities.forEach((a) => {
+      set.add(a.activity_date);
+      // Also mark multi-day range dates
+      if (a.duration_type === "multiple_days" && a.from_date && a.to_date) {
+        const start = new Date(a.from_date);
+        const end = new Date(a.to_date);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          set.add(format(d, "yyyy-MM-dd"));
+        }
+      }
+    });
     return set;
   }, [activities]);
 
