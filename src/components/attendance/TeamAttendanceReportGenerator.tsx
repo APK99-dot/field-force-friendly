@@ -142,46 +142,51 @@ export default function TeamAttendanceReportGenerator({ onClose }: Props) {
     }
   };
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     if (!reportData.length) return;
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    doc.setFontSize(16);
-    doc.text('Team Attendance Report', 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
-    doc.text(`Generated: ${format(new Date(), 'PPpp')}`, 14, 27);
+    try {
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      doc.setFontSize(16);
+      doc.text('Team Attendance Report', 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
+      doc.text(`Generated: ${format(new Date(), 'PPpp')}`, 14, 27);
 
-    const headers = ['Employee', 'Date', 'Status', 'Check In', 'Check Out', 'Hours', 'Location'];
-    const colX = [14, 60, 95, 130, 155, 180, 200];
-    let y = 36;
+      const headers = ['Employee', 'Date', 'Status', 'Check In', 'Check Out', 'Hours', 'Location'];
+      const colX = [14, 60, 95, 130, 155, 180, 200];
+      let y = 36;
 
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    headers.forEach((h, i) => doc.text(h, colX[i], y));
-    y += 2;
-    doc.line(14, y, 283, y);
-    y += 5;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      headers.forEach((h, i) => doc.text(h, colX[i], y));
+      y += 2;
+      doc.line(14, y, 283, y);
+      y += 5;
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    reportData.forEach(r => {
-      if (y > 190) { doc.addPage(); y = 20; }
-      const row = formatRow(r);
-      const vals = Object.values(row);
-      vals.forEach((v, i) => {
-        const text = String(v).substring(0, colX[i + 1] ? Math.floor((colX[i + 1] - colX[i]) / 2) : 40);
-        doc.text(text, colX[i], y);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      reportData.forEach(r => {
+        if (y > 190) { doc.addPage(); y = 20; }
+        const row = formatRow(r);
+        const vals = Object.values(row);
+        vals.forEach((v, i) => {
+          const text = String(v).substring(0, colX[i + 1] ? Math.floor((colX[i + 1] - colX[i]) / 2) : 40);
+          doc.text(text, colX[i], y);
+        });
+        y += 6;
       });
-      y += 6;
-    });
 
-    y += 4;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text(`Summary: ${summary.present} Present | ${summary.absent} Absent | ${summary.leave} Leave | Total Hours: ${summary.totalHours.toFixed(2)}`, 14, y);
+      y += 4;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(`Summary: ${summary.present} Present | ${summary.absent} Absent | ${summary.leave} Leave | Total Hours: ${summary.totalHours.toFixed(2)}`, 14, y);
 
-    downloadPDFNative(doc, `Team_Attendance_${fromDate}_to_${toDate}.pdf`);
-    toast.success('PDF report downloaded');
+      await downloadPDFNative(doc, `Team_Attendance_${fromDate}_to_${toDate}.pdf`);
+      toast.success('PDF report downloaded');
+    } catch (err) {
+      console.error('PDF download error:', err);
+      toast.error('Failed to download PDF report');
+    }
   };
 
   const statusBadge = (status: string) => {

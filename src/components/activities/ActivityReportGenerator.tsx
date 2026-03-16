@@ -191,59 +191,64 @@ export default function ActivityReportGenerator({ isAdmin }: Props) {
     }
   };
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     if (!reportData || reportData.length === 0) return;
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    try {
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-    doc.setFontSize(16);
-    doc.text('Activity Report', 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Period: ${format(new Date(filterDateFrom), 'dd MMM yyyy')} – ${format(new Date(filterDateTo), 'dd MMM yyyy')}`, 14, 22);
-    doc.text(`Generated: ${format(new Date(), 'dd MMM yyyy HH:mm')}`, 14, 28);
+      doc.setFontSize(16);
+      doc.text('Activity Report', 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Period: ${format(new Date(filterDateFrom), 'dd MMM yyyy')} – ${format(new Date(filterDateTo), 'dd MMM yyyy')}`, 14, 22);
+      doc.text(`Generated: ${format(new Date(), 'dd MMM yyyy HH:mm')}`, 14, 28);
 
-    const headers = ['User', 'Activity', 'Date', 'Start', 'End', 'Hours', 'Status', 'Location'];
-    const colX = [14, 50, 100, 135, 160, 185, 200, 235];
-    let y = 38;
+      const headers = ['User', 'Activity', 'Date', 'Start', 'End', 'Hours', 'Status', 'Location'];
+      const colX = [14, 50, 100, 135, 160, 185, 200, 235];
+      let y = 38;
 
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    headers.forEach((h, i) => doc.text(h, colX[i], y));
-    y += 2;
-    doc.line(14, y, 283, y);
-    y += 5;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      headers.forEach((h, i) => doc.text(h, colX[i], y));
+      y += 2;
+      doc.line(14, y, 283, y);
+      y += 5;
 
-    doc.setFont('helvetica', 'normal');
-    reportData.forEach(r => {
-      if (y > 190) {
-        doc.addPage();
-        y = 15;
-        doc.setFont('helvetica', 'bold');
-        headers.forEach((h, i) => doc.text(h, colX[i], y));
-        y += 2;
-        doc.line(14, y, 283, y);
-        y += 5;
-        doc.setFont('helvetica', 'normal');
-      }
-      doc.text(r.user_name.substring(0, 20), colX[0], y);
-      doc.text(r.activity_name.substring(0, 28), colX[1], y);
-      doc.text(format(new Date(r.activity_date), 'dd MMM yyyy'), colX[2], y);
-      doc.text(formatTime(r.start_time), colX[3], y);
-      doc.text(formatTime(r.end_time), colX[4], y);
-      doc.text(r.total_hours.toFixed(1), colX[5], y);
-      doc.text(r.status.replace('_', ' '), colX[6], y);
-      doc.text((r.location_address || '-').substring(0, 30), colX[7], y);
+      doc.setFont('helvetica', 'normal');
+      reportData.forEach(r => {
+        if (y > 190) {
+          doc.addPage();
+          y = 15;
+          doc.setFont('helvetica', 'bold');
+          headers.forEach((h, i) => doc.text(h, colX[i], y));
+          y += 2;
+          doc.line(14, y, 283, y);
+          y += 5;
+          doc.setFont('helvetica', 'normal');
+        }
+        doc.text(r.user_name.substring(0, 20), colX[0], y);
+        doc.text(r.activity_name.substring(0, 28), colX[1], y);
+        doc.text(format(new Date(r.activity_date), 'dd MMM yyyy'), colX[2], y);
+        doc.text(formatTime(r.start_time), colX[3], y);
+        doc.text(formatTime(r.end_time), colX[4], y);
+        doc.text(r.total_hours.toFixed(1), colX[5], y);
+        doc.text(r.status.replace('_', ' '), colX[6], y);
+        doc.text((r.location_address || '-').substring(0, 30), colX[7], y);
+        y += 6;
+      });
+
+      y += 3;
+      doc.line(14, y, 283, y);
       y += 6;
-    });
+      doc.setFont('helvetica', 'bold');
+      doc.text('TOTAL HOURS', colX[4], y);
+      doc.text(totalHours.toFixed(1), colX[5], y);
 
-    y += 3;
-    doc.line(14, y, 283, y);
-    y += 6;
-    doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL HOURS', colX[4], y);
-    doc.text(totalHours.toFixed(1), colX[5], y);
-
-    downloadPDFNative(doc, `Activity_Report_${filterDateFrom}_to_${filterDateTo}.pdf`);
-    toast.success('PDF report downloaded');
+      await downloadPDFNative(doc, `Activity_Report_${filterDateFrom}_to_${filterDateTo}.pdf`);
+      toast.success('PDF report downloaded');
+    } catch (err) {
+      console.error('PDF download error:', err);
+      toast.error('Failed to download PDF report');
+    }
   };
 
   const statusBadge = (status: string) => {
