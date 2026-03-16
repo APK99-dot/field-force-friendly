@@ -380,7 +380,20 @@ export default function Activities() {
         await updateActivity(editingId, payload);
       } else {
         const targetUserId = isManagerOrAdmin && form.owner_user_id ? form.owner_user_id : undefined;
-        await createActivity(payload, targetUserId);
+        // For multiple_days, create one row per date so each date has independent status
+        if (form.duration_type === "multiple_days" && form.from_date && form.to_date) {
+          const start = new Date(form.from_date);
+          const end = new Date(form.to_date);
+          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const dateStr = d.toISOString().split("T")[0];
+            await createActivity({
+              ...payload,
+              activity_date: dateStr,
+            }, targetUserId);
+          }
+        } else {
+          await createActivity(payload, targetUserId);
+        }
       }
       setShowForm(false);
       fetchActivities();
