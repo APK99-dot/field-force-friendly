@@ -153,7 +153,7 @@ export function useActivities() {
     };
   }, []);
 
-  const createActivity = useCallback(async (activity: Partial<Activity>, targetUserId?: string) => {
+  const createActivity = useCallback(async (activity: Partial<Activity>, targetUserId?: string, silent?: boolean) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
 
@@ -181,7 +181,7 @@ export function useActivities() {
     });
 
     if (error) throw error;
-    toast({ title: "Activity Created", description: "Activity logged successfully" });
+    if (!silent) toast({ title: "Activity Created", description: "Activity logged successfully" });
   }, [toast]);
 
   const updateActivity = useCallback(async (id: string, updates: Partial<Activity>) => {
