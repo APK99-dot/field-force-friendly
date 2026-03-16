@@ -636,7 +636,7 @@ export default function Activities() {
             </div>
             <div>
               <Label className="text-xs">Duration Type</Label>
-              <Select value={form.duration_type} onValueChange={(v) => setForm({ ...form, duration_type: v })}>
+              <Select value={form.duration_type} onValueChange={(v) => setForm(prev => ({ ...prev, duration_type: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="hour_based">Hour Based</SelectItem>
@@ -649,7 +649,7 @@ export default function Activities() {
             {form.duration_type === "half_day" && (
               <div>
                 <Label className="text-xs">Half Day Period</Label>
-                <Select value={form.half_day_type} onValueChange={(v) => setForm({ ...form, half_day_type: v })}>
+                <Select value={form.half_day_type} onValueChange={(v) => setForm(prev => ({ ...prev, half_day_type: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="first_half">First Half</SelectItem>
