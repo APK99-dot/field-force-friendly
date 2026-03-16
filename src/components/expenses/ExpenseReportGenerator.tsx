@@ -153,31 +153,35 @@ export default function ExpenseReportGenerator({ isAdmin }: Props) {
     }));
   };
 
-  const downloadExcel = () => {
+  const downloadExcel = async () => {
     if (!reportData || reportData.length === 0) return;
-    const rows = getReportRows();
-    const totalAmount = reportData.reduce((s, r) => s + r.amount, 0);
-    rows.push({
-      'User Name': '',
-      'Expense Date': '',
-      'Category': '',
-      'Description': 'TOTAL',
-      'Amount (₹)': totalAmount.toFixed(2),
-      'Status': '',
-    });
+    try {
+      const rows = getReportRows();
+      const totalAmount = reportData.reduce((s, r) => s + r.amount, 0);
+      rows.push({
+        'User Name': '',
+        'Expense Date': '',
+        'Category': '',
+        'Description': 'TOTAL',
+        'Amount (₹)': totalAmount.toFixed(2),
+        'Status': '',
+      });
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Expense Report');
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Expense Report');
 
-    // Auto-size columns
-    const colWidths = Object.keys(rows[0]).map(k => ({
-      wch: Math.max(k.length, ...rows.map(r => String((r as any)[k]).length)) + 2
-    }));
-    ws['!cols'] = colWidths;
+      const colWidths = Object.keys(rows[0]).map(k => ({
+        wch: Math.max(k.length, ...rows.map(r => String((r as any)[k]).length)) + 2
+      }));
+      ws['!cols'] = colWidths;
 
-    downloadXLSXNative(wb, `Expense_Report_${filterDateFrom}_to_${filterDateTo}.xlsx`);
-    toast.success('Excel report downloaded');
+      await downloadXLSXNative(wb, `Expense_Report_${filterDateFrom}_to_${filterDateTo}.xlsx`);
+      toast.success('Excel report downloaded');
+    } catch (err) {
+      console.error('Excel download error:', err);
+      toast.error('Failed to download Excel report');
+    }
   };
 
   const downloadPDF = () => {
