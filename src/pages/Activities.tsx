@@ -230,7 +230,11 @@ export default function Activities() {
   // Filter activities by selected date and optionally by user
   const dayActivities = useMemo(() => {
     return activities.filter((a) => {
-      const dateMatch = a.activity_date === dateStr;
+      let dateMatch = a.activity_date === dateStr;
+      // Also include multi-day activities that span this date
+      if (!dateMatch && a.duration_type === "multiple_days" && a.from_date && a.to_date) {
+        dateMatch = dateStr >= a.from_date && dateStr <= a.to_date;
+      }
       const userMatch = !selectedUserId || selectedUserId === "all" || a.user_id === selectedUserId;
       return dateMatch && userMatch;
     });
