@@ -636,7 +636,7 @@ export default function Activities() {
             </div>
             <div>
               <Label className="text-xs">Duration Type</Label>
-              <Select value={form.duration_type} onValueChange={(v) => setForm({ ...form, duration_type: v })}>
+              <Select value={form.duration_type} onValueChange={(v) => setForm(prev => ({ ...prev, duration_type: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="hour_based">Hour Based</SelectItem>
