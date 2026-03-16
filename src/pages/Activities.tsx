@@ -246,19 +246,6 @@ export default function Activities() {
     const matchesSelectedUser = (activity: ActivityType) =>
       !selectedUserId || selectedUserId === "all" || activity.user_id === selectedUserId;
 
-    const getSeriesKey = (activity: ActivityType) =>
-      [
-        activity.user_id,
-        activity.activity_name,
-        activity.activity_type,
-        activity.from_date ?? "",
-        activity.to_date ?? "",
-        activity.project_id ?? "",
-        activity.site_id ?? "",
-        activity.description ?? "",
-        activity.total_days ?? "",
-      ].join("::");
-
     const exactDateSeriesKeys = new Set(
       activities
         .filter(
@@ -269,7 +256,7 @@ export default function Activities() {
             activity.from_date &&
             activity.to_date,
         )
-        .map(getSeriesKey),
+        .map(getActivitySeriesKey),
     );
 
     return activities.filter((activity) => {
@@ -281,12 +268,66 @@ export default function Activities() {
         const isInRange = dateStr >= activity.from_date && dateStr <= activity.to_date;
         if (!isInRange) return false;
 
-        return !exactDateSeriesKeys.has(getSeriesKey(activity));
+        return !exactDateSeriesKeys.has(getActivitySeriesKey(activity));
       }
 
       return false;
     });
   }, [activities, dateStr, selectedUserId]);
+
+  const getStatusUpdateTargetId = useCallback(async (activity: ActivityType, targetDate: string) => {
+    if (activity.duration_type !== "multiple_days" || !activity.from_date || !activity.to_date) {
+      return activity.id;
+    }
+
+    const seriesKey = getActivitySeriesKey(activity);
+    const seriesActivities = activities.filter((item) => getActivitySeriesKey(item) === seriesKey);
+    const existingDates = new Set(seriesActivities.map((item) => item.activity_date));
+    let targetId =
+      seriesActivities.find((item) => item.activity_date === targetDate)?.id ??
+      (activity.activity_date === targetDate ? activity.id : "");
+
+    const startDate = parseISO(activity.from_date);
+    const endDate = parseISO(activity.to_date);
+
+    for (let cursor = new Date(startDate); cursor <= endDate; cursor = addDays(cursor, 1)) {
+      const currentDate = format(cursor, "yyyy-MM-dd");
+      if (existingDates.has(currentDate)) continue;
+
+      const created = await createActivity(
+        {
+          activity_name: activity.activity_name,
+          activity_type: activity.activity_type,
+          activity_date: currentDate,
+          start_time: currentDate === activity.activity_date ? activity.start_time : null,
+          end_time: currentDate === activity.activity_date ? activity.end_time : null,
+          duration_type: activity.duration_type,
+          from_date: activity.from_date,
+          to_date: activity.to_date,
+          total_days: activity.total_days,
+          total_hours: activity.total_hours,
+          description: activity.description,
+          remarks: activity.remarks,
+          status: activity.status,
+          project_id: activity.project_id,
+          site_id: activity.site_id,
+          location_lat: currentDate === activity.activity_date ? activity.location_lat : null,
+          location_lng: currentDate === activity.activity_date ? activity.location_lng : null,
+          location_address: currentDate === activity.activity_date ? activity.location_address : null,
+          attachment_urls: activity.attachment_urls,
+        },
+        activity.user_id,
+        true,
+      );
+
+      existingDates.add(currentDate);
+      if (currentDate === targetDate && created?.id) {
+        targetId = created.id;
+      }
+    }
+
+    return targetId || activity.id;
+  }, [activities, createActivity]);
 
   const filteredActivities = useMemo(() => {
     if (!searchQuery) return dayActivities;
