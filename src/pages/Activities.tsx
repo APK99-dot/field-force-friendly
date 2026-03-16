@@ -227,16 +227,51 @@ export default function Activities() {
     }
   }, [activeTab, effectiveUserId, dateStr, fetchGPSTrackingForDate]);
 
-  // Filter activities by selected date and optionally by user
+  // Filter activities by selected date and optionally by user.
+  // Prefer exact per-date rows; only fall back to legacy ranged rows when no dedicated row exists for that date.
   const dayActivities = useMemo(() => {
-    return activities.filter((a) => {
-      let dateMatch = a.activity_date === dateStr;
-      // Also include multi-day activities that span this date
-      if (!dateMatch && a.duration_type === "multiple_days" && a.from_date && a.to_date) {
-        dateMatch = dateStr >= a.from_date && dateStr <= a.to_date;
+    const matchesSelectedUser = (activity: ActivityType) =>
+      !selectedUserId || selectedUserId === "all" || activity.user_id === selectedUserId;
+
+    const getSeriesKey = (activity: ActivityType) =>
+      [
+        activity.user_id,
+        activity.activity_name,
+        activity.activity_type,
+        activity.from_date ?? "",
+        activity.to_date ?? "",
+        activity.project_id ?? "",
+        activity.site_id ?? "",
+        activity.description ?? "",
+        activity.total_days ?? "",
+      ].join("::");
+
+    const exactDateSeriesKeys = new Set(
+      activities
+        .filter(
+          (activity) =>
+            matchesSelectedUser(activity) &&
+            activity.activity_date === dateStr &&
+            activity.duration_type === "multiple_days" &&
+            activity.from_date &&
+            activity.to_date,
+        )
+        .map(getSeriesKey),
+    );
+
+    return activities.filter((activity) => {
+      if (!matchesSelectedUser(activity)) return false;
+
+      if (activity.activity_date === dateStr) return true;
+
+      if (activity.duration_type === "multiple_days" && activity.from_date && activity.to_date) {
+        const isInRange = dateStr >= activity.from_date && dateStr <= activity.to_date;
+        if (!isInRange) return false;
+
+        return !exactDateSeriesKeys.has(getSeriesKey(activity));
       }
-      const userMatch = !selectedUserId || selectedUserId === "all" || a.user_id === selectedUserId;
-      return dateMatch && userMatch;
+
+      return false;
     });
   }, [activities, dateStr, selectedUserId]);
 
