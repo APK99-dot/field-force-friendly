@@ -93,6 +93,8 @@ const defaultForm = {
   end_time: "",
   duration_type: "hour_based",
   half_day_type: "first_half",
+  from_date: "",
+  to_date: "",
   description: "",
   status: "planned",
   site_id: "",
@@ -271,7 +273,17 @@ export default function Activities() {
   // Check which days have activities (green dot)
   const daysWithActivities = useMemo(() => {
     const set = new Set<string>();
-    activities.forEach((a) => set.add(a.activity_date));
+    activities.forEach((a) => {
+      set.add(a.activity_date);
+      // Also mark multi-day range dates
+      if (a.duration_type === "multiple_days" && a.from_date && a.to_date) {
+        const start = new Date(a.from_date);
+        const end = new Date(a.to_date);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          set.add(format(d, "yyyy-MM-dd"));
+        }
+      }
+    });
     return set;
   }, [activities]);
 
@@ -325,6 +337,8 @@ export default function Activities() {
       end_time: a.end_time ? format(parseISO(a.end_time), "HH:mm") : "",
       duration_type: a.duration_type || "hour_based",
       half_day_type: (a as any).half_day_type || "first_half",
+      from_date: a.from_date || "",
+      to_date: a.to_date || "",
       description: a.description || "",
       status: a.status,
       site_id: a.site_id || "",
@@ -347,6 +361,11 @@ export default function Activities() {
         start_time: form.start_time ? `${form.activity_date}T${form.start_time}:00` : null,
         end_time: form.end_time ? `${form.activity_date}T${form.end_time}:00` : null,
         duration_type: form.duration_type,
+        from_date: form.duration_type === "multiple_days" && form.from_date ? form.from_date : null,
+        to_date: form.duration_type === "multiple_days" && form.to_date ? form.to_date : null,
+        total_days: form.duration_type === "multiple_days" && form.from_date && form.to_date
+          ? Math.max(1, Math.ceil((new Date(form.to_date).getTime() - new Date(form.from_date).getTime()) / 86400000) + 1)
+          : null,
         description: form.description || null,
         status: form.status,
         site_id: form.site_id || null,
@@ -633,6 +652,25 @@ export default function Activities() {
                     <SelectItem value="second_half">Second Half</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+            {form.duration_type === "multiple_days" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">From Date *</Label>
+                  <Input type="date" value={form.from_date} onChange={(e) => setForm({ ...form, from_date: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs">To Date *</Label>
+                  <Input type="date" value={form.to_date} min={form.from_date || undefined} onChange={(e) => setForm({ ...form, to_date: e.target.value })} />
+                </div>
+                {form.from_date && form.to_date && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground">
+                      Total Days: <span className="font-semibold text-foreground">{Math.max(1, Math.ceil((new Date(form.to_date).getTime() - new Date(form.from_date).getTime()) / 86400000) + 1)}</span>
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             {form.duration_type === "hour_based" && (
