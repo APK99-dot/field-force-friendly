@@ -644,6 +644,25 @@ export default function Activities() {
                 </Select>
               </div>
             )}
+            {form.duration_type === "multiple_days" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">From Date *</Label>
+                  <Input type="date" value={form.from_date} onChange={(e) => setForm({ ...form, from_date: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs">To Date *</Label>
+                  <Input type="date" value={form.to_date} min={form.from_date || undefined} onChange={(e) => setForm({ ...form, to_date: e.target.value })} />
+                </div>
+                {form.from_date && form.to_date && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground">
+                      Total Days: <span className="font-semibold text-foreground">{Math.max(1, Math.ceil((new Date(form.to_date).getTime() - new Date(form.from_date).getTime()) / 86400000) + 1)}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
             {form.duration_type === "hour_based" && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
