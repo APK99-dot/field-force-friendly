@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 export async function downloadFile(blob: Blob, filename: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
     try {
-      // Convert blob to base64
+      // Convert blob to base64 in small-safe way
       const base64 = await blobToBase64(blob);
 
       // Try to request permissions first (Android 10 and below need WRITE_EXTERNAL_STORAGE)
@@ -20,7 +20,7 @@ export async function downloadFile(blob: Blob, filename: string): Promise<void> 
         // On Android 11+ scoped storage, permissions may not be needed
       }
 
-      // Write file to Downloads directory
+      // Write file to Documents directory
       const result = await Filesystem.writeFile({
         path: filename,
         data: base64,
@@ -33,20 +33,25 @@ export async function downloadFile(blob: Blob, filename: string): Promise<void> 
     } catch (err: any) {
       console.error('Native download error:', err);
 
-      // Fallback: try external directory
+      // Fallback: try Cache directory (always writable)
       try {
         const base64 = await blobToBase64(blob);
         await Filesystem.writeFile({
-          path: `Download/${filename}`,
+          path: filename,
           data: base64,
-          directory: Directory.ExternalStorage,
+          directory: Directory.Cache,
           recursive: true,
         });
         toast.success(`Downloaded: ${filename}`);
       } catch (fallbackErr) {
         console.error('Fallback download error:', fallbackErr);
         // Last resort: try web download
-        webDownload(blob, filename);
+        try {
+          webDownload(blob, filename);
+        } catch (webErr) {
+          console.error('Web download fallback also failed:', webErr);
+          toast.error('Download failed. Please try again.');
+        }
       }
     }
   } else {
