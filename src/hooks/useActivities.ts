@@ -157,31 +157,42 @@ export function useActivities() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
 
-    const { error } = await supabase.from("activity_events").insert({
-      user_id: targetUserId || user.id,
-      activity_name: activity.activity_name!,
-      activity_type: activity.activity_type!,
-      activity_date: activity.activity_date!,
-      start_time: activity.start_time || null,
-      end_time: activity.end_time || null,
-      duration_type: activity.duration_type || null,
-      from_date: activity.from_date || null,
-      to_date: activity.to_date || null,
-      total_days: activity.total_days || null,
-      total_hours: activity.total_hours || 0,
-      description: activity.description || null,
-      remarks: activity.remarks || null,
-      status: activity.status || "planned",
-      project_id: activity.project_id || null,
-      site_id: activity.site_id || null,
-      location_lat: activity.location_lat || null,
-      location_lng: activity.location_lng || null,
-      location_address: activity.location_address || null,
-      attachment_urls: activity.attachment_urls || [],
-    });
+    const { data, error } = await supabase
+      .from("activity_events")
+      .insert({
+        user_id: targetUserId || user.id,
+        activity_name: activity.activity_name!,
+        activity_type: activity.activity_type!,
+        activity_date: activity.activity_date!,
+        start_time: activity.start_time || null,
+        end_time: activity.end_time || null,
+        duration_type: activity.duration_type || null,
+        from_date: activity.from_date || null,
+        to_date: activity.to_date || null,
+        total_days: activity.total_days || null,
+        total_hours: activity.total_hours || 0,
+        description: activity.description || null,
+        remarks: activity.remarks || null,
+        status: activity.status || "planned",
+        project_id: activity.project_id || null,
+        site_id: activity.site_id || null,
+        location_lat: activity.location_lat || null,
+        location_lng: activity.location_lng || null,
+        location_address: activity.location_address || null,
+        attachment_urls: activity.attachment_urls || [],
+      })
+      .select("*")
+      .single();
 
     if (error) throw error;
     if (!silent) toast({ title: "Activity Created", description: "Activity logged successfully" });
+
+    return data
+      ? ({
+          ...data,
+          attachment_urls: Array.isArray(data.attachment_urls) ? (data.attachment_urls as string[]) : [],
+        } as Activity)
+      : null;
   }, [toast]);
 
   const updateActivity = useCallback(async (id: string, updates: Partial<Activity>) => {
