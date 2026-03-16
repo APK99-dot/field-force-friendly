@@ -93,6 +93,8 @@ const defaultForm = {
   end_time: "",
   duration_type: "hour_based",
   half_day_type: "first_half",
+  from_date: "",
+  to_date: "",
   description: "",
   status: "planned",
   site_id: "",
