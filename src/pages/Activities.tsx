@@ -76,6 +76,19 @@ const statusLabels: Record<string, string> = {
   completed: "Completed",
 };
 
+const getActivitySeriesKey = (activity: ActivityType) =>
+  [
+    activity.user_id,
+    activity.activity_name,
+    activity.activity_type,
+    activity.from_date ?? "",
+    activity.to_date ?? "",
+    activity.project_id ?? "",
+    activity.site_id ?? "",
+    activity.description ?? "",
+    activity.total_days ?? "",
+  ].join("::");
+
 const container = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.05 } },
