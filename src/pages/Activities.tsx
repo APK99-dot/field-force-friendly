@@ -389,8 +389,9 @@ export default function Activities() {
             await createActivity({
               ...payload,
               activity_date: dateStr,
-            }, targetUserId);
+            }, targetUserId, true);
           }
+          toast({ title: "Activity Created", description: `Activity logged for ${payload.total_days} days` });
         } else {
           await createActivity(payload, targetUserId);
         }
