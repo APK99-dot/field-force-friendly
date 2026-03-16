@@ -351,6 +351,11 @@ export default function Activities() {
         start_time: form.start_time ? `${form.activity_date}T${form.start_time}:00` : null,
         end_time: form.end_time ? `${form.activity_date}T${form.end_time}:00` : null,
         duration_type: form.duration_type,
+        from_date: form.duration_type === "multiple_days" && form.from_date ? form.from_date : null,
+        to_date: form.duration_type === "multiple_days" && form.to_date ? form.to_date : null,
+        total_days: form.duration_type === "multiple_days" && form.from_date && form.to_date
+          ? Math.max(1, Math.ceil((new Date(form.to_date).getTime() - new Date(form.from_date).getTime()) / 86400000) + 1)
+          : null,
         description: form.description || null,
         status: form.status,
         site_id: form.site_id || null,
