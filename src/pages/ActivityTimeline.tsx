@@ -71,45 +71,50 @@ export default function ActivityTimeline() {
       });
   }, [activities, dateStr]);
 
-  const handleDownloadPDF = useCallback(() => {
-    const doc = new jsPDF();
-    const title = `Timeline - ${format(selectedDate, "MMM dd, yyyy")}`;
-    doc.setFontSize(16);
-    doc.text(title, 14, 20);
+  const handleDownloadPDF = useCallback(async () => {
+    try {
+      const doc = new jsPDF();
+      const title = `Timeline - ${format(selectedDate, "MMM dd, yyyy")}`;
+      doc.setFontSize(16);
+      doc.text(title, 14, 20);
 
-    let y = 35;
-    if (attendance?.check_in_time) {
-      doc.setFontSize(11);
-      doc.setTextColor(34, 139, 34);
-      doc.text(`DAY START - ${format(parseISO(attendance.check_in_time), "h:mm a")}`, 14, y);
-      y += 10;
-    }
-
-    doc.setTextColor(0, 0, 0);
-    dayActivities.forEach((a) => {
-      if (y > 270) { doc.addPage(); y = 20; }
-      doc.setFontSize(10);
-      const time = a.start_time ? format(parseISO(a.start_time), "h:mm a") : "--:--";
-      doc.text(`${time} - ${a.activity_name} (${statusLabels[a.status] || a.status})`, 14, y);
-      y += 6;
-      if (a.description) {
-        doc.setFontSize(8);
-        doc.setTextColor(100);
-        doc.text(a.description.substring(0, 80), 20, y);
-        doc.setTextColor(0, 0, 0);
-        y += 6;
+      let y = 35;
+      if (attendance?.check_in_time) {
+        doc.setFontSize(11);
+        doc.setTextColor(34, 139, 34);
+        doc.text(`DAY START - ${format(parseISO(attendance.check_in_time), "h:mm a")}`, 14, y);
+        y += 10;
       }
-      y += 2;
-    });
 
-    if (attendance?.check_out_time) {
-      if (y > 270) { doc.addPage(); y = 20; }
-      doc.setFontSize(11);
-      doc.setTextColor(200, 0, 0);
-      doc.text(`DAY END - ${format(parseISO(attendance.check_out_time), "h:mm a")}`, 14, y);
+      doc.setTextColor(0, 0, 0);
+      dayActivities.forEach((a) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.setFontSize(10);
+        const time = a.start_time ? format(parseISO(a.start_time), "h:mm a") : "--:--";
+        doc.text(`${time} - ${a.activity_name} (${statusLabels[a.status] || a.status})`, 14, y);
+        y += 6;
+        if (a.description) {
+          doc.setFontSize(8);
+          doc.setTextColor(100);
+          doc.text(a.description.substring(0, 80), 20, y);
+          doc.setTextColor(0, 0, 0);
+          y += 6;
+        }
+        y += 2;
+      });
+
+      if (attendance?.check_out_time) {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.setFontSize(11);
+        doc.setTextColor(200, 0, 0);
+        doc.text(`DAY END - ${format(parseISO(attendance.check_out_time), "h:mm a")}`, 14, y);
+      }
+
+      await downloadPDFNative(doc, `timeline-${dateStr}.pdf`);
+    } catch (err) {
+      console.error('PDF download error:', err);
+      toast.error('Failed to download PDF');
     }
-
-    downloadPDFNative(doc, `timeline-${dateStr}.pdf`);
   }, [selectedDate, attendance, dayActivities, dateStr]);
 
   const isLoading = loading || attendanceLoading;

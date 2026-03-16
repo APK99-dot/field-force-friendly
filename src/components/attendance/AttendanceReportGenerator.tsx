@@ -63,18 +63,23 @@ const AttendanceReportGenerator = () => {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (!reportData.length) { toast.error('No data to export'); return; }
-    const csvData = reportData.map(r => ({
-      'Employee': r.full_name,
-      'Date': r.date,
-      'Status': r.status,
-      'Check In': r.check_in_time ? format(new Date(r.check_in_time), 'HH:mm') : '--',
-      'Check Out': r.check_out_time ? format(new Date(r.check_out_time), 'HH:mm') : '--',
-      'Total Hours': r.total_hours?.toFixed(2) || '--',
-    }));
-    downloadCSV(csvData, `attendance-report-${fromDate}-to-${toDate}.csv`);
-    toast.success('Report exported');
+    try {
+      const csvData = reportData.map(r => ({
+        'Employee': r.full_name,
+        'Date': r.date,
+        'Status': r.status,
+        'Check In': r.check_in_time ? format(new Date(r.check_in_time), 'HH:mm') : '--',
+        'Check Out': r.check_out_time ? format(new Date(r.check_out_time), 'HH:mm') : '--',
+        'Total Hours': r.total_hours?.toFixed(2) || '--',
+      }));
+      await downloadCSV(csvData, `attendance-report-${fromDate}-to-${toDate}.csv`);
+      toast.success('Report exported');
+    } catch (err) {
+      console.error('CSV export error:', err);
+      toast.error('Failed to export report');
+    }
   };
 
   const getStatusBadge = (status: string) => {
