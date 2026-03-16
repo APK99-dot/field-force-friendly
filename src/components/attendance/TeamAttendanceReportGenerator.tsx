@@ -116,25 +116,30 @@ export default function TeamAttendanceReportGenerator({ onClose }: Props) {
     'Location': r.check_in_address || '--',
   });
 
-  const downloadExcel = () => {
+  const downloadExcel = async () => {
     if (!reportData.length) return;
-    const rows = reportData.map(formatRow);
-    rows.push({
-      'Employee': 'TOTAL',
-      'Date': '',
-      'Status': `${summary.present} Present, ${summary.absent} Absent, ${summary.leave} Leave`,
-      'Check In': '',
-      'Check Out': '',
-      'Total Hours': summary.totalHours.toFixed(2),
-      'Location': '',
-    });
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const colWidths = Object.keys(rows[0]).map(k => ({ wch: Math.max(k.length, 14) }));
-    ws['!cols'] = colWidths;
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Attendance Report');
-    downloadXLSXNative(wb, `Team_Attendance_${fromDate}_to_${toDate}.xlsx`);
-    toast.success('Excel report downloaded');
+    try {
+      const rows = reportData.map(formatRow);
+      rows.push({
+        'Employee': 'TOTAL',
+        'Date': '',
+        'Status': `${summary.present} Present, ${summary.absent} Absent, ${summary.leave} Leave`,
+        'Check In': '',
+        'Check Out': '',
+        'Total Hours': summary.totalHours.toFixed(2),
+        'Location': '',
+      });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const colWidths = Object.keys(rows[0]).map(k => ({ wch: Math.max(k.length, 14) }));
+      ws['!cols'] = colWidths;
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Attendance Report');
+      await downloadXLSXNative(wb, `Team_Attendance_${fromDate}_to_${toDate}.xlsx`);
+      toast.success('Excel report downloaded');
+    } catch (err) {
+      console.error('Excel download error:', err);
+      toast.error('Failed to download Excel report');
+    }
   };
 
   const downloadPDF = () => {
