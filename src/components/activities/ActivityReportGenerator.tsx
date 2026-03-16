@@ -166,24 +166,29 @@ export default function ActivityReportGenerator({ isAdmin }: Props) {
 
   const totalHours = reportData?.reduce((s, r) => s + r.total_hours, 0) || 0;
 
-  const downloadExcel = () => {
+  const downloadExcel = async () => {
     if (!reportData || reportData.length === 0) return;
-    const rows = getReportRows();
-    rows.push({
-      'User Name': '', 'Activity': '', 'Type': '', 'Description': 'TOTAL',
-      'Date': '', 'Start Time': '', 'End Time': '',
-      'Hours': totalHours.toFixed(1), 'Status': '', 'Location': '',
-    });
+    try {
+      const rows = getReportRows();
+      rows.push({
+        'User Name': '', 'Activity': '', 'Type': '', 'Description': 'TOTAL',
+        'Date': '', 'Start Time': '', 'End Time': '',
+        'Hours': totalHours.toFixed(1), 'Status': '', 'Location': '',
+      });
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Activity Report');
-    const colWidths = Object.keys(rows[0]).map(k => ({
-      wch: Math.max(k.length, ...rows.map(r => String((r as any)[k]).length)) + 2
-    }));
-    ws['!cols'] = colWidths;
-    downloadXLSXNative(wb, `Activity_Report_${filterDateFrom}_to_${filterDateTo}.xlsx`);
-    toast.success('Excel report downloaded');
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Activity Report');
+      const colWidths = Object.keys(rows[0]).map(k => ({
+        wch: Math.max(k.length, ...rows.map(r => String((r as any)[k]).length)) + 2
+      }));
+      ws['!cols'] = colWidths;
+      await downloadXLSXNative(wb, `Activity_Report_${filterDateFrom}_to_${filterDateTo}.xlsx`);
+      toast.success('Excel report downloaded');
+    } catch (err) {
+      console.error('Excel download error:', err);
+      toast.error('Failed to download Excel report');
+    }
   };
 
   const downloadPDF = () => {
