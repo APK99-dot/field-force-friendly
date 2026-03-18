@@ -25,6 +25,7 @@ import {
   X,
   User,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 
 interface ProfileData {
@@ -123,6 +124,24 @@ export default function Profile() {
     }
   };
 
+  const handleRemovePhoto = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setUploading(true);
+    try {
+      const filePath = `${user.id}/profile.jpg`;
+      await supabase.storage.from("employee-photos").remove([filePath]);
+      await supabase.from("profiles").update({ profile_picture_url: null }).eq("id", user.id);
+      setData((prev) => ({ ...prev, profile_picture_url: null }));
+      toast.success("Profile photo removed");
+    } catch (err: any) {
+      toast.error("Failed to remove photo: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -210,6 +229,16 @@ export default function Profile() {
             >
               <Camera className="h-3.5 w-3.5 text-primary" />
             </button>
+            {data.profile_picture_url && (
+              <button
+                onClick={handleRemovePhoto}
+                disabled={uploading}
+                className="absolute top-0 right-0 w-6 h-6 rounded-full bg-destructive flex items-center justify-center cursor-pointer hover:bg-destructive/80 transition-colors shadow-md"
+                title="Remove photo"
+              >
+                <Trash2 className="h-3 w-3 text-destructive-foreground" />
+              </button>
+            )}
           </div>
           <div className="text-center">
             <h1 className="text-lg font-bold">{data.full_name || "Your Name"}</h1>
