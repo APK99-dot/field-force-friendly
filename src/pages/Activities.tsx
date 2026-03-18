@@ -134,6 +134,8 @@ export default function Activities() {
   const [saving, setSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
+  const [isListening, setIsListening] = useState(false);
+  const [recognition, setRecognition] = useState<any>(null);
 
   // Dynamic activity types from DB
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
