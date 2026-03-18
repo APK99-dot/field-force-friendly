@@ -25,6 +25,7 @@ import {
   X,
   User,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 
 interface ProfileData {
