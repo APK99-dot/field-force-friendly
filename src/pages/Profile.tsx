@@ -229,6 +229,16 @@ export default function Profile() {
             >
               <Camera className="h-3.5 w-3.5 text-primary" />
             </button>
+            {data.profile_picture_url && (
+              <button
+                onClick={handleRemovePhoto}
+                disabled={uploading}
+                className="absolute top-0 right-0 w-6 h-6 rounded-full bg-destructive flex items-center justify-center cursor-pointer hover:bg-destructive/80 transition-colors shadow-md"
+                title="Remove photo"
+              >
+                <Trash2 className="h-3 w-3 text-destructive-foreground" />
+              </button>
+            )}
           </div>
           <div className="text-center">
             <h1 className="text-lg font-bold">{data.full_name || "Your Name"}</h1>
