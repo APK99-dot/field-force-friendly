@@ -27,6 +27,7 @@ import ActivityTimeline from "./pages/ActivityTimeline";
 import SiteMasterPage from "./pages/SiteMaster";
 import InstallApp from "./pages/InstallApp";
 import Profile from "./pages/Profile";
+import MyTeam from "./pages/MyTeam";
 
 const queryClient = new QueryClient();
 
