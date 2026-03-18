@@ -212,7 +212,7 @@ export default function Attendance() {
       } catch {}
 
       // Step 2: Upload photo
-      setProcessingStep("uploading");
+      setProcessingStep("photo");
       const dateStr = format(new Date(), "yyyy-MM-dd");
       const type = cameraMode === "checkin" ? "checkin" : "checkout";
       const timestamp = Date.now();
