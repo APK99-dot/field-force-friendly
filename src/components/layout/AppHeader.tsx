@@ -13,6 +13,7 @@ import {
   UserCheck,
   Navigation2,
   FolderKanban,
+  Users2,
   Shield,
   AlertTriangle,
   Receipt,
@@ -39,6 +40,7 @@ const allNavigationItems = [
   { icon: Receipt, label: "Expenses", href: "/expenses", color: "from-orange-500 to-orange-600", module: "module_expenses" },
   { icon: ClipboardList, label: "Activities", href: "/activities", color: "from-teal-500 to-teal-600", module: "module_activities" },
   { icon: Building2, label: "Projects/Sites", href: "/sites", color: "from-cyan-500 to-cyan-600", module: null as string | null },
+  { icon: Users2, label: "My Team", href: "/my-team", color: "from-indigo-500 to-indigo-600", module: null as string | null },
 ];
 
 const adminItems = [

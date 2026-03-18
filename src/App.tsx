@@ -27,6 +27,7 @@ import ActivityTimeline from "./pages/ActivityTimeline";
 import SiteMasterPage from "./pages/SiteMaster";
 import InstallApp from "./pages/InstallApp";
 import Profile from "./pages/Profile";
+import MyTeam from "./pages/MyTeam";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/activities" element={<Activities />} />
             <Route path="/activity-timeline" element={<ActivityTimeline />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/my-team" element={<MyTeam />} />
           </Route>
           <Route path="/install" element={<InstallApp />} />
           <Route path="*" element={<NotFound />} />
