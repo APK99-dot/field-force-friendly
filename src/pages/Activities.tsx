@@ -429,24 +429,39 @@ export default function Activities() {
     };
   }, [dayActivities]);
 
-  // Check which days have activities (green dot) — filtered by selected user
+  // Check which days have activities (green dot) — scoped to the active user selection
   const daysWithActivities = useMemo(() => {
-    const set = new Set<string>();
-    const filtered = activities.filter((a) =>
-      !selectedUserId || selectedUserId === "all" ? true : a.user_id === selectedUserId
-    );
-    filtered.forEach((a) => {
-      set.add(a.activity_date);
-      if (a.duration_type === "multiple_days" && a.from_date && a.to_date) {
-        const start = parseISO(a.from_date);
-        const end = parseISO(a.to_date);
-        for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
-          set.add(format(d, "yyyy-MM-dd"));
+    const normalizeDayKey = (value: string | null | undefined) => {
+      if (!value) return null;
+      const parsed = parseISO(value);
+      return Number.isNaN(parsed.getTime()) ? value.slice(0, 10) : format(parsed, "yyyy-MM-dd");
+    };
+
+    const indicatorUserId = selectedUserId === "all" ? null : selectedUserId || currentUserId || null;
+    const scopedActivities = indicatorUserId
+      ? activities.filter((activity) => activity.user_id === indicatorUserId)
+      : selectedUserId === "all"
+        ? activities
+        : [];
+
+    return scopedActivities.reduce((dateSet, activity) => {
+      const activityDay = normalizeDayKey(activity.activity_date);
+      if (activityDay) {
+        dateSet.add(activityDay);
+      }
+
+      if (activity.duration_type === "multiple_days" && activity.from_date && activity.to_date) {
+        const start = parseISO(activity.from_date);
+        const end = parseISO(activity.to_date);
+
+        for (let day = new Date(start); day <= end; day = addDays(day, 1)) {
+          dateSet.add(format(day, "yyyy-MM-dd"));
         }
       }
-    });
-    return set;
-  }, [activities, selectedUserId]);
+
+      return dateSet;
+    }, new Set<string>());
+  }, [activities, selectedUserId, currentUserId]);
 
   // GPS distance calculation
   const gpsStats = useMemo(() => {
