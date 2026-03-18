@@ -29,7 +29,16 @@ import { cn } from "@/lib/utils";
 
 import ProfileSetupModal from "@/components/ProfileSetupModal";
 
-type ProcessingStep = "camera" | "location" | "uploading" | "verifying" | "saving" | null;
+type ProcessingStep = "location" | "photo" | "face" | "saving" | "done" | null;
+
+const VERIFICATION_STEPS = ["location", "photo", "face", "saving", "done"] as const;
+const STEP_LABELS: Record<string, string> = {
+  location: "Location",
+  photo: "Photo",
+  face: "Face",
+  saving: "Save",
+  done: "Done",
+};
 
 export default function Attendance() {
   const [activeView, setActiveView] = useState<"my" | "team">("my");
@@ -203,7 +212,7 @@ export default function Attendance() {
       } catch {}
 
       // Step 2: Upload photo
-      setProcessingStep("uploading");
+      setProcessingStep("photo");
       const dateStr = format(new Date(), "yyyy-MM-dd");
       const type = cameraMode === "checkin" ? "checkin" : "checkout";
       const timestamp = Date.now();
@@ -225,7 +234,7 @@ export default function Attendance() {
       let faceMatchConfidence = 0;
 
       if (profilePictureUrl) {
-        setProcessingStep("verifying");
+        setProcessingStep("face");
         const matchResult = await compareImages(profilePictureUrl, photoUrl);
         faceVerificationStatus = matchResult.status;
         faceMatchConfidence = matchResult.confidence;
@@ -251,11 +260,14 @@ export default function Attendance() {
       setProcessingStep("saving");
       if (cameraMode === "checkin") {
         await checkIn({ photoUrl, location, faceVerificationStatus, faceMatchConfidence });
-        toast.success("Day started successfully!");
       } else {
         await checkOut({ photoUrl, location, faceVerificationStatus, faceMatchConfidence });
-        toast.success("Day ended successfully!");
       }
+
+      // Step 5: Done
+      setProcessingStep("done");
+      toast.success(cameraMode === "checkin" ? "Day started successfully!" : "Day ended successfully!");
+      await new Promise((r) => setTimeout(r, 1500));
     } catch (err: any) {
       console.error("Attendance error:", err);
       toast.error(err.message || "Failed to record attendance");
@@ -384,11 +396,12 @@ export default function Attendance() {
     return regMap.get(selectedRecordForReg.date) || null;
   }, [selectedRecordForReg, regMap]);
 
-  const stepLabels: Record<string, { icon: any; label: string }> = {
-    location: { icon: MapPin, label: "Getting location..." },
-    uploading: { icon: Upload, label: "Uploading photo..." },
-    verifying: { icon: Shield, label: "Verifying face..." },
-    saving: { icon: Save, label: "Saving attendance..." },
+  const stepDescriptions: Record<string, string> = {
+    location: "Getting location...",
+    photo: "Uploading photo...",
+    face: "Verifying face match...",
+    saving: "Saving attendance...",
+    done: "Completed!",
   };
 
   return (
@@ -443,24 +456,47 @@ export default function Attendance() {
         </div>
       </div>
 
-      {/* Processing Indicator */}
+      {/* Step-by-step Verification Stepper */}
       {processingStep && (
-        <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 flex items-center gap-3">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          <div>
-            <div className="text-sm font-medium">{stepLabels[processingStep]?.label}</div>
-            <div className="flex gap-2 mt-1">
-              {["location", "uploading", "verifying", "saving"].map((step) => {
-                const StepIcon = stepLabels[step]?.icon;
-                const isActive = step === processingStep;
-                const isDone = ["location", "uploading", "verifying", "saving"].indexOf(step) < ["location", "uploading", "verifying", "saving"].indexOf(processingStep);
-                return (
-                  <div key={step} className={cn("flex items-center gap-1 text-xs", isActive ? "text-primary font-semibold" : isDone ? "text-primary/60" : "text-muted-foreground")}>
-                    {StepIcon && <StepIcon className="h-3 w-3" />}
+        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-4">
+          <div className="text-center text-sm font-medium text-foreground flex items-center justify-center gap-2">
+            {processingStep !== "done" && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+            {processingStep === "done" ? "✅ " : ""}{stepDescriptions[processingStep]}
+          </div>
+          <div className="flex items-center justify-between px-2">
+            {VERIFICATION_STEPS.map((step, idx) => {
+              const currentIdx = VERIFICATION_STEPS.indexOf(processingStep as any);
+              const isDone = idx < currentIdx || processingStep === "done";
+              const isActive = idx === currentIdx && processingStep !== "done";
+              return (
+                <div key={step} className="flex items-center flex-1 last:flex-none">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all",
+                      isDone
+                        ? "bg-primary border-primary text-primary-foreground"
+                        : isActive
+                        ? "bg-primary/15 border-primary text-primary"
+                        : "bg-muted border-border text-muted-foreground"
+                    )}>
+                      {isDone ? <CheckCircle className="h-4 w-4" /> : idx + 1}
+                    </div>
+                    <span className={cn(
+                      "text-[10px] font-medium leading-tight",
+                      isDone ? "text-primary" : isActive ? "text-primary" : "text-muted-foreground"
+                    )}>
+                      {STEP_LABELS[step]}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
+                  {idx < VERIFICATION_STEPS.length - 1 && (
+                    <div className={cn(
+                      "flex-1 h-0.5 mx-1 mt-[-14px]",
+                      isDone ? "bg-primary" : "bg-border"
+                    )} />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
