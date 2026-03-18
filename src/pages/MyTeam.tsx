@@ -27,25 +27,26 @@ export default function MyTeam() {
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["my-team-members"],
     queryFn: async () => {
-      // Fetch users with role info
       const { data: users, error } = await supabase
         .from("users")
-        .select("id, full_name, username, phone, is_active, role_id, roles(name)")
+        .select("id, full_name, username, phone, is_active, roles(name)")
         .order("full_name", { ascending: true });
 
       if (error) throw error;
 
-      // Fetch employee-site assignments via activity_events or project_sites
-      // We'll use project_site_users to get site assignments
-      const { data: siteAssignments } = await supabase
-        .from("project_site_users")
-        .select("user_id, project_sites(site_name)");
+      // Get latest site assignment per user from activity_events
+      const { data: siteActivities } = await supabase
+        .from("activity_events")
+        .select("user_id, site_id, project_sites(site_name)")
+        .not("site_id", "is", null)
+        .order("created_at", { ascending: false });
 
       const siteMap = new Map<string, string>();
-      if (siteAssignments) {
-        for (const sa of siteAssignments) {
-          const siteName = (sa as any).project_sites?.site_name;
-          if (siteName) siteMap.set(sa.user_id, siteName);
+      if (siteActivities) {
+        for (const sa of siteActivities as any[]) {
+          if (!siteMap.has(sa.user_id) && sa.project_sites?.site_name) {
+            siteMap.set(sa.user_id, sa.project_sites.site_name);
+          }
         }
       }
 
