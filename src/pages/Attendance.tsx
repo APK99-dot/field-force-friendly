@@ -465,42 +465,33 @@ export default function Attendance() {
               <span>{stepDescriptions[processingStep]}</span>
             </div>
 
-            <div className="flex items-start justify-between gap-1 px-1 sm:gap-2">
+            <div className="flex items-start justify-between gap-0.5 px-1 sm:gap-1">
               {VERIFICATION_STEPS.map((step, idx) => {
                 const currentIdx = VERIFICATION_STEPS.indexOf(processingStep as any);
                 const isComplete = processingStep === "done" || idx < currentIdx;
                 const isActive = processingStep !== "done" && idx === currentIdx;
+                const isUpcoming = !isComplete && !isActive;
 
                 return (
                   <div key={step} className="flex flex-1 items-start last:flex-none">
-                    <div className="flex min-w-[50px] flex-col items-center text-center">
+                    <div className="flex min-w-[52px] flex-col items-center text-center">
                       <div
                         className={cn(
-                          "flex h-10 w-10 items-center justify-center rounded-full border-2 bg-card text-xs font-semibold transition-all duration-200",
-                          isComplete
-                            ? "border-[hsl(var(--success))] bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]"
-                            : isActive
-                              ? "border-primary text-primary shadow-sm"
-                              : "border-border bg-background text-muted-foreground"
+                          "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold transition-all duration-200",
+                          isComplete && "border-[hsl(var(--success))] bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]",
+                          isActive && "border-primary bg-primary text-primary-foreground shadow-sm",
+                          isUpcoming && "border-border bg-background text-muted-foreground"
                         )}
                       >
-                        {isComplete ? (
-                          <CheckCircle className="h-4 w-4" />
-                        ) : isActive ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <span>{idx + 1}</span>
-                        )}
+                        {isComplete ? <CheckCircle className="h-4 w-4" /> : <span>{idx + 1}</span>}
                       </div>
 
                       <span
                         className={cn(
                           "mt-2 text-[11px] font-medium leading-tight",
-                          isComplete
-                            ? "text-[hsl(var(--success))]"
-                            : isActive
-                              ? "text-foreground"
-                              : "text-muted-foreground"
+                          isComplete && "text-[hsl(var(--success))]",
+                          isActive && "text-foreground",
+                          isUpcoming && "text-muted-foreground"
                         )}
                       >
                         {STEP_LABELS[step]}
