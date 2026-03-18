@@ -332,6 +332,25 @@ export default function SiteMasterManagement() {
                 rows={2}
               />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Start Date *</Label>
+                <Input
+                  type="date"
+                  value={form.start_date}
+                  onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">End Date</Label>
+                <Input
+                  type="date"
+                  value={form.end_date}
+                  onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                  min={form.start_date || undefined}
+                />
+              </div>
+            </div>
             <div>
               <Label className="text-xs flex items-center gap-1.5 mb-2">
                 <Users className="h-3.5 w-3.5" />
