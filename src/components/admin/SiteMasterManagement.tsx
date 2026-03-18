@@ -309,7 +309,7 @@ export default function SiteMasterManagement() {
       </CardContent>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="sm:max-w-[440px]">
+        <DialogContent className="sm:max-w-[440px] max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{editingSite ? "Edit Site" : "Add New Site"}</DialogTitle>
           </DialogHeader>
