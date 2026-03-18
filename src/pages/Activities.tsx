@@ -199,7 +199,7 @@ export default function Activities() {
     setRecognition(recog);
   }, [isListening, recognition]);
 
-
+  const fetchActivityTypes = useCallback(async () => {
     const { data } = await supabase
       .from("activity_types_master")
       .select("name")
