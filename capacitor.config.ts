@@ -24,6 +24,9 @@ const config: CapacitorConfig = {
     Microphone: {
       permissions: ['microphone'],
     },
+    Filesystem: {
+      permissions: ['publicStorage'],
+    },
   },
 };
 
