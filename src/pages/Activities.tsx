@@ -513,6 +513,22 @@ export default function Activities() {
     if (!form.activity_type) return;
     setSaving(true);
     try {
+      // Upload audio if recorded
+      let audioUrl: string | null = null;
+      if (recording) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const fileName = `${user!.id}/${Date.now()}.webm`;
+        const { error: uploadErr } = await supabase.storage
+          .from("activity-audio")
+          .upload(fileName, recording.blob, { contentType: "audio/webm" });
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage.from("activity-audio").getPublicUrl(fileName);
+        audioUrl = urlData.publicUrl;
+      }
+
+      const attachmentUrls: string[] = [];
+      if (audioUrl) attachmentUrls.push(audioUrl);
+
       const payload: any = {
         activity_name: form.activity_type,
         activity_type: form.activity_type,
@@ -530,12 +546,12 @@ export default function Activities() {
         site_id: form.site_id || null,
         location_address: form.location_address || null,
         total_hours: form.total_hours || 0,
+        ...(attachmentUrls.length > 0 ? { attachment_urls: attachmentUrls } : {}),
       };
       if (editingId) {
         await updateActivity(editingId, payload);
       } else {
         const targetUserId = isManagerOrAdmin && form.owner_user_id ? form.owner_user_id : undefined;
-        // For multiple_days, create one row per date so each date has independent status
         if (form.duration_type === "multiple_days" && form.from_date && form.to_date) {
           const start = new Date(form.from_date);
           const end = new Date(form.to_date);
@@ -551,6 +567,7 @@ export default function Activities() {
           await createActivity(payload, targetUserId);
         }
       }
+      clearRecording();
       setShowForm(false);
       fetchActivities();
     } catch (err: any) {
