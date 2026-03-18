@@ -495,7 +495,7 @@ export default function Activities() {
       start_time: a.start_time ? format(parseISO(a.start_time), "HH:mm") : "",
       end_time: a.end_time ? format(parseISO(a.end_time), "HH:mm") : "",
       duration_type: a.duration_type || "hour_based",
-      half_day_type: (a as any).half_day_type || "first_half",
+      half_day_type: (a as any).half_day_type || "",
       from_date: a.from_date || "",
       to_date: a.to_date || "",
       description: a.description || "",
