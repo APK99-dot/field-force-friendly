@@ -38,6 +38,7 @@ const allNavigationItems = [
   { icon: Navigation2, label: "GPS Track", href: "/gps-tracking", color: "from-purple-500 to-purple-600", module: "module_gps_tracking" },
   { icon: Receipt, label: "Expenses", href: "/expenses", color: "from-orange-500 to-orange-600", module: "module_expenses" },
   { icon: ClipboardList, label: "Activities", href: "/activities", color: "from-teal-500 to-teal-600", module: "module_activities" },
+  { icon: Building2, label: "Projects/Sites", href: "/sites", color: "from-cyan-500 to-cyan-600", module: null as string | null },
 ];
 
 const adminItems = [

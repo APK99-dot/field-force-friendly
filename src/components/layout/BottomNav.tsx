@@ -3,7 +3,7 @@ import {
   Home,
   Clock,
   ClipboardList,
-  FolderKanban,
+  Building2,
   MoreHorizontal,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -13,7 +13,7 @@ const allTabs = [
   { label: "Home", icon: Home, to: "/dashboard", module: null },
   { label: "Attendance", icon: Clock, to: "/attendance", module: "module_attendance" },
   { label: "Activities", icon: ClipboardList, to: "/activities", module: "module_activities" },
-  { label: "Projects", icon: FolderKanban, to: "/projects", module: null },
+  { label: "Sites", icon: Building2, to: "/sites", module: null },
   { label: "More", icon: MoreHorizontal, to: "/more", module: null },
 ];
 

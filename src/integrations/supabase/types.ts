@@ -2799,10 +2799,12 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           description: string | null
+          end_date: string | null
           id: string
           is_active: boolean
           site_code: string | null
           site_name: string
+          start_date: string
           updated_at: string
         }
         Insert: {
@@ -2810,10 +2812,12 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           description?: string | null
+          end_date?: string | null
           id?: string
           is_active?: boolean
           site_code?: string | null
           site_name: string
+          start_date?: string
           updated_at?: string
         }
         Update: {
@@ -2821,10 +2825,12 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           description?: string | null
+          end_date?: string | null
           id?: string
           is_active?: boolean
           site_code?: string | null
           site_name?: string
+          start_date?: string
           updated_at?: string
         }
         Relationships: []

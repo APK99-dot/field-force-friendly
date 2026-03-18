@@ -12,7 +12,7 @@ import {
   Building2,
   ArrowLeft,
   Search,
-  MapPin,
+  
 } from "lucide-react";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 
@@ -56,14 +56,6 @@ const allAdminModules = [
     color: "bg-indigo-100 text-indigo-600",
     path: "/admin/company",
     permission: "field_admin_company_profile",
-  },
-  {
-    title: "Project / Site Master",
-    description: "Manage project sites for activity logging",
-    icon: MapPin,
-    color: "bg-teal-100 text-teal-600",
-    path: "/admin/sites",
-    permission: null,
   },
 ];
 

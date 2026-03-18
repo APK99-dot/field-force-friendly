@@ -53,7 +53,8 @@ const App = () => (
             <Route path="/admin/expenses" element={<AdminExpenseManagement />} />
             <Route path="/admin/security" element={<SecurityManagement />} />
             <Route path="/admin/company" element={<CompanyProfile />} />
-            <Route path="/admin/sites" element={<SiteMasterPage />} />
+            <Route path="/admin/sites" element={<Navigate to="/sites" replace />} />
+            <Route path="/sites" element={<SiteMasterPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/templates" element={<TemplatesPage />} />

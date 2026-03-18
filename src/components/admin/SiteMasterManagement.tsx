@@ -35,6 +35,8 @@ interface Site {
   is_active: boolean;
   created_at: string;
   created_by: string | null;
+  start_date: string;
+  end_date: string | null;
 }
 
 interface UserOption {
@@ -47,7 +49,7 @@ export default function SiteMasterManagement() {
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingSite, setEditingSite] = useState<Site | null>(null);
-  const [form, setForm] = useState({ site_name: "", description: "" });
+  const [form, setForm] = useState({ site_name: "", description: "", start_date: new Date().toISOString().split("T")[0], end_date: "" });
   const [saving, setSaving] = useState(false);
   const [allUsers, setAllUsers] = useState<UserOption[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -91,7 +93,7 @@ export default function SiteMasterManagement() {
 
   const handleOpenCreate = () => {
     setEditingSite(null);
-    setForm({ site_name: "", description: "" });
+    setForm({ site_name: "", description: "", start_date: new Date().toISOString().split("T")[0], end_date: "" });
     setSelectedUserIds([]);
     setUserSearch("");
     setShowDialog(true);
@@ -99,7 +101,7 @@ export default function SiteMasterManagement() {
 
   const handleOpenEdit = (site: Site) => {
     setEditingSite(site);
-    setForm({ site_name: site.site_name, description: site.description || "" });
+    setForm({ site_name: site.site_name, description: site.description || "", start_date: site.start_date || "", end_date: site.end_date || "" });
     setSelectedUserIds(siteAssignments[site.id] || []);
     setUserSearch("");
     setShowDialog(true);
@@ -108,23 +110,32 @@ export default function SiteMasterManagement() {
   const handleSave = async () => {
     const trimmed = form.site_name.trim();
     if (!trimmed) return;
+    if (!form.start_date) { toast.error("Start Date is required"); return; }
+    if (form.end_date && form.end_date < form.start_date) { toast.error("End Date cannot be earlier than Start Date"); return; }
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       let siteId: string;
+      const payload: any = {
+        site_name: trimmed,
+        description: form.description || null,
+        start_date: form.start_date,
+        end_date: form.end_date || null,
+      };
 
       if (editingSite) {
         const { error } = await supabase
           .from("project_sites")
-          .update({ site_name: trimmed, description: form.description || null })
+          .update(payload)
           .eq("id", editingSite.id);
         if (error) throw error;
         siteId = editingSite.id;
         toast.success("Site updated");
       } else {
+        payload.created_by = user?.id;
         const { data: newSite, error } = await supabase
           .from("project_sites")
-          .insert({ site_name: trimmed, description: form.description || null, created_by: user?.id })
+          .insert(payload)
           .select("id")
           .single();
         if (error) throw error;
@@ -227,8 +238,9 @@ export default function SiteMasterManagement() {
                 <TableHead>Site Name</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Assigned Users</TableHead>
+                <TableHead>Start Date</TableHead>
+                <TableHead>End Date</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -253,13 +265,20 @@ export default function SiteMasterManagement() {
                         )}
                       </div>
                     </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {site.start_date ? format(new Date(site.start_date), "dd MMM yyyy") : "—"}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {site.end_date ? (
+                        <Badge variant="outline" className="text-emerald-600 border-emerald-300">Completed · {format(new Date(site.end_date), "dd MMM yyyy")}</Badge>
+                      ) : (
+                        <Badge variant="secondary">Ongoing</Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={site.is_active ? "default" : "secondary"}>
                         {site.is_active ? "Active" : "Inactive"}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {format(new Date(site.created_at), "dd MMM yyyy")}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
@@ -313,6 +332,25 @@ export default function SiteMasterManagement() {
                 rows={2}
               />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Start Date *</Label>
+                <Input
+                  type="date"
+                  value={form.start_date}
+                  onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">End Date</Label>
+                <Input
+                  type="date"
+                  value={form.end_date}
+                  onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                  min={form.start_date || undefined}
+                />
+              </div>
+            </div>
             <div>
               <Label className="text-xs flex items-center gap-1.5 mb-2">
                 <Users className="h-3.5 w-3.5" />
@@ -356,7 +394,7 @@ export default function SiteMasterManagement() {
                 </div>
               </ScrollArea>
             </div>
-            <Button className="w-full" onClick={handleSave} disabled={saving || !form.site_name.trim()}>
+            <Button className="w-full" onClick={handleSave} disabled={saving || !form.site_name.trim() || !form.start_date}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingSite ? "Update Site" : "Create Site"}
             </Button>
