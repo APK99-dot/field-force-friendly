@@ -29,7 +29,16 @@ import { cn } from "@/lib/utils";
 
 import ProfileSetupModal from "@/components/ProfileSetupModal";
 
-type ProcessingStep = "camera" | "location" | "uploading" | "verifying" | "saving" | null;
+type ProcessingStep = "location" | "photo" | "face" | "saving" | "done" | null;
+
+const VERIFICATION_STEPS = ["location", "photo", "face", "saving", "done"] as const;
+const STEP_LABELS: Record<string, string> = {
+  location: "Location",
+  photo: "Photo",
+  face: "Face",
+  saving: "Save",
+  done: "Done",
+};
 
 export default function Attendance() {
   const [activeView, setActiveView] = useState<"my" | "team">("my");
