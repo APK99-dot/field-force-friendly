@@ -11,8 +11,6 @@ const item = {
 };
 
 export default function SiteMasterPage() {
-  const navigate = useNavigate();
-
   return (
     <motion.div
       className="p-4 space-y-6 max-w-6xl mx-auto"

@@ -394,7 +394,7 @@ export default function SiteMasterManagement() {
                 </div>
               </ScrollArea>
             </div>
-            <Button className="w-full" onClick={handleSave} disabled={saving || !form.site_name.trim()}>
+            <Button className="w-full" onClick={handleSave} disabled={saving || !form.site_name.trim() || !form.start_date}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingSite ? "Update Site" : "Create Site"}
             </Button>

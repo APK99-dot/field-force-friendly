@@ -12,7 +12,7 @@ import {
   Building2,
   ArrowLeft,
   Search,
-  MapPin,
+  
 } from "lucide-react";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 
