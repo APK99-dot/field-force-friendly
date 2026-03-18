@@ -858,8 +858,21 @@ export default function Activities() {
               </div>
             )}
             <div>
-              <Label className="text-xs">Description</Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-xs">Description</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={`h-7 w-7 p-0 rounded-full ${isListening ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={toggleSpeechRecognition}
+                  title={isListening ? "Stop listening" : "Tap mic to speak"}
+                >
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </Button>
+              </div>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Activity details..." rows={3} />
+              {isListening && <p className="text-xs text-destructive mt-1 animate-pulse">Listening...</p>}
             </div>
             <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
