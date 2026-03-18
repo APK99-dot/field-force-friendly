@@ -458,45 +458,71 @@ export default function Attendance() {
 
       {/* Step-by-step Verification Stepper */}
       {processingStep && (
-        <div className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-4">
-          <div className="text-center text-sm font-medium text-foreground flex items-center justify-center gap-2">
-            {processingStep !== "done" && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-            {processingStep === "done" ? "✅ " : ""}{stepDescriptions[processingStep]}
-          </div>
-          <div className="flex items-center justify-between px-2">
-            {VERIFICATION_STEPS.map((step, idx) => {
-              const currentIdx = VERIFICATION_STEPS.indexOf(processingStep as any);
-              const isDone = idx < currentIdx || processingStep === "done";
-              const isActive = idx === currentIdx && processingStep !== "done";
-              return (
-                <div key={step} className="flex items-center flex-1 last:flex-none">
-                  <div className="flex flex-col items-center gap-1.5">
-                    <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all",
-                      isDone
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : isActive
-                        ? "bg-primary/15 border-primary text-primary"
-                        : "bg-muted border-border text-muted-foreground"
-                    )}>
-                      {isDone ? <CheckCircle className="h-4 w-4" /> : idx + 1}
+        <div className="rounded-[1.75rem] border border-border bg-card px-4 py-5 shadow-card">
+          <div className="mx-auto max-w-2xl">
+            <div className="mb-5 flex items-center justify-center gap-2 text-center text-sm font-semibold text-foreground">
+              {processingStep !== "done" && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+              <span>{stepDescriptions[processingStep]}</span>
+            </div>
+
+            <div className="flex items-start justify-between gap-1 px-1 sm:gap-2">
+              {VERIFICATION_STEPS.map((step, idx) => {
+                const currentIdx = VERIFICATION_STEPS.indexOf(processingStep as any);
+                const isComplete = processingStep === "done" || idx < currentIdx;
+                const isActive = processingStep !== "done" && idx === currentIdx;
+
+                return (
+                  <div key={step} className="flex flex-1 items-start last:flex-none">
+                    <div className="flex min-w-[50px] flex-col items-center text-center">
+                      <div
+                        className={cn(
+                          "flex h-10 w-10 items-center justify-center rounded-full border-2 bg-card text-xs font-semibold transition-all duration-200",
+                          isComplete
+                            ? "border-[hsl(var(--success))] bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]"
+                            : isActive
+                              ? "border-primary text-primary shadow-sm"
+                              : "border-border bg-background text-muted-foreground"
+                        )}
+                      >
+                        {isComplete ? (
+                          <CheckCircle className="h-4 w-4" />
+                        ) : isActive ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <span>{idx + 1}</span>
+                        )}
+                      </div>
+
+                      <span
+                        className={cn(
+                          "mt-2 text-[11px] font-medium leading-tight",
+                          isComplete
+                            ? "text-[hsl(var(--success))]"
+                            : isActive
+                              ? "text-foreground"
+                              : "text-muted-foreground"
+                        )}
+                      >
+                        {STEP_LABELS[step]}
+                      </span>
                     </div>
-                    <span className={cn(
-                      "text-[10px] font-medium leading-tight",
-                      isDone ? "text-primary" : isActive ? "text-primary" : "text-muted-foreground"
-                    )}>
-                      {STEP_LABELS[step]}
-                    </span>
+
+                    {idx < VERIFICATION_STEPS.length - 1 && (
+                      <div className="mt-5 flex-1 px-1">
+                        <div className="h-[2px] w-full rounded-full bg-border">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all duration-300",
+                              isComplete ? "w-full bg-[hsl(var(--success))]" : "w-0 bg-transparent"
+                            )}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {idx < VERIFICATION_STEPS.length - 1 && (
-                    <div className={cn(
-                      "flex-1 h-0.5 mx-1 mt-[-14px]",
-                      isDone ? "bg-primary" : "bg-border"
-                    )} />
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
