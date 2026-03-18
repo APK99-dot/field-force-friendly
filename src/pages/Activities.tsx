@@ -871,19 +871,84 @@ export default function Activities() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <Label className="text-xs">Description</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className={`h-7 w-7 p-0 rounded-full ${isListening ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
-                  onClick={toggleSpeechRecognition}
-                  title={isListening ? "Stop listening" : "Tap mic to speak"}
-                >
-                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                </Button>
+                <Popover open={micMenuOpen} onOpenChange={setMicMenuOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 w-7 p-0 rounded-full ${isListening || isRecording ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
+                      title="Voice options"
+                    >
+                      <Mic className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-1" align="end">
+                    <button
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
+                      onClick={() => { setMicMenuOpen(false); toggleSpeechRecognition(); }}
+                    >
+                      {isListening ? <MicOff className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
+                      {isListening ? "Stop Listening" : "Voice to Text"}
+                    </button>
+                    <button
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
+                      onClick={async () => {
+                        setMicMenuOpen(false);
+                        if (isRecording) {
+                          stopRecording();
+                        } else {
+                          try {
+                            await startRecording();
+                          } catch (err: any) {
+                            toast.error(err.message || "Could not start recording");
+                          }
+                        }
+                      }}
+                    >
+                      {isRecording ? <Square className="h-4 w-4 text-destructive" /> : <AudioLines className="h-4 w-4" />}
+                      {isRecording ? "Stop Recording" : "Record Audio"}
+                    </button>
+                  </PopoverContent>
+                </Popover>
               </div>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Activity details..." rows={3} />
-              {isListening && <p className="text-xs text-destructive mt-1 animate-pulse">Listening...</p>}
+              {isListening && <p className="text-xs text-destructive mt-1 animate-pulse">🎤 Listening...</p>}
+              {isRecording && (
+                <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                  <span className="text-xs font-medium text-destructive">Recording {formatDuration(elapsed)}</span>
+                  <Button type="button" variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={stopRecording}>
+                    <Square className="h-3 w-3 mr-1" /> Stop
+                  </Button>
+                </div>
+              )}
+              {recording && !isRecording && (
+                <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-muted border">
+                  <audio ref={audioPreviewRef} src={recording.url} onEnded={() => setIsPlayingPreview(false)} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => {
+                      if (isPlayingPreview) {
+                        audioPreviewRef.current?.pause();
+                        setIsPlayingPreview(false);
+                      } else {
+                        audioPreviewRef.current?.play();
+                        setIsPlayingPreview(true);
+                      }
+                    }}
+                  >
+                    {isPlayingPreview ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">Audio ({formatDuration(recording.duration)})</span>
+                  <Button type="button" variant="ghost" size="sm" className="ml-auto h-6 w-6 p-0 text-destructive" onClick={clearRecording} title="Delete recording">
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
             </div>
             <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
