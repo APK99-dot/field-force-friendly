@@ -234,7 +234,7 @@ export default function Attendance() {
       let faceMatchConfidence = 0;
 
       if (profilePictureUrl) {
-        setProcessingStep("verifying");
+        setProcessingStep("face");
         const matchResult = await compareImages(profilePictureUrl, photoUrl);
         faceVerificationStatus = matchResult.status;
         faceMatchConfidence = matchResult.confidence;
