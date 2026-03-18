@@ -114,7 +114,7 @@ const defaultForm = {
   start_time: "",
   end_time: "",
   duration_type: "hour_based",
-  half_day_type: "first_half",
+  half_day_type: "",
   from_date: "",
   to_date: "",
   description: "",
