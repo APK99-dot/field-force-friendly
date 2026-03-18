@@ -114,7 +114,7 @@ const defaultForm = {
   start_time: "",
   end_time: "",
   duration_type: "hour_based",
-  half_day_type: "first_half",
+  half_day_type: "",
   from_date: "",
   to_date: "",
   description: "",
@@ -495,7 +495,7 @@ export default function Activities() {
       start_time: a.start_time ? format(parseISO(a.start_time), "HH:mm") : "",
       end_time: a.end_time ? format(parseISO(a.end_time), "HH:mm") : "",
       duration_type: a.duration_type || "hour_based",
-      half_day_type: (a as any).half_day_type || "first_half",
+      half_day_type: (a as any).half_day_type || "",
       from_date: a.from_date || "",
       to_date: a.to_date || "",
       description: a.description || "",
@@ -846,7 +846,7 @@ export default function Activities() {
               <div>
                 <Label className="text-xs">Half Day Period</Label>
                 <Select value={form.half_day_type} onValueChange={(v) => setForm(prev => ({ ...prev, half_day_type: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select half day period" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="first_half">First Half</SelectItem>
                     <SelectItem value="second_half">Second Half</SelectItem>
