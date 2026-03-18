@@ -807,7 +807,7 @@ export default function Activities() {
                     setForm({ ...form, activity_type: v });
                   }}>
                   <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent side="bottom" align="start" className="max-h-60 overflow-y-auto">
                     {activityTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                     <Separator className="my-1" />
                     <SelectItem value="__add_new__" className="text-primary font-medium">
