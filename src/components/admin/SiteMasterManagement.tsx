@@ -93,7 +93,7 @@ export default function SiteMasterManagement() {
 
   const handleOpenCreate = () => {
     setEditingSite(null);
-    setForm({ site_name: "", description: "" });
+    setForm({ site_name: "", description: "", start_date: new Date().toISOString().split("T")[0], end_date: "" });
     setSelectedUserIds([]);
     setUserSearch("");
     setShowDialog(true);
