@@ -238,8 +238,9 @@ export default function SiteMasterManagement() {
                 <TableHead>Site Name</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Assigned Users</TableHead>
+                <TableHead>Start Date</TableHead>
+                <TableHead>End Date</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
