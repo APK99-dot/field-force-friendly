@@ -49,7 +49,7 @@ export default function SiteMasterManagement() {
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingSite, setEditingSite] = useState<Site | null>(null);
-  const [form, setForm] = useState({ site_name: "", description: "" });
+  const [form, setForm] = useState({ site_name: "", description: "", start_date: new Date().toISOString().split("T")[0], end_date: "" });
   const [saving, setSaving] = useState(false);
   const [allUsers, setAllUsers] = useState<UserOption[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
