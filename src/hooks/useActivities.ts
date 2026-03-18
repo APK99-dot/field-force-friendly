@@ -203,7 +203,7 @@ export function useActivities() {
       'description', 'remarks', 'status',
       'project_id', 'site_id', 'location_address',
       'status_changed_at', 'status_change_lat', 'status_change_lng',
-      'location_lat', 'location_lng',
+      'location_lat', 'location_lng', 'attachment_urls',
     ];
     fields.forEach((f) => {
       if ((updates as any)[f] !== undefined) updatePayload[f] = (updates as any)[f];
