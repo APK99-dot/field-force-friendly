@@ -313,7 +313,7 @@ export default function SiteMasterManagement() {
           <DialogHeader>
             <DialogTitle>{editingSite ? "Edit Site" : "Add New Site"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 mt-2">
+          <div className="space-y-4 mt-2 overflow-y-auto flex-1 pr-1">
             <div>
               <Label className="text-xs">Site Name *</Label>
               <Input
