@@ -260,11 +260,14 @@ export default function Attendance() {
       setProcessingStep("saving");
       if (cameraMode === "checkin") {
         await checkIn({ photoUrl, location, faceVerificationStatus, faceMatchConfidence });
-        toast.success("Day started successfully!");
       } else {
         await checkOut({ photoUrl, location, faceVerificationStatus, faceMatchConfidence });
-        toast.success("Day ended successfully!");
       }
+
+      // Step 5: Done
+      setProcessingStep("done");
+      toast.success(cameraMode === "checkin" ? "Day started successfully!" : "Day ended successfully!");
+      await new Promise((r) => setTimeout(r, 1500));
     } catch (err: any) {
       console.error("Attendance error:", err);
       toast.error(err.message || "Failed to record attendance");
