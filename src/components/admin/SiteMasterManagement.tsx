@@ -265,13 +265,20 @@ export default function SiteMasterManagement() {
                         )}
                       </div>
                     </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {site.start_date ? format(new Date(site.start_date), "dd MMM yyyy") : "—"}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {site.end_date ? (
+                        <Badge variant="outline" className="text-emerald-600 border-emerald-300">Completed · {format(new Date(site.end_date), "dd MMM yyyy")}</Badge>
+                      ) : (
+                        <Badge variant="secondary">Ongoing</Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={site.is_active ? "default" : "secondary"}>
                         {site.is_active ? "Active" : "Inactive"}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {format(new Date(site.created_at), "dd MMM yyyy")}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
