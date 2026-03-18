@@ -393,11 +393,12 @@ export default function Attendance() {
     return regMap.get(selectedRecordForReg.date) || null;
   }, [selectedRecordForReg, regMap]);
 
-  const stepLabels: Record<string, { icon: any; label: string }> = {
-    location: { icon: MapPin, label: "Getting location..." },
-    uploading: { icon: Upload, label: "Uploading photo..." },
-    verifying: { icon: Shield, label: "Verifying face..." },
-    saving: { icon: Save, label: "Saving attendance..." },
+  const stepDescriptions: Record<string, string> = {
+    location: "Getting location...",
+    photo: "Uploading photo...",
+    face: "Verifying face match...",
+    saving: "Saving attendance...",
+    done: "Completed!",
   };
 
   return (
