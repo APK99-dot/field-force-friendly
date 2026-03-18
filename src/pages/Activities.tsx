@@ -43,6 +43,8 @@ import {
   Route,
   Octagon,
   Timer,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentPosition } from "@/utils/nativePermissions";
@@ -132,6 +134,8 @@ export default function Activities() {
   const [saving, setSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
+  const [isListening, setIsListening] = useState(false);
+  const [recognition, setRecognition] = useState<any>(null);
 
   // Dynamic activity types from DB
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
@@ -143,6 +147,57 @@ export default function Activities() {
   const [showAddSiteDialog, setShowAddSiteDialog] = useState(false);
   const [newSiteName, setNewSiteName] = useState("");
   const [addingSite, setAddingSite] = useState(false);
+
+  const toggleSpeechRecognition = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("Speech recognition is not supported in this browser");
+      return;
+    }
+
+    if (isListening && recognition) {
+      recognition.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recog = new SpeechRecognition();
+    recog.lang = "en-IN";
+    recog.continuous = true;
+    recog.interimResults = false;
+
+    recog.onresult = (event: any) => {
+      let transcript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          transcript += event.results[i][0].transcript;
+        }
+      }
+      if (transcript) {
+        setForm((prev: any) => ({
+          ...prev,
+          description: prev.description ? prev.description + " " + transcript.trim() : transcript.trim(),
+        }));
+      }
+    };
+
+    recog.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      if (event.error !== "aborted") {
+        toast.error("Speech recognition error: " + event.error);
+      }
+      setIsListening(false);
+    };
+
+    recog.onend = () => {
+      setIsListening(false);
+      setRecognition(null);
+    };
+
+    recog.start();
+    setIsListening(true);
+    setRecognition(recog);
+  }, [isListening, recognition]);
 
   const fetchActivityTypes = useCallback(async () => {
     const { data } = await supabase
@@ -669,7 +724,7 @@ export default function Activities() {
       </motion.div>
 
       {/* Create/Edit Activity Dialog */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
+      <Dialog open={showForm} onOpenChange={(open) => { if (!open && isListening && recognition) { recognition.stop(); setIsListening(false); } setShowForm(open); }}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Activity" : "Log New Activity"}</DialogTitle>
@@ -803,8 +858,21 @@ export default function Activities() {
               </div>
             )}
             <div>
-              <Label className="text-xs">Description</Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-xs">Description</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={`h-7 w-7 p-0 rounded-full ${isListening ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={toggleSpeechRecognition}
+                  title={isListening ? "Stop listening" : "Tap mic to speak"}
+                >
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </Button>
+              </div>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Activity details..." rows={3} />
+              {isListening && <p className="text-xs text-destructive mt-1 animate-pulse">Listening...</p>}
             </div>
             <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
