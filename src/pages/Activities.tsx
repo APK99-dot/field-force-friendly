@@ -846,7 +846,7 @@ export default function Activities() {
               <div>
                 <Label className="text-xs">Half Day Period</Label>
                 <Select value={form.half_day_type} onValueChange={(v) => setForm(prev => ({ ...prev, half_day_type: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select half day period" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="first_half">First Half</SelectItem>
                     <SelectItem value="second_half">Second Half</SelectItem>
