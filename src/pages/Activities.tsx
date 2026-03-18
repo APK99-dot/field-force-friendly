@@ -1319,6 +1319,16 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateAct
             {a.description && (
               <p className="text-xs text-muted-foreground ml-6 mt-1 line-clamp-2">{a.description}</p>
             )}
+            {/* Audio attachments */}
+            {a.attachment_urls && a.attachment_urls.length > 0 && a.attachment_urls.some((url: string) => url.includes("activity-audio")) && (
+              <div className="ml-6 mt-1.5">
+                {a.attachment_urls.filter((url: string) => url.includes("activity-audio")).map((url: string, idx: number) => (
+                  <audio key={idx} controls className="h-8 w-full max-w-[240px]" preload="metadata">
+                    <source src={url} type="audio/webm" />
+                  </audio>
+                ))}
+              </div>
+            )}
             {/* Status change location & timestamp */}
             {a.status_changed_at && (
               <p className="text-[10px] text-muted-foreground ml-6 mt-1">
