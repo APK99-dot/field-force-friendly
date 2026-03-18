@@ -429,22 +429,24 @@ export default function Activities() {
     };
   }, [dayActivities]);
 
-  // Check which days have activities (green dot)
+  // Check which days have activities (green dot) — filtered by selected user
   const daysWithActivities = useMemo(() => {
     const set = new Set<string>();
-    activities.forEach((a) => {
+    const filtered = activities.filter((a) =>
+      !selectedUserId || selectedUserId === "all" ? true : a.user_id === selectedUserId
+    );
+    filtered.forEach((a) => {
       set.add(a.activity_date);
-      // Also mark multi-day range dates
       if (a.duration_type === "multiple_days" && a.from_date && a.to_date) {
-        const start = new Date(a.from_date);
-        const end = new Date(a.to_date);
-        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const start = parseISO(a.from_date);
+        const end = parseISO(a.to_date);
+        for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
           set.add(format(d, "yyyy-MM-dd"));
         }
       }
     });
     return set;
-  }, [activities]);
+  }, [activities, selectedUserId]);
 
   // GPS distance calculation
   const gpsStats = useMemo(() => {
