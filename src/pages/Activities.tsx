@@ -148,7 +148,58 @@ export default function Activities() {
   const [newSiteName, setNewSiteName] = useState("");
   const [addingSite, setAddingSite] = useState(false);
 
-  const fetchActivityTypes = useCallback(async () => {
+  const toggleSpeechRecognition = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("Speech recognition is not supported in this browser");
+      return;
+    }
+
+    if (isListening && recognition) {
+      recognition.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recog = new SpeechRecognition();
+    recog.lang = "en-IN";
+    recog.continuous = true;
+    recog.interimResults = false;
+
+    recog.onresult = (event: any) => {
+      let transcript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          transcript += event.results[i][0].transcript;
+        }
+      }
+      if (transcript) {
+        setForm((prev: any) => ({
+          ...prev,
+          description: prev.description ? prev.description + " " + transcript.trim() : transcript.trim(),
+        }));
+      }
+    };
+
+    recog.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      if (event.error !== "aborted") {
+        toast.error("Speech recognition error: " + event.error);
+      }
+      setIsListening(false);
+    };
+
+    recog.onend = () => {
+      setIsListening(false);
+      setRecognition(null);
+    };
+
+    recog.start();
+    setIsListening(true);
+    setRecognition(recog);
+  }, [isListening, recognition]);
+
+
     const { data } = await supabase
       .from("activity_types_master")
       .select("name")
