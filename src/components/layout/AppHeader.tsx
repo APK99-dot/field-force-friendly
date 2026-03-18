@@ -70,7 +70,7 @@ export function AppHeader() {
   const showBackButton = location.pathname !== "/dashboard" && location.pathname !== "/";
 
   const navigationItems = useMemo(
-    () => allNavigationItems.filter((item) => hasModuleAccess(item.module)),
+    () => allNavigationItems.filter((item) => !item.module || hasModuleAccess(item.module)),
     [hasModuleAccess]
   );
 
