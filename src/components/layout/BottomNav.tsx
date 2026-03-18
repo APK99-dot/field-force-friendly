@@ -3,7 +3,7 @@ import {
   Home,
   Clock,
   ClipboardList,
-  FolderKanban,
+  Building2,
   MoreHorizontal,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
