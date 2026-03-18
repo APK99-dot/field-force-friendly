@@ -216,7 +216,7 @@ export default function SiteMasterManagement() {
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
           <Building2 className="h-5 w-5" />
-          Project / Site Master
+          Project / Site
         </CardTitle>
         <Button onClick={handleOpenCreate} size="sm">
           <Plus className="h-4 w-4 mr-1" /> Add Site
