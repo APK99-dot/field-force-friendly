@@ -143,6 +143,10 @@ export default function Activities() {
   const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
+  const { isRecording, recording, elapsed, startRecording, stopRecording, clearRecording, formatDuration } = useAudioRecorder();
+  const [micMenuOpen, setMicMenuOpen] = useState(false);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
 
   // Dynamic activity types from DB
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
