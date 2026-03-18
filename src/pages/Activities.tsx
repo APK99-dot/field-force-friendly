@@ -694,6 +694,25 @@ export default function Activities() {
                 </Select>
               </div>
             )}
+            <div>
+              <Label className="text-xs">Project / Site</Label>
+              <Select value={form.site_id} onValueChange={(v) => {
+                if (v === "__add_new_site__") {
+                  setShowAddSiteDialog(true);
+                  return;
+                }
+                setForm({ ...form, site_id: v });
+              }}>
+                <SelectTrigger><SelectValue placeholder="Select site (optional)" /></SelectTrigger>
+                <SelectContent>
+                  {sites.filter(s => s.is_active).map((s) => <SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>)}
+                  <Separator className="my-1" />
+                  <SelectItem value="__add_new_site__" className="text-primary font-medium">
+                    <span className="flex items-center gap-1.5"><Plus className="h-3.5 w-3.5" />Add new site...</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Activity Type *</Label>
@@ -723,25 +742,6 @@ export default function Activities() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div>
-              <Label className="text-xs">Project / Site</Label>
-              <Select value={form.site_id} onValueChange={(v) => {
-                if (v === "__add_new_site__") {
-                  setShowAddSiteDialog(true);
-                  return;
-                }
-                setForm({ ...form, site_id: v });
-              }}>
-                <SelectTrigger><SelectValue placeholder="Select site (optional)" /></SelectTrigger>
-                <SelectContent>
-                  {sites.filter(s => s.is_active).map((s) => <SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>)}
-                  <Separator className="my-1" />
-                  <SelectItem value="__add_new_site__" className="text-primary font-medium">
-                    <span className="flex items-center gap-1.5"><Plus className="h-3.5 w-3.5" />Add new site...</span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div>
               <Label className="text-xs">Activity Date</Label>
