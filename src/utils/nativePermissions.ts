@@ -113,6 +113,31 @@ export async function takeNativePhoto(): Promise<Blob | null> {
   return null;
 }
 
+/** Request microphone permission — tries web Permissions API, falls back gracefully */
+export async function requestMicrophonePermission(): Promise<'granted' | 'denied' | 'prompt'> {
+  // Check current status via Permissions API first
+  try {
+    const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+    if (status.state === 'denied') return 'denied';
+    if (status.state === 'granted') return 'granted';
+  } catch {
+    // Permissions API not supported for microphone in some browsers — continue
+  }
+
+  // Actually request by getting a stream briefly
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((t) => t.stop());
+    return 'granted';
+  } catch (err: any) {
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      return 'denied';
+    }
+    // Other errors (no device, etc.)
+    return 'denied';
+  }
+}
+
 /** Request all needed permissions — tries native, silently skips on failure */
 export async function requestNativePermissions() {
   // Try native geolocation permission
