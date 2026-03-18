@@ -35,6 +35,8 @@ interface Site {
   is_active: boolean;
   created_at: string;
   created_by: string | null;
+  start_date: string;
+  end_date: string | null;
 }
 
 interface UserOption {
