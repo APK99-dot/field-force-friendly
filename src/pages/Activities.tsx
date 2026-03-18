@@ -724,7 +724,7 @@ export default function Activities() {
       </motion.div>
 
       {/* Create/Edit Activity Dialog */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
+      <Dialog open={showForm} onOpenChange={(open) => { if (!open && isListening && recognition) { recognition.stop(); setIsListening(false); } setShowForm(open); }}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Activity" : "Log New Activity"}</DialogTitle>
