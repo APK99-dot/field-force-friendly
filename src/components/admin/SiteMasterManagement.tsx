@@ -110,23 +110,32 @@ export default function SiteMasterManagement() {
   const handleSave = async () => {
     const trimmed = form.site_name.trim();
     if (!trimmed) return;
+    if (!form.start_date) { toast.error("Start Date is required"); return; }
+    if (form.end_date && form.end_date < form.start_date) { toast.error("End Date cannot be earlier than Start Date"); return; }
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       let siteId: string;
+      const payload: any = {
+        site_name: trimmed,
+        description: form.description || null,
+        start_date: form.start_date,
+        end_date: form.end_date || null,
+      };
 
       if (editingSite) {
         const { error } = await supabase
           .from("project_sites")
-          .update({ site_name: trimmed, description: form.description || null })
+          .update(payload)
           .eq("id", editingSite.id);
         if (error) throw error;
         siteId = editingSite.id;
         toast.success("Site updated");
       } else {
+        payload.created_by = user?.id;
         const { data: newSite, error } = await supabase
           .from("project_sites")
-          .insert({ site_name: trimmed, description: form.description || null, created_by: user?.id })
+          .insert(payload)
           .select("id")
           .single();
         if (error) throw error;
