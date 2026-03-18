@@ -206,7 +206,7 @@ export default function MyTeam() {
                   <TooltipTrigger asChild>
                     <a
                       href={`tel:${member.phone}`}
-                      className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors shrink-0"
+                      className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
                     >
                       <Phone className="h-4 w-4" />
                     </a>
