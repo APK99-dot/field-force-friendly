@@ -64,6 +64,7 @@ const App = () => (
             <Route path="/activities" element={<Activities />} />
             <Route path="/activity-timeline" element={<ActivityTimeline />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/my-team" element={<MyTeam />} />
           </Route>
           <Route path="/install" element={<InstallApp />} />
           <Route path="*" element={<NotFound />} />

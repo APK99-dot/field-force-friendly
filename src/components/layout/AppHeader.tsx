@@ -13,6 +13,7 @@ import {
   UserCheck,
   Navigation2,
   FolderKanban,
+  Users2,
   Shield,
   AlertTriangle,
   Receipt,
