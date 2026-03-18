@@ -216,7 +216,7 @@ export default function SiteMasterManagement() {
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
           <Building2 className="h-5 w-5" />
-          Project / Site Master
+          Project / Site
         </CardTitle>
         <Button onClick={handleOpenCreate} size="sm">
           <Plus className="h-4 w-4 mr-1" /> Add Site
@@ -309,11 +309,11 @@ export default function SiteMasterManagement() {
       </CardContent>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="sm:max-w-[440px]">
+        <DialogContent className="sm:max-w-[440px] max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{editingSite ? "Edit Site" : "Add New Site"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 mt-2">
+          <div className="space-y-4 mt-2 overflow-y-auto flex-1 pr-1">
             <div>
               <Label className="text-xs">Site Name *</Label>
               <Input
