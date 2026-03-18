@@ -101,7 +101,7 @@ export default function SiteMasterManagement() {
 
   const handleOpenEdit = (site: Site) => {
     setEditingSite(site);
-    setForm({ site_name: site.site_name, description: site.description || "" });
+    setForm({ site_name: site.site_name, description: site.description || "", start_date: site.start_date || "", end_date: site.end_date || "" });
     setSelectedUserIds(siteAssignments[site.id] || []);
     setUserSearch("");
     setShowDialog(true);
