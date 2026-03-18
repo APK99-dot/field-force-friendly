@@ -124,6 +124,24 @@ export default function Profile() {
     }
   };
 
+  const handleRemovePhoto = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setUploading(true);
+    try {
+      const filePath = `${user.id}/profile.jpg`;
+      await supabase.storage.from("employee-photos").remove([filePath]);
+      await supabase.from("profiles").update({ profile_picture_url: null }).eq("id", user.id);
+      setData((prev) => ({ ...prev, profile_picture_url: null }));
+      toast.success("Profile photo removed");
+    } catch (err: any) {
+      toast.error("Failed to remove photo: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
