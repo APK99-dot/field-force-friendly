@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, Suspense, lazy, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense, lazy, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO, isToday } from "date-fns";
@@ -45,6 +45,11 @@ import {
   Timer,
   Mic,
   MicOff,
+  AudioLines,
+  Square,
+  Play,
+  Pause,
+  X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentPosition } from "@/utils/nativePermissions";
@@ -61,6 +66,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 
 const LeafletMap = lazy(() => import("@/components/LeafletMap"));
 
@@ -136,6 +143,10 @@ export default function Activities() {
   const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
+  const { isRecording, recording, elapsed, startRecording, stopRecording, clearRecording, formatDuration } = useAudioRecorder();
+  const [micMenuOpen, setMicMenuOpen] = useState(false);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
 
   // Dynamic activity types from DB
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
@@ -502,6 +513,22 @@ export default function Activities() {
     if (!form.activity_type) return;
     setSaving(true);
     try {
+      // Upload audio if recorded
+      let audioUrl: string | null = null;
+      if (recording) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const fileName = `${user!.id}/${Date.now()}.webm`;
+        const { error: uploadErr } = await supabase.storage
+          .from("activity-audio")
+          .upload(fileName, recording.blob, { contentType: "audio/webm" });
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage.from("activity-audio").getPublicUrl(fileName);
+        audioUrl = urlData.publicUrl;
+      }
+
+      const attachmentUrls: string[] = [];
+      if (audioUrl) attachmentUrls.push(audioUrl);
+
       const payload: any = {
         activity_name: form.activity_type,
         activity_type: form.activity_type,
@@ -519,12 +546,12 @@ export default function Activities() {
         site_id: form.site_id || null,
         location_address: form.location_address || null,
         total_hours: form.total_hours || 0,
+        ...(attachmentUrls.length > 0 ? { attachment_urls: attachmentUrls } : {}),
       };
       if (editingId) {
         await updateActivity(editingId, payload);
       } else {
         const targetUserId = isManagerOrAdmin && form.owner_user_id ? form.owner_user_id : undefined;
-        // For multiple_days, create one row per date so each date has independent status
         if (form.duration_type === "multiple_days" && form.from_date && form.to_date) {
           const start = new Date(form.from_date);
           const end = new Date(form.to_date);
@@ -540,6 +567,7 @@ export default function Activities() {
           await createActivity(payload, targetUserId);
         }
       }
+      clearRecording();
       setShowForm(false);
       fetchActivities();
     } catch (err: any) {
@@ -724,7 +752,7 @@ export default function Activities() {
       </motion.div>
 
       {/* Create/Edit Activity Dialog */}
-      <Dialog open={showForm} onOpenChange={(open) => { if (!open && isListening && recognition) { recognition.stop(); setIsListening(false); } setShowForm(open); }}>
+      <Dialog open={showForm} onOpenChange={(open) => { if (!open) { if (isListening && recognition) { recognition.stop(); setIsListening(false); } if (isRecording) { stopRecording(); } clearRecording(); } setShowForm(open); }}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Activity" : "Log New Activity"}</DialogTitle>
@@ -860,19 +888,84 @@ export default function Activities() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <Label className="text-xs">Description</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className={`h-7 w-7 p-0 rounded-full ${isListening ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
-                  onClick={toggleSpeechRecognition}
-                  title={isListening ? "Stop listening" : "Tap mic to speak"}
-                >
-                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                </Button>
+                <Popover open={micMenuOpen} onOpenChange={setMicMenuOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 w-7 p-0 rounded-full ${isListening || isRecording ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
+                      title="Voice options"
+                    >
+                      <Mic className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-1" align="end">
+                    <button
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
+                      onClick={() => { setMicMenuOpen(false); toggleSpeechRecognition(); }}
+                    >
+                      {isListening ? <MicOff className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
+                      {isListening ? "Stop Listening" : "Voice to Text"}
+                    </button>
+                    <button
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
+                      onClick={async () => {
+                        setMicMenuOpen(false);
+                        if (isRecording) {
+                          stopRecording();
+                        } else {
+                          try {
+                            await startRecording();
+                          } catch (err: any) {
+                            toast.error(err.message || "Could not start recording");
+                          }
+                        }
+                      }}
+                    >
+                      {isRecording ? <Square className="h-4 w-4 text-destructive" /> : <AudioLines className="h-4 w-4" />}
+                      {isRecording ? "Stop Recording" : "Record Audio"}
+                    </button>
+                  </PopoverContent>
+                </Popover>
               </div>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Activity details..." rows={3} />
-              {isListening && <p className="text-xs text-destructive mt-1 animate-pulse">Listening...</p>}
+              {isListening && <p className="text-xs text-destructive mt-1 animate-pulse">🎤 Listening...</p>}
+              {isRecording && (
+                <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                  <span className="text-xs font-medium text-destructive">Recording {formatDuration(elapsed)}</span>
+                  <Button type="button" variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={stopRecording}>
+                    <Square className="h-3 w-3 mr-1" /> Stop
+                  </Button>
+                </div>
+              )}
+              {recording && !isRecording && (
+                <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-muted border">
+                  <audio ref={audioPreviewRef} src={recording.url} onEnded={() => setIsPlayingPreview(false)} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => {
+                      if (isPlayingPreview) {
+                        audioPreviewRef.current?.pause();
+                        setIsPlayingPreview(false);
+                      } else {
+                        audioPreviewRef.current?.play();
+                        setIsPlayingPreview(true);
+                      }
+                    }}
+                  >
+                    {isPlayingPreview ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">Audio ({formatDuration(recording.duration)})</span>
+                  <Button type="button" variant="ghost" size="sm" className="ml-auto h-6 w-6 p-0 text-destructive" onClick={clearRecording} title="Delete recording">
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
             </div>
             <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -1225,6 +1318,16 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateAct
             )}
             {a.description && (
               <p className="text-xs text-muted-foreground ml-6 mt-1 line-clamp-2">{a.description}</p>
+            )}
+            {/* Audio attachments */}
+            {a.attachment_urls && a.attachment_urls.length > 0 && a.attachment_urls.some((url: string) => url.includes("activity-audio")) && (
+              <div className="ml-6 mt-1.5">
+                {a.attachment_urls.filter((url: string) => url.includes("activity-audio")).map((url: string, idx: number) => (
+                  <audio key={idx} controls className="h-8 w-full max-w-[240px]" preload="metadata">
+                    <source src={url} type="audio/webm" />
+                  </audio>
+                ))}
+              </div>
             )}
             {/* Status change location & timestamp */}
             {a.status_changed_at && (
