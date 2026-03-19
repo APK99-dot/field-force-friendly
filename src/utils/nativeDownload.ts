@@ -1,26 +1,117 @@
 import { Capacitor } from '@capacitor/core';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+
+/**
+ * Upload blob to temp-downloads storage bucket and return a public HTTPS URL.
+ * This is the reliable method for Android WebView where blob URLs don't work.
+ */
+async function uploadToStorageAndOpen(blob: Blob, filename: string): Promise<boolean> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.warn('No authenticated user for storage upload');
+      return false;
+    }
+
+    // Create a unique path: userId/timestamp-filename
+    const timestamp = Date.now();
+    const storagePath = `${user.id}/${timestamp}-${filename}`;
+
+    // Upload the blob to temp-downloads bucket
+    const { error: uploadError } = await supabase.storage
+      .from('temp-downloads')
+      .upload(storagePath, blob, {
+        contentType: blob.type || 'application/octet-stream',
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      return false;
+    }
+
+    // Get the public URL
+    const { data: urlData } = supabase.storage
+      .from('temp-downloads')
+      .getPublicUrl(storagePath, {
+        download: filename, // Forces Content-Disposition: attachment
+      });
+
+    if (!urlData?.publicUrl) {
+      console.error('Failed to get public URL');
+      return false;
+    }
+
+    console.log('Opening download URL:', urlData.publicUrl);
+
+    // Open the HTTPS URL — works reliably in Android WebView
+    window.open(urlData.publicUrl, '_system');
+
+    toast.success(`Downloaded: ${filename}`);
+
+    // Clean up old temp files asynchronously (don't await)
+    cleanupOldTempFiles(user.id).catch(() => {});
+
+    return true;
+  } catch (err) {
+    console.error('Upload to storage failed:', err);
+    return false;
+  }
+}
+
+/**
+ * Clean up temp download files older than 1 hour
+ */
+async function cleanupOldTempFiles(userId: string) {
+  try {
+    const { data: files } = await supabase.storage
+      .from('temp-downloads')
+      .list(userId, { limit: 50 });
+
+    if (!files || files.length === 0) return;
+
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    const toDelete: string[] = [];
+
+    for (const file of files) {
+      // Extract timestamp from filename: timestamp-originalname
+      const match = file.name.match(/^(\d+)-/);
+      if (match) {
+        const fileTimestamp = parseInt(match[1], 10);
+        if (fileTimestamp < oneHourAgo) {
+          toDelete.push(`${userId}/${file.name}`);
+        }
+      }
+    }
+
+    if (toDelete.length > 0) {
+      await supabase.storage.from('temp-downloads').remove(toDelete);
+    }
+  } catch {
+    // Silently ignore cleanup errors
+  }
+}
 
 /**
  * Universal file download that works in both web browsers and Android APK WebView.
- * On native (Android), saves to the Downloads directory using Capacitor Filesystem.
- * On web, uses the standard blob/anchor download approach.
+ * On native (Android): uploads to storage and opens HTTPS URL (blob URLs don't work in WebView).
+ * On web: uses the standard blob/anchor download approach.
  */
 export async function downloadFile(blob: Blob, filename: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
-    try {
-      // Convert blob to base64 in small-safe way
-      const base64 = await blobToBase64(blob);
+    // Primary method: upload to storage and open HTTPS URL
+    const success = await uploadToStorageAndOpen(blob, filename);
+    if (success) return;
 
-      // Try to request permissions first (Android 10 and below need WRITE_EXTERNAL_STORAGE)
+    // Fallback 1: try Capacitor Filesystem
+    try {
+      const base64 = await blobToBase64(blob);
       try {
         await Filesystem.requestPermissions();
-      } catch {
-        // On Android 11+ scoped storage, permissions may not be needed
-      }
+      } catch { /* Android 11+ may not need this */ }
 
-      // Write file to Documents directory
       const result = await Filesystem.writeFile({
         path: filename,
         data: base64,
@@ -30,29 +121,31 @@ export async function downloadFile(blob: Blob, filename: string): Promise<void> 
 
       console.log('File saved to:', result.uri);
       toast.success(`Downloaded: ${filename}`);
-    } catch (err: any) {
-      console.error('Native download error:', err);
+      return;
+    } catch (fsErr) {
+      console.error('Filesystem fallback error:', fsErr);
+    }
 
-      // Fallback: try Cache directory (always writable)
-      try {
-        const base64 = await blobToBase64(blob);
-        await Filesystem.writeFile({
-          path: filename,
-          data: base64,
-          directory: Directory.Cache,
-          recursive: true,
-        });
-        toast.success(`Downloaded: ${filename}`);
-      } catch (fallbackErr) {
-        console.error('Fallback download error:', fallbackErr);
-        // Last resort: try web download
-        try {
-          webDownload(blob, filename);
-        } catch (webErr) {
-          console.error('Web download fallback also failed:', webErr);
-          toast.error('Download failed. Please try again.');
-        }
-      }
+    // Fallback 2: try Cache directory
+    try {
+      const base64 = await blobToBase64(blob);
+      await Filesystem.writeFile({
+        path: filename,
+        data: base64,
+        directory: Directory.Cache,
+        recursive: true,
+      });
+      toast.success(`Downloaded: ${filename}`);
+      return;
+    } catch (cacheErr) {
+      console.error('Cache fallback error:', cacheErr);
+    }
+
+    // Fallback 3: web download (unlikely to work in WebView but try)
+    try {
+      webDownload(blob, filename);
+    } catch {
+      toast.error('Download failed. Please try again.');
     }
   } else {
     webDownload(blob, filename);
@@ -75,7 +168,6 @@ function blobToBase64(blob: Blob): Promise<string> {
     const reader = new FileReader();
     reader.onloadend = () => {
       const dataUrl = reader.result as string;
-      // Remove the data:...;base64, prefix
       const base64 = dataUrl.split(',')[1];
       resolve(base64);
     };
@@ -86,10 +178,8 @@ function blobToBase64(blob: Blob): Promise<string> {
 
 /**
  * Helper to download XLSX workbook on both web and native.
- * Call this instead of XLSX.writeFile().
  */
 export async function downloadXLSX(wb: any, filename: string): Promise<void> {
-  // Use static import - xlsx is already statically imported by consumers
   const XLSX = await import('xlsx');
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -98,7 +188,6 @@ export async function downloadXLSX(wb: any, filename: string): Promise<void> {
 
 /**
  * Helper to download jsPDF document on both web and native.
- * Call this instead of doc.save().
  */
 export async function downloadPDF(doc: any, filename: string): Promise<void> {
   try {
@@ -106,7 +195,6 @@ export async function downloadPDF(doc: any, filename: string): Promise<void> {
     await downloadFile(blob, filename);
   } catch (err: any) {
     console.error('downloadPDF error:', err);
-    // Last resort: try doc.save() which uses browser download
     try {
       doc.save(filename);
     } catch (saveErr) {
