@@ -28,6 +28,7 @@ export function useAudioRecorder() {
         "Microphone permission denied. Please allow microphone access in your device settings and try again."
       );
     }
+    // If 'prompt', proceed anyway — getUserMedia below will trigger the actual permission dialog
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });

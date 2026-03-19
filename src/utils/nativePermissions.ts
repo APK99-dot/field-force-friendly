@@ -115,16 +115,21 @@ export async function takeNativePhoto(): Promise<Blob | null> {
 
 /** Request microphone permission — tries web Permissions API, falls back gracefully */
 export async function requestMicrophonePermission(): Promise<'granted' | 'denied' | 'prompt'> {
-  // Check current status via Permissions API first
-  try {
-    const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-    if (status.state === 'denied') return 'denied';
-    if (status.state === 'granted') return 'granted';
-  } catch {
-    // Permissions API not supported for microphone in some browsers — continue
+  // On Android WebView (Capacitor), navigator.permissions.query for 'microphone'
+  // often throws or returns incorrect results. Skip it and go straight to getUserMedia.
+  
+  // Check via Permissions API only on non-native platforms
+  if (!isNative()) {
+    try {
+      const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      if (status.state === 'denied') return 'denied';
+      if (status.state === 'granted') return 'granted';
+    } catch {
+      // Permissions API not supported for microphone in some browsers — continue
+    }
   }
 
-  // Actually request by getting a stream briefly
+  // Actually request by getting a stream briefly — this is the reliable method on Android WebView
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     stream.getTracks().forEach((t) => t.stop());
@@ -133,8 +138,11 @@ export async function requestMicrophonePermission(): Promise<'granted' | 'denied
     if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
       return 'denied';
     }
-    // Other errors (no device, etc.)
-    return 'denied';
+    // On Android WebView, other errors like NotFoundError or AbortError
+    // can occur even when permission is granted (e.g. no audio device found in emulator).
+    // Don't treat these as "denied" — return 'prompt' so the caller can still try.
+    console.warn('Microphone permission check encountered non-permission error:', err.name, err.message);
+    return 'prompt';
   }
 }
 

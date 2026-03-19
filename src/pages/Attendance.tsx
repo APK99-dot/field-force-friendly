@@ -325,60 +325,65 @@ export default function Attendance() {
     loadTimelineForDate(dateStr);
   };
 
-  const handleDownloadTimelinePDF = () => {
+  const handleDownloadTimelinePDF = async () => {
     if (!timelineDate) return;
-    const doc = new jsPDF();
-    const dateLabel = format(new Date(timelineDate), "MMMM do, yyyy");
+    try {
+      const doc = new jsPDF();
+      const dateLabel = format(new Date(timelineDate), "MMMM do, yyyy");
 
-    doc.setFontSize(18);
-    doc.text("TIMELINE", 14, 20);
-    doc.setFontSize(11);
-    doc.text(dateLabel, 14, 28);
+      doc.setFontSize(18);
+      doc.text("TIMELINE", 14, 20);
+      doc.setFontSize(11);
+      doc.text(dateLabel, 14, 28);
 
-    let y = 40;
+      let y = 40;
 
-    if (timelineCheckIn) {
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("DAY START", 20, y);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.text(format(new Date(timelineCheckIn), "h:mm a"), 20, y + 6);
-      y += 16;
+      if (timelineCheckIn) {
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("DAY START", 20, y);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(format(new Date(timelineCheckIn), "h:mm a"), 20, y + 6);
+        y += 16;
+      }
+
+      timelineActivities.forEach((activity: any) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text(activity.activity_name, 20, y);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        const timeStr = [
+          activity.start_time ? format(new Date(activity.start_time), "h:mm a") : "",
+          activity.end_time ? format(new Date(activity.end_time), "h:mm a") : "",
+        ].filter(Boolean).join(" - ");
+        if (timeStr) doc.text(timeStr, 20, y + 6);
+        if (activity.retailers?.name) doc.text(activity.retailers.name, 20, y + 12);
+        y += activity.retailers?.name ? 22 : 16;
+      });
+
+      if (timelineCheckOut) {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("DAY END", 20, y);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(format(new Date(timelineCheckOut), "h:mm a"), 20, y + 6);
+      }
+
+      if (timelineActivities.length === 0 && !timelineCheckIn) {
+        doc.setFontSize(12);
+        doc.text("No activities recorded for this date.", 14, y);
+      }
+
+      await downloadPDFNative(doc, `timeline-${timelineDate}.pdf`);
+    } catch (err: any) {
+      console.error("PDF download error:", err);
+      toast.error("Failed to download PDF. Please try again.");
     }
-
-    timelineActivities.forEach((activity: any) => {
-      if (y > 270) { doc.addPage(); y = 20; }
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text(activity.activity_name, 20, y);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      const timeStr = [
-        activity.start_time ? format(new Date(activity.start_time), "h:mm a") : "",
-        activity.end_time ? format(new Date(activity.end_time), "h:mm a") : "",
-      ].filter(Boolean).join(" - ");
-      if (timeStr) doc.text(timeStr, 20, y + 6);
-      if (activity.retailers?.name) doc.text(activity.retailers.name, 20, y + 12);
-      y += activity.retailers?.name ? 22 : 16;
-    });
-
-    if (timelineCheckOut) {
-      if (y > 270) { doc.addPage(); y = 20; }
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("DAY END", 20, y);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.text(format(new Date(timelineCheckOut), "h:mm a"), 20, y + 6);
-    }
-
-    if (timelineActivities.length === 0 && !timelineCheckIn) {
-      doc.setFontSize(12);
-      doc.text("No activities recorded for this date.", 14, y);
-    }
-
-    downloadPDFNative(doc, `timeline-${timelineDate}.pdf`);
   };
 
   const handleRefresh = () => {

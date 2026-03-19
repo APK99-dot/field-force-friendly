@@ -101,8 +101,19 @@ export async function downloadXLSX(wb: any, filename: string): Promise<void> {
  * Call this instead of doc.save().
  */
 export async function downloadPDF(doc: any, filename: string): Promise<void> {
-  const blob = doc.output('blob');
-  await downloadFile(blob, filename);
+  try {
+    const blob = doc.output('blob');
+    await downloadFile(blob, filename);
+  } catch (err: any) {
+    console.error('downloadPDF error:', err);
+    // Last resort: try doc.save() which uses browser download
+    try {
+      doc.save(filename);
+    } catch (saveErr) {
+      console.error('doc.save fallback also failed:', saveErr);
+      throw err;
+    }
+  }
 }
 
 /**
