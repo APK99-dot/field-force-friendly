@@ -204,12 +204,16 @@ export default function MyTeam() {
               {member.phone ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <a
-                      href={`tel:${member.phone}`}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Use window.open for tel: links — works in both browser and Android WebView
+                        window.open(`tel:${member.phone}`, '_system');
+                      }}
                       className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
                     >
                       <Phone className="h-4 w-4" />
-                    </a>
+                    </button>
                   </TooltipTrigger>
                   <TooltipContent side="left">
                     <p>Call {member.full_name || "user"}</p>
