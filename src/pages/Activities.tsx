@@ -916,13 +916,16 @@ export default function Activities() {
                   <PopoverContent className="w-52 p-1" align="end">
                     <button
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
+                      disabled={isTranscribing}
                       onClick={async () => {
                         setMicMenuOpen(false);
-                        if (isRecording && voiceToTextMode) {
+                        if (isRecording) {
                           stopRecording();
+                          // voiceToTextMode triggers auto-transcription via useEffect
                         } else {
-                          setVoiceToTextMode(true);
+                          // Clean up any previous recording first
                           clearRecording();
+                          setVoiceToTextMode(true);
                           try {
                             await startRecording();
                           } catch (err: any) {
@@ -933,17 +936,19 @@ export default function Activities() {
                       }}
                     >
                       {isRecording && voiceToTextMode ? <Square className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
-                      {isRecording && voiceToTextMode ? "Stop & Transcribe" : "Voice to Text"}
+                      {isRecording && voiceToTextMode ? "Stop & Transcribe" : isTranscribing ? "Transcribing..." : "Voice to Text"}
                     </button>
                     <button
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
+                      disabled={isTranscribing}
                       onClick={async () => {
                         setMicMenuOpen(false);
-                        if (isRecording && !voiceToTextMode) {
+                        if (isRecording) {
                           stopRecording();
                         } else {
-                          setVoiceToTextMode(false);
+                          // Clean up any previous recording first
                           clearRecording();
+                          setVoiceToTextMode(false);
                           try {
                             await startRecording();
                           } catch (err: any) {
