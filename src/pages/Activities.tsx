@@ -898,27 +898,43 @@ export default function Activities() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className={`h-7 w-7 p-0 rounded-full ${isListening || isRecording ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
+                      className={`h-7 w-7 p-0 rounded-full ${isRecording || isTranscribing ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
                       title="Voice options"
                     >
                       <Mic className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-48 p-1" align="end">
+                  <PopoverContent className="w-52 p-1" align="end">
                     <button
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
-                      onClick={() => { setMicMenuOpen(false); toggleSpeechRecognition(); }}
+                      onClick={async () => {
+                        setMicMenuOpen(false);
+                        if (isRecording && voiceToTextMode) {
+                          stopRecording();
+                        } else {
+                          setVoiceToTextMode(true);
+                          clearRecording();
+                          try {
+                            await startRecording();
+                          } catch (err: any) {
+                            toast.error(err.message || "Could not start recording");
+                            setVoiceToTextMode(false);
+                          }
+                        }
+                      }}
                     >
-                      {isListening ? <MicOff className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
-                      {isListening ? "Stop Listening" : "Voice to Text"}
+                      {isRecording && voiceToTextMode ? <Square className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
+                      {isRecording && voiceToTextMode ? "Stop & Transcribe" : "Voice to Text"}
                     </button>
                     <button
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
                       onClick={async () => {
                         setMicMenuOpen(false);
-                        if (isRecording) {
+                        if (isRecording && !voiceToTextMode) {
                           stopRecording();
                         } else {
+                          setVoiceToTextMode(false);
+                          clearRecording();
                           try {
                             await startRecording();
                           } catch (err: any) {
@@ -927,14 +943,19 @@ export default function Activities() {
                         }
                       }}
                     >
-                      {isRecording ? <Square className="h-4 w-4 text-destructive" /> : <AudioLines className="h-4 w-4" />}
-                      {isRecording ? "Stop Recording" : "Record Audio"}
+                      {isRecording && !voiceToTextMode ? <Square className="h-4 w-4 text-destructive" /> : <AudioLines className="h-4 w-4" />}
+                      {isRecording && !voiceToTextMode ? "Stop Recording" : "Record Audio"}
                     </button>
                   </PopoverContent>
                 </Popover>
               </div>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Activity details..." rows={3} />
-              {isListening && <p className="text-xs text-destructive mt-1 animate-pulse">🎤 Listening...</p>}
+              {isTranscribing && (
+                <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-primary/10 border border-primary/20">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-xs font-medium text-primary">Transcribing audio...</span>
+                </div>
+              )}
               {isRecording && (
                 <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                   <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
