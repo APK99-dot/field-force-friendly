@@ -756,7 +756,7 @@ export default function Activities() {
       </motion.div>
 
       {/* Create/Edit Activity Dialog */}
-      <Dialog open={showForm} onOpenChange={(open) => { if (!open) { if (isListening && recognition) { recognition.stop(); setIsListening(false); } if (isRecording) { stopRecording(); } clearRecording(); } setShowForm(open); }}>
+      <Dialog open={showForm} onOpenChange={(open) => { if (!open) { if (isRecording) { stopRecording(); } clearRecording(); setVoiceToTextMode(false); } setShowForm(open); }}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Activity" : "Log New Activity"}</DialogTitle>
