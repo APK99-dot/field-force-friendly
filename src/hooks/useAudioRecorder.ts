@@ -55,10 +55,16 @@ export function useAudioRecorder() {
     setPermissionDenied(false);
 
     // Verify mediaDevices API is available (requires HTTPS or localhost)
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      console.error('mediaDevices not available. Secure context:', window.isSecureContext, 'Protocol:', window.location.protocol);
       throw new Error(
-        "Audio recording is not supported in this browser. Please use HTTPS or a supported browser."
+        "Audio recording requires a secure (HTTPS) connection. Please ensure you're using HTTPS."
       );
+    }
+
+    // Check if MediaRecorder is available
+    if (typeof MediaRecorder === 'undefined') {
+      throw new Error("Audio recording is not supported in this browser.");
     }
 
     // Single getUserMedia call — this both requests permission AND acquires the stream

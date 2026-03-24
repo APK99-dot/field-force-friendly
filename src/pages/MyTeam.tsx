@@ -207,8 +207,8 @@ export default function MyTeam() {
                     <button
                       type="button"
                       onClick={() => {
-                        // Use window.open for tel: links — works in both browser and Android WebView
-                        window.open(`tel:${member.phone}`, '_system');
+                        // Use location.href for tel: — most reliable in Android WebView
+                        window.location.href = `tel:${member.phone}`;
                       }}
                       className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
                     >
