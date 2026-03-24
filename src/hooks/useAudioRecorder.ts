@@ -116,13 +116,10 @@ export function useAudioRecorder() {
       if (mimeType) {
         options.mimeType = mimeType;
       }
-      // Lower bitrate for Android WebView stability
-      if (isNative()) {
-        options.audioBitsPerSecond = 64000;
-      }
+      console.log('Creating MediaRecorder with mimeType:', mimeType || '(default)');
       mediaRecorder = new MediaRecorder(stream, options);
     } catch (recErr: any) {
-      // Fallback: create without any options
+      console.warn('MediaRecorder creation with options failed, trying without:', recErr.message);
       try {
         mediaRecorder = new MediaRecorder(stream);
       } catch {
