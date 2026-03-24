@@ -202,33 +202,17 @@ export default function MyTeam() {
 
               {/* Call Button */}
               {member.phone ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Use location.href for tel: — most reliable in Android WebView
-                        window.location.href = `tel:${member.phone}`;
-                      }}
-                      className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
-                    >
-                      <Phone className="h-4 w-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">
-                    <p>Call {member.full_name || "user"}</p>
-                    <p className="text-xs text-muted-foreground">{member.phone}</p>
-                  </TooltipContent>
-                </Tooltip>
+                <a
+                  href={`tel:${member.phone}`}
+                  className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
+                  aria-label={`Call ${member.full_name || "user"}`}
+                >
+                  <Phone className="h-4 w-4" />
+                </a>
               ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-muted text-muted-foreground cursor-not-allowed shrink-0">
-                      <PhoneOff className="h-4 w-4" />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">Phone number not available</TooltipContent>
-                </Tooltip>
+                <span className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-muted text-muted-foreground cursor-not-allowed shrink-0">
+                  <PhoneOff className="h-4 w-4" />
+                </span>
               )}
             </div>
           ))}

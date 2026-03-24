@@ -8,7 +8,6 @@ export interface AudioRecording {
 
 /**
  * Determine the best supported mimeType for MediaRecorder in the current environment.
- * Android WebView often only supports "video/webm" or no specific mime at all.
  */
 function getSupportedMimeType(): string {
   const candidates = [
@@ -16,7 +15,7 @@ function getSupportedMimeType(): string {
     "audio/webm",
     "audio/ogg;codecs=opus",
     "audio/mp4",
-    "video/webm", // Android WebView sometimes only supports this
+    "video/webm",
   ];
   for (const mime of candidates) {
     try {
@@ -27,7 +26,7 @@ function getSupportedMimeType(): string {
       // isTypeSupported may throw in some WebView versions
     }
   }
-  return ""; // Let the browser pick default
+  return "";
 }
 
 export function useAudioRecorder() {
@@ -41,32 +40,53 @@ export function useAudioRecorder() {
   const timerRef = useRef<number>(0);
   const [elapsed, setElapsed] = useState(0);
 
+  /** Stop all tracks on the current stream and clear refs */
   const stopAllTracks = useCallback(() => {
+    // Stop the MediaRecorder first if still active
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {
+        // Already stopped
+      }
+    }
+    mediaRecorderRef.current = null;
+
+    // Release all audio tracks
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => {
         try { t.stop(); } catch { /* ignore */ }
       });
       streamRef.current = null;
     }
+
+    // Clear timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = 0;
+    }
   }, []);
 
   const startRecording = useCallback(async () => {
     setPermissionDenied(false);
 
-    // Verify mediaDevices API is available (requires HTTPS or localhost)
+    // *** CRITICAL: Always clean up any existing recording/stream first ***
+    stopAllTracks();
+
+    // Small delay to let OS fully release the mic
+    await new Promise((r) => setTimeout(r, 150));
+
     if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-      console.error('mediaDevices not available. Secure context:', window.isSecureContext, 'Protocol:', window.location.protocol);
+      console.error('mediaDevices not available. Secure context:', window.isSecureContext);
       throw new Error(
-        "Audio recording requires a secure (HTTPS) connection. Please ensure you're using HTTPS."
+        "Audio recording requires a secure (HTTPS) connection."
       );
     }
 
-    // Check if MediaRecorder is available
     if (typeof MediaRecorder === 'undefined') {
       throw new Error("Audio recording is not supported in this browser.");
     }
 
-    // Single getUserMedia call — this both requests permission AND acquires the stream
     let stream: MediaStream;
     try {
       console.log('Requesting getUserMedia for audio...');
@@ -98,23 +118,18 @@ export function useAudioRecorder() {
       throw new Error(err.message || "Could not access microphone");
     }
 
-    // Store stream ref for proper cleanup
     streamRef.current = stream;
 
-    // Verify we actually got audio tracks
     if (stream.getAudioTracks().length === 0) {
       stopAllTracks();
       throw new Error("No audio track available from microphone.");
     }
 
-    // Create MediaRecorder with best supported mimeType
     let mediaRecorder: MediaRecorder;
     try {
       const mimeType = getSupportedMimeType();
       const options: MediaRecorderOptions = {};
-      if (mimeType) {
-        options.mimeType = mimeType;
-      }
+      if (mimeType) options.mimeType = mimeType;
       console.log('Creating MediaRecorder with mimeType:', mimeType || '(default)');
       mediaRecorder = new MediaRecorder(stream, options);
     } catch (recErr: any) {
@@ -136,14 +151,15 @@ export function useAudioRecorder() {
     };
 
     mediaRecorder.onerror = () => {
-      // Gracefully stop on error
       setIsRecording(false);
-      clearInterval(timerRef.current);
       stopAllTracks();
     };
 
     mediaRecorder.onstop = () => {
-      clearInterval(timerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = 0;
+      }
 
       if (chunksRef.current.length > 0) {
         const finalMime = mediaRecorder.mimeType || "audio/webm";
@@ -156,7 +172,13 @@ export function useAudioRecorder() {
         setRecording({ blob, url, duration });
       }
 
-      stopAllTracks();
+      // Release mic tracks after data is captured
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => {
+          try { t.stop(); } catch { /* ignore */ }
+        });
+        streamRef.current = null;
+      }
     };
 
     mediaRecorderRef.current = mediaRecorder;
@@ -167,7 +189,6 @@ export function useAudioRecorder() {
       setElapsed(Math.round((Date.now() - startTimeRef.current) / 1000));
     }, 1000);
 
-    // Use 500ms timeslice — balanced for all platforms
     mediaRecorder.start(500);
     console.log('MediaRecorder started');
     setIsRecording(true);
@@ -181,22 +202,23 @@ export function useAudioRecorder() {
       try {
         mediaRecorderRef.current.stop();
       } catch {
-        // Already stopped or errored — clean up manually
         stopAllTracks();
-        clearInterval(timerRef.current);
       }
     }
     setIsRecording(false);
   }, [stopAllTracks]);
 
   const clearRecording = useCallback(() => {
+    // Always ensure mic is released when clearing
+    stopAllTracks();
+
     if (recording?.url) {
       try { URL.revokeObjectURL(recording.url); } catch { /* ignore */ }
     }
     setRecording(null);
     setElapsed(0);
     setPermissionDenied(false);
-  }, [recording]);
+  }, [recording, stopAllTracks]);
 
   const formatDuration = (seconds: number) => {
     const m = Math.floor(seconds / 60);
