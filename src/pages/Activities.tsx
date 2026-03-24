@@ -44,7 +44,7 @@ import {
   Octagon,
   Timer,
   Mic,
-  MicOff,
+  
   AudioLines,
   Square,
   Play,
@@ -141,12 +141,12 @@ export default function Activities() {
   const [saving, setSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
-  const [isListening, setIsListening] = useState(false);
-  const [recognition, setRecognition] = useState<any>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const { isRecording, recording, elapsed, startRecording, stopRecording, clearRecording, formatDuration } = useAudioRecorder();
   const [micMenuOpen, setMicMenuOpen] = useState(false);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const [voiceToTextMode, setVoiceToTextMode] = useState(false);
 
   // Dynamic activity types from DB
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
@@ -159,56 +159,52 @@ export default function Activities() {
   const [newSiteName, setNewSiteName] = useState("");
   const [addingSite, setAddingSite] = useState(false);
 
-  const toggleSpeechRecognition = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error("Voice-to-text is not available in this app. Please use the 'Record Audio' option instead.");
-      return;
-    }
+  // Transcribe audio recording via edge function
+  const transcribeAudio = useCallback(async (audioBlob: Blob) => {
+    setIsTranscribing(true);
+    try {
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "recording.webm");
+      formData.append("lang", "en");
 
-    if (isListening && recognition) {
-      recognition.stop();
-      setIsListening(false);
-      return;
-    }
-
-    const recog = new SpeechRecognition();
-    recog.lang = "en-IN";
-    recog.continuous = true;
-    recog.interimResults = false;
-
-    recog.onresult = (event: any) => {
-      let transcript = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          transcript += event.results[i][0].transcript;
-        }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please sign in to use voice-to-text");
+        return;
       }
+
+      const response = await supabase.functions.invoke("transcribe-audio", {
+        body: formData,
+      });
+
+      if (response.error) throw response.error;
+
+      const transcript = response.data?.transcript?.trim();
       if (transcript) {
         setForm((prev: any) => ({
           ...prev,
-          description: prev.description ? prev.description + " " + transcript.trim() : transcript.trim(),
+          description: prev.description ? prev.description + " " + transcript : transcript,
         }));
+        toast.success("Voice transcribed successfully");
+      } else {
+        toast.error("Could not understand the audio. Please try again.");
       }
-    };
+    } catch (err: any) {
+      console.error("Transcription error:", err);
+      toast.error("Transcription failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsTranscribing(false);
+    }
+  }, []);
 
-    recog.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      if (event.error !== "aborted") {
-        toast.error("Speech recognition error: " + event.error);
-      }
-      setIsListening(false);
-    };
-
-    recog.onend = () => {
-      setIsListening(false);
-      setRecognition(null);
-    };
-
-    recog.start();
-    setIsListening(true);
-    setRecognition(recog);
-  }, [isListening, recognition]);
+  // Auto-transcribe when voice-to-text recording finishes
+  useEffect(() => {
+    if (voiceToTextMode && recording && !isRecording && !isTranscribing) {
+      transcribeAudio(recording.blob);
+      clearRecording();
+      setVoiceToTextMode(false);
+    }
+  }, [voiceToTextMode, recording, isRecording, isTranscribing, transcribeAudio, clearRecording]);
 
   const fetchActivityTypes = useCallback(async () => {
     const { data } = await supabase
@@ -769,7 +765,7 @@ export default function Activities() {
       </motion.div>
 
       {/* Create/Edit Activity Dialog */}
-      <Dialog open={showForm} onOpenChange={(open) => { if (!open) { if (isListening && recognition) { recognition.stop(); setIsListening(false); } if (isRecording) { stopRecording(); } clearRecording(); } setShowForm(open); }}>
+      <Dialog open={showForm} onOpenChange={(open) => { if (!open) { if (isRecording) { stopRecording(); } clearRecording(); setVoiceToTextMode(false); } setShowForm(open); }}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Activity" : "Log New Activity"}</DialogTitle>
@@ -911,27 +907,43 @@ export default function Activities() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className={`h-7 w-7 p-0 rounded-full ${isListening || isRecording ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
+                      className={`h-7 w-7 p-0 rounded-full ${isRecording || isTranscribing ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
                       title="Voice options"
                     >
                       <Mic className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-48 p-1" align="end">
+                  <PopoverContent className="w-52 p-1" align="end">
                     <button
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
-                      onClick={() => { setMicMenuOpen(false); toggleSpeechRecognition(); }}
+                      onClick={async () => {
+                        setMicMenuOpen(false);
+                        if (isRecording && voiceToTextMode) {
+                          stopRecording();
+                        } else {
+                          setVoiceToTextMode(true);
+                          clearRecording();
+                          try {
+                            await startRecording();
+                          } catch (err: any) {
+                            toast.error(err.message || "Could not start recording");
+                            setVoiceToTextMode(false);
+                          }
+                        }
+                      }}
                     >
-                      {isListening ? <MicOff className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
-                      {isListening ? "Stop Listening" : "Voice to Text"}
+                      {isRecording && voiceToTextMode ? <Square className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
+                      {isRecording && voiceToTextMode ? "Stop & Transcribe" : "Voice to Text"}
                     </button>
                     <button
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
                       onClick={async () => {
                         setMicMenuOpen(false);
-                        if (isRecording) {
+                        if (isRecording && !voiceToTextMode) {
                           stopRecording();
                         } else {
+                          setVoiceToTextMode(false);
+                          clearRecording();
                           try {
                             await startRecording();
                           } catch (err: any) {
@@ -940,14 +952,19 @@ export default function Activities() {
                         }
                       }}
                     >
-                      {isRecording ? <Square className="h-4 w-4 text-destructive" /> : <AudioLines className="h-4 w-4" />}
-                      {isRecording ? "Stop Recording" : "Record Audio"}
+                      {isRecording && !voiceToTextMode ? <Square className="h-4 w-4 text-destructive" /> : <AudioLines className="h-4 w-4" />}
+                      {isRecording && !voiceToTextMode ? "Stop Recording" : "Record Audio"}
                     </button>
                   </PopoverContent>
                 </Popover>
               </div>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Activity details..." rows={3} />
-              {isListening && <p className="text-xs text-destructive mt-1 animate-pulse">🎤 Listening...</p>}
+              {isTranscribing && (
+                <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-primary/10 border border-primary/20">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-xs font-medium text-primary">Transcribing audio...</span>
+                </div>
+              )}
               {isRecording && (
                 <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                   <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
