@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback } from "react";
-import { isNative } from "@/utils/nativePermissions";
 
 export interface AudioRecording {
   blob: Blob;
