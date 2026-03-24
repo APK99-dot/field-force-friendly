@@ -197,6 +197,15 @@ export default function Activities() {
     }
   }, []);
 
+  // Auto-transcribe when voice-to-text recording finishes
+  useEffect(() => {
+    if (voiceToTextMode && recording && !isRecording && !isTranscribing) {
+      transcribeAudio(recording.blob);
+      clearRecording();
+      setVoiceToTextMode(false);
+    }
+  }, [voiceToTextMode, recording, isRecording, isTranscribing, transcribeAudio, clearRecording]);
+
   const fetchActivityTypes = useCallback(async () => {
     const { data } = await supabase
       .from("activity_types_master")
