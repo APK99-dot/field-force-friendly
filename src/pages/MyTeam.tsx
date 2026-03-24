@@ -202,13 +202,21 @@ export default function MyTeam() {
 
               {/* Call Button */}
               {member.phone ? (
-                <a
-                  href={`tel:${member.phone}`}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const tel = `tel:${member.phone}`;
+                    try {
+                      window.open(tel, '_system');
+                    } catch {
+                      window.location.href = tel;
+                    }
+                  }}
                   className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
                   aria-label={`Call ${member.full_name || "user"}`}
                 >
                   <Phone className="h-4 w-4" />
-                </a>
+                </button>
               ) : (
                 <span className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-muted text-muted-foreground cursor-not-allowed shrink-0">
                   <PhoneOff className="h-4 w-4" />

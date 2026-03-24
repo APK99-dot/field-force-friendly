@@ -40,6 +40,15 @@ export function useNativeStartup() {
       } catch (e) {
         console.warn("[NativeStartup] Camera permission request failed:", e);
       }
+
+      // 3. Microphone permission — prime getUserMedia so WebView allows it later
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((t) => t.stop());
+        console.log("[NativeStartup] Microphone permission granted");
+      } catch (e) {
+        console.warn("[NativeStartup] Microphone permission request failed:", e);
+      }
     }
 
     requestAllPermissions();
