@@ -44,7 +44,7 @@ import {
   Octagon,
   Timer,
   Mic,
-  MicOff,
+  
   AudioLines,
   Square,
   Play,
