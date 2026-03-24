@@ -70,15 +70,16 @@ export function useAudioRecorder() {
     // Single getUserMedia call — this both requests permission AND acquires the stream
     let stream: MediaStream;
     try {
+      console.log('Requesting getUserMedia for audio...');
       stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          // Android WebView works better with lower sample rates
-          sampleRate: isNative() ? 16000 : undefined,
         },
       });
+      console.log('getUserMedia succeeded, tracks:', stream.getAudioTracks().length);
     } catch (err: any) {
+      console.error('getUserMedia failed:', err.name, err.message);
       if (
         err.name === "NotAllowedError" ||
         err.name === "PermissionDeniedError" ||
@@ -91,6 +92,9 @@ export function useAudioRecorder() {
       }
       if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
         throw new Error("No microphone found on this device.");
+      }
+      if (err.name === "NotReadableError" || err.name === "AbortError") {
+        throw new Error("Microphone is in use by another app. Please close other apps and try again.");
       }
       throw new Error(err.message || "Could not access microphone");
     }
