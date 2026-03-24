@@ -159,56 +159,43 @@ export default function Activities() {
   const [newSiteName, setNewSiteName] = useState("");
   const [addingSite, setAddingSite] = useState(false);
 
-  const toggleSpeechRecognition = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error("Voice-to-text is not available in this app. Please use the 'Record Audio' option instead.");
-      return;
-    }
+  // Transcribe audio recording via edge function
+  const transcribeAudio = useCallback(async (audioBlob: Blob) => {
+    setIsTranscribing(true);
+    try {
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "recording.webm");
+      formData.append("lang", "en");
 
-    if (isListening && recognition) {
-      recognition.stop();
-      setIsListening(false);
-      return;
-    }
-
-    const recog = new SpeechRecognition();
-    recog.lang = "en-IN";
-    recog.continuous = true;
-    recog.interimResults = false;
-
-    recog.onresult = (event: any) => {
-      let transcript = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          transcript += event.results[i][0].transcript;
-        }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please sign in to use voice-to-text");
+        return;
       }
+
+      const response = await supabase.functions.invoke("transcribe-audio", {
+        body: formData,
+      });
+
+      if (response.error) throw response.error;
+
+      const transcript = response.data?.transcript?.trim();
       if (transcript) {
         setForm((prev: any) => ({
           ...prev,
-          description: prev.description ? prev.description + " " + transcript.trim() : transcript.trim(),
+          description: prev.description ? prev.description + " " + transcript : transcript,
         }));
+        toast.success("Voice transcribed successfully");
+      } else {
+        toast.error("Could not understand the audio. Please try again.");
       }
-    };
-
-    recog.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      if (event.error !== "aborted") {
-        toast.error("Speech recognition error: " + event.error);
-      }
-      setIsListening(false);
-    };
-
-    recog.onend = () => {
-      setIsListening(false);
-      setRecognition(null);
-    };
-
-    recog.start();
-    setIsListening(true);
-    setRecognition(recog);
-  }, [isListening, recognition]);
+    } catch (err: any) {
+      console.error("Transcription error:", err);
+      toast.error("Transcription failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsTranscribing(false);
+    }
+  }, []);
 
   const fetchActivityTypes = useCallback(async () => {
     const { data } = await supabase
