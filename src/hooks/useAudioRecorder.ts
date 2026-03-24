@@ -167,9 +167,9 @@ export function useAudioRecorder() {
       setElapsed(Math.round((Date.now() - startTimeRef.current) / 1000));
     }, 1000);
 
-    // Use larger timeslice on Android WebView for stability
-    const timeslice = isNative() ? 1000 : 250;
-    mediaRecorder.start(timeslice);
+    // Use 500ms timeslice — balanced for all platforms
+    mediaRecorder.start(500);
+    console.log('MediaRecorder started');
     setIsRecording(true);
   }, [stopAllTracks]);
 
