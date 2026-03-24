@@ -1,38 +1,44 @@
 
 
-## Plan: Status Change with Location & Timestamp Capture
+## Plan: Fix Remaining Issues — Microphone, Call Button, and APK Performance
 
-### What Changes
+### Problems Identified
 
-When a user taps on an activity's status badge (e.g., "Planned"), a quick-action dropdown appears allowing them to change the status. On status change, the app automatically:
-1. Captures the user's current GPS location via the browser Geolocation API
-2. Records the current timestamp
-3. Updates the activity record with the new status, location coordinates, location address (via reverse geocoding), and start/end time based on status transition
-4. All data is stored in the existing `activity_events` table columns (`location_lat`, `location_lng`, `location_address`, `start_time`, `end_time`)
-5. Admin can see all this data in the activity cards and admin panel
+1. **Call button**: Currently uses `<a href="tel:...">` which is unreliable in Android WebView. Needs to use programmatic approach with proper fallback chain.
 
-### Technical Details
+2. **Microphone/Audio**: The current implementation looks correct with proper cleanup. The issue is likely that in the Capacitor remote-URL WebView, `getUserMedia` needs explicit Capacitor permission grants first before the browser API works. The `useNativeStartup` hook requests camera and location but **not microphone**.
 
-**1. Add a `status_changed_at` and `status_change_location` columns** (migration)
-- Add `status_changed_at` (timestamptz) and `status_change_lat`/`status_change_lng` (numeric) columns to `activity_events` to track specifically when and where status was changed (separate from the activity's own time/location)
+3. **APK slowness**: The `QueryClient` is created with zero configuration — no `staleTime`, no `gcTime` (formerly `cacheTime`). Every navigation triggers fresh network requests for all data. On mobile networks this causes significant delays. Need to configure aggressive caching defaults.
 
-**2. Update `ActivityCard` component** (`src/pages/Activities.tsx`)
-- Make the status Badge clickable — wrap it in a Popover or DropdownMenu
-- Show status options (Planned, In Progress, Completed)
-- On selection, call browser `navigator.geolocation.getCurrentPosition()` to capture lat/lng
-- Use a simple reverse geocode (or just store coordinates) to get an address
-- Call `updateActivity` with the new status + location + timestamp
+---
 
-**3. Update `useActivities` hook** (`src/hooks/useActivities.ts`)
-- Update `updateActivity` to also save `status_changed_at`, `status_change_lat`, `status_change_lng`, and `location_address`
-- Add these fields to the `Activity` interface
+### Changes
 
-**4. Display in activity cards**
-- Show location and timestamp of last status change on the card (small text below status badge)
-- Admin panel already shows all activities — the new fields will be visible
+#### 1. Fix QueryClient caching (src/App.tsx)
+Configure the `QueryClient` with sensible defaults:
+- `staleTime: 5 * 60 * 1000` (5 minutes) — data is considered fresh, no refetch on mount
+- `gcTime: 10 * 60 * 1000` (10 minutes) — keep unused cache longer
+- `refetchOnWindowFocus: false` — prevents refetch every time app regains focus (common in WebView)
+- `retry: 1` — reduce retry attempts on slow networks
 
-### Files Modified
-- `src/pages/Activities.tsx` — Clickable status badge with dropdown, geolocation capture
-- `src/hooks/useActivities.ts` — Updated interface and update function
-- Database migration — Add `status_changed_at`, `status_change_lat`, `status_change_lng` columns
+#### 2. Fix microphone permission on native (src/utils/nativePermissions.ts or useNativeStartup)
+Add microphone permission request using `navigator.mediaDevices.getUserMedia({ audio: true })` during startup, then immediately stop the stream. This primes the Android WebView to allow subsequent audio recording.
+
+#### 3. Fix call button (src/pages/MyTeam.tsx)
+Replace `<a href="tel:...">` with a `<button>` that uses a fallback chain:
+```
+window.open('tel:...', '_system')  →  window.location.href = 'tel:...'
+```
+This ensures the dialer opens in both WebView and browser contexts.
+
+#### 4. Ensure mic cleanup before recording (src/hooks/useAudioRecorder.ts)
+The current implementation already handles cleanup well. Minor improvement: add a global stream tracker to ensure no orphaned streams exist from startup permission priming.
+
+---
+
+### Files to Modify
+- **src/App.tsx** — Add QueryClient default options for caching
+- **src/hooks/useNativeStartup.ts** — Add microphone permission request
+- **src/pages/MyTeam.tsx** — Fix call button with programmatic dialer trigger
+- **src/hooks/useAudioRecorder.ts** — Minor: ensure startup streams don't conflict
 
