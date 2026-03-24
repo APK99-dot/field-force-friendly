@@ -162,7 +162,7 @@ export default function Activities() {
   const toggleSpeechRecognition = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast.error("Speech recognition is not supported in this browser");
+      toast.error("Voice-to-text is not available in this app. Please use the 'Record Audio' option instead.");
       return;
     }
 

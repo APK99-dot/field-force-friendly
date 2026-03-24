@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback } from "react";
-import { isNative } from "@/utils/nativePermissions";
 
 export interface AudioRecording {
   blob: Blob;
@@ -55,24 +54,31 @@ export function useAudioRecorder() {
     setPermissionDenied(false);
 
     // Verify mediaDevices API is available (requires HTTPS or localhost)
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      console.error('mediaDevices not available. Secure context:', window.isSecureContext, 'Protocol:', window.location.protocol);
       throw new Error(
-        "Audio recording is not supported in this browser. Please use HTTPS or a supported browser."
+        "Audio recording requires a secure (HTTPS) connection. Please ensure you're using HTTPS."
       );
+    }
+
+    // Check if MediaRecorder is available
+    if (typeof MediaRecorder === 'undefined') {
+      throw new Error("Audio recording is not supported in this browser.");
     }
 
     // Single getUserMedia call — this both requests permission AND acquires the stream
     let stream: MediaStream;
     try {
+      console.log('Requesting getUserMedia for audio...');
       stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          // Android WebView works better with lower sample rates
-          sampleRate: isNative() ? 16000 : undefined,
         },
       });
+      console.log('getUserMedia succeeded, tracks:', stream.getAudioTracks().length);
     } catch (err: any) {
+      console.error('getUserMedia failed:', err.name, err.message);
       if (
         err.name === "NotAllowedError" ||
         err.name === "PermissionDeniedError" ||
@@ -85,6 +91,9 @@ export function useAudioRecorder() {
       }
       if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
         throw new Error("No microphone found on this device.");
+      }
+      if (err.name === "NotReadableError" || err.name === "AbortError") {
+        throw new Error("Microphone is in use by another app. Please close other apps and try again.");
       }
       throw new Error(err.message || "Could not access microphone");
     }
@@ -106,13 +115,10 @@ export function useAudioRecorder() {
       if (mimeType) {
         options.mimeType = mimeType;
       }
-      // Lower bitrate for Android WebView stability
-      if (isNative()) {
-        options.audioBitsPerSecond = 64000;
-      }
+      console.log('Creating MediaRecorder with mimeType:', mimeType || '(default)');
       mediaRecorder = new MediaRecorder(stream, options);
     } catch (recErr: any) {
-      // Fallback: create without any options
+      console.warn('MediaRecorder creation with options failed, trying without:', recErr.message);
       try {
         mediaRecorder = new MediaRecorder(stream);
       } catch {
@@ -161,9 +167,9 @@ export function useAudioRecorder() {
       setElapsed(Math.round((Date.now() - startTimeRef.current) / 1000));
     }, 1000);
 
-    // Use larger timeslice on Android WebView for stability
-    const timeslice = isNative() ? 1000 : 250;
-    mediaRecorder.start(timeslice);
+    // Use 500ms timeslice — balanced for all platforms
+    mediaRecorder.start(500);
+    console.log('MediaRecorder started');
     setIsRecording(true);
   }, [stopAllTracks]);
 
