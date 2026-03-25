@@ -209,11 +209,11 @@ export default function Activities() {
   }, [voiceToTextMode, recording, isRecording, isTranscribing, transcribeAudio, clearRecording]);
 
   const handleMicOptionClick = useCallback(async (mode: 'text' | 'audio') => {
-    if (isTranscribing || isStartingRecording) return;
+    if (isTranscribing || isStartingRecording || isFinalizing) return;
 
     if (isRecording) {
-      stopRecording();
       setMicMenuOpen(false);
+      await stopRecording();
       return;
     }
 
@@ -231,7 +231,7 @@ export default function Activities() {
     } finally {
       setIsStartingRecording(false);
     }
-  }, [clearRecording, isRecording, isStartingRecording, isTranscribing, startRecording, stopRecording]);
+  }, [clearRecording, isFinalizing, isRecording, isStartingRecording, isTranscribing, startRecording, stopRecording]);
 
   const fetchActivityTypes = useCallback(async () => {
     const { data } = await supabase
