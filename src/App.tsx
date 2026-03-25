@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -5,29 +6,31 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import Attendance from "./pages/Attendance";
-import Visits from "./pages/Visits";
-import Expenses from "./pages/Expenses";
-import More from "./pages/More";
-import GPSTracking from "./pages/GPSTracking";
-import AdminControls from "./pages/AdminControls";
-import AdminUserManagement from "./pages/AdminUserManagement";
-import AttendanceManagement from "./pages/AttendanceManagement";
-import AdminExpenseManagement from "./pages/AdminExpenseManagement";
-import SecurityManagement from "./pages/SecurityManagement";
-import CompanyProfile from "./pages/CompanyProfile";
-import NotFound from "./pages/NotFound";
-import ProjectsPage from "./pages/Projects";
-import ProjectDetailPage from "./pages/ProjectDetail";
-import TemplatesPage from "./pages/Templates";
-import PendingApprovals from "./pages/PendingApprovals";
-import Activities from "./pages/Activities";
-import ActivityTimeline from "./pages/ActivityTimeline";
-import SiteMasterPage from "./pages/SiteMaster";
-import InstallApp from "./pages/InstallApp";
-import Profile from "./pages/Profile";
-import MyTeam from "./pages/MyTeam";
+
+// Lazy-load all route pages for faster initial load
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Attendance = lazy(() => import("./pages/Attendance"));
+const Visits = lazy(() => import("./pages/Visits"));
+const Expenses = lazy(() => import("./pages/Expenses"));
+const More = lazy(() => import("./pages/More"));
+const GPSTracking = lazy(() => import("./pages/GPSTracking"));
+const AdminControls = lazy(() => import("./pages/AdminControls"));
+const AdminUserManagement = lazy(() => import("./pages/AdminUserManagement"));
+const AttendanceManagement = lazy(() => import("./pages/AttendanceManagement"));
+const AdminExpenseManagement = lazy(() => import("./pages/AdminExpenseManagement"));
+const SecurityManagement = lazy(() => import("./pages/SecurityManagement"));
+const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const ProjectsPage = lazy(() => import("./pages/Projects"));
+const ProjectDetailPage = lazy(() => import("./pages/ProjectDetail"));
+const TemplatesPage = lazy(() => import("./pages/Templates"));
+const PendingApprovals = lazy(() => import("./pages/PendingApprovals"));
+const Activities = lazy(() => import("./pages/Activities"));
+const ActivityTimeline = lazy(() => import("./pages/ActivityTimeline"));
+const SiteMasterPage = lazy(() => import("./pages/SiteMaster"));
+const InstallApp = lazy(() => import("./pages/InstallApp"));
+const Profile = lazy(() => import("./pages/Profile"));
+const MyTeam = lazy(() => import("./pages/MyTeam"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +43,14 @@ const queryClient = new QueryClient({
   },
 });
 
+function PageFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -50,33 +61,33 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/attendance" element={<Attendance />} />
-            <Route path="/visits" element={<Visits />} />
-            <Route path="/expenses" element={<Expenses />} />
-            <Route path="/more" element={<More />} />
-            <Route path="/gps-tracking" element={<GPSTracking />} />
-            <Route path="/admin-controls" element={<AdminControls />} />
-            <Route path="/admin" element={<AdminControls />} />
-            <Route path="/admin/users" element={<AdminUserManagement />} />
-            <Route path="/admin/attendance" element={<AttendanceManagement />} />
-            <Route path="/admin/expenses" element={<AdminExpenseManagement />} />
-            <Route path="/admin/security" element={<SecurityManagement />} />
-            <Route path="/admin/company" element={<CompanyProfile />} />
+            <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><Dashboard /></Suspense>} />
+            <Route path="/attendance" element={<Suspense fallback={<PageFallback />}><Attendance /></Suspense>} />
+            <Route path="/visits" element={<Suspense fallback={<PageFallback />}><Visits /></Suspense>} />
+            <Route path="/expenses" element={<Suspense fallback={<PageFallback />}><Expenses /></Suspense>} />
+            <Route path="/more" element={<Suspense fallback={<PageFallback />}><More /></Suspense>} />
+            <Route path="/gps-tracking" element={<Suspense fallback={<PageFallback />}><GPSTracking /></Suspense>} />
+            <Route path="/admin-controls" element={<Suspense fallback={<PageFallback />}><AdminControls /></Suspense>} />
+            <Route path="/admin" element={<Suspense fallback={<PageFallback />}><AdminControls /></Suspense>} />
+            <Route path="/admin/users" element={<Suspense fallback={<PageFallback />}><AdminUserManagement /></Suspense>} />
+            <Route path="/admin/attendance" element={<Suspense fallback={<PageFallback />}><AttendanceManagement /></Suspense>} />
+            <Route path="/admin/expenses" element={<Suspense fallback={<PageFallback />}><AdminExpenseManagement /></Suspense>} />
+            <Route path="/admin/security" element={<Suspense fallback={<PageFallback />}><SecurityManagement /></Suspense>} />
+            <Route path="/admin/company" element={<Suspense fallback={<PageFallback />}><CompanyProfile /></Suspense>} />
             <Route path="/admin/sites" element={<Navigate to="/sites" replace />} />
-            <Route path="/sites" element={<SiteMasterPage />} />
-            <Route path="/projects" element={<ProjectsPage />} />
-            <Route path="/projects/:id" element={<ProjectDetailPage />} />
-            <Route path="/templates" element={<TemplatesPage />} />
-            <Route path="/templates/:id" element={<TemplatesPage />} />
-            <Route path="/pending-approvals" element={<PendingApprovals />} />
-            <Route path="/activities" element={<Activities />} />
-            <Route path="/activity-timeline" element={<ActivityTimeline />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/my-team" element={<MyTeam />} />
+            <Route path="/sites" element={<Suspense fallback={<PageFallback />}><SiteMasterPage /></Suspense>} />
+            <Route path="/projects" element={<Suspense fallback={<PageFallback />}><ProjectsPage /></Suspense>} />
+            <Route path="/projects/:id" element={<Suspense fallback={<PageFallback />}><ProjectDetailPage /></Suspense>} />
+            <Route path="/templates" element={<Suspense fallback={<PageFallback />}><TemplatesPage /></Suspense>} />
+            <Route path="/templates/:id" element={<Suspense fallback={<PageFallback />}><TemplatesPage /></Suspense>} />
+            <Route path="/pending-approvals" element={<Suspense fallback={<PageFallback />}><PendingApprovals /></Suspense>} />
+            <Route path="/activities" element={<Suspense fallback={<PageFallback />}><Activities /></Suspense>} />
+            <Route path="/activity-timeline" element={<Suspense fallback={<PageFallback />}><ActivityTimeline /></Suspense>} />
+            <Route path="/profile" element={<Suspense fallback={<PageFallback />}><Profile /></Suspense>} />
+            <Route path="/my-team" element={<Suspense fallback={<PageFallback />}><MyTeam /></Suspense>} />
           </Route>
-          <Route path="/install" element={<InstallApp />} />
-          <Route path="*" element={<NotFound />} />
+          <Route path="/install" element={<Suspense fallback={<PageFallback />}><InstallApp /></Suspense>} />
+          <Route path="*" element={<Suspense fallback={<PageFallback />}><NotFound /></Suspense>} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

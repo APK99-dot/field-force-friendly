@@ -16,6 +16,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDashboard } from "@/hooks/useDashboard";
@@ -38,9 +39,23 @@ const getGreeting = () => {
   return "Good Evening!";
 };
 
+function OverviewSkeleton() {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div key={i} className="rounded-xl border border-border p-4 text-center">
+          <Skeleton className="h-5 w-5 mx-auto mb-2 rounded-full" />
+          <Skeleton className="h-6 w-10 mx-auto mb-1" />
+          <Skeleton className="h-3 w-16 mx-auto" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { profile, isAdmin, initials } = useUserProfile();
+  const { profile, isAdmin, initials, loading: profileLoading } = useUserProfile();
   const { hasModuleAccess } = useProfilePermissions();
   const [userId, setUserId] = useState<string>();
   const displayName = profile?.full_name || profile?.username || "";
@@ -54,6 +69,8 @@ export default function Dashboard() {
   const {
     dayStarted,
     attendance,
+    isLoading,
+    isSummaryLoading,
     myActivities,
     pendingLeaves,
     pendingExpenses,
@@ -91,12 +108,16 @@ export default function Dashboard() {
                   <AvatarImage src={profile.profile_picture_url} alt="Profile" />
                 ) : null}
                 <AvatarFallback className="bg-white/20 text-primary-foreground font-bold text-sm">
-                  {initials}
+                  {profileLoading ? "..." : initials}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <p className="text-[10px] opacity-80">{getGreeting()}</p>
-                <h1 className="text-base font-bold leading-tight">{displayName}</h1>
+                {profileLoading ? (
+                  <Skeleton className="h-4 w-24 bg-white/20" />
+                ) : (
+                  <h1 className="text-base font-bold leading-tight">{displayName}</h1>
+                )}
                 <p className="text-[10px] opacity-70">{isAdmin ? "Admin" : "Team Member"}</p>
               </div>
             </div>
@@ -114,7 +135,9 @@ export default function Dashboard() {
         {/* Check-in Status Banner */}
         {hasModuleAccess("module_attendance") && (
           <motion.div variants={item}>
-            {!dayStarted ? (
+            {isLoading ? (
+              <Skeleton className="h-24 w-full rounded-xl" />
+            ) : !dayStarted ? (
               <Card className="bg-gradient-to-r from-accent/20 to-accent/10 border-accent/30">
                 <div className="p-4">
                   <div className="flex items-center gap-3 mb-3">
@@ -162,19 +185,23 @@ export default function Dashboard() {
           <Card className="shadow-card">
             <CardContent className="p-4">
               <p className="text-sm font-bold mb-4">Overview</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {visibleCards.map((card) => (
-                  <div
-                    key={card.label}
-                    className={`rounded-xl border border-border ${card.colorClass.split(" ")[0]} p-4 text-center cursor-pointer hover:shadow-md transition-shadow`}
-                    onClick={() => navigate(card.path)}
-                  >
-                    <card.icon className={`h-5 w-5 mx-auto mb-1 ${card.colorClass.split(" ")[1]}`} />
-                    <p className="text-xl font-bold">{card.value}</p>
-                    <p className="text-[10px] text-muted-foreground">{card.label}</p>
-                  </div>
-                ))}
-              </div>
+              {isSummaryLoading ? (
+                <OverviewSkeleton />
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {visibleCards.map((card) => (
+                    <div
+                      key={card.label}
+                      className={`rounded-xl border border-border ${card.colorClass.split(" ")[0]} p-4 text-center cursor-pointer hover:shadow-md transition-shadow`}
+                      onClick={() => navigate(card.path)}
+                    >
+                      <card.icon className={`h-5 w-5 mx-auto mb-1 ${card.colorClass.split(" ")[1]}`} />
+                      <p className="text-xl font-bold">{card.value}</p>
+                      <p className="text-[10px] text-muted-foreground">{card.label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>
