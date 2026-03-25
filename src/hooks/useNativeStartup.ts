@@ -1,6 +1,15 @@
 import { useEffect } from "react";
 
 /**
+ * Global flag so other hooks (e.g. useAudioRecorder) can wait for
+ * the startup mic-priming stream to fully release before acquiring a new one.
+ */
+let _micPrimingActive = false;
+export function isMicPrimingActive() {
+  return _micPrimingActive;
+}
+
+/**
  * On native (Capacitor) platforms, request all hardware permissions
  * as soon as the app starts. This triggers Android system dialogs
  * so the WebView has access to camera, location, etc.
