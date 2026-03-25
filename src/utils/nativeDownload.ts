@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Browser } from '@capacitor/browser';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
