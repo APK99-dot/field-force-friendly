@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { isMicPrimingActive } from "./useNativeStartup";
 
 export interface AudioRecording {
   blob: Blob;
@@ -73,8 +74,17 @@ export function useAudioRecorder() {
     // *** CRITICAL: Always clean up any existing recording/stream first ***
     stopAllTracks();
 
+    // Wait for native startup mic priming to finish if active
+    if (isMicPrimingActive()) {
+      console.log('Waiting for mic priming to finish...');
+      for (let i = 0; i < 20; i++) {
+        await new Promise((r) => setTimeout(r, 150));
+        if (!isMicPrimingActive()) break;
+      }
+    }
+
     // Small delay to let OS fully release the mic
-    await new Promise((r) => setTimeout(r, 150));
+    await new Promise((r) => setTimeout(r, 300));
 
     if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
       console.error('mediaDevices not available. Secure context:', window.isSecureContext);
@@ -88,34 +98,48 @@ export function useAudioRecorder() {
     }
 
     let stream: MediaStream;
-    try {
-      console.log('Requesting getUserMedia for audio...');
-      stream = await navigator.mediaDevices.getUserMedia({
+    const attemptGetUserMedia = async (): Promise<MediaStream> => {
+      return navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
         },
       });
+    };
+
+    try {
+      console.log('Requesting getUserMedia for audio...');
+      stream = await attemptGetUserMedia();
       console.log('getUserMedia succeeded, tracks:', stream.getAudioTracks().length);
     } catch (err: any) {
-      console.error('getUserMedia failed:', err.name, err.message);
-      if (
-        err.name === "NotAllowedError" ||
-        err.name === "PermissionDeniedError" ||
-        err.name === "SecurityError"
-      ) {
-        setPermissionDenied(true);
-        throw new Error(
-          "Microphone permission denied. Please allow microphone access in your device settings and try again."
-        );
+      // Retry once for transient errors common in Android WebView
+      if (err.name === 'NotReadableError' || err.name === 'AbortError') {
+        console.warn('getUserMedia failed with', err.name, '— retrying in 500ms...');
+        await new Promise((r) => setTimeout(r, 500));
+        try {
+          stream = await attemptGetUserMedia();
+          console.log('getUserMedia retry succeeded');
+        } catch (retryErr: any) {
+          console.error('getUserMedia retry also failed:', retryErr.name, retryErr.message);
+          throw new Error(retryErr.message || "Could not access microphone");
+        }
+      } else {
+        console.error('getUserMedia failed:', err.name, err.message);
+        if (
+          err.name === "NotAllowedError" ||
+          err.name === "PermissionDeniedError" ||
+          err.name === "SecurityError"
+        ) {
+          setPermissionDenied(true);
+          throw new Error(
+            "Microphone permission denied. Please allow microphone access in your device settings and try again."
+          );
+        }
+        if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+          throw new Error("No microphone found on this device.");
+        }
+        throw new Error(err.message || "Could not access microphone");
       }
-      if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-        throw new Error("No microphone found on this device.");
-      }
-      if (err.name === "NotReadableError" || err.name === "AbortError") {
-        throw new Error("Microphone is in use by another app. Please close other apps and try again.");
-      }
-      throw new Error(err.message || "Could not access microphone");
     }
 
     streamRef.current = stream;

@@ -147,6 +147,7 @@ export default function Activities() {
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [voiceToTextMode, setVoiceToTextMode] = useState(false);
+  const [pendingRecordMode, setPendingRecordMode] = useState<'text' | 'audio' | null>(null);
 
   // Dynamic activity types from DB
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
@@ -205,6 +206,26 @@ export default function Activities() {
       setVoiceToTextMode(false);
     }
   }, [voiceToTextMode, recording, isRecording, isTranscribing, transcribeAudio, clearRecording]);
+
+  // Deferred recording trigger: wait for popover to fully unmount before starting
+  useEffect(() => {
+    if (pendingRecordMode && !micMenuOpen) {
+      const mode = pendingRecordMode;
+      setPendingRecordMode(null);
+      clearRecording();
+      setVoiceToTextMode(mode === 'text');
+
+      const timer = setTimeout(async () => {
+        try {
+          await startRecording();
+        } catch (err: any) {
+          toast.error(err.message || "Could not start recording");
+          setVoiceToTextMode(false);
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [pendingRecordMode, micMenuOpen, startRecording, clearRecording]);
 
   const fetchActivityTypes = useCallback(async () => {
     const { data } = await supabase
@@ -917,21 +938,12 @@ export default function Activities() {
                     <button
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
                       disabled={isTranscribing}
-                      onClick={async () => {
+                      onClick={() => {
                         setMicMenuOpen(false);
                         if (isRecording) {
                           stopRecording();
-                          // voiceToTextMode triggers auto-transcription via useEffect
                         } else {
-                          // Clean up any previous recording first
-                          clearRecording();
-                          setVoiceToTextMode(true);
-                          try {
-                            await startRecording();
-                          } catch (err: any) {
-                            toast.error(err.message || "Could not start recording");
-                            setVoiceToTextMode(false);
-                          }
+                          setPendingRecordMode('text');
                         }
                       }}
                     >
@@ -941,19 +953,12 @@ export default function Activities() {
                     <button
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
                       disabled={isTranscribing}
-                      onClick={async () => {
+                      onClick={() => {
                         setMicMenuOpen(false);
                         if (isRecording) {
                           stopRecording();
                         } else {
-                          // Clean up any previous recording first
-                          clearRecording();
-                          setVoiceToTextMode(false);
-                          try {
-                            await startRecording();
-                          } catch (err: any) {
-                            toast.error(err.message || "Could not start recording");
-                          }
+                          setPendingRecordMode('audio');
                         }
                       }}
                     >
