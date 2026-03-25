@@ -976,9 +976,15 @@ export default function Activities() {
                 <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                   <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
                   <span className="text-xs font-medium text-destructive">Recording {formatDuration(elapsed)}</span>
-                  <Button type="button" variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={stopRecording}>
+                  <Button type="button" variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => stopRecording()}>
                     <Square className="h-3 w-3 mr-1" /> Stop
                   </Button>
+                </div>
+              )}
+              {isFinalizing && (
+                <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-primary/10 border border-primary/20">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-xs font-medium text-primary">Finalizing recording...</span>
                 </div>
               )}
               {recording && !isRecording && (
