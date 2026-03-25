@@ -1014,7 +1014,7 @@ export default function Activities() {
                 </div>
               )}
             </div>
-            <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type}>
+            <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type || isFinalizing || isRecording}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingId ? "Update Activity" : "Log Activity"}
             </Button>
