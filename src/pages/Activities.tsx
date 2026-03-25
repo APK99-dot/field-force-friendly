@@ -142,7 +142,7 @@ export default function Activities() {
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const { isRecording, recording, elapsed, startRecording, stopRecording, clearRecording, formatDuration } = useAudioRecorder();
+  const { isRecording, isFinalizing, recording, elapsed, startRecording, stopRecording, clearRecording, formatDuration } = useAudioRecorder();
   const [micMenuOpen, setMicMenuOpen] = useState(false);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
