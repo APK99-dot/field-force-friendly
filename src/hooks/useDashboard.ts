@@ -2,10 +2,38 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
+const CACHE_KEY = "dashboard_cache_v1";
+
+function getCachedDashboard() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function setCachedDashboard(data: any) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch { /* quota exceeded */ }
+}
+
+interface DashboardSummary {
+  pending_leaves: number;
+  activities_total: number;
+  activities_completed: number;
+  activities_in_progress: number;
+  today_activities: number;
+  pending_expenses_count: number;
+  pending_expenses_total: number;
+}
+
 export function useDashboard(userId: string | undefined) {
   const today = format(new Date(), "yyyy-MM-dd");
-  const currentYear = new Date().getFullYear();
 
+  // Core: just today's attendance (needed for first paint banner)
   const attendanceQuery = useQuery({
     queryKey: ["dashboard-attendance", userId, today],
     queryFn: async () => {
@@ -22,88 +50,24 @@ export function useDashboard(userId: string | undefined) {
     enabled: !!userId,
   });
 
-  const pendingLeavesQuery = useQuery({
-    queryKey: ["dashboard-pending-leaves", userId],
+  // Secondary: single RPC call for all aggregate stats
+  const cached = getCachedDashboard();
+  const summaryQuery = useQuery({
+    queryKey: ["dashboard-summary", userId],
     queryFn: async () => {
-      if (!userId) return 0;
-      const { count, error } = await supabase
-        .from("leave_applications")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("status", "pending");
+      if (!userId) return null;
+      const { data, error } = await supabase.rpc("get_dashboard_summary");
       if (error) throw error;
-      return count || 0;
+      const result = data as unknown as DashboardSummary;
+      setCachedDashboard(result);
+      return result;
     },
     enabled: !!userId,
+    initialData: cached as DashboardSummary | undefined,
+    staleTime: 2 * 60 * 1000,
   });
 
-  const leaveBalanceQuery = useQuery({
-    queryKey: ["dashboard-leave-balance", userId, currentYear],
-    queryFn: async () => {
-      if (!userId) return [];
-      const { data, error } = await supabase
-        .from("leave_balance")
-        .select("*, leave_types(name)")
-        .eq("user_id", userId)
-        .eq("year", currentYear);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!userId,
-  });
-
-  const myActivitiesQuery = useQuery({
-    queryKey: ["dashboard-my-activities", userId],
-    queryFn: async () => {
-      if (!userId) return { total: 0, completed: 0, inProgress: 0 };
-      const { data, error } = await supabase
-        .from("activity_events")
-        .select("status")
-        .eq("user_id", userId);
-      if (error) throw error;
-      const activities = data || [];
-      return {
-        total: activities.length,
-        completed: activities.filter((a) => a.status === "completed").length,
-        inProgress: activities.filter((a) => a.status === "in_progress").length,
-      };
-    },
-    enabled: !!userId,
-  });
-
-  const pendingExpensesQuery = useQuery({
-    queryKey: ["dashboard-pending-expenses", userId],
-    queryFn: async () => {
-      if (!userId) return { count: 0, total: 0 };
-      const { data, error } = await supabase
-        .from("additional_expenses")
-        .select("amount, status")
-        .eq("user_id", userId)
-        .eq("status", "pending");
-      if (error) throw error;
-      const expenses = data || [];
-      return {
-        count: expenses.length,
-        total: expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0),
-      };
-    },
-    enabled: !!userId,
-  });
-
-  const todayActivitiesQuery = useQuery({
-    queryKey: ["dashboard-today-activities", userId, today],
-    queryFn: async () => {
-      if (!userId) return 0;
-      const { count, error } = await supabase
-        .from("activity_events")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("activity_date", today);
-      if (error) throw error;
-      return count || 0;
-    },
-    enabled: !!userId,
-  });
+  const summary = summaryQuery.data;
 
   const attendance = attendanceQuery.data;
   const isCheckedIn = !!attendance?.check_in_time && !attendance?.check_out_time;
@@ -113,13 +77,21 @@ export function useDashboard(userId: string | undefined) {
   return {
     attendance,
     isLoading: attendanceQuery.isLoading,
+    isSummaryLoading: summaryQuery.isLoading && !cached,
     dayStarted,
     isCheckedIn,
     isCheckedOut,
-    pendingLeaves: pendingLeavesQuery.data || 0,
-    leaveBalances: leaveBalanceQuery.data || [],
-    myActivities: myActivitiesQuery.data || { total: 0, completed: 0, inProgress: 0 },
-    pendingExpenses: pendingExpensesQuery.data || { count: 0, total: 0 },
-    todayActivities: todayActivitiesQuery.data || 0,
+    pendingLeaves: summary?.pending_leaves ?? 0,
+    leaveBalances: [],
+    myActivities: {
+      total: summary?.activities_total ?? 0,
+      completed: summary?.activities_completed ?? 0,
+      inProgress: summary?.activities_in_progress ?? 0,
+    },
+    pendingExpenses: {
+      count: summary?.pending_expenses_count ?? 0,
+      total: summary?.pending_expenses_total ?? 0,
+    },
+    todayActivities: summary?.today_activities ?? 0,
   };
 }

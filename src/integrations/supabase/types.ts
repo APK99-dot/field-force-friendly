@@ -3361,6 +3361,7 @@ export type Database = {
           username: string
         }[]
       }
+      get_dashboard_summary: { Args: never; Returns: Json }
       get_subordinate_users: {
         Args: { _manager_id: string }
         Returns: {

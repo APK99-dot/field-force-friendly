@@ -142,7 +142,7 @@ export default function Activities() {
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const { isRecording, recording, elapsed, startRecording, stopRecording, clearRecording, formatDuration } = useAudioRecorder();
+  const { isRecording, isFinalizing, recording, elapsed, startRecording, stopRecording, clearRecording, formatDuration } = useAudioRecorder();
   const [micMenuOpen, setMicMenuOpen] = useState(false);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
@@ -209,11 +209,11 @@ export default function Activities() {
   }, [voiceToTextMode, recording, isRecording, isTranscribing, transcribeAudio, clearRecording]);
 
   const handleMicOptionClick = useCallback(async (mode: 'text' | 'audio') => {
-    if (isTranscribing || isStartingRecording) return;
+    if (isTranscribing || isStartingRecording || isFinalizing) return;
 
     if (isRecording) {
-      stopRecording();
       setMicMenuOpen(false);
+      await stopRecording();
       return;
     }
 
@@ -231,7 +231,7 @@ export default function Activities() {
     } finally {
       setIsStartingRecording(false);
     }
-  }, [clearRecording, isRecording, isStartingRecording, isTranscribing, startRecording, stopRecording]);
+  }, [clearRecording, isFinalizing, isRecording, isStartingRecording, isTranscribing, startRecording, stopRecording]);
 
   const fetchActivityTypes = useCallback(async () => {
     const { data } = await supabase
@@ -976,9 +976,15 @@ export default function Activities() {
                 <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                   <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
                   <span className="text-xs font-medium text-destructive">Recording {formatDuration(elapsed)}</span>
-                  <Button type="button" variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={stopRecording}>
+                  <Button type="button" variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => stopRecording()}>
                     <Square className="h-3 w-3 mr-1" /> Stop
                   </Button>
+                </div>
+              )}
+              {isFinalizing && (
+                <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-primary/10 border border-primary/20">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-xs font-medium text-primary">Finalizing recording...</span>
                 </div>
               )}
               {recording && !isRecording && (
@@ -1008,7 +1014,7 @@ export default function Activities() {
                 </div>
               )}
             </div>
-            <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type}>
+            <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type || isFinalizing || isRecording}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingId ? "Update Activity" : "Log Activity"}
             </Button>
