@@ -1,25 +1,36 @@
 
 
-## Plan: Fix Call Button in My Team
+## Plan: Fix Voice-to-Text and Audio Recorder in APK
 
 ### Root Cause
-The call button appears disabled because 6 out of 7 team members have **no phone number stored** in the database. Only "Suyog" has a phone number. The code correctly shows a disabled icon when `phone` is null — this is a data issue, not a code bug.
+
+The microphone buttons are inside a `Popover` component. When clicked, `setMicMenuOpen(false)` closes the popover **before** `startRecording()` completes. In the Android WebView (Capacitor remote-URL), this causes a race condition:
+- The popover unmounts/re-renders the component tree
+- The `getUserMedia` call either gets interrupted or fails silently
+- The recording never starts, but no error is shown to the user
+
+Additionally, the `useNativeStartup` hook's microphone "priming" call may hold/release the mic in a way that conflicts with the actual recording attempt if both happen close together.
 
 ### Changes
 
-#### 1. Query phone from both `users` and `profiles` tables (src/pages/MyTeam.tsx)
-Currently only checks `users.phone`. Will also join `profiles.phone_number` as a fallback, so if a phone is stored in either table, it will be found.
+#### 1. Move recording trigger outside the Popover (src/pages/Activities.tsx)
 
-#### 2. Use `<a href="tel:">` for maximum compatibility
-Replace the `<button>` + `window.open` approach with a simple `<a href="tel:XXXX">` anchor element styled as a button. This is the most universally reliable method for opening the dialer across browsers, PWAs, and WebViews — no JavaScript needed.
+Replace the current approach where buttons inside the Popover both close the popover AND start recording simultaneously. Instead:
 
-#### 3. Always show the call button as enabled with a visual distinction
-- **Phone exists**: Show green/primary phone icon as a clickable `<a href="tel:">` link
-- **No phone**: Keep the current disabled appearance but with a clearer "No phone number" indicator
+- The Popover buttons should **only** set the mode (`voiceToTextMode` true/false) and close the popover
+- Use a `useEffect` to detect when mode is set and popover is closed, then trigger `startRecording()` after a short delay (letting the popover fully unmount)
+- This eliminates the race condition between popover close and `getUserMedia`
+
+#### 2. Add retry logic for getUserMedia (src/hooks/useAudioRecorder.ts)
+
+In Android WebView, `getUserMedia` can fail on the first attempt after the priming stream is released. Add a single retry with a 300ms delay if the first call fails with `NotReadableError` or `AbortError`.
+
+#### 3. Guard useNativeStartup mic priming (src/hooks/useNativeStartup.ts)
+
+Store a global flag when the startup mic priming stream is active, so `useAudioRecorder` can wait for it to fully release before requesting a new stream.
 
 ### Files to Modify
-- **src/pages/MyTeam.tsx** — Update query to check both tables for phone; replace button with `<a href="tel:">`
-
-### Note to User
-Most team members simply don't have phone numbers entered in their profiles yet. After this fix, you or an admin should update each member's profile with their phone number (via Profile page or Admin User Management) — the call button will then become active for those members.
+- **src/pages/Activities.tsx** — Decouple popover close from recording start; use deferred trigger
+- **src/hooks/useAudioRecorder.ts** — Add retry logic for getUserMedia failures
+- **src/hooks/useNativeStartup.ts** — Add global mic-priming guard flag
 
