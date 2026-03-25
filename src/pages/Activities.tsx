@@ -207,6 +207,26 @@ export default function Activities() {
     }
   }, [voiceToTextMode, recording, isRecording, isTranscribing, transcribeAudio, clearRecording]);
 
+  // Deferred recording trigger: wait for popover to fully unmount before starting
+  useEffect(() => {
+    if (pendingRecordMode && !micMenuOpen) {
+      const mode = pendingRecordMode;
+      setPendingRecordMode(null);
+      clearRecording();
+      setVoiceToTextMode(mode === 'text');
+
+      const timer = setTimeout(async () => {
+        try {
+          await startRecording();
+        } catch (err: any) {
+          toast.error(err.message || "Could not start recording");
+          setVoiceToTextMode(false);
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [pendingRecordMode, micMenuOpen, startRecording, clearRecording]);
+
   const fetchActivityTypes = useCallback(async () => {
     const { data } = await supabase
       .from("activity_types_master")
