@@ -165,7 +165,8 @@ export default function Activities() {
     setIsTranscribing(true);
     try {
       const formData = new FormData();
-      formData.append("audio", audioBlob, "recording.webm");
+      const extension = audioBlob.type.includes("mp4") || audioBlob.type.includes("aac") ? "m4a" : audioBlob.type.includes("ogg") ? "ogg" : "webm";
+      formData.append("audio", audioBlob, `recording.${extension}`);
       formData.append("lang", "en");
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -556,10 +557,11 @@ export default function Activities() {
       let audioUrl: string | null = null;
       if (recording) {
         const { data: { user } } = await supabase.auth.getUser();
-        const fileName = `${user!.id}/${Date.now()}.webm`;
+        const extension = recording.fileExtension || (recording.mimeType.includes("mp4") || recording.mimeType.includes("aac") ? "m4a" : recording.mimeType.includes("ogg") ? "ogg" : "webm");
+        const fileName = `${user!.id}/${Date.now()}.${extension}`;
         const { error: uploadErr } = await supabase.storage
           .from("activity-audio")
-          .upload(fileName, recording.blob, { contentType: "audio/webm" });
+          .upload(fileName, recording.blob, { contentType: recording.mimeType || "audio/webm" });
         if (uploadErr) throw uploadErr;
         const { data: urlData } = supabase.storage.from("activity-audio").getPublicUrl(fileName);
         audioUrl = urlData.publicUrl;
@@ -1363,7 +1365,7 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateAct
               <div className="ml-6 mt-1.5">
                 {a.attachment_urls.filter((url: string) => url.includes("activity-audio")).map((url: string, idx: number) => (
                   <audio key={idx} controls className="h-8 w-full max-w-[240px]" preload="metadata">
-                    <source src={url} type="audio/webm" />
+                    <source src={url} type={url.endsWith('.m4a') ? 'audio/mp4' : url.endsWith('.ogg') ? 'audio/ogg' : 'audio/webm'} />
                   </audio>
                 ))}
               </div>
