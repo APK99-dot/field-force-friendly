@@ -27,34 +27,46 @@ export default function MyTeam() {
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["my-team-members"],
     queryFn: async () => {
-      const { data: users, error } = await supabase
-        .from("users")
-        .select("id, full_name, username, phone, is_active, roles(name)")
-        .order("full_name", { ascending: true });
+      const [usersRes, profilesRes, siteRes] = await Promise.all([
+        supabase
+          .from("users")
+          .select("id, full_name, username, phone, is_active, roles(name)")
+          .order("full_name", { ascending: true }),
+        supabase
+          .from("profiles")
+          .select("id, phone_number"),
+        supabase
+          .from("activity_events")
+          .select("user_id, site_id, project_sites(site_name)")
+          .not("site_id", "is", null)
+          .order("created_at", { ascending: false }),
+      ]);
 
-      if (error) throw error;
+      if (usersRes.error) throw usersRes.error;
 
-      // Get latest site assignment per user from activity_events
-      const { data: siteActivities } = await supabase
-        .from("activity_events")
-        .select("user_id, site_id, project_sites(site_name)")
-        .not("site_id", "is", null)
-        .order("created_at", { ascending: false });
+      // Build phone lookup from profiles table
+      const profilePhoneMap = new Map<string, string>();
+      if (profilesRes.data) {
+        for (const p of profilesRes.data) {
+          if (p.phone_number) profilePhoneMap.set(p.id, p.phone_number);
+        }
+      }
 
+      // Build site lookup
       const siteMap = new Map<string, string>();
-      if (siteActivities) {
-        for (const sa of siteActivities as any[]) {
+      if (siteRes.data) {
+        for (const sa of siteRes.data as any[]) {
           if (!siteMap.has(sa.user_id) && sa.project_sites?.site_name) {
             siteMap.set(sa.user_id, sa.project_sites.site_name);
           }
         }
       }
 
-      return (users || []).map((u: any) => ({
+      return (usersRes.data || []).map((u: any) => ({
         id: u.id,
         full_name: u.full_name,
         username: u.username,
-        phone: u.phone,
+        phone: u.phone || profilePhoneMap.get(u.id) || null,
         is_active: u.is_active,
         role_name: u.roles?.name || null,
         site_name: siteMap.get(u.id) || null,
@@ -202,23 +214,18 @@ export default function MyTeam() {
 
               {/* Call Button */}
               {member.phone ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const tel = `tel:${member.phone}`;
-                    try {
-                      window.open(tel, '_system');
-                    } catch {
-                      window.location.href = tel;
-                    }
-                  }}
+                <a
+                  href={`tel:${member.phone}`}
                   className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
                   aria-label={`Call ${member.full_name || "user"}`}
                 >
                   <Phone className="h-4 w-4" />
-                </button>
+                </a>
               ) : (
-                <span className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-muted text-muted-foreground cursor-not-allowed shrink-0">
+                <span
+                  className="inline-flex items-center justify-center h-9 w-9 rounded-lg bg-muted text-muted-foreground cursor-not-allowed shrink-0"
+                  title="No phone number available"
+                >
                   <PhoneOff className="h-4 w-4" />
                 </span>
               )}
