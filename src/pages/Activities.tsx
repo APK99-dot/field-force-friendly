@@ -147,7 +147,7 @@ export default function Activities() {
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [voiceToTextMode, setVoiceToTextMode] = useState(false);
-  const [pendingRecordMode, setPendingRecordMode] = useState<'text' | 'audio' | null>(null);
+  const [isStartingRecording, setIsStartingRecording] = useState(false);
 
   // Dynamic activity types from DB
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
@@ -207,25 +207,30 @@ export default function Activities() {
     }
   }, [voiceToTextMode, recording, isRecording, isTranscribing, transcribeAudio, clearRecording]);
 
-  // Deferred recording trigger: wait for popover to fully unmount before starting
-  useEffect(() => {
-    if (pendingRecordMode && !micMenuOpen) {
-      const mode = pendingRecordMode;
-      setPendingRecordMode(null);
-      clearRecording();
-      setVoiceToTextMode(mode === 'text');
+  const handleMicOptionClick = useCallback(async (mode: 'text' | 'audio') => {
+    if (isTranscribing || isStartingRecording) return;
 
-      const timer = setTimeout(async () => {
-        try {
-          await startRecording();
-        } catch (err: any) {
-          toast.error(err.message || "Could not start recording");
-          setVoiceToTextMode(false);
-        }
-      }, 300);
-      return () => clearTimeout(timer);
+    if (isRecording) {
+      stopRecording();
+      setMicMenuOpen(false);
+      return;
     }
-  }, [pendingRecordMode, micMenuOpen, startRecording, clearRecording]);
+
+    clearRecording();
+    setVoiceToTextMode(mode === 'text');
+    setIsStartingRecording(true);
+
+    try {
+      await startRecording();
+      setMicMenuOpen(false);
+    } catch (err: any) {
+      console.error('[Activities] Failed to start recording:', err);
+      setVoiceToTextMode(false);
+      toast.error(err.message || 'Could not start recording');
+    } finally {
+      setIsStartingRecording(false);
+    }
+  }, [clearRecording, isRecording, isStartingRecording, isTranscribing, startRecording, stopRecording]);
 
   const fetchActivityTypes = useCallback(async () => {
     const { data } = await supabase
@@ -937,33 +942,23 @@ export default function Activities() {
                   <PopoverContent className="w-52 p-1" align="end">
                     <button
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
-                      disabled={isTranscribing}
+                      disabled={isTranscribing || isStartingRecording}
                       onClick={() => {
-                        setMicMenuOpen(false);
-                        if (isRecording) {
-                          stopRecording();
-                        } else {
-                          setPendingRecordMode('text');
-                        }
+                        void handleMicOptionClick('text');
                       }}
                     >
-                      {isRecording && voiceToTextMode ? <Square className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
-                      {isRecording && voiceToTextMode ? "Stop & Transcribe" : isTranscribing ? "Transcribing..." : "Voice to Text"}
+                      {isStartingRecording ? <Loader2 className="h-4 w-4 animate-spin" /> : isRecording && voiceToTextMode ? <Square className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
+                      {isStartingRecording ? 'Starting...' : isRecording && voiceToTextMode ? "Stop & Transcribe" : isTranscribing ? "Transcribing..." : "Voice to Text"}
                     </button>
                     <button
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
-                      disabled={isTranscribing}
+                      disabled={isTranscribing || isStartingRecording}
                       onClick={() => {
-                        setMicMenuOpen(false);
-                        if (isRecording) {
-                          stopRecording();
-                        } else {
-                          setPendingRecordMode('audio');
-                        }
+                        void handleMicOptionClick('audio');
                       }}
                     >
-                      {isRecording && !voiceToTextMode ? <Square className="h-4 w-4 text-destructive" /> : <AudioLines className="h-4 w-4" />}
-                      {isRecording && !voiceToTextMode ? "Stop Recording" : "Record Audio"}
+                      {isStartingRecording ? <Loader2 className="h-4 w-4 animate-spin" /> : isRecording && !voiceToTextMode ? <Square className="h-4 w-4 text-destructive" /> : <AudioLines className="h-4 w-4" />}
+                      {isStartingRecording ? 'Starting...' : isRecording && !voiceToTextMode ? "Stop Recording" : "Record Audio"}
                     </button>
                   </PopoverContent>
                 </Popover>
