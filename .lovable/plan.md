@@ -1,44 +1,25 @@
 
 
-## Plan: Fix Remaining Issues — Microphone, Call Button, and APK Performance
+## Plan: Fix Call Button in My Team
 
-### Problems Identified
-
-1. **Call button**: Currently uses `<a href="tel:...">` which is unreliable in Android WebView. Needs to use programmatic approach with proper fallback chain.
-
-2. **Microphone/Audio**: The current implementation looks correct with proper cleanup. The issue is likely that in the Capacitor remote-URL WebView, `getUserMedia` needs explicit Capacitor permission grants first before the browser API works. The `useNativeStartup` hook requests camera and location but **not microphone**.
-
-3. **APK slowness**: The `QueryClient` is created with zero configuration — no `staleTime`, no `gcTime` (formerly `cacheTime`). Every navigation triggers fresh network requests for all data. On mobile networks this causes significant delays. Need to configure aggressive caching defaults.
-
----
+### Root Cause
+The call button appears disabled because 6 out of 7 team members have **no phone number stored** in the database. Only "Suyog" has a phone number. The code correctly shows a disabled icon when `phone` is null — this is a data issue, not a code bug.
 
 ### Changes
 
-#### 1. Fix QueryClient caching (src/App.tsx)
-Configure the `QueryClient` with sensible defaults:
-- `staleTime: 5 * 60 * 1000` (5 minutes) — data is considered fresh, no refetch on mount
-- `gcTime: 10 * 60 * 1000` (10 minutes) — keep unused cache longer
-- `refetchOnWindowFocus: false` — prevents refetch every time app regains focus (common in WebView)
-- `retry: 1` — reduce retry attempts on slow networks
+#### 1. Query phone from both `users` and `profiles` tables (src/pages/MyTeam.tsx)
+Currently only checks `users.phone`. Will also join `profiles.phone_number` as a fallback, so if a phone is stored in either table, it will be found.
 
-#### 2. Fix microphone permission on native (src/utils/nativePermissions.ts or useNativeStartup)
-Add microphone permission request using `navigator.mediaDevices.getUserMedia({ audio: true })` during startup, then immediately stop the stream. This primes the Android WebView to allow subsequent audio recording.
+#### 2. Use `<a href="tel:">` for maximum compatibility
+Replace the `<button>` + `window.open` approach with a simple `<a href="tel:XXXX">` anchor element styled as a button. This is the most universally reliable method for opening the dialer across browsers, PWAs, and WebViews — no JavaScript needed.
 
-#### 3. Fix call button (src/pages/MyTeam.tsx)
-Replace `<a href="tel:...">` with a `<button>` that uses a fallback chain:
-```
-window.open('tel:...', '_system')  →  window.location.href = 'tel:...'
-```
-This ensures the dialer opens in both WebView and browser contexts.
-
-#### 4. Ensure mic cleanup before recording (src/hooks/useAudioRecorder.ts)
-The current implementation already handles cleanup well. Minor improvement: add a global stream tracker to ensure no orphaned streams exist from startup permission priming.
-
----
+#### 3. Always show the call button as enabled with a visual distinction
+- **Phone exists**: Show green/primary phone icon as a clickable `<a href="tel:">` link
+- **No phone**: Keep the current disabled appearance but with a clearer "No phone number" indicator
 
 ### Files to Modify
-- **src/App.tsx** — Add QueryClient default options for caching
-- **src/hooks/useNativeStartup.ts** — Add microphone permission request
-- **src/pages/MyTeam.tsx** — Fix call button with programmatic dialer trigger
-- **src/hooks/useAudioRecorder.ts** — Minor: ensure startup streams don't conflict
+- **src/pages/MyTeam.tsx** — Update query to check both tables for phone; replace button with `<a href="tel:">`
+
+### Note to User
+Most team members simply don't have phone numbers entered in their profiles yet. After this fix, you or an admin should update each member's profile with their phone number (via Profile page or Admin User Management) — the call button will then become active for those members.
 
