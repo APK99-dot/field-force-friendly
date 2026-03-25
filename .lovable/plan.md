@@ -1,36 +1,33 @@
+## Plan: Dashboard Performance + Audio Recorder Fix — COMPLETED
 
+### Changes Made
 
-## Plan: Fix Voice-to-Text and Audio Recorder in APK
+#### 1. Route-level code splitting (src/App.tsx)
+- All route pages lazy-loaded with `React.lazy` + `Suspense`
+- Only Auth page eagerly loaded; everything else loaded on demand
+- Spinner fallback shown during chunk loading
 
-### Root Cause
+#### 2. Dashboard data consolidation (src/hooks/useDashboard.ts)
+- Replaced 6 separate queries with 1 RPC call (`get_dashboard_summary`)
+- Attendance query kept separate for fast first-paint banner
+- Added localStorage caching for instant re-open experience
 
-The microphone buttons are inside a `Popover` component. When clicked, `setMicMenuOpen(false)` closes the popover **before** `startRecording()` completes. In the Android WebView (Capacitor remote-URL), this causes a race condition:
-- The popover unmounts/re-renders the component tree
-- The `getUserMedia` call either gets interrupted or fails silently
-- The recording never starts, but no error is shown to the user
+#### 3. Dashboard skeleton UI (src/pages/Dashboard.tsx)
+- Skeleton placeholders for attendance banner and overview cards
+- Profile loading state shown in header area
+- Cards render immediately, data fills in from cache then refreshes
 
-Additionally, the `useNativeStartup` hook's microphone "priming" call may hold/release the mic in a way that conflicts with the actual recording attempt if both happen close together.
+#### 4. Backend RPC function (get_dashboard_summary)
+- Single SECURITY DEFINER function returns all aggregate counts
+- Uses auth.uid() server-side — no new access risks
 
-### Changes
+#### 5. Native audio recorder lifecycle fix (src/hooks/useAudioRecorder.ts)
+- Removed `cancelRecording()` from pre-start cleanup (was causing race condition)
+- Added `isFinalizing` state for native stop → blob conversion
+- Normalized stop result parsing (`uri`/`filePath`/`path`)
+- Dynamic import of native plugins to avoid bundle issues
 
-#### 1. Move recording trigger outside the Popover (src/pages/Activities.tsx)
-
-Replace the current approach where buttons inside the Popover both close the popover AND start recording simultaneously. Instead:
-
-- The Popover buttons should **only** set the mode (`voiceToTextMode` true/false) and close the popover
-- Use a `useEffect` to detect when mode is set and popover is closed, then trigger `startRecording()` after a short delay (letting the popover fully unmount)
-- This eliminates the race condition between popover close and `getUserMedia`
-
-#### 2. Add retry logic for getUserMedia (src/hooks/useAudioRecorder.ts)
-
-In Android WebView, `getUserMedia` can fail on the first attempt after the priming stream is released. Add a single retry with a 300ms delay if the first call fails with `NotReadableError` or `AbortError`.
-
-#### 3. Guard useNativeStartup mic priming (src/hooks/useNativeStartup.ts)
-
-Store a global flag when the startup mic priming stream is active, so `useAudioRecorder` can wait for it to fully release before requesting a new stream.
-
-### Files to Modify
-- **src/pages/Activities.tsx** — Decouple popover close from recording start; use deferred trigger
-- **src/hooks/useAudioRecorder.ts** — Add retry logic for getUserMedia failures
-- **src/hooks/useNativeStartup.ts** — Add global mic-priming guard flag
-
+#### 6. Activities audio UI (src/pages/Activities.tsx)
+- Save button disabled during recording/finalizing
+- Finalizing indicator shown during native blob conversion
+- Stop called with await to prevent premature state changes
