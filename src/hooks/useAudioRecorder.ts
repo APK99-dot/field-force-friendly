@@ -74,8 +74,17 @@ export function useAudioRecorder() {
     // *** CRITICAL: Always clean up any existing recording/stream first ***
     stopAllTracks();
 
+    // Wait for native startup mic priming to finish if active
+    if (isMicPrimingActive()) {
+      console.log('Waiting for mic priming to finish...');
+      for (let i = 0; i < 20; i++) {
+        await new Promise((r) => setTimeout(r, 150));
+        if (!isMicPrimingActive()) break;
+      }
+    }
+
     // Small delay to let OS fully release the mic
-    await new Promise((r) => setTimeout(r, 150));
+    await new Promise((r) => setTimeout(r, 300));
 
     if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
       console.error('mediaDevices not available. Secure context:', window.isSecureContext);
