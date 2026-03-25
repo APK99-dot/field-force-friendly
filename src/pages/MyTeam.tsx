@@ -27,34 +27,46 @@ export default function MyTeam() {
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["my-team-members"],
     queryFn: async () => {
-      const { data: users, error } = await supabase
-        .from("users")
-        .select("id, full_name, username, phone, is_active, roles(name)")
-        .order("full_name", { ascending: true });
+      const [usersRes, profilesRes, siteRes] = await Promise.all([
+        supabase
+          .from("users")
+          .select("id, full_name, username, phone, is_active, roles(name)")
+          .order("full_name", { ascending: true }),
+        supabase
+          .from("profiles")
+          .select("id, phone_number"),
+        supabase
+          .from("activity_events")
+          .select("user_id, site_id, project_sites(site_name)")
+          .not("site_id", "is", null)
+          .order("created_at", { ascending: false }),
+      ]);
 
-      if (error) throw error;
+      if (usersRes.error) throw usersRes.error;
 
-      // Get latest site assignment per user from activity_events
-      const { data: siteActivities } = await supabase
-        .from("activity_events")
-        .select("user_id, site_id, project_sites(site_name)")
-        .not("site_id", "is", null)
-        .order("created_at", { ascending: false });
+      // Build phone lookup from profiles table
+      const profilePhoneMap = new Map<string, string>();
+      if (profilesRes.data) {
+        for (const p of profilesRes.data) {
+          if (p.phone_number) profilePhoneMap.set(p.id, p.phone_number);
+        }
+      }
 
+      // Build site lookup
       const siteMap = new Map<string, string>();
-      if (siteActivities) {
-        for (const sa of siteActivities as any[]) {
+      if (siteRes.data) {
+        for (const sa of siteRes.data as any[]) {
           if (!siteMap.has(sa.user_id) && sa.project_sites?.site_name) {
             siteMap.set(sa.user_id, sa.project_sites.site_name);
           }
         }
       }
 
-      return (users || []).map((u: any) => ({
+      return (usersRes.data || []).map((u: any) => ({
         id: u.id,
         full_name: u.full_name,
         username: u.username,
-        phone: u.phone,
+        phone: u.phone || profilePhoneMap.get(u.id) || null,
         is_active: u.is_active,
         role_name: u.roles?.name || null,
         site_name: siteMap.get(u.id) || null,
