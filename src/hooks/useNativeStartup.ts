@@ -52,11 +52,14 @@ export function useNativeStartup() {
 
       // 3. Microphone permission — prime getUserMedia so WebView allows it later
       try {
+        _micPrimingActive = true;
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach((t) => t.stop());
         console.log("[NativeStartup] Microphone permission granted");
       } catch (e) {
         console.warn("[NativeStartup] Microphone permission request failed:", e);
+      } finally {
+        _micPrimingActive = false;
       }
     }
 

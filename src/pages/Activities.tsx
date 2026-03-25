@@ -147,6 +147,7 @@ export default function Activities() {
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [voiceToTextMode, setVoiceToTextMode] = useState(false);
+  const [pendingRecordMode, setPendingRecordMode] = useState<'text' | 'audio' | null>(null);
 
   // Dynamic activity types from DB
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
