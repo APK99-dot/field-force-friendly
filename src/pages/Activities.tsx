@@ -938,21 +938,12 @@ export default function Activities() {
                     <button
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
                       disabled={isTranscribing}
-                      onClick={async () => {
+                      onClick={() => {
                         setMicMenuOpen(false);
                         if (isRecording) {
                           stopRecording();
-                          // voiceToTextMode triggers auto-transcription via useEffect
                         } else {
-                          // Clean up any previous recording first
-                          clearRecording();
-                          setVoiceToTextMode(true);
-                          try {
-                            await startRecording();
-                          } catch (err: any) {
-                            toast.error(err.message || "Could not start recording");
-                            setVoiceToTextMode(false);
-                          }
+                          setPendingRecordMode('text');
                         }
                       }}
                     >
@@ -962,19 +953,12 @@ export default function Activities() {
                     <button
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
                       disabled={isTranscribing}
-                      onClick={async () => {
+                      onClick={() => {
                         setMicMenuOpen(false);
                         if (isRecording) {
                           stopRecording();
                         } else {
-                          // Clean up any previous recording first
-                          clearRecording();
-                          setVoiceToTextMode(false);
-                          try {
-                            await startRecording();
-                          } catch (err: any) {
-                            toast.error(err.message || "Could not start recording");
-                          }
+                          setPendingRecordMode('audio');
                         }
                       }}
                     >

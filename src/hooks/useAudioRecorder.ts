@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { isMicPrimingActive } from "./useNativeStartup";
 
 export interface AudioRecording {
   blob: Blob;
