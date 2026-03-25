@@ -47,8 +47,8 @@ async function uploadToStorageAndOpen(blob: Blob, filename: string): Promise<boo
 
     console.log('Opening download URL:', urlData.publicUrl);
 
-    // Open the HTTPS URL — works reliably in Android WebView
-    window.open(urlData.publicUrl, '_system');
+    // Open the HTTPS URL in system browser — triggers real download on Android
+    await Browser.open({ url: urlData.publicUrl });
 
     toast.success(`Downloaded: ${filename}`);
 
