@@ -11,6 +11,7 @@
         "@capacitor/filesystem": "^8.1.2",
         "@capacitor/geolocation": "^8.1.0",
         "@capacitor/ios": "^8.2.0",
+        "@capgo/capacitor-audio-recorder": "^8.0.12",
         "@hookform/resolvers": "^3.10.0",
         "@radix-ui/react-accordion": "^1.2.11",
         "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -296,6 +297,8 @@
     "@capacitor/ios": ["@capacitor/ios@8.2.0", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/ios/-/ios-8.2.0.tgz", { "peerDependencies": { "@capacitor/core": "^8.2.0" } }, "sha512-X2/VtM4qP/R1SM0VQ5W/VotEc6PS/KTooD33EijsfAHWBdee+xmBapW8SeNLnu16wJ+tsfWlvtipaJEyfKbRKQ=="],
 
     "@capacitor/synapse": ["@capacitor/synapse@1.0.4", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/synapse/-/synapse-1.0.4.tgz", {}, "sha512-/C1FUo8/OkKuAT4nCIu/34ny9siNHr9qtFezu4kxm6GY1wNFxrCFWjfYx5C1tUhVGz3fxBABegupkpjXvjCHrw=="],
+
+    "@capgo/capacitor-audio-recorder": ["@capgo/capacitor-audio-recorder@8.0.12", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capgo/capacitor-audio-recorder/-/capacitor-audio-recorder-8.0.12.tgz", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-jHu2UFj/nG06cYW/FlYSlRs1fBTLRQuszPNHyjsZlJXVLcdkrdG65f2tVQM13L2LhoneBg2t6rzThOI9nJV4bw=="],
 
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.25.0", "", { "os": "aix", "cpu": "ppc64" }, "sha512-O7vun9Sf8DFjH2UtqK8Ku3LkquL9SZL8OLY1T5NZkA34+wG3OQF7cl4Ql8vdNzM6fzBbYfLaiRLIOZ+2FOCgBQ=="],
 

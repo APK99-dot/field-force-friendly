@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { isNative } from "@/utils/nativePermissions";
 
 /**
  * Global flag so other hooks (e.g. useAudioRecorder) can wait for
@@ -50,16 +51,19 @@ export function useNativeStartup() {
         console.warn("[NativeStartup] Camera permission request failed:", e);
       }
 
-      // 3. Microphone permission — prime getUserMedia so WebView allows it later
-      try {
-        _micPrimingActive = true;
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((t) => t.stop());
-        console.log("[NativeStartup] Microphone permission granted");
-      } catch (e) {
-        console.warn("[NativeStartup] Microphone permission request failed:", e);
-      } finally {
-        _micPrimingActive = false;
+      // Do not pre-prime the microphone on native Android/iOS.
+      // It can steal the hardware session and break the first real recording tap.
+      if (!isNative()) {
+        try {
+          _micPrimingActive = true;
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((t) => t.stop());
+          console.log("[NativeStartup] Microphone permission granted");
+        } catch (e) {
+          console.warn("[NativeStartup] Microphone permission request failed:", e);
+        } finally {
+          _micPrimingActive = false;
+        }
       }
     }
 

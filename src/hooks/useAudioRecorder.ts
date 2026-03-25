@@ -1,10 +1,29 @@
 import { useState, useRef, useCallback } from "react";
+import { CapacitorAudioRecorder, RecordingStatus } from "@capgo/capacitor-audio-recorder";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem } from "@capacitor/filesystem";
 import { isMicPrimingActive } from "./useNativeStartup";
 
 export interface AudioRecording {
   blob: Blob;
   url: string;
   duration: number;
+  mimeType: string;
+  fileExtension: string;
+}
+
+const NATIVE_AUDIO_MIME_TYPE = "audio/aac";
+const NATIVE_AUDIO_EXTENSION = "m4a";
+
+async function readNativeRecordingAsBlob(uri: string) {
+  const file = await Filesystem.readFile({ path: uri });
+  const base64 = typeof file.data === "string" ? file.data : "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: NATIVE_AUDIO_MIME_TYPE });
 }
 
 /**
@@ -41,6 +60,8 @@ export function useAudioRecorder() {
   const timerRef = useRef<number>(0);
   const [elapsed, setElapsed] = useState(0);
 
+  const isNativeRecorderAvailable = useCallback(() => Capacitor.isNativePlatform(), []);
+
   /** Stop all tracks on the current stream and clear refs */
   const stopAllTracks = useCallback(() => {
     // Stop the MediaRecorder first if still active
@@ -74,7 +95,43 @@ export function useAudioRecorder() {
     // *** CRITICAL: Always clean up any existing recording/stream first ***
     stopAllTracks();
 
-    // Wait for native startup mic priming to finish if active
+    if (isNativeRecorderAvailable()) {
+      try {
+        const currentPermission = await CapacitorAudioRecorder.checkPermissions();
+        const permission = currentPermission.recordAudio === "granted"
+          ? currentPermission
+          : await CapacitorAudioRecorder.requestPermissions();
+
+        if (permission.recordAudio !== "granted") {
+          setPermissionDenied(true);
+          throw new Error("Microphone permission denied. Please allow microphone access in your device settings and try again.");
+        }
+
+        setRecording(null);
+        startTimeRef.current = Date.now();
+        setElapsed(0);
+
+        timerRef.current = window.setInterval(() => {
+          setElapsed(Math.round((Date.now() - startTimeRef.current) / 1000));
+        }, 1000);
+
+        await CapacitorAudioRecorder.startRecording({
+          sampleRate: 44100,
+          bitRate: 128000,
+        });
+        setIsRecording(true);
+        return;
+      } catch (err: any) {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = 0;
+        }
+        setElapsed(0);
+        throw new Error(err?.message || "Could not access microphone");
+      }
+    }
+
+    // Wait for startup mic priming to finish if active
     if (isMicPrimingActive()) {
       console.log('Waiting for mic priming to finish...');
       for (let i = 0; i < 20; i++) {
@@ -82,9 +139,6 @@ export function useAudioRecorder() {
         if (!isMicPrimingActive()) break;
       }
     }
-
-    // Small delay to let OS fully release the mic
-    await new Promise((r) => setTimeout(r, 300));
 
     if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
       console.error('mediaDevices not available. Secure context:', window.isSecureContext);
@@ -193,7 +247,7 @@ export function useAudioRecorder() {
           1,
           Math.round((Date.now() - startTimeRef.current) / 1000)
         );
-        setRecording({ blob, url, duration });
+        setRecording({ blob, url, duration, mimeType: finalMime, fileExtension: finalMime.includes("ogg") ? "ogg" : finalMime.includes("mp4") ? "m4a" : "webm" });
       }
 
       // Release mic tracks after data is captured
@@ -219,6 +273,42 @@ export function useAudioRecorder() {
   }, [stopAllTracks]);
 
   const stopRecording = useCallback(() => {
+    if (isNativeRecorderAvailable()) {
+      void (async () => {
+        try {
+          const status = await CapacitorAudioRecorder.getRecordingStatus();
+          if (status.status === RecordingStatus.Inactive) {
+            setIsRecording(false);
+            return;
+          }
+
+          const result = await CapacitorAudioRecorder.stopRecording();
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = 0;
+          }
+
+          if (result.uri) {
+            const blob = await readNativeRecordingAsBlob(result.uri);
+            const url = URL.createObjectURL(blob);
+            const duration = Math.max(1, Math.round((result.duration ?? Date.now() - startTimeRef.current) / 1000));
+            setRecording({
+              blob,
+              url,
+              duration,
+              mimeType: NATIVE_AUDIO_MIME_TYPE,
+              fileExtension: NATIVE_AUDIO_EXTENSION,
+            });
+          }
+        } catch (err) {
+          console.error("Native stopRecording failed:", err);
+        } finally {
+          setIsRecording(false);
+        }
+      })();
+      return;
+    }
+
     if (
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state !== "inactive"
@@ -236,13 +326,19 @@ export function useAudioRecorder() {
     // Always ensure mic is released when clearing
     stopAllTracks();
 
+    if (isNativeRecorderAvailable()) {
+      void CapacitorAudioRecorder.cancelRecording().catch(() => {
+        // Ignore when nothing is recording.
+      });
+    }
+
     if (recording?.url) {
       try { URL.revokeObjectURL(recording.url); } catch { /* ignore */ }
     }
     setRecording(null);
     setElapsed(0);
     setPermissionDenied(false);
-  }, [recording, stopAllTracks]);
+  }, [isNativeRecorderAvailable, recording, stopAllTracks]);
 
   const formatDuration = (seconds: number) => {
     const m = Math.floor(seconds / 60);
