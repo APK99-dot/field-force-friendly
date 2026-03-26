@@ -4,23 +4,24 @@ import { AppHeader } from "./AppHeader";
 import { BottomNav } from "./BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import ProfileSetupModal from "@/components/ProfileSetupModal";
+import ChangePasswordModal from "@/components/ChangePasswordModal";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
 import { useNativeStartup } from "@/hooks/useNativeStartup";
 
 export function AppLayout() {
   const navigate = useNavigate();
-  useNativeStartup(); // Request camera, location permissions on native app launch
+  useNativeStartup();
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null | undefined>(undefined);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const [mustChangePassword, setMustChangePassword] = useState<boolean>(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         navigate("/auth", { replace: true });
       } else {
-        // Check remember-me expiry
         const expiresAt = localStorage.getItem("remember_me_expires");
         if (expiresAt && Date.now() > Number(expiresAt)) {
           localStorage.removeItem("remember_me_expires");
@@ -29,10 +30,11 @@ export function AppLayout() {
         }
         setReady(true);
         setUserId(session.user.id);
-        supabase.from("profiles").select("profile_picture_url, onboarding_completed").eq("id", session.user.id).single()
+        supabase.from("profiles").select("profile_picture_url, onboarding_completed, must_change_password").eq("id", session.user.id).single()
           .then(({ data }) => {
             setProfilePictureUrl(data?.profile_picture_url ?? null);
             setOnboardingCompleted(data?.onboarding_completed ?? false);
+            setMustChangePassword((data as any)?.must_change_password ?? false);
           });
       }
     });
@@ -48,7 +50,8 @@ export function AppLayout() {
 
   if (!ready) return null;
 
-  const showProfileSetup = userId && onboardingCompleted === false && profilePictureUrl === null;
+  const showPasswordChange = userId && mustChangePassword;
+  const showProfileSetup = userId && !mustChangePassword && onboardingCompleted === false && profilePictureUrl === null;
 
   return (
     <div className="min-h-screen flex flex-col w-full max-w-full bg-background overflow-x-hidden">
@@ -56,6 +59,12 @@ export function AppLayout() {
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
+      {showPasswordChange && (
+        <ChangePasswordModal
+          userId={userId}
+          onComplete={() => setMustChangePassword(false)}
+        />
+      )}
       {showProfileSetup && (
         <ProfileSetupModal
           userId={userId}

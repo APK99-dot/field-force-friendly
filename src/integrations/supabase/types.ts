@@ -2755,6 +2755,7 @@ export type Database = {
           hint_answer: string | null
           hint_question: string | null
           id: string
+          must_change_password: boolean
           onboarding_completed: boolean
           phone_number: string | null
           profile_picture_url: string | null
@@ -2769,6 +2770,7 @@ export type Database = {
           hint_answer?: string | null
           hint_question?: string | null
           id: string
+          must_change_password?: boolean
           onboarding_completed?: boolean
           phone_number?: string | null
           profile_picture_url?: string | null
@@ -2783,6 +2785,7 @@ export type Database = {
           hint_answer?: string | null
           hint_question?: string | null
           id?: string
+          must_change_password?: boolean
           onboarding_completed?: boolean
           phone_number?: string | null
           profile_picture_url?: string | null

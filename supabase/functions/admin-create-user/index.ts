@@ -110,10 +110,11 @@ Deno.serve(async (req) => {
       phone: phone || null,
     }, { onConflict: "id" });
 
-    // Update profile with phone if provided
-    if (phone) {
-      await adminClient.from("profiles").update({ phone_number: phone }).eq("id", userId);
-    }
+    // Update profile: set phone and force password change on first login
+    await adminClient.from("profiles").update({
+      ...(phone ? { phone_number: phone } : {}),
+      must_change_password: true,
+    }).eq("id", userId);
 
     // Create employee record
     const { error: empError } = await adminClient.from("employees").insert({
