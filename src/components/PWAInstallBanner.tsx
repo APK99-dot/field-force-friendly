@@ -21,7 +21,9 @@ export default function PWAInstallBanner() {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // Hide in standalone mode or inside Capacitor native shell
     if (window.matchMedia("(display-mode: standalone)").matches) return;
+    if ((window as any).Capacitor?.isNativePlatform?.()) return;
 
     const dismissedAt = localStorage.getItem("pwa-banner-dismissed");
     if (dismissedAt && Date.now() - Number(dismissedAt) < 24 * 60 * 60 * 1000) return;
