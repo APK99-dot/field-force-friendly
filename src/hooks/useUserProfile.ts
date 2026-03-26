@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCurrentUser } from "./useCurrentUser";
 
 interface UserProfile {
   id: string;
@@ -19,82 +20,64 @@ interface UserProfileState {
 }
 
 export function useUserProfile(): UserProfileState {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [role, setRole] = useState<string | null>(null);
-  const [roleName, setRoleName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user } = useCurrentUser();
 
-  useEffect(() => {
-    let cancelled = false;
+  const { data, isLoading } = useQuery({
+    queryKey: ["user-profile-full", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
 
-    const fetchProfile = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user || cancelled) return;
-
-        // Bootstrap / fetch user record + role from DB
-        const { data: userData, error: rpcError } = await supabase.rpc("ensure_current_user", {
+      // Fire ensure_current_user + profile fetch in parallel
+      const [rpcRes, profileRes] = await Promise.all([
+        supabase.rpc("ensure_current_user", {
           _email: user.email ?? "",
-          _full_name: user.user_metadata?.full_name ?? null,
-          _username: user.user_metadata?.username ?? null,
-        });
+          _full_name: null,
+          _username: null,
+        }),
+        supabase
+          .from("profiles")
+          .select("id, full_name, username, profile_picture_url, phone_number")
+          .eq("id", user.id)
+          .single(),
+      ]);
 
-        if (rpcError) {
-          console.error("ensure_current_user error:", rpcError);
-        }
+      const rpcData = rpcRes.data;
+      const profile: UserProfile = profileRes.data ?? {
+        id: user.id,
+        full_name: rpcData?.[0]?.full_name ?? null,
+        username: rpcData?.[0]?.username ?? null,
+        profile_picture_url: null,
+        phone_number: null,
+      };
 
-        if (!cancelled && userData && userData.length > 0) {
-          const u = userData[0];
-          // Also fetch profile table for picture & phone
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("id, full_name, username, profile_picture_url, phone_number")
-            .eq("id", user.id)
-            .single();
+      const role = rpcData?.[0]?.role ?? "user";
 
-          setProfile(profileData ?? {
-            id: user.id,
-            full_name: u.full_name,
-            username: u.username,
-            profile_picture_url: null,
-            phone_number: null,
-          });
-          setRole(u.role);
+      // Fetch role name (non-blocking — we already have the critical data)
+      let roleName: string | null = null;
+      const { data: userRow } = await supabase
+        .from("users")
+        .select("role_id")
+        .eq("id", user.id)
+        .single();
 
-          // Fetch the role name from the roles table via users.role_id
-          const { data: userRow } = await supabase
-            .from("users")
-            .select("role_id")
-            .eq("id", user.id)
-            .single();
-
-          if (userRow?.role_id) {
-            const { data: roleRow } = await supabase
-              .from("roles")
-              .select("name")
-              .eq("id", userRow.role_id)
-              .single();
-            if (!cancelled) setRoleName(roleRow?.name ?? null);
-          }
-        } else if (!cancelled) {
-          // Fallback: read from profiles/user_roles directly
-          const [profileRes, roleRes] = await Promise.all([
-            supabase.from("profiles").select("id, full_name, username, profile_picture_url, phone_number").eq("id", user.id).single(),
-            supabase.from("user_roles").select("role").eq("user_id", user.id).single(),
-          ]);
-          setProfile(profileRes.data);
-          setRole(roleRes.data?.role ?? null);
-        }
-
-        if (!cancelled) setLoading(false);
-      } catch {
-        if (!cancelled) setLoading(false);
+      if (userRow?.role_id) {
+        const { data: roleRow } = await supabase
+          .from("roles")
+          .select("name")
+          .eq("id", userRow.role_id)
+          .single();
+        roleName = roleRow?.name ?? null;
       }
-    };
 
-    fetchProfile();
-    return () => { cancelled = true; };
-  }, []);
+      return { profile, role, roleName };
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const profile = data?.profile ?? null;
+  const role = data?.role ?? null;
+  const roleName = data?.roleName ?? null;
 
   const displayName = profile?.full_name || profile?.username || "";
   const initials = displayName
@@ -111,7 +94,7 @@ export function useUserProfile(): UserProfileState {
     role,
     roleName,
     isAdmin: role === "admin",
-    loading,
+    loading: isLoading,
     initials,
   };
 }
