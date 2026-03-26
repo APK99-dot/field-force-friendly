@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
@@ -21,7 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
-import { supabase } from "@/integrations/supabase/client";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 const container = {
   hidden: { opacity: 0 },
@@ -57,14 +56,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { profile, isAdmin, initials, loading: profileLoading } = useUserProfile();
   const { hasModuleAccess } = useProfilePermissions();
-  const [userId, setUserId] = useState<string>();
+  const { userId } = useCurrentUser();
   const displayName = profile?.full_name || profile?.username || "";
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
-    });
-  }, []);
 
   const {
     dayStarted,
