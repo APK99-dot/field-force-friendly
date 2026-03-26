@@ -56,14 +56,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { profile, isAdmin, initials, loading: profileLoading } = useUserProfile();
   const { hasModuleAccess } = useProfilePermissions();
-  const [userId, setUserId] = useState<string>();
+  const { userId } = useCurrentUser();
   const displayName = profile?.full_name || profile?.username || "";
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
-    });
-  }, []);
 
   const {
     dayStarted,
