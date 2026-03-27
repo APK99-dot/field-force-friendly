@@ -44,7 +44,7 @@ const LiveAttendanceMonitoring = () => {
   const [endDateFilter, setEndDateFilter] = useState('');
   const [summaryStats, setSummaryStats] = useState<SummaryStats>({ totalPresent: 0, totalAbsent: 0, totalHalfDay: 0, totalOnLeave: 0, averageHours: 0, totalEmployees: 0 });
   const [isLoading, setIsLoading] = useState(true);
-  const [showLocationId, setShowLocationId] = useState<string | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
