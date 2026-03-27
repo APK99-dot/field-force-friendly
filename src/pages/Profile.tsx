@@ -214,7 +214,10 @@ export default function Profile() {
       <div className="gradient-hero text-primary-foreground px-4 py-6 rounded-b-2xl">
         <div className="flex flex-col items-center gap-3">
           <div className="relative">
-            <Avatar className="h-20 w-20 border-3 border-primary-foreground/30 shadow-lg">
+            <Avatar
+              className="h-20 w-20 border-3 border-primary-foreground/30 shadow-lg cursor-pointer"
+              onClick={() => data.profile_picture_url && setPhotoPreviewOpen(true)}
+            >
               {data.profile_picture_url ? (
                 <AvatarImage src={data.profile_picture_url} alt="Profile" />
               ) : null}
