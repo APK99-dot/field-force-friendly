@@ -1,10 +1,11 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense } from "react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigationPreferences } from "@/hooks/useNavigationPreferences";
 import {
   Menu,
   ArrowLeft,
@@ -19,9 +20,12 @@ import {
   Receipt,
   ClipboardList,
   X,
+  Search,
+  Settings,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NavLink } from "@/components/NavLink";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +37,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { motion, AnimatePresence } from "framer-motion";
+
+const CustomizeNavigationDialog = lazy(() => import("@/components/navigation/CustomizeNavigationDialog"));
 
 const allNavigationItems = [
   { icon: UserCheck, label: "Attendance", href: "/attendance", color: "from-blue-500 to-blue-600", module: "module_attendance" },
@@ -52,6 +58,9 @@ export function AppHeader() {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
+  const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { profile, isAdmin, initials } = useUserProfile();
   const { hasModuleAccess } = useProfilePermissions();
   const displayName = profile?.full_name || profile?.username || "";
@@ -81,6 +90,24 @@ export function AppHeader() {
     [hasModuleAccess]
   );
 
+  const allLabels = useMemo(() => navigationItems.map((i) => i.label), [navigationItems]);
+  const { preferences, save, reset, getOrderedItems } = useNavigationPreferences(allLabels);
+
+  // Apply ordering
+  const orderedNavItems = useMemo(() => {
+    const ordered = getOrderedItems();
+    return ordered
+      .map((label) => navigationItems.find((i) => i.label === label))
+      .filter(Boolean) as typeof navigationItems;
+  }, [getOrderedItems, navigationItems]);
+
+  // Apply search filter
+  const filteredNavItems = useMemo(() => {
+    if (!searchQuery.trim()) return orderedNavItems;
+    const q = searchQuery.toLowerCase();
+    return orderedNavItems.filter((item) => item.label.toLowerCase().includes(q));
+  }, [orderedNavItems, searchQuery]);
+
   // Close menu on outside click
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -96,6 +123,8 @@ export function AppHeader() {
   // Close menu on route change
   useEffect(() => {
     setIsMenuOpen(false);
+    setSearchQuery("");
+    setIsSearchOpen(false);
   }, [location.pathname]);
 
   const handleMenuItemClick = useCallback(() => {
@@ -230,11 +259,49 @@ export function AppHeader() {
                 )}
 
                 {/* Navigation Grid */}
-                {navigationItems.length > 0 && (
+                {filteredNavItems.length > 0 || navigationItems.length > 0 ? (
                   <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Navigation</h3>
+                    <div className="flex items-center justify-between mb-3 px-1">
+                      <h3 className="text-sm font-semibold text-muted-foreground">Navigation</h3>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setIsSearchOpen((prev) => !prev)}
+                          className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                        >
+                          <Search className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={() => setIsCustomizeOpen(true)}
+                          className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                        >
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Search Input */}
+                    <AnimatePresence>
+                      {isSearchOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="overflow-hidden mb-3"
+                        >
+                          <Input
+                            placeholder="Search modules..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="h-9 text-sm"
+                            autoFocus
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
                     <div className="grid grid-cols-3 gap-3">
-                      {navigationItems.map((item) => (
+                      {filteredNavItems.map((item) => (
                         <NavLink
                           key={item.label}
                           to={item.href}
@@ -248,8 +315,12 @@ export function AppHeader() {
                         </NavLink>
                       ))}
                     </div>
+
+                    {filteredNavItems.length === 0 && searchQuery && (
+                      <p className="text-xs text-muted-foreground text-center py-4">No modules found</p>
+                    )}
                   </div>
-                )}
+                ) : null}
 
                 {/* Logout */}
                 <div className="pt-2 border-t">
@@ -268,6 +339,20 @@ export function AppHeader() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Customize Navigation Dialog */}
+      {isCustomizeOpen && (
+        <Suspense fallback={null}>
+          <CustomizeNavigationDialog
+            open={isCustomizeOpen}
+            onClose={() => setIsCustomizeOpen(false)}
+            allItems={navigationItems.map((i) => ({ icon: i.icon, label: i.label, color: i.color }))}
+            preferences={preferences}
+            onSave={save}
+            onReset={reset}
+          />
+        </Suspense>
+      )}
 
       {/* Logout Confirmation */}
       <AlertDialog open={isLogoutDialogOpen} onOpenChange={setIsLogoutDialogOpen}>
