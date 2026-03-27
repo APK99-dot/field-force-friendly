@@ -39,6 +39,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 const CustomizeNavigationDialog = lazy(() => import("@/components/navigation/CustomizeNavigationDialog"));
+const DraggableNavGrid = lazy(() => import("@/components/navigation/DraggableNavGrid"));
 
 const allNavigationItems = [
   { icon: UserCheck, label: "Attendance", href: "/attendance", color: "from-blue-500 to-blue-600", module: "module_attendance" },
@@ -300,21 +301,20 @@ export function AppHeader() {
                       )}
                     </AnimatePresence>
 
-                    <div className="grid grid-cols-3 gap-3">
-                      {filteredNavItems.map((item) => (
-                        <NavLink
-                          key={item.label}
-                          to={item.href}
-                          onClick={handleMenuItemClick}
-                          className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors"
-                        >
-                          <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${item.color} shadow-md`}>
-                            <item.icon className="h-5 w-5 text-white" />
-                          </div>
-                          <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
-                        </NavLink>
-                      ))}
-                    </div>
+                    <Suspense fallback={<div className="grid grid-cols-3 gap-3">{filteredNavItems.map((item) => (
+                      <div key={item.label} className="flex flex-col items-center gap-2 p-3 rounded-xl">
+                        <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${item.color} shadow-md`}>
+                          <item.icon className="h-5 w-5 text-white" />
+                        </div>
+                        <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
+                      </div>
+                    ))}</div>}>
+                      <DraggableNavGrid
+                        items={filteredNavItems}
+                        onReorder={(newOrder) => save({ groups: preferences?.groups || [], itemOrder: newOrder })}
+                        onItemClick={handleMenuItemClick}
+                      />
+                    </Suspense>
 
                     {filteredNavItems.length === 0 && searchQuery && (
                       <p className="text-xs text-muted-foreground text-center py-4">No modules found</p>
