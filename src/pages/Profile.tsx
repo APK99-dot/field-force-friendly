@@ -463,6 +463,18 @@ export default function Profile() {
         </Card>
       </div>
 
+      <Dialog open={photoPreviewOpen} onOpenChange={setPhotoPreviewOpen}>
+        <DialogContent className="max-w-md p-2 bg-black/90 border-none">
+          {data.profile_picture_url && (
+            <img
+              src={data.profile_picture_url}
+              alt="Profile Preview"
+              className="w-full h-auto rounded-lg object-contain max-h-[80vh]"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       <CameraCapture
         open={cameraOpen}
         onClose={() => setCameraOpen(false)}
