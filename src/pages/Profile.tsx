@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   Camera,
@@ -49,6 +50,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
   const [data, setData] = useState<ProfileData>({
     full_name: "",
     username: "",
@@ -214,7 +216,10 @@ export default function Profile() {
       <div className="gradient-hero text-primary-foreground px-4 py-6 rounded-b-2xl">
         <div className="flex flex-col items-center gap-3">
           <div className="relative">
-            <Avatar className="h-20 w-20 border-3 border-primary-foreground/30 shadow-lg">
+            <Avatar
+              className="h-20 w-20 border-3 border-primary-foreground/30 shadow-lg cursor-pointer"
+              onClick={() => data.profile_picture_url && setPhotoPreviewOpen(true)}
+            >
               {data.profile_picture_url ? (
                 <AvatarImage src={data.profile_picture_url} alt="Profile" />
               ) : null}
@@ -459,6 +464,18 @@ export default function Profile() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={photoPreviewOpen} onOpenChange={setPhotoPreviewOpen}>
+        <DialogContent className="max-w-md p-2 bg-black/90 border-none">
+          {data.profile_picture_url && (
+            <img
+              src={data.profile_picture_url}
+              alt="Profile Preview"
+              className="w-full h-auto rounded-lg object-contain max-h-[80vh]"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <CameraCapture
         open={cameraOpen}
