@@ -45,7 +45,7 @@ export function useFaceMatching() {
       console.error("Face match exception:", err);
       const bypassResult: FaceMatchResult = {
         confidence: 0,
-        matched: true,
+        matched: false,
         status: "bypassed",
       };
       setResult(bypassResult);

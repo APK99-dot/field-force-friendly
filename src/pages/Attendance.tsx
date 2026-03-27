@@ -224,10 +224,11 @@ export default function Attendance() {
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
+      const { data: signedData, error: signedError } = await supabase.storage
         .from("attendance-photos")
-        .getPublicUrl(filePath);
-      const photoUrl = urlData.publicUrl;
+        .createSignedUrl(filePath, 300); // 5 min expiry for face verification
+      if (signedError || !signedData?.signedUrl) throw new Error("Failed to get photo URL");
+      const photoUrl = signedData.signedUrl;
 
       // Step 3: Face verification
       let faceVerificationStatus = "bypassed";
