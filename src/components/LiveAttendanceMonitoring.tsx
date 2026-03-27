@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Search, Download, Users, Clock, MapPin, UserCheck, User, Calendar, TrendingUp } from 'lucide-react';
+import { Search, Download, Users, Clock, MapPin, UserCheck, User, Calendar, TrendingUp, CheckCircle2 } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { downloadCSVString } from '@/utils/nativeDownload';
 
@@ -22,6 +23,8 @@ interface AttendanceData {
   id: string; user_id: string; date: string; check_in_time: string | null; check_out_time: string | null;
   total_hours: number | null; status: string; check_in_location: any; check_out_location: any;
   check_in_address: string | null; check_out_address: string | null;
+  check_in_photo_url: string | null; check_out_photo_url: string | null;
+  face_match_confidence: number | null; face_match_confidence_out: number | null;
   profiles?: { full_name: string; username: string } | null;
   active_market_hours?: number | null;
 }
@@ -41,7 +44,7 @@ const LiveAttendanceMonitoring = () => {
   const [endDateFilter, setEndDateFilter] = useState('');
   const [summaryStats, setSummaryStats] = useState<SummaryStats>({ totalPresent: 0, totalAbsent: 0, totalHalfDay: 0, totalOnLeave: 0, averageHours: 0, totalEmployees: 0 });
   const [isLoading, setIsLoading] = useState(true);
-  const [showLocationId, setShowLocationId] = useState<string | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -86,7 +89,7 @@ const LiveAttendanceMonitoring = () => {
         const usersWithAttendanceToday = (attendance || []).filter(a => a.date === today).map(a => a.user_id);
         allUsers.forEach(user => {
           if (!usersWithAttendanceToday.includes(user.id)) {
-            result.push({ id: `absent-${user.id}-${today}`, user_id: user.id, date: today, check_in_time: null, check_out_time: null, total_hours: null, status: 'absent', check_in_location: null, check_out_location: null, check_in_address: null, check_out_address: null, profiles: { full_name: user.full_name, username: user.username }, active_market_hours: null });
+            result.push({ id: `absent-${user.id}-${today}`, user_id: user.id, date: today, check_in_time: null, check_out_time: null, total_hours: null, status: 'absent', check_in_location: null, check_out_location: null, check_in_address: null, check_out_address: null, check_in_photo_url: null, check_out_photo_url: null, face_match_confidence: null, face_match_confidence_out: null, profiles: { full_name: user.full_name, username: user.username }, active_market_hours: null });
           }
         });
         setAttendanceData(result);
@@ -285,40 +288,77 @@ const LiveAttendanceMonitoring = () => {
           {isLoading ? <div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div> : (
             <div className="overflow-x-auto">
             <Table>
-              <TableHeader><TableRow><TableHead className="text-xs sm:text-sm">Employee</TableHead><TableHead className="text-xs sm:text-sm">Date</TableHead><TableHead className="text-xs sm:text-sm">First In</TableHead><TableHead className="text-xs sm:text-sm">Last Out</TableHead><TableHead className="text-xs sm:text-sm hidden sm:table-cell">Market Hrs</TableHead><TableHead className="text-xs sm:text-sm hidden md:table-cell">In Location</TableHead><TableHead className="text-xs sm:text-sm hidden md:table-cell">Out Location</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {filteredData.map(r => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium text-xs sm:text-sm py-2 sm:py-4">{r.profiles?.full_name || 'Unknown'}</TableCell>
-                    <TableCell className="text-xs sm:text-sm py-2 sm:py-4">{format(new Date(r.date), 'MMM dd')}</TableCell>
-                    <TableCell className="text-xs sm:text-sm py-2 sm:py-4">{r.check_in_time ? <div className="flex items-center gap-1"><Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />{format(new Date(r.check_in_time), 'HH:mm')}</div> : '--'}</TableCell>
-                    <TableCell className="text-xs sm:text-sm py-2 sm:py-4">{r.check_out_time ? <div className="flex items-center gap-1"><Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />{format(new Date(r.check_out_time), 'HH:mm')}</div> : '--'}</TableCell>
-                    <TableCell className="text-xs sm:text-sm py-2 sm:py-4 hidden sm:table-cell">{r.active_market_hours ? `${r.active_market_hours.toFixed(1)}h` : '--'}</TableCell>
-                    <TableCell className="hidden md:table-cell py-2 sm:py-4">
-                      {r.check_in_location ? (
-                        <div className="relative">
-                          <button onClick={() => setShowLocationId(showLocationId === `${r.id}-checkin` ? null : `${r.id}-checkin`)} className="text-primary hover:text-primary/80"><MapPin className="h-4 w-4 sm:h-5 sm:w-5" /></button>
-                          {showLocationId === `${r.id}-checkin` && <div className="absolute z-10 mt-1 p-2 bg-popover border rounded-md shadow-lg text-xs whitespace-nowrap"><div className="font-medium">{r.check_in_address || 'Unknown Location'}</div><div className="text-muted-foreground">Lat: {r.check_in_location.latitude?.toFixed(4)}, Lng: {r.check_in_location.longitude?.toFixed(4)}</div></div>}
-                        </div>
-                      ) : '--'}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell py-2 sm:py-4">
-                      {r.check_out_location ? (
-                        <div className="relative">
-                          <button onClick={() => setShowLocationId(showLocationId === `${r.id}-checkout` ? null : `${r.id}-checkout`)} className="text-primary hover:text-primary/80"><MapPin className="h-4 w-4 sm:h-5 sm:w-5" /></button>
-                          {showLocationId === `${r.id}-checkout` && <div className="absolute z-10 mt-1 p-2 bg-popover border rounded-md shadow-lg text-xs whitespace-nowrap"><div className="font-medium">{r.check_out_address || 'Unknown Location'}</div><div className="text-muted-foreground">Lat: {r.check_out_location.latitude?.toFixed(4)}, Lng: {r.check_out_location.longitude?.toFixed(4)}</div></div>}
-                        </div>
-                      ) : '--'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+               <TableHeader><TableRow>
+                 <TableHead className="text-xs sm:text-sm">Employee</TableHead>
+                 <TableHead className="text-xs sm:text-sm">Date</TableHead>
+                 <TableHead className="text-xs sm:text-sm">Photo</TableHead>
+                 <TableHead className="text-xs sm:text-sm">First Check In</TableHead>
+                 <TableHead className="text-xs sm:text-sm">Last Check Out</TableHead>
+                 <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Active Market Hours</TableHead>
+                 <TableHead className="text-xs sm:text-sm">Face Match Check In</TableHead>
+                 <TableHead className="text-xs sm:text-sm">Face Match Check Out</TableHead>
+                 <TableHead className="text-xs sm:text-sm hidden md:table-cell">Check In Location</TableHead>
+               </TableRow></TableHeader>
+               <TableBody>
+                 {filteredData.map(r => (
+                   <TableRow key={r.id}>
+                     <TableCell className="font-medium text-xs sm:text-sm py-2 sm:py-4">{r.profiles?.full_name || 'Unknown'}</TableCell>
+                     <TableCell className="text-xs sm:text-sm py-2 sm:py-4">{format(new Date(r.date), 'MMM dd, yyyy')}</TableCell>
+                     <TableCell className="py-2 sm:py-4">
+                       {r.check_in_photo_url ? (
+                         <img
+                           src={r.check_in_photo_url}
+                           alt="Check-in photo"
+                           className="h-10 w-10 rounded object-cover cursor-pointer border"
+                           onClick={() => setPreviewPhoto(r.check_in_photo_url)}
+                         />
+                       ) : <span className="text-xs text-muted-foreground">--</span>}
+                     </TableCell>
+                     <TableCell className="text-xs sm:text-sm py-2 sm:py-4">{r.check_in_time ? <div className="flex items-center gap-1"><Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />{format(new Date(r.check_in_time), 'HH:mm')}</div> : '--'}</TableCell>
+                     <TableCell className="text-xs sm:text-sm py-2 sm:py-4">{r.check_out_time ? <div className="flex items-center gap-1"><Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />{format(new Date(r.check_out_time), 'HH:mm')}</div> : '--'}</TableCell>
+                     <TableCell className="text-xs sm:text-sm py-2 sm:py-4 hidden sm:table-cell">{r.active_market_hours ? `${r.active_market_hours.toFixed(1)}h` : '--'}</TableCell>
+                     <TableCell className="py-2 sm:py-4 text-center">
+                       {r.face_match_confidence != null ? (
+                         <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                           <CheckCircle2 className="h-3.5 w-3.5" />
+                           {Math.round(r.face_match_confidence)}%
+                         </div>
+                       ) : <span className="text-xs text-muted-foreground">--</span>}
+                     </TableCell>
+                     <TableCell className="py-2 sm:py-4 text-center">
+                       {r.face_match_confidence_out != null ? (
+                         <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                           <CheckCircle2 className="h-3.5 w-3.5" />
+                           {Math.round(r.face_match_confidence_out)}%
+                         </div>
+                       ) : <span className="text-xs text-muted-foreground">--</span>}
+                     </TableCell>
+                     <TableCell className="hidden md:table-cell py-2 sm:py-4">
+                       {r.check_in_location ? (
+                         <button onClick={() => {
+                           const addr = r.check_in_address || `${r.check_in_location.latitude?.toFixed(4)}, ${r.check_in_location.longitude?.toFixed(4)}`;
+                           window.open(`https://www.google.com/maps?q=${r.check_in_location.latitude},${r.check_in_location.longitude}`, '_blank');
+                         }} className="text-primary hover:text-primary/80"><MapPin className="h-4 w-4 sm:h-5 sm:w-5" /></button>
+                       ) : '--'}
+                     </TableCell>
+                   </TableRow>
+                 ))}
+               </TableBody>
+             </Table>
             </div>
           )}
           {!isLoading && filteredData.length === 0 && <div className="text-center py-6 sm:py-8 text-xs sm:text-sm text-muted-foreground">No attendance data found.</div>}
         </CardContent>
       </Card>
+
+      {/* Photo Preview Dialog */}
+      <Dialog open={!!previewPhoto} onOpenChange={() => setPreviewPhoto(null)}>
+        <DialogContent className="max-w-md p-2 bg-black/90">
+          {previewPhoto && (
+            <img src={previewPhoto} alt="Attendance photo" className="w-full h-auto rounded" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
