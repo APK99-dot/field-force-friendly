@@ -23,10 +23,9 @@ export function useFaceMatching() {
 
       if (error) {
         console.error("Face match error:", error);
-        // Bypass on error - don't block attendance
         const bypassResult: FaceMatchResult = {
           confidence: 0,
-          matched: true,
+          matched: false,
           status: "bypassed",
         };
         setResult(bypassResult);
@@ -46,7 +45,7 @@ export function useFaceMatching() {
       console.error("Face match exception:", err);
       const bypassResult: FaceMatchResult = {
         confidence: 0,
-        matched: true,
+        matched: false,
         status: "bypassed",
       };
       setResult(bypassResult);
