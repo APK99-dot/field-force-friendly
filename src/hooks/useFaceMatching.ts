@@ -33,10 +33,12 @@ export function useFaceMatching() {
         return bypassResult;
       }
 
+      const confidence = data.confidence || 0;
+      const matched = confidence >= 70 && (data.matched === true);
       const matchResult: FaceMatchResult = {
-        confidence: data.confidence || 0,
-        matched: data.matched ?? (data.confidence >= 50),
-        status: data.matched ? "verified" : "failed",
+        confidence,
+        matched,
+        status: matched ? "verified" : "failed",
       };
       setResult(matchResult);
       return matchResult;
