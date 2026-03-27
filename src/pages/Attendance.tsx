@@ -240,15 +240,16 @@ export default function Attendance() {
         faceVerificationStatus = matchResult.status;
         faceMatchConfidence = matchResult.confidence;
 
-        // If face match failed (not matched), allow up to 2 retries
-        if (matchResult.status === "failed") {
+        // If face match failed or bypassed (service error), treat as failure
+        if (matchResult.status === "failed" || matchResult.status === "bypassed") {
           if (retryCount < 2) {
             setRetryCount((prev) => prev + 1);
             setActionLoading(false);
             setProcessingStep(null);
-            toast.error(
-              `Face does not match your profile photo (${matchResult.confidence}% confidence). Attempt ${retryCount + 1}/3. Please try again.`
-            );
+            const msg = matchResult.status === "bypassed"
+              ? `Face verification service error. Attempt ${retryCount + 1}/3. Please try again.`
+              : `Face does not match your profile photo (${matchResult.confidence}% confidence). Attempt ${retryCount + 1}/3. Please try again.`;
+            toast.error(msg);
             setCameraOpen(true);
             return;
           }
@@ -260,11 +261,6 @@ export default function Attendance() {
             { duration: 6000 }
           );
           return;
-        }
-
-        // If bypassed (edge function error), still allow but log it
-        if (matchResult.status === "bypassed") {
-          toast.info("Face verification service unavailable. Proceeding with photo record.");
         }
       }
 
