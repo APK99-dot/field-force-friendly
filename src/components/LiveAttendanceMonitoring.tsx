@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Search, Download, Users, Clock, MapPin, UserCheck, User, Calendar, TrendingUp } from 'lucide-react';
+import { Search, Download, Users, Clock, MapPin, UserCheck, User, Calendar, TrendingUp, CheckCircle2 } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { downloadCSVString } from '@/utils/nativeDownload';
 
