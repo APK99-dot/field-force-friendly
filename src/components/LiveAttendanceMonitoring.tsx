@@ -23,6 +23,8 @@ interface AttendanceData {
   id: string; user_id: string; date: string; check_in_time: string | null; check_out_time: string | null;
   total_hours: number | null; status: string; check_in_location: any; check_out_location: any;
   check_in_address: string | null; check_out_address: string | null;
+  check_in_photo_url: string | null; check_out_photo_url: string | null;
+  face_match_confidence: number | null; face_match_confidence_out: number | null;
   profiles?: { full_name: string; username: string } | null;
   active_market_hours?: number | null;
 }
