@@ -350,6 +350,15 @@ const LiveAttendanceMonitoring = () => {
           {!isLoading && filteredData.length === 0 && <div className="text-center py-6 sm:py-8 text-xs sm:text-sm text-muted-foreground">No attendance data found.</div>}
         </CardContent>
       </Card>
+
+      {/* Photo Preview Dialog */}
+      <Dialog open={!!previewPhoto} onOpenChange={() => setPreviewPhoto(null)}>
+        <DialogContent className="max-w-md p-2 bg-black/90">
+          {previewPhoto && (
+            <img src={previewPhoto} alt="Attendance photo" className="w-full h-auto rounded" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
