@@ -39,6 +39,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 const CustomizeNavigationDialog = lazy(() => import("@/components/navigation/CustomizeNavigationDialog"));
+const DraggableNavGrid = lazy(() => import("@/components/navigation/DraggableNavGrid"));
 
 const allNavigationItems = [
   { icon: UserCheck, label: "Attendance", href: "/attendance", color: "from-blue-500 to-blue-600", module: "module_attendance" },
