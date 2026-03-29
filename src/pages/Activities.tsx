@@ -50,7 +50,9 @@ import {
   Play,
   Pause,
   X,
+  ChevronDown,
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentPosition } from "@/utils/nativePermissions";
 import { useActivities, type Activity as ActivityType } from "@/hooks/useActivities";
@@ -872,61 +874,6 @@ export default function Activities() {
               <Input type="date" value={form.activity_date} onChange={(e) => setForm({ ...form, activity_date: e.target.value })} />
             </div>
             <div>
-              <Label className="text-xs">Duration Type</Label>
-              <Select value={form.duration_type} onValueChange={(v) => setForm(prev => ({ ...prev, duration_type: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hour_based">Hour Based</SelectItem>
-                  <SelectItem value="half_day">Half Day</SelectItem>
-                  <SelectItem value="full_day">Full Day</SelectItem>
-                  <SelectItem value="multiple_days">Multiple Days</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {form.duration_type === "half_day" && (
-              <div>
-                <Label className="text-xs">Half Day Period</Label>
-                <Select value={form.half_day_type} onValueChange={(v) => setForm(prev => ({ ...prev, half_day_type: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select half day period" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="first_half">First Half</SelectItem>
-                    <SelectItem value="second_half">Second Half</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {form.duration_type === "multiple_days" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">From Date *</Label>
-                  <Input type="date" value={form.from_date} onChange={(e) => setForm({ ...form, from_date: e.target.value })} />
-                </div>
-                <div>
-                  <Label className="text-xs">To Date *</Label>
-                  <Input type="date" value={form.to_date} min={form.from_date || undefined} onChange={(e) => setForm({ ...form, to_date: e.target.value })} />
-                </div>
-                {form.from_date && form.to_date && (
-                  <div className="col-span-2">
-                    <p className="text-xs text-muted-foreground">
-                      Total Days: <span className="font-semibold text-foreground">{Math.max(1, Math.ceil((new Date(form.to_date).getTime() - new Date(form.from_date).getTime()) / 86400000) + 1)}</span>
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-            {form.duration_type === "hour_based" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">Start Time</Label>
-                  <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
-                </div>
-                <div>
-                  <Label className="text-xs">End Time</Label>
-                  <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
-                </div>
-              </div>
-            )}
-            <div>
               <div className="flex items-center justify-between mb-1">
                 <Label className="text-xs">Description</Label>
                 <Popover open={micMenuOpen} onOpenChange={setMicMenuOpen}>
@@ -1014,6 +961,69 @@ export default function Activities() {
                 </div>
               )}
             </div>
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 rounded-md border bg-muted/50 text-sm font-medium hover:bg-muted transition-colors">
+                <span>Others</span>
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 [&[data-state=open]>svg]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 pt-3">
+                <div>
+                  <Label className="text-xs">Duration Type</Label>
+                  <Select value={form.duration_type} onValueChange={(v) => setForm(prev => ({ ...prev, duration_type: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hour_based">Hour Based</SelectItem>
+                      <SelectItem value="half_day">Half Day</SelectItem>
+                      <SelectItem value="full_day">Full Day</SelectItem>
+                      <SelectItem value="multiple_days">Multiple Days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.duration_type === "half_day" && (
+                  <div>
+                    <Label className="text-xs">Half Day Period</Label>
+                    <Select value={form.half_day_type} onValueChange={(v) => setForm(prev => ({ ...prev, half_day_type: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Select half day period" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="first_half">First Half</SelectItem>
+                        <SelectItem value="second_half">Second Half</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {form.duration_type === "multiple_days" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">From Date *</Label>
+                      <Input type="date" value={form.from_date} onChange={(e) => setForm({ ...form, from_date: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">To Date *</Label>
+                      <Input type="date" value={form.to_date} min={form.from_date || undefined} onChange={(e) => setForm({ ...form, to_date: e.target.value })} />
+                    </div>
+                    {form.from_date && form.to_date && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-muted-foreground">
+                          Total Days: <span className="font-semibold text-foreground">{Math.max(1, Math.ceil((new Date(form.to_date).getTime() - new Date(form.from_date).getTime()) / 86400000) + 1)}</span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {form.duration_type === "hour_based" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Start Time</Label>
+                      <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">End Time</Label>
+                      <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+                    </div>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
             <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type || isFinalizing || isRecording}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingId ? "Update Activity" : "Log Activity"}
