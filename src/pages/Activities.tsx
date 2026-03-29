@@ -50,7 +50,9 @@ import {
   Play,
   Pause,
   X,
+  ChevronDown,
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentPosition } from "@/utils/nativePermissions";
 import { useActivities, type Activity as ActivityType } from "@/hooks/useActivities";
