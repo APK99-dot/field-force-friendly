@@ -167,24 +167,17 @@ export default function Auth() {
               className="w-full h-12 rounded-xl bg-foreground text-background font-semibold text-sm hover:bg-foreground/90 transition-colors"
               disabled={loading}
             >
-              {loading ? "Signing in..." : "Sign In as User"}
+              {loading ? "Signing in..." : "Sign In"}
             </Button>
 
-            <div className="text-center space-y-2 pt-1">
+            <div className="text-center pt-1">
               <button
                 type="button"
-                className="text-sm font-bold text-foreground hover:underline"
+                className="text-sm text-muted-foreground hover:underline"
+                onClick={() => toast.info("Please contact your admin to reset your password.")}
               >
-                Admin Sign In
+                Forgot your password?
               </button>
-              <p>
-                <button
-                  type="button"
-                  className="text-sm text-muted-foreground hover:underline"
-                >
-                  Forgot your password?
-                </button>
-              </p>
             </div>
           </form>
         </CardContent>
