@@ -2,54 +2,41 @@ declare const __APP_BUILD_ID__: string;
 
 const BUILD_KEY = "app_build_id";
 const RELOAD_GUARD = "app_reload_guard";
+const CHECK_INTERVAL = 90_000; // 90 seconds
 
-/**
- * Compares current build ID with the last-seen one stored in localStorage.
- * If they differ, clears caches and forces a one-time hard reload so
- * the browser fetches fresh assets.
- *
- * Returns `true` if a reload was triggered (caller should stop rendering).
- */
-export function checkAndBustCache(): boolean {
-  const currentBuild = typeof __APP_BUILD_ID__ !== "undefined" ? __APP_BUILD_ID__ : "";
-  if (!currentBuild) return false;
+let intervalId: ReturnType<typeof setInterval> | null = null;
 
-  // Log the build ID so we can verify which version is running
-  console.info(`[App] Build: ${currentBuild}`);
+function getCurrentBuildId(): string {
+  return typeof __APP_BUILD_ID__ !== "undefined" ? __APP_BUILD_ID__ : "";
+}
 
-  const lastBuild = localStorage.getItem(BUILD_KEY);
-
-  // Same build → nothing to do
-  if (lastBuild === currentBuild) {
-    localStorage.removeItem(RELOAD_GUARD);
-    return false;
+async function fetchServerBuildId(): Promise<string | null> {
+  try {
+    const resp = await fetch(`/build-meta.json?t=${Date.now()}`, { cache: "no-store" });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data?.buildId ?? null;
+  } catch {
+    return null;
   }
+}
 
-  // Prevent infinite reload loop: if we already reloaded once for this build, stop
-  if (localStorage.getItem(RELOAD_GUARD) === currentBuild) {
-    localStorage.setItem(BUILD_KEY, currentBuild);
-    localStorage.removeItem(RELOAD_GUARD);
-    return false;
-  }
+function purgeAndReload(reason: string): void {
+  console.info(`[App] ${reason} — purging caches and reloading…`);
 
-  // New build detected → clear caches
-  console.info("[App] New build detected, clearing caches…");
-
-  // Unregister service workers
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.getRegistrations().then((regs) => {
       regs.forEach((r) => r.unregister());
     });
   }
 
-  // Clear Cache Storage
   if ("caches" in window) {
     caches.keys().then((keys) => {
       keys.forEach((k) => caches.delete(k));
     });
   }
 
-  // Remove dashboard / TanStack Query persisted cache keys
+  // Remove app-specific localStorage caches
   const keysToRemove: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
@@ -59,9 +46,84 @@ export function checkAndBustCache(): boolean {
   }
   keysToRemove.forEach((k) => localStorage.removeItem(k));
 
-  // Set guard + trigger hard reload
+  const currentBuild = getCurrentBuildId();
   localStorage.setItem(RELOAD_GUARD, currentBuild);
   localStorage.setItem(BUILD_KEY, currentBuild);
   window.location.reload();
+}
+
+/**
+ * Startup check: compares compiled build ID vs localStorage.
+ * Returns true if a reload was triggered (caller should stop rendering).
+ */
+export function checkAndBustCache(): boolean {
+  const currentBuild = getCurrentBuildId();
+  if (!currentBuild) return false;
+
+  console.info(`[App] Build: ${currentBuild}`);
+
+  const lastBuild = localStorage.getItem(BUILD_KEY);
+
+  if (lastBuild === currentBuild) {
+    localStorage.removeItem(RELOAD_GUARD);
+    return false;
+  }
+
+  if (localStorage.getItem(RELOAD_GUARD) === currentBuild) {
+    localStorage.setItem(BUILD_KEY, currentBuild);
+    localStorage.removeItem(RELOAD_GUARD);
+    return false;
+  }
+
+  purgeAndReload("New build detected at startup");
   return true;
+}
+
+/**
+ * Async check: fetches server build-meta.json and compares against
+ * the currently running build. If server has a newer build, purge & reload.
+ */
+async function syncWithServer(): Promise<void> {
+  const currentBuild = getCurrentBuildId();
+  if (!currentBuild) return;
+
+  const serverBuild = await fetchServerBuildId();
+  if (!serverBuild) return; // network error or file missing — skip
+
+  if (serverBuild === currentBuild) {
+    console.debug(`[App] Build in sync: ${currentBuild}`);
+    return;
+  }
+
+  // Prevent reload loop: if we already reloaded for this server build
+  if (localStorage.getItem(RELOAD_GUARD) === serverBuild) {
+    localStorage.setItem(BUILD_KEY, serverBuild);
+    localStorage.removeItem(RELOAD_GUARD);
+    return;
+  }
+
+  // Store the SERVER build as the guard target (not the running one)
+  localStorage.setItem(RELOAD_GUARD, serverBuild);
+  purgeAndReload(`Server build ${serverBuild} differs from running ${currentBuild}`);
+}
+
+/**
+ * Start periodic + visibility-based server version checks.
+ * Call once after initial render.
+ */
+export function startVersionSync(): void {
+  // Initial async server check (non-blocking)
+  void syncWithServer();
+
+  // Periodic check
+  if (!intervalId) {
+    intervalId = setInterval(() => void syncWithServer(), CHECK_INTERVAL);
+  }
+
+  // Check when tab becomes visible again
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      void syncWithServer();
+    }
+  });
 }

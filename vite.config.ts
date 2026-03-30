@@ -1,12 +1,28 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import fs from "fs";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
+const buildId = `${Date.now()}`;
+
+function buildMetaPlugin(id: string): Plugin {
+  return {
+    name: "build-meta",
+    writeBundle(options) {
+      const outDir = options.dir || "dist";
+      fs.writeFileSync(
+        path.resolve(outDir, "build-meta.json"),
+        JSON.stringify({ buildId: id }),
+      );
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   define: {
-    __APP_BUILD_ID__: JSON.stringify(`${Date.now()}`),
+    __APP_BUILD_ID__: JSON.stringify(buildId),
   },
   server: {
     host: "::",
@@ -17,6 +33,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    buildMetaPlugin(buildId),
     mode === "development" && componentTagger(),
   ].filter(Boolean),
   resolve: {
