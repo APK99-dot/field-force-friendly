@@ -680,6 +680,7 @@ export default function AdminUserManagement() {
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [roleFilter, setRoleFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const pageSize = 10;
 
   // Column chooser config
@@ -793,9 +794,6 @@ export default function AdminUserManagement() {
     <motion.div className="p-3 md:p-4 space-y-4 md:space-y-6 max-w-6xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" className="p-2 shrink-0" onClick={() => navigate("/admin-controls")}>
-          <ArrowLeft size={18} />
-        </Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl md:text-3xl font-bold text-foreground">User Management</h1>
           <p className="text-xs md:text-sm text-muted-foreground">Manage users, roles, and hierarchy</p>
@@ -942,7 +940,10 @@ export default function AdminUserManagement() {
                             <TableRow key={user.id}>
                               {isColVisible("photo") && (
                                 <TableCell>
-                                  <Avatar className="h-9 w-9">
+                                  <Avatar
+                                    className={`h-9 w-9 ${profile?.profile_picture_url ? 'cursor-pointer hover:ring-2 hover:ring-primary transition-all' : ''}`}
+                                    onClick={() => profile?.profile_picture_url && setPhotoPreviewUrl(profile.profile_picture_url)}
+                                  >
                                     <AvatarImage src={profile?.profile_picture_url || undefined} />
                                     <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                                       {(user.full_name || user.email || "U").charAt(0).toUpperCase()}
@@ -1117,6 +1118,23 @@ export default function AdminUserManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Photo Preview Lightbox */}
+      <Dialog open={!!photoPreviewUrl} onOpenChange={(open) => !open && setPhotoPreviewUrl(null)}>
+        <DialogContent className="max-w-md p-2 bg-background">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Profile Photo</DialogTitle>
+            <DialogDescription>Full size profile photo preview</DialogDescription>
+          </DialogHeader>
+          {photoPreviewUrl && (
+            <img
+              src={photoPreviewUrl}
+              alt="Profile photo"
+              className="w-full h-auto rounded-lg object-contain max-h-[70vh]"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
