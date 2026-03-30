@@ -106,7 +106,7 @@ export default function DraggableNavGrid({ items, onReorder, onItemClick }: Prop
               zIndex: isBeingDragged ? 10 : 0,
             }}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className={`relative touch-none ${isDropTarget ? "ring-2 ring-primary rounded-xl" : ""}`}
+            className={`relative ${dragIndex !== null ? "touch-none" : ""} ${isDropTarget ? "ring-2 ring-primary rounded-xl" : ""}`}
             onPointerDown={(e) => handlePointerDown(index, e)}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
