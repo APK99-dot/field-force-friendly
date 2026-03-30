@@ -680,6 +680,7 @@ export default function AdminUserManagement() {
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [roleFilter, setRoleFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const pageSize = 10;
 
   // Column chooser config
