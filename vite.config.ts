@@ -7,6 +7,19 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 const buildId = `${Date.now()}`;
 
+function buildMetaPlugin(id: string): Plugin {
+  return {
+    name: "build-meta",
+    writeBundle(options) {
+      const outDir = options.dir || "dist";
+      fs.writeFileSync(
+        path.resolve(outDir, "build-meta.json"),
+        JSON.stringify({ buildId: id }),
+      );
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   define: {
     __APP_BUILD_ID__: JSON.stringify(buildId),
