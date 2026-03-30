@@ -860,13 +860,6 @@ export default function Activities() {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((s) => <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>)}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
             <div>
