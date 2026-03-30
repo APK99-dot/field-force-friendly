@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { NavLink } from "@/components/NavLink";
 import type { LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
@@ -16,13 +16,36 @@ interface Props {
   onItemClick: () => void;
 }
 
+const LONG_PRESS_MS = 300;
+const MOVE_CANCEL_THRESHOLD = 8;
+
 export default function DraggableNavGrid({ items, onReorder, onItemClick }: Props) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDragging = useRef(false);
   const dragSourceIndex = useRef<number | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const pressStartPoint = useRef<{ x: number; y: number } | null>(null);
+
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
+  const resetDragState = useCallback(() => {
+    clearLongPressTimer();
+    isDragging.current = false;
+    dragSourceIndex.current = null;
+    pressStartPoint.current = null;
+    setDragIndex(null);
+    setOverIndex(null);
+  }, [clearLongPressTimer]);
+
+  useEffect(() => {
+    return () => clearLongPressTimer();
+  }, [clearLongPressTimer]);
 
   const getIndexFromPoint = useCallback((x: number, y: number): number | null => {
     const el = document.elementFromPoint(x, y);
@@ -33,39 +56,49 @@ export default function DraggableNavGrid({ items, onReorder, onItemClick }: Prop
   }, []);
 
   const handlePointerDown = useCallback((index: number, e: React.PointerEvent) => {
-    const target = e.currentTarget as HTMLElement;
-    target.setPointerCapture(e.pointerId);
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    clearLongPressTimer();
+    pressStartPoint.current = { x: e.clientX, y: e.clientY };
 
     longPressTimer.current = setTimeout(() => {
       isDragging.current = true;
       dragSourceIndex.current = index;
       setDragIndex(index);
-      // Haptic feedback if available
+      setOverIndex(index);
       if (navigator.vibrate) navigator.vibrate(30);
-    }, 300);
-  }, []);
+    }, LONG_PRESS_MS);
+  }, [clearLongPressTimer]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!pressStartPoint.current) return;
+
     if (!isDragging.current) {
-      // If moved before long-press, cancel
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
+      const distance = Math.hypot(
+        e.clientX - pressStartPoint.current.x,
+        e.clientY - pressStartPoint.current.y,
+      );
+
+      if (distance > MOVE_CANCEL_THRESHOLD) {
+        clearLongPressTimer();
       }
       return;
     }
+
+    e.preventDefault();
     const idx = getIndexFromPoint(e.clientX, e.clientY);
     setOverIndex(idx);
-  }, [getIndexFromPoint]);
+  }, [clearLongPressTimer, getIndexFromPoint]);
 
   const handlePointerUp = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
+    clearLongPressTimer();
 
-    if (isDragging.current && dragSourceIndex.current !== null && overIndex !== null && dragSourceIndex.current !== overIndex) {
-      // Swap items
+    if (
+      isDragging.current &&
+      dragSourceIndex.current !== null &&
+      overIndex !== null &&
+      dragSourceIndex.current !== overIndex
+    ) {
       const newItems = [...items];
       const temp = newItems[dragSourceIndex.current];
       newItems[dragSourceIndex.current] = newItems[overIndex];
@@ -73,25 +106,15 @@ export default function DraggableNavGrid({ items, onReorder, onItemClick }: Prop
       onReorder(newItems.map((i) => i.label));
     }
 
-    isDragging.current = false;
-    dragSourceIndex.current = null;
-    setDragIndex(null);
-    setOverIndex(null);
-  }, [items, overIndex, onReorder]);
+    resetDragState();
+  }, [clearLongPressTimer, items, onReorder, overIndex, resetDragState]);
 
   const handlePointerCancel = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-    isDragging.current = false;
-    dragSourceIndex.current = null;
-    setDragIndex(null);
-    setOverIndex(null);
-  }, []);
+    resetDragState();
+  }, [resetDragState]);
 
   return (
-    <div ref={containerRef} className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-3 gap-3">
       {items.map((item, index) => {
         const isBeingDragged = dragIndex === index;
         const isDropTarget = overIndex === index && dragIndex !== null && dragIndex !== index;
@@ -113,7 +136,6 @@ export default function DraggableNavGrid({ items, onReorder, onItemClick }: Prop
             onPointerCancel={handlePointerCancel}
           >
             {dragIndex !== null ? (
-              // When dragging, render as div (not NavLink) to prevent navigation
               <div className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-muted/50 transition-colors cursor-grab select-none">
                 <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r ${item.color} shadow-md`}>
                   <item.icon className="h-5 w-5 text-white" />
