@@ -33,6 +33,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    buildMetaPlugin(buildId),
     mode === "development" && componentTagger(),
   ].filter(Boolean),
   resolve: {
