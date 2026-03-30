@@ -939,7 +939,10 @@ export default function AdminUserManagement() {
                             <TableRow key={user.id}>
                               {isColVisible("photo") && (
                                 <TableCell>
-                                  <Avatar className="h-9 w-9">
+                                  <Avatar
+                                    className={`h-9 w-9 ${profile?.profile_picture_url ? 'cursor-pointer hover:ring-2 hover:ring-primary transition-all' : ''}`}
+                                    onClick={() => profile?.profile_picture_url && setPhotoPreviewUrl(profile.profile_picture_url)}
+                                  >
                                     <AvatarImage src={profile?.profile_picture_url || undefined} />
                                     <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                                       {(user.full_name || user.email || "U").charAt(0).toUpperCase()}
