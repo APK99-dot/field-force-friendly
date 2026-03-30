@@ -959,6 +959,15 @@ export default function Activities() {
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-3 pt-3">
                 <div>
+                  <Label className="text-xs">Status</Label>
+                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((s) => <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label className="text-xs">Duration Type</Label>
                   <Select value={form.duration_type} onValueChange={(v) => setForm(prev => ({ ...prev, duration_type: v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
