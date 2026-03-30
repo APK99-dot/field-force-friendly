@@ -793,9 +793,6 @@ export default function AdminUserManagement() {
     <motion.div className="p-3 md:p-4 space-y-4 md:space-y-6 max-w-6xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" className="p-2 shrink-0" onClick={() => navigate("/admin-controls")}>
-          <ArrowLeft size={18} />
-        </Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl md:text-3xl font-bold text-foreground">User Management</h1>
           <p className="text-xs md:text-sm text-muted-foreground">Manage users, roles, and hierarchy</p>
