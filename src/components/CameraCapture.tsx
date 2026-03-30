@@ -88,10 +88,15 @@ export default function CameraCapture({ open, onClose, onCapture, title = "Take 
     ctx.drawImage(video, 0, 0);
 
     canvas.toBlob(
-      (blob) => {
+      async (blob) => {
         if (blob) {
-          setCapturedBlob(blob);
-          setCapturedImage(canvas.toDataURL("image/jpeg", 0.85));
+          try {
+            const compressed = await compressImage(blob, 480, 0.6);
+            setCapturedBlob(compressed);
+          } catch {
+            setCapturedBlob(blob);
+          }
+          setCapturedImage(canvas.toDataURL("image/jpeg", 0.6));
           // Stop camera
           if (streamRef.current) {
             streamRef.current.getTracks().forEach((t) => t.stop());
@@ -100,7 +105,7 @@ export default function CameraCapture({ open, onClose, onCapture, title = "Take 
         }
       },
       "image/jpeg",
-      0.85
+      0.6
     );
   };
 
