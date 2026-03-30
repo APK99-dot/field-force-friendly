@@ -37,6 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { motion, AnimatePresence } from "framer-motion";
+import bbLogo from "@/assets/bb_logo.png";
 
 const CustomizeNavigationDialog = lazy(() => import("@/components/navigation/CustomizeNavigationDialog"));
 const DraggableNavGrid = lazy(() => import("@/components/navigation/DraggableNavGrid"));
@@ -157,11 +158,7 @@ export function AppHeader() {
               )}
               <NavLink to="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity text-primary-foreground">
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden bg-white/90 p-0.5">
-                  {companyLogo ? (
-                    <img src={companyLogo} alt="Logo" className="w-full h-full object-contain" />
-                  ) : (
-                    <Building2 className="w-6 h-6 text-primary" />
-                  )}
+                  <img src={companyLogo || bbLogo} alt="Logo" className="w-full h-full object-contain" />
                 </div>
                 <div>
                   <h1 className="text-base font-semibold">{companyName}</h1>

@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Building2, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import bbLogo from "@/assets/bb_logo.png";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,8 +69,8 @@ export default function Auth() {
         <CardContent className="p-8 pt-10 pb-8">
           {/* Logo */}
           <div className="flex flex-col items-center mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-card shadow-elevated flex items-center justify-center mb-4">
-              <Building2 className="h-8 w-8 text-foreground" />
+            <div className="w-20 h-20 rounded-2xl bg-card shadow-elevated flex items-center justify-center mb-4 p-2">
+              <img src={bbLogo} alt="Bharath Builders" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-xl font-bold text-primary">Bharath Builders</h1>
             <p className="text-xs text-muted-foreground tracking-wide uppercase mt-0.5">
