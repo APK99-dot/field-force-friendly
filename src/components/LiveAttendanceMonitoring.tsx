@@ -69,12 +69,21 @@ const LiveAttendanceMonitoring = () => {
     }
   };
 
-  const getSignedUrl = async (path: string): Promise<string | null> => {
-    if (!path) return null;
-    // If it's already a full URL (public bucket or signed), return as-is
-    if (path.startsWith('http')) return path;
+  const getSignedUrl = async (url: string): Promise<string | null> => {
+    if (!url) return null;
     try {
-      const { data } = await supabase.storage.from('attendance-photos').createSignedUrl(path, 300);
+      // Extract the storage path from a full Supabase URL
+      // URLs look like: .../storage/v1/object/public/attendance-photos/PATH or .../object/sign/attendance-photos/PATH?token=...
+      let storagePath = url;
+      if (url.startsWith('http')) {
+        const match = url.match(/attendance-photos\/(.+?)(?:\?|$)/);
+        if (match) {
+          storagePath = match[1];
+        } else {
+          return url; // Can't parse, return as-is
+        }
+      }
+      const { data } = await supabase.storage.from('attendance-photos').createSignedUrl(storagePath, 300);
       return data?.signedUrl || null;
     } catch {
       return null;
