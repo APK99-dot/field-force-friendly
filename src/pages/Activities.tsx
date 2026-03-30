@@ -859,8 +859,6 @@ export default function Activities() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-              </div>
             </div>
             <div>
               <Label className="text-xs">Activity Date</Label>
