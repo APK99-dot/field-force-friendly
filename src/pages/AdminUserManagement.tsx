@@ -1118,6 +1118,23 @@ export default function AdminUserManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Photo Preview Lightbox */}
+      <Dialog open={!!photoPreviewUrl} onOpenChange={(open) => !open && setPhotoPreviewUrl(null)}>
+        <DialogContent className="max-w-md p-2 bg-background">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Profile Photo</DialogTitle>
+            <DialogDescription>Full size profile photo preview</DialogDescription>
+          </DialogHeader>
+          {photoPreviewUrl && (
+            <img
+              src={photoPreviewUrl}
+              alt="Profile photo"
+              className="w-full h-auto rounded-lg object-contain max-h-[70vh]"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
