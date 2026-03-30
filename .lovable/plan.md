@@ -1,56 +1,62 @@
 
-Goal: remove “stale/cached version” behavior and make every new release reliably load the latest UI.
+Goal: stop the app from falling back to old UI after a few minutes, even when Publish says “Up to date”.
 
-What I found from the code audit
-1) App-side cache cleanup is already present:
-- `src/main.tsx` unregisters all service workers on load.
-- `src/main.tsx` clears `window.caches` on load.
-2) PWA/service worker tooling is not active:
-- No `vite-plugin-pwa`, no SW registration code, no manifest wiring in the codebase.
-3) Your source code is newer than what is being served in at least one environment:
-- `src/pages/Auth.tsx` currently has updated UI (“Sign In”, no Admin button, forgot-password toast).
-- Fetched served HTML from the published URL still shows old text (“Sign In as User”, “Admin Sign In”).
-4) Conclusion: this is most likely deployment/version staleness (published/CDN/native-webview) rather than browser cache alone.
+What I verified from your project right now
+1) The codebase is on the new auth UI (`Sign In` only, no `Admin Sign In` in `src/pages/Auth.tsx`).
+2) Your two live domains are serving different builds:
+   - `https://field-force-friendly.lovable.app` returns old auth HTML (`Sign In as User`, `Admin Sign In`).
+   - `https://bb.quickapp.ai` returns newer auth HTML (`Sign In`).
+3) Current cache busting only compares local build ID vs localStorage. If an older bundle is loaded again from edge/browser cache, it cannot reliably detect a newer deployment unless it first gets a fresh version signal from server.
+
+Likely root cause
+- Intermittent stale app-shell delivery (edge/browser/native webview cache path), plus domain-level build inconsistency.
+- Existing `checkAndBustCache()` is good, but it’s “self-referential” (it trusts whichever bundle loaded), so it does not fully protect against old bundle reappearing later.
 
 Implementation plan
-1) Clarify affected surface first (single quick check)
-- Identify where stale UI appears: Preview URL, Published URL, APK/native app, or all.
-- This decides whether we apply only web publish fixes or also native cache-busting.
+1) Add a server-truth version file generated per build
+- Create a build metadata file (example: `/build-meta.json`) containing the current build ID.
+- Ensure this ID is derived once per build and reused consistently.
 
-2) Add release-version cache busting at app startup
-- Introduce a build version constant (build timestamp/hash) from Vite.
-- On boot, compare current build version vs last seen version in `localStorage`.
-- If changed:
-  - Clear Cache Storage
-  - Unregister service workers (already present; keep it)
-  - Remove only known app cache keys (e.g., dashboard cache keys), keep auth/session unless explicitly required
-  - Force one-time hard reload with a guard flag to avoid reload loops
+2) Upgrade cache guard to compare “running build” vs “server build”
+- Extend `src/utils/cacheVersion.ts` with:
+  - `getCurrentBuildId()` (from `__APP_BUILD_ID__`)
+  - `fetchServerBuildId()` via `fetch('/build-meta.json?t=' + Date.now(), { cache: 'no-store' })`
+  - `syncBuildAndForceRefreshIfStale()`
+- If server build differs:
+  - unregister SWs
+  - clear Cache Storage
+  - clear app data caches (`dashboard_cache_v1`, `dashboard_*`, `REACT_QUERY*`)
+  - force hard reload with cache-bypass query param and one-time guard.
 
-3) Make deployment identity visible for debugging
-- Add a small non-intrusive build/version log (`console.info`) so we can confirm instantly if user is on latest build.
-- Optional: add a hidden debug line in UI (admin/dev only) with build id.
+3) Run stale-build checks not only at startup
+- In `src/main.tsx`, keep startup check.
+- Add periodic/visibility checks:
+  - on `visibilitychange` when tab becomes visible
+  - interval (e.g. every 60–120s) while app is open
+- This directly addresses “after a few minutes it becomes old UI”.
 
-4) Native container hardening (if issue also in APK)
-- Add a version query token strategy for the remote web URL used by Capacitor (or runtime URL version stamping).
-- This ensures WebView requests a fresh app shell when release changes.
+4) Improve observability so we can confirm fix instantly
+- Keep console log for running build ID.
+- Also log fetched server build ID and mismatch actions.
+- This will let us prove whether fallback is from stale edge response or client cache path.
 
-5) Verification checklist
-- Open Preview URL: confirm newest Auth UI appears.
-- Open Published URL: confirm same UI/version as preview.
-- If APK is used: confirm updated version appears after app relaunch.
-- Confirm no infinite reload loop and normal login/session behavior.
+5) Normalize domain behavior
+- Verify both `field-force-friendly.lovable.app` and `bb.quickapp.ai` resolve to same latest build after update.
+- If mismatch persists, enforce users to open only canonical domain in shared links and installed shortcuts (old bookmarks often reopen stale route/origin).
 
-Technical details (planned file touchpoints)
+Technical file touchpoints
 - `vite.config.ts`
-  - Add `define` build constant (e.g., `__APP_BUILD_ID__`).
+  - Build ID generation and build-meta emission hook.
+- `src/utils/cacheVersion.ts`
+  - Add server-version fetch + stale detection + stronger purge list + guarded hard reload.
 - `src/main.tsx`
-  - Add version-check bootstrap (compare + selective clear + one-time reload guard).
-  - Keep existing SW unregister + cache clear logic, but gate full reset to version changes.
-- `src/utils/cacheVersion.ts` (new helper)
-  - Encapsulate version compare/reset logic for cleaner startup.
-- `capacitor.config.ts` (conditional, if APK affected)
-  - Apply release-version URL token strategy.
+  - Wire startup + periodic + visibility-based version sync checks.
+- (Optional) `src/vite-env.d.ts`
+  - Keep build constant typing aligned if needed.
 
-Notes
-- No backend/database changes needed.
-- Root cause is very likely “served old deployment/version” rather than missing browser cache clear.
+Validation checklist
+1) Publish once after changes.
+2) Open both domains and verify same auth UI.
+3) Wait 10–15 minutes, revisit `/auth` and `/dashboard`; confirm no regression to old cards/buttons.
+4) Confirm console always shows current build + server build, with no repeated reload loop.
+5) Test in mobile/webview context if used, since that is where stale shell issues are most common.
