@@ -167,7 +167,7 @@ export default function Auth() {
               className="w-full h-12 rounded-xl bg-foreground text-background font-semibold text-sm hover:bg-foreground/90 transition-colors"
               disabled={loading}
             >
-              {loading ? "Signing in..." : "Sign In as User"}
+              {loading ? "Signing in..." : "Sign In"}
             </Button>
 
             <div className="text-center space-y-2 pt-1">
