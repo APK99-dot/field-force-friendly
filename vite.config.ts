@@ -4,9 +4,11 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
+const buildId = `${Date.now()}`;
+
 export default defineConfig(({ mode }) => ({
   define: {
-    __APP_BUILD_ID__: JSON.stringify(`${Date.now()}`),
+    __APP_BUILD_ID__: JSON.stringify(buildId),
   },
   server: {
     host: "::",
