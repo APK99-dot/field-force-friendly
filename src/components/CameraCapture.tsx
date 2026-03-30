@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, SwitchCamera, X, RotateCcw, Check, AlertTriangle } from "lucide-react";
+import { compressImage } from "@/utils/imageCompressor";
 
 interface CameraCaptureProps {
   open: boolean;
