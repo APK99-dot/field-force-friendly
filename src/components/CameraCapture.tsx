@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, SwitchCamera, X, RotateCcw, Check, AlertTriangle } from "lucide-react";
+import { compressImage } from "@/utils/imageCompressor";
 
 interface CameraCaptureProps {
   open: boolean;
@@ -87,10 +88,15 @@ export default function CameraCapture({ open, onClose, onCapture, title = "Take 
     ctx.drawImage(video, 0, 0);
 
     canvas.toBlob(
-      (blob) => {
+      async (blob) => {
         if (blob) {
-          setCapturedBlob(blob);
-          setCapturedImage(canvas.toDataURL("image/jpeg", 0.85));
+          try {
+            const compressed = await compressImage(blob, 480, 0.6);
+            setCapturedBlob(compressed);
+          } catch {
+            setCapturedBlob(blob);
+          }
+          setCapturedImage(canvas.toDataURL("image/jpeg", 0.6));
           // Stop camera
           if (streamRef.current) {
             streamRef.current.getTracks().forEach((t) => t.stop());
@@ -99,7 +105,7 @@ export default function CameraCapture({ open, onClose, onCapture, title = "Take 
         }
       },
       "image/jpeg",
-      0.85
+      0.6
     );
   };
 
