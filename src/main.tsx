@@ -1,6 +1,5 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { registerSW } from "virtual:pwa-register";
 import App from "./App.tsx";
 import "./index.css";
 import { requestNativePermissions } from "./utils/nativePermissions";
@@ -19,19 +18,23 @@ const isPreviewHost =
 
 if ("serviceWorker" in navigator) {
   if (isPreviewHost || isInIframe) {
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
-      registrations.forEach((registration) => registration.unregister());
+    void navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => {
+        void registration.unregister();
+      });
     });
 
     if ("caches" in window) {
-      caches.keys().then((cacheKeys) => {
+      void caches.keys().then((cacheKeys) => {
         cacheKeys.forEach((cacheKey) => {
           void caches.delete(cacheKey);
         });
       });
     }
   } else {
-    registerSW({ immediate: true });
+    window.addEventListener("load", () => {
+      void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    });
   }
 }
 
