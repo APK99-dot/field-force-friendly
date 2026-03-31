@@ -7,12 +7,14 @@ import ProfileSetupModal from "@/components/ProfileSetupModal";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
 import { useNativeStartup } from "@/hooks/useNativeStartup";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export function AppLayout() {
   const navigate = useNavigate();
   useNativeStartup();
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  usePushNotifications(userId ?? undefined);
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null | undefined>(undefined);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const [mustChangePassword, setMustChangePassword] = useState<boolean>(false);
