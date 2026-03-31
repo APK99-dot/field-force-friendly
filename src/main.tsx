@@ -9,23 +9,6 @@ import { checkAndBustCache, startVersionSync } from "./utils/cacheVersion";
 const reloading = checkAndBustCache();
 
 if (!reloading) {
-  // Always clean up any stray service workers
-  if ("serviceWorker" in navigator) {
-    void navigator.serviceWorker.getRegistrations().then((registrations) => {
-      registrations.forEach((registration) => {
-        void registration.unregister();
-      });
-    });
-  }
-
-  if ("caches" in window) {
-    void caches.keys().then((cacheKeys) => {
-      cacheKeys.forEach((cacheKey) => {
-        void caches.delete(cacheKey);
-      });
-    });
-  }
-
   requestNativePermissions();
 
   createRoot(document.getElementById("root")!).render(
@@ -34,6 +17,6 @@ if (!reloading) {
     </React.StrictMode>
   );
 
-  // Start periodic server-version sync (non-blocking)
+  // Start periodic server-version sync (production only, non-blocking)
   startVersionSync();
 }
