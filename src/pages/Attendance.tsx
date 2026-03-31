@@ -110,6 +110,23 @@ export default function Attendance() {
     return monthRecords.filter((r) => r.date >= startStr && r.date <= endStr);
   }, [monthRecords, dateRange]);
 
+  const approvedLeaveDates = useMemo(() => {
+    const dates = new Set<string>();
+    const startStr = format(dateRange.start, "yyyy-MM-dd");
+    const endStr = format(dateRange.end, "yyyy-MM-dd");
+    leaveRecords.filter(l => l.status === "approved").forEach(l => {
+      const from = new Date(l.from_date);
+      const to = new Date(l.to_date);
+      for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+        const key = format(d, "yyyy-MM-dd");
+        if (key >= startStr && key <= endStr && !l.is_half_day) {
+          dates.add(key);
+        }
+      }
+    });
+    return dates;
+  }, [leaveRecords, dateRange]);
+
   const stats = useMemo(() => {
     const presentDays = filteredRecords.filter((r) => r.status === "present" || r.status === "regularized").length;
     const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -118,11 +135,12 @@ export default function Attendance() {
       if (key > todayStr) return false;
       if (holidayDates.has(key)) return false;
       if (isWeekOffDate(d, weekOffConfig)) return false;
+      if (approvedLeaveDates.has(key)) return false;
       return true;
     }).length;
     const pct = totalWorkingDays > 0 ? Math.round((presentDays / totalWorkingDays) * 100) : 0;
     return { presentDays, totalWorkingDays, pct };
-  }, [filteredRecords, days, holidayDates, weekOffConfig]);
+  }, [filteredRecords, days, holidayDates, weekOffConfig, approvedLeaveDates]);
 
   const presentDatesList = useMemo(() => {
     return filteredRecords.filter((r) => r.status === "present" || r.status === "regularized").map((r) => r.date).sort();
