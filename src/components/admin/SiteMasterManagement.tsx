@@ -360,12 +360,6 @@ export default function SiteMasterManagement() {
           </SheetHeader>
           {detailSite && (
             <div className="space-y-5 mt-4">
-              {/* Code */}
-              <div>
-                <Label className="text-xs text-muted-foreground">Site Code</Label>
-                <p className="text-sm font-mono">{detailSite.site_code}</p>
-              </div>
-
               {/* Description */}
               {detailSite.description && (
                 <div>
