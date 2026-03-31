@@ -78,8 +78,11 @@ export const AttendanceCalendarView = ({
     leaveRecords
       .filter(l => l.status === 'approved')
       .forEach(l => {
-        const start = new Date(l.from_date);
-        const end = new Date(l.to_date);
+        // Parse date-only strings as local dates (avoid UTC shift)
+        const [sy, sm, sd] = l.from_date.split('-').map(Number);
+        const [ey, em, ed] = l.to_date.split('-').map(Number);
+        const start = new Date(sy, sm - 1, sd);
+        const end = new Date(ey, em - 1, ed);
         for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
           map.set(format(d, 'yyyy-MM-dd'), l);
         }
@@ -111,6 +114,17 @@ export const AttendanceCalendarView = ({
         continue;
       }
 
+      // Check approved leaves BEFORE future — leaves should always show
+      const leave = leaveMap.get(dateStr);
+      if (leave && leave.is_half_day) {
+        days.push({ date: new Date(d), dateStr, status: 'half-day', inMonth });
+        continue;
+      }
+      if (leave) {
+        days.push({ date: new Date(d), dateStr, status: 'leave', inMonth });
+        continue;
+      }
+
       if (isAfter(d, today) && !isToday(d)) {
         days.push({ date: new Date(d), dateStr, status: 'future', inMonth });
         continue;
@@ -121,18 +135,7 @@ export const AttendanceCalendarView = ({
         continue;
       }
 
-      const leave = leaveMap.get(dateStr);
       const attendance = attendanceMap.get(dateStr);
-
-      if (leave && leave.is_half_day) {
-        days.push({ date: new Date(d), dateStr, status: 'half-day', inMonth });
-        continue;
-      }
-
-      if (leave) {
-        days.push({ date: new Date(d), dateStr, status: 'leave', inMonth });
-        continue;
-      }
 
       if (attendance && (attendance.status === 'present' || attendance.status === 'regularized')) {
         days.push({ date: new Date(d), dateStr, status: 'present', inMonth });
