@@ -7,6 +7,7 @@ import ProfileSetupModal from "@/components/ProfileSetupModal";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
 import { useNativeStartup } from "@/hooks/useNativeStartup";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export function AppLayout() {
   const navigate = useNavigate();
