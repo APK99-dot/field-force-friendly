@@ -14,10 +14,10 @@ export function AppLayout() {
   useNativeStartup();
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  usePushNotifications(userId ?? undefined);
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null | undefined>(undefined);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const [mustChangePassword, setMustChangePassword] = useState<boolean>(false);
+  usePushNotifications(userId ?? undefined);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
