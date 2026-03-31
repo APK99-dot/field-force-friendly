@@ -12,6 +12,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import {
   Table,
   TableBody,
   TableCell,
@@ -22,10 +29,18 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Edit, ToggleLeft, ToggleRight, Loader2, Building2, Users, Search } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Plus, Edit, ToggleLeft, ToggleRight, Loader2, Building2, Users, Search, Flag } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
+type SiteFlag = "red" | "orange" | "green";
 
 interface Site {
   id: string;
@@ -37,6 +52,7 @@ interface Site {
   created_by: string | null;
   start_date: string;
   end_date: string | null;
+  flag: SiteFlag;
 }
 
 interface UserOption {
@@ -44,17 +60,51 @@ interface UserOption {
   full_name: string;
 }
 
+const FLAG_CONFIG: Record<SiteFlag, { color: string; label: string }> = {
+  red: { color: "bg-red-500", label: "Critical / Urgent" },
+  orange: { color: "bg-orange-500", label: "Needs Attention" },
+  green: { color: "bg-emerald-500", label: "On Track" },
+};
+
+function FlagDot({ flag, size = "sm" }: { flag: SiteFlag; size?: "sm" | "md" }) {
+  const px = size === "sm" ? "h-3 w-3" : "h-4 w-4";
+  return <span className={`inline-block rounded-full ${px} ${FLAG_CONFIG[flag].color}`} />;
+}
+
+function FlagPicker({ value, onChange }: { value: SiteFlag; onChange: (f: SiteFlag) => void }) {
+  return (
+    <div className="flex items-center gap-3">
+      {(["green", "orange", "red"] as SiteFlag[]).map((f) => (
+        <button
+          key={f}
+          type="button"
+          onClick={() => onChange(f)}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-colors ${
+            value === f ? "border-primary bg-primary/10 font-medium" : "border-border hover:bg-muted/50"
+          }`}
+        >
+          <FlagDot flag={f} />
+          {FLAG_CONFIG[f].label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function SiteMasterManagement() {
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingSite, setEditingSite] = useState<Site | null>(null);
-  const [form, setForm] = useState({ site_name: "", description: "", start_date: new Date().toISOString().split("T")[0], end_date: "" });
+  const [form, setForm] = useState({ site_name: "", description: "", start_date: new Date().toISOString().split("T")[0], end_date: "", flag: "green" as SiteFlag });
   const [saving, setSaving] = useState(false);
   const [allUsers, setAllUsers] = useState<UserOption[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [siteAssignments, setSiteAssignments] = useState<Record<string, string[]>>({});
   const [userSearch, setUserSearch] = useState("");
+
+  // Detail sheet state
+  const [detailSite, setDetailSite] = useState<Site | null>(null);
 
   const fetchUsers = useCallback(async () => {
     const { data } = await supabase.from("users").select("id, full_name").eq("is_active", true).order("full_name");
@@ -80,7 +130,7 @@ export default function SiteMasterManagement() {
     if (error) {
       toast.error(error.message);
     } else {
-      setSites((data || []) as Site[]);
+      setSites((data || []).map((s: any) => ({ ...s, flag: s.flag || "green" })) as Site[]);
     }
     setLoading(false);
   }, []);
@@ -93,7 +143,7 @@ export default function SiteMasterManagement() {
 
   const handleOpenCreate = () => {
     setEditingSite(null);
-    setForm({ site_name: "", description: "", start_date: new Date().toISOString().split("T")[0], end_date: "" });
+    setForm({ site_name: "", description: "", start_date: new Date().toISOString().split("T")[0], end_date: "", flag: "green" });
     setSelectedUserIds([]);
     setUserSearch("");
     setShowDialog(true);
@@ -101,7 +151,7 @@ export default function SiteMasterManagement() {
 
   const handleOpenEdit = (site: Site) => {
     setEditingSite(site);
-    setForm({ site_name: site.site_name, description: site.description || "", start_date: site.start_date || "", end_date: site.end_date || "" });
+    setForm({ site_name: site.site_name, description: site.description || "", start_date: site.start_date || "", end_date: site.end_date || "", flag: site.flag || "green" });
     setSelectedUserIds(siteAssignments[site.id] || []);
     setUserSearch("");
     setShowDialog(true);
@@ -121,6 +171,7 @@ export default function SiteMasterManagement() {
         description: form.description || null,
         start_date: form.start_date,
         end_date: form.end_date || null,
+        flag: form.flag,
       };
 
       if (editingSite) {
@@ -141,19 +192,16 @@ export default function SiteMasterManagement() {
         if (error) throw error;
         siteId = newSite.id;
 
-        // Auto-assign creator
         if (user?.id && !selectedUserIds.includes(user.id)) {
           setSelectedUserIds(prev => [...prev, user.id]);
         }
         toast.success("Site created");
       }
 
-      // Sync assignments: delete removed, insert new
       const currentAssigned = siteAssignments[siteId] || [];
       const toRemove = currentAssigned.filter(uid => !selectedUserIds.includes(uid));
       const toAdd = selectedUserIds.filter(uid => !currentAssigned.includes(uid));
 
-      // Also auto-add creator for new sites
       if (!editingSite && user?.id && !toAdd.includes(user.id)) {
         toAdd.push(user.id);
       }
@@ -168,6 +216,7 @@ export default function SiteMasterManagement() {
       }
 
       setShowDialog(false);
+      setDetailSite(null);
       fetchSites();
       fetchAssignments();
     } catch (err: any) {
@@ -190,6 +239,21 @@ export default function SiteMasterManagement() {
       toast.error(error.message);
     } else {
       toast.success(newActive ? "Site reactivated" : "Site deactivated");
+      setDetailSite(null);
+      fetchSites();
+    }
+  };
+
+  const handleUpdateFlag = async (site: Site, flag: SiteFlag) => {
+    const { error } = await supabase
+      .from("project_sites")
+      .update({ flag })
+      .eq("id", site.id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Flag updated");
+      setDetailSite({ ...site, flag });
       fetchSites();
     }
   };
@@ -204,7 +268,7 @@ export default function SiteMasterManagement() {
 
   const getAssignedNames = (siteId: string) => {
     const ids = siteAssignments[siteId] || [];
-    return ids.map(id => allUsers.find(u => u.id === id)?.full_name || "Unknown").slice(0, 3);
+    return ids.map(id => allUsers.find(u => u.id === id)?.full_name || "Unknown");
   };
 
   const filteredUsers = allUsers.filter(u =>
@@ -236,22 +300,21 @@ export default function SiteMasterManagement() {
             <TableHeader>
               <TableRow>
                 <TableHead>Site Name</TableHead>
-                <TableHead>Code</TableHead>
                 <TableHead>Assigned Users</TableHead>
-                <TableHead>Start Date</TableHead>
-                <TableHead>End Date</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-center">Flag</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sites.map((site) => {
                 const assignedNames = getAssignedNames(site.id);
-                const totalAssigned = (siteAssignments[site.id] || []).length;
+                const totalAssigned = assignedNames.length;
+                const flag = site.flag || "green";
                 return (
-                  <TableRow key={site.id}>
-                    <TableCell className="font-medium">{site.site_name}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{site.site_code}</TableCell>
+                  <TableRow key={site.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDetailSite(site)}>
+                    <TableCell className="font-medium text-primary underline-offset-2 hover:underline">
+                      {site.site_name}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Users className="h-3.5 w-3.5 text-muted-foreground" />
@@ -259,46 +322,26 @@ export default function SiteMasterManagement() {
                           <span className="text-xs text-muted-foreground">None</span>
                         ) : (
                           <span className="text-xs">
-                            {assignedNames.join(", ")}
-                            {totalAssigned > 3 && ` +${totalAssigned - 3}`}
+                            {assignedNames.slice(0, 2).join(", ")}
+                            {totalAssigned > 2 && ` +${totalAssigned - 2}`}
                           </span>
                         )}
                       </div>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {site.start_date ? format(new Date(site.start_date), "dd MMM yyyy") : "—"}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {site.end_date ? (
-                        <Badge variant="outline" className="text-emerald-600 border-emerald-300">Completed · {format(new Date(site.end_date), "dd MMM yyyy")}</Badge>
-                      ) : (
-                        <Badge variant="secondary">Ongoing</Badge>
-                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={site.is_active ? "default" : "secondary"}>
                         {site.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(site)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleToggleActive(site)}
-                          title={site.is_active ? "Deactivate" : "Reactivate"}
-                        >
-                          {site.is_active ? (
-                            <ToggleRight className="h-4 w-4 text-emerald-500" />
-                          ) : (
-                            <ToggleLeft className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </Button>
-                      </div>
+                    <TableCell className="text-center">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex justify-center"><FlagDot flag={flag} /></span>
+                          </TooltipTrigger>
+                          <TooltipContent>{FLAG_CONFIG[flag].label}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </TableCell>
                   </TableRow>
                 );
@@ -308,6 +351,109 @@ export default function SiteMasterManagement() {
         )}
       </CardContent>
 
+      {/* Detail Side Panel */}
+      <Sheet open={!!detailSite} onOpenChange={(open) => { if (!open) setDetailSite(null); }}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{detailSite?.site_name}</SheetTitle>
+            <SheetDescription>Site details and actions</SheetDescription>
+          </SheetHeader>
+          {detailSite && (
+            <div className="space-y-5 mt-4">
+              {/* Code */}
+              <div>
+                <Label className="text-xs text-muted-foreground">Site Code</Label>
+                <p className="text-sm font-mono">{detailSite.site_code}</p>
+              </div>
+
+              {/* Description */}
+              {detailSite.description && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Description</Label>
+                  <p className="text-sm">{detailSite.description}</p>
+                </div>
+              )}
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Start Date</Label>
+                  <p className="text-sm">{detailSite.start_date ? format(new Date(detailSite.start_date), "dd MMM yyyy") : "—"}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">End Date</Label>
+                  <p className="text-sm">{detailSite.end_date ? format(new Date(detailSite.end_date), "dd MMM yyyy") : "Ongoing"}</p>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div>
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <div className="mt-1">
+                  <Badge variant={detailSite.is_active ? "default" : "secondary"}>
+                    {detailSite.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Flag */}
+              <div>
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
+                  <Flag className="h-3.5 w-3.5" /> Flag
+                </Label>
+                <FlagPicker value={detailSite.flag || "green"} onChange={(f) => handleUpdateFlag(detailSite, f)} />
+              </div>
+
+              {/* Assigned Users */}
+              <div>
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
+                  <Users className="h-3.5 w-3.5" /> Assigned Users
+                </Label>
+                {(() => {
+                  const names = getAssignedNames(detailSite.id);
+                  if (names.length === 0) return <p className="text-sm text-muted-foreground">No users assigned</p>;
+                  return (
+                    <div className="space-y-1.5">
+                      {names.map((name, i) => {
+                        const initials = name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+                        return (
+                          <div key={i} className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-[10px] bg-muted">{initials}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{name}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2 border-t">
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => { handleOpenEdit(detailSite); }}>
+                  <Edit className="h-4 w-4 mr-1" /> Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => handleToggleActive(detailSite)}
+                >
+                  {detailSite.is_active ? (
+                    <><ToggleRight className="h-4 w-4 mr-1 text-emerald-500" /> Deactivate</>
+                  ) : (
+                    <><ToggleLeft className="h-4 w-4 mr-1" /> Reactivate</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Create/Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="sm:max-w-[440px] max-h-[85vh] flex flex-col">
           <DialogHeader>
@@ -350,6 +496,13 @@ export default function SiteMasterManagement() {
                   min={form.start_date || undefined}
                 />
               </div>
+            </div>
+            {/* Flag selector */}
+            <div>
+              <Label className="text-xs flex items-center gap-1.5 mb-2">
+                <Flag className="h-3.5 w-3.5" /> Flag
+              </Label>
+              <FlagPicker value={form.flag} onChange={(f) => setForm({ ...form, flag: f })} />
             </div>
             <div>
               <Label className="text-xs flex items-center gap-1.5 mb-2">
