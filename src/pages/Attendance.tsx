@@ -112,8 +112,10 @@ export default function Attendance() {
 
   const stats = useMemo(() => {
     const presentDays = filteredRecords.filter((r) => r.status === "present" || r.status === "regularized").length;
+    const todayStr = format(new Date(), "yyyy-MM-dd");
     const totalWorkingDays = days.filter((d) => {
       const key = format(d, "yyyy-MM-dd");
+      if (key > todayStr) return false;
       if (holidayDates.has(key)) return false;
       if (isWeekOffDate(d, weekOffConfig)) return false;
       return true;
