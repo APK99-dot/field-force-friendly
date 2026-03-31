@@ -27,6 +27,9 @@ const config: CapacitorConfig = {
     Filesystem: {
       permissions: ['publicStorage'],
     },
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
   },
 };
 

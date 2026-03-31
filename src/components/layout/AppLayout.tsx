@@ -12,6 +12,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 export function AppLayout() {
   const navigate = useNavigate();
   useNativeStartup();
+  usePushNotifications(userId ?? undefined);
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null | undefined>(undefined);
