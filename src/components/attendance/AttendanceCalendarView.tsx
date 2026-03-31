@@ -114,6 +114,17 @@ export const AttendanceCalendarView = ({
         continue;
       }
 
+      // Check approved leaves BEFORE future — leaves should always show
+      const leave = leaveMap.get(dateStr);
+      if (leave && leave.is_half_day) {
+        days.push({ date: new Date(d), dateStr, status: 'half-day', inMonth });
+        continue;
+      }
+      if (leave) {
+        days.push({ date: new Date(d), dateStr, status: 'leave', inMonth });
+        continue;
+      }
+
       if (isAfter(d, today) && !isToday(d)) {
         days.push({ date: new Date(d), dateStr, status: 'future', inMonth });
         continue;
@@ -124,18 +135,7 @@ export const AttendanceCalendarView = ({
         continue;
       }
 
-      const leave = leaveMap.get(dateStr);
       const attendance = attendanceMap.get(dateStr);
-
-      if (leave && leave.is_half_day) {
-        days.push({ date: new Date(d), dateStr, status: 'half-day', inMonth });
-        continue;
-      }
-
-      if (leave) {
-        days.push({ date: new Date(d), dateStr, status: 'leave', inMonth });
-        continue;
-      }
 
       if (attendance && (attendance.status === 'present' || attendance.status === 'regularized')) {
         days.push({ date: new Date(d), dateStr, status: 'present', inMonth });
