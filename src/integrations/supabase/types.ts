@@ -2803,6 +2803,7 @@ export type Database = {
           deleted_at: string | null
           description: string | null
           end_date: string | null
+          flag: string | null
           id: string
           is_active: boolean
           site_code: string | null
@@ -2816,6 +2817,7 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           end_date?: string | null
+          flag?: string | null
           id?: string
           is_active?: boolean
           site_code?: string | null
@@ -2829,6 +2831,7 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           end_date?: string | null
+          flag?: string | null
           id?: string
           is_active?: boolean
           site_code?: string | null
