@@ -84,19 +84,20 @@ const LeaveApplicationModal: React.FC<LeaveApplicationModalProps> = ({
 
       if (error) throw error;
 
-      // Notify reporting manager
+      // Notify manager + all admins
       try {
+        const { getNotificationRecipients, sendNotificationToMany } = await import('@/utils/notificationHelpers');
         const { data: userData } = await supabase
           .from('users')
-          .select('reporting_manager_id, full_name')
+          .select('full_name')
           .eq('id', user.id)
           .single();
 
-        if (userData?.reporting_manager_id && insertedApp) {
+        if (insertedApp) {
+          const recipients = await getNotificationRecipients(user.id);
           const selectedType = leaveTypes.find(t => t.id === leaveTypeId);
-          await supabase.from('notifications').insert({
-            user_id: userData.reporting_manager_id,
-            title: `Leave Application - ${userData.full_name || 'Employee'}`,
+          await sendNotificationToMany(recipients, {
+            title: `Leave Application - ${userData?.full_name || 'Employee'}`,
             message: `${selectedType?.name || 'Leave'} from ${format(startDate, 'MMM dd, yyyy')} to ${format(endDate, 'MMM dd, yyyy')}`,
             type: 'leave_request',
             related_table: 'leave_applications',
