@@ -190,7 +190,7 @@ export function useAttendance(userId: string | undefined) {
     }
   };
 
-
+  const checkOut = async (data?: CheckOutData) => {
     if (!userId || !todayRecord) return;
     
     let location = data?.location || null;
