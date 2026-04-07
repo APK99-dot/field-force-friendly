@@ -2,12 +2,14 @@ import { useEffect, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 
+const FCM_FLAG = "fcm_needs_register";
+
 /**
  * Registers FCM push token on native Android devices.
  * On web this is a no-op.
  *
- * Includes defensive guards for Android 13+ Activity recreation
- * that can occur after granting the notification permission.
+ * Decouples permission request from FCM registration to avoid
+ * Android 13+ Activity recreation crash.
  */
 export function usePushNotifications(userId: string | undefined) {
   const isUnmounted = useRef(false);
@@ -22,7 +24,7 @@ export function usePushNotifications(userId: string | undefined) {
     let notifListener: { remove: () => void } | undefined;
 
     const init = async () => {
-      // Step 1: Dynamic import with guard
+      // Dynamic import with guard
       let PushNotifications: any;
       try {
         const mod = await import("@capacitor/push-notifications");
@@ -34,7 +36,7 @@ export function usePushNotifications(userId: string | undefined) {
 
       if (isUnmounted.current) return;
 
-      // Step 2: Set up listeners BEFORE requesting permission / registering
+      // Set up listeners BEFORE any permission/register calls
       try {
         regListener = await PushNotifications.addListener(
           "registration",
@@ -42,16 +44,11 @@ export function usePushNotifications(userId: string | undefined) {
             if (isUnmounted.current) return;
             console.log("FCM token received:", token?.value);
             if (!token?.value || !userId) return;
-
             try {
               const { error } = await supabase
                 .from("push_tokens" as any)
                 .upsert(
-                  {
-                    user_id: userId,
-                    token: token.value,
-                    platform: "android",
-                  } as any,
+                  { user_id: userId, token: token.value, platform: "android" } as any,
                   { onConflict: "token" }
                 );
               if (error) console.error("Failed to save push token:", error);
@@ -67,9 +64,7 @@ export function usePushNotifications(userId: string | undefined) {
       try {
         errListener = await PushNotifications.addListener(
           "registrationError",
-          (err: any) => {
-            console.error("Push registration error:", err);
-          }
+          (err: any) => console.error("Push registration error:", err)
         );
       } catch (e) {
         console.warn("Failed to add registrationError listener:", e);
@@ -78,9 +73,7 @@ export function usePushNotifications(userId: string | undefined) {
       try {
         notifListener = await PushNotifications.addListener(
           "pushNotificationReceived",
-          (notification: any) => {
-            console.log("Push received in foreground:", notification);
-          }
+          (notification: any) => console.log("Push received in foreground:", notification)
         );
       } catch (e) {
         console.warn("Failed to add pushNotificationReceived listener:", e);
@@ -88,34 +81,54 @@ export function usePushNotifications(userId: string | undefined) {
 
       if (isUnmounted.current) return;
 
-      // Step 3: Request permission
-      let permGranted = false;
-      try {
-        const permResult = await PushNotifications.requestPermissions();
-        permGranted = permResult?.receive === "granted";
-        if (!permGranted) {
-          console.log("Push notification permission not granted");
-          return;
+      // Check if we have a deferred registration from a previous lifecycle
+      const needsDeferredRegister = localStorage.getItem(FCM_FLAG) === "true";
+      if (needsDeferredRegister) {
+        localStorage.removeItem(FCM_FLAG);
+        console.log("Deferred FCM registration detected, registering now...");
+        try {
+          await PushNotifications.register();
+        } catch (e) {
+          console.warn("Deferred PushNotifications.register() failed:", e);
         }
+        return; // Done — token will arrive via the registration listener
+      }
+
+      // Check current permission status (does NOT trigger system dialog)
+      let currentStatus: string | undefined;
+      try {
+        const result = await PushNotifications.checkPermissions();
+        currentStatus = result?.receive;
       } catch (e) {
-        console.warn("Push permission request failed:", e);
+        console.warn("checkPermissions failed:", e);
         return;
       }
 
       if (isUnmounted.current) return;
 
-      // Step 4: Delay registration to let Android finish Activity recreation
-      // On Android 13+, granting a runtime permission can recreate the Activity.
-      // A short delay prevents calling register() into a destroyed WebView context.
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      if (currentStatus === "granted") {
+        // Permission already granted — safe to register directly
+        try {
+          await PushNotifications.register();
+        } catch (e) {
+          console.warn("PushNotifications.register() failed:", e);
+        }
+        return;
+      }
 
-      if (isUnmounted.current) return;
-
-      // Step 5: Register with FCM
+      // Permission not yet granted — request it, but DO NOT register afterward.
+      // Android 13+ may recreate the Activity after granting, destroying this context.
       try {
-        await PushNotifications.register();
+        const permResult = await PushNotifications.requestPermissions();
+        if (permResult?.receive === "granted") {
+          // Set flag so the NEXT mount (after Activity recreation) will register
+          localStorage.setItem(FCM_FLAG, "true");
+          console.log("Permission granted — FCM registration deferred to next mount");
+        } else {
+          console.log("Push notification permission not granted");
+        }
       } catch (e) {
-        console.warn("PushNotifications.register() failed:", e);
+        console.warn("Push permission request failed:", e);
       }
     };
 
