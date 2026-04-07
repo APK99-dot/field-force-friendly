@@ -188,8 +188,9 @@ export function useAttendance(userId: string | undefined) {
     } catch (notifError) {
       console.error('Error sending check-in notification:', notifError);
     }
+  };
 
-  const checkOut = async (data?: CheckOutData) => {
+
     if (!userId || !todayRecord) return;
     
     let location = data?.location || null;
