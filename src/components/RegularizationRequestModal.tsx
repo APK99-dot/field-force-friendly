@@ -85,18 +85,19 @@ const RegularizationRequestModal: React.FC<RegularizationRequestModalProps> = ({
 
       if (error) throw error;
 
-      // Notify reporting manager
+      // Notify manager + all admins
       try {
+        const { getNotificationRecipients, sendNotificationToMany } = await import('@/utils/notificationHelpers');
         const { data: userData } = await supabase
           .from('users')
-          .select('reporting_manager_id, full_name')
+          .select('full_name')
           .eq('id', userId)
           .single();
 
-        if (userData?.reporting_manager_id && insertedReq) {
-          await supabase.from('notifications').insert({
-            user_id: userData.reporting_manager_id,
-            title: `Regularisation Request - ${userData.full_name || 'Employee'}`,
+        if (insertedReq) {
+          const recipients = await getNotificationRecipients(userId);
+          await sendNotificationToMany(recipients, {
+            title: `Regularisation Request - ${userData?.full_name || 'Employee'}`,
             message: `Date: ${format(new Date(attendanceDate), 'MMM dd, yyyy')}, Reason: ${reason.trim().substring(0, 100)}`,
             type: 'regularization_request',
             related_table: 'regularization_requests',
