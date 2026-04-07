@@ -168,7 +168,26 @@ export function useAttendance(userId: string | undefined) {
     }
 
     await fetchData();
-  };
+
+    // Notify manager + admins about check-in
+    try {
+      const { getNotificationRecipients, sendNotificationToMany } = await import('@/utils/notificationHelpers');
+      const { data: userData } = await supabase
+        .from('users')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
+
+      const recipients = await getNotificationRecipients(userId);
+      await sendNotificationToMany(recipients, {
+        title: `Check-In - ${userData?.full_name || 'Employee'}`,
+        message: `Checked in at ${format(new Date(), 'h:mm a, MMM dd yyyy')}`,
+        type: 'attendance',
+        related_table: 'attendance',
+      });
+    } catch (notifError) {
+      console.error('Error sending check-in notification:', notifError);
+    }
 
   const checkOut = async (data?: CheckOutData) => {
     if (!userId || !todayRecord) return;
