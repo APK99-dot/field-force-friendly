@@ -123,7 +123,7 @@
 
     "@capacitor/ios": ["@capacitor/ios@8.3.0", "", { "peerDependencies": { "@capacitor/core": "^8.3.0" } }, "sha512-5Rtwv8SITKlYTt8lAZG+khnVIdzPtqbocH3eP+JkEmX1vpSMwx4TOKtT8OBz8gpQ+pUJDRp7DBYOv3U6l/obCw=="],
 
-    "@capacitor/push-notifications": ["@capacitor/push-notifications@8.0.3", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/push-notifications/-/push-notifications-8.0.3.tgz", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-jmBBoJvOzmzem8YoO9dQJBPFiM1bksTNAoV7yksCBN10BybAOtmBF19vFPt/jr2KGAirnPZz0ne2X0OH/rRGtg=="],
+    "@capacitor/push-notifications": ["@capacitor/push-notifications@8.0.3", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/push-notifications/-/push-notifications-8.0.3.tgz", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-jmBBoJvOzmzem8YoO9dQJBPFiM1bksTNAoV7yksCBN10BybAOtmBF19vFPt/jr2KGAirnPZz0ne2X0OH/rRGtg=="],
 
     "@capacitor/synapse": ["@capacitor/synapse@1.0.4", "", {}, "sha512-/C1FUo8/OkKuAT4nCIu/34ny9siNHr9qtFezu4kxm6GY1wNFxrCFWjfYx5C1tUhVGz3fxBABegupkpjXvjCHrw=="],
 
