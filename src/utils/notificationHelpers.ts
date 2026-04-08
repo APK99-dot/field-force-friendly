@@ -41,8 +41,9 @@ export async function getNotificationRecipients(
 }
 
 /**
- * Send in-app notification (bell icon) + native push notification for each recipient.
- * This bypasses the unreliable DB trigger and calls the edge function directly.
+ * Send in-app notification (bell icon) + native push notification via a single
+ * backend call. This replaces the old client-side insert + fire-and-forget
+ * approach which was unreliable in mobile WebViews.
  */
 export async function sendNotificationWithPush(
   recipientIds: string[],
@@ -56,34 +57,28 @@ export async function sendNotificationWithPush(
 ): Promise<void> {
   if (recipientIds.length === 0) return;
 
-  // 1) Insert in-app notification rows (for bell icon)
-  const rows = recipientIds.map((uid) => ({
-    user_id: uid,
-    title: notification.title,
-    message: notification.message,
-    type: notification.type || "info",
-    related_table: notification.related_table || null,
-    related_id: notification.related_id || null,
-  }));
-
-  const { error } = await supabase.from("notifications").insert(rows);
-  if (error) console.error("Failed to insert notifications:", error);
-
-  // 2) Invoke push edge function for each recipient (fire-and-forget)
-  for (const uid of recipientIds) {
-    try {
-      supabase.functions.invoke("send-push-notification", {
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "dispatch-notification",
+      {
         body: {
-          user_id: uid,
+          recipient_ids: recipientIds,
           title: notification.title,
           message: notification.message,
+          type: notification.type || "info",
+          related_table: notification.related_table || null,
+          related_id: notification.related_id || null,
         },
-      }).then(({ error: fnErr }) => {
-        if (fnErr) console.warn("Push invoke error for", uid, fnErr);
-      }).catch((e) => console.warn("Push invoke failed for", uid, e));
-    } catch (e) {
-      console.warn("Push dispatch error for", uid, e);
+      }
+    );
+
+    if (error) {
+      console.error("Notification dispatch failed:", error);
+    } else {
+      console.log("Notification dispatch result:", data);
     }
+  } catch (e) {
+    console.error("Notification dispatch error:", e);
   }
 }
 
