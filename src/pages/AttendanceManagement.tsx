@@ -244,15 +244,15 @@ export default function AttendanceManagement() {
       // Notify employee
       if (app) {
         try {
-          await supabase.from('notifications').insert({
-            user_id: app.user_id,
+          const { sendNotificationWithPush } = await import('@/utils/notificationHelpers');
+          await sendNotificationWithPush([app.user_id], {
             title: `Leave ${newStatus === 'approved' ? 'Approved' : 'Rejected'}`,
             message: `Your leave from ${format(new Date(app.from_date), 'MMM dd')} to ${format(new Date(app.to_date), 'MMM dd')}${newStatus === 'rejected' && rejectionReason ? ` - Reason: ${rejectionReason}` : ''} has been ${newStatus}.`,
             type: 'leave_decision',
             related_table: 'leave_applications',
             related_id: applicationId,
           });
-        } catch (e) { console.error('Notification error:', e); }
+        } catch (e) { console.error('Push notification error:', e); }
       }
 
       toast.success(`Leave application ${newStatus} successfully`);
@@ -313,15 +313,15 @@ export default function AttendanceManagement() {
 
       // Notify employee
       try {
-        await supabase.from('notifications').insert({
-          user_id: request.user_id,
+        const { sendNotificationWithPush } = await import('@/utils/notificationHelpers');
+        await sendNotificationWithPush([request.user_id], {
           title: `Regularisation ${newStatus === 'approved' ? 'Approved' : 'Rejected'}`,
           message: `Your regularisation for ${format(new Date(request.attendance_date || request.date), 'MMM dd, yyyy')}${newStatus === 'rejected' && rejectionReason ? ` - Reason: ${rejectionReason}` : ''} has been ${newStatus}.`,
           type: 'regularization_decision',
           related_table: 'regularization_requests',
           related_id: requestId,
         });
-      } catch (e) { console.error('Notification error:', e); }
+      } catch (e) { console.error('Push notification error:', e); }
 
       toast.success(`Regularization request ${newStatus} successfully`);
       fetchRegularizationRequests();
