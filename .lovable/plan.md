@@ -1,76 +1,181 @@
 
+## Plan: Fix Android Push Notifications End-to-End
 
-## Plan: Fix Push Notification Crash + Expand Notification Coverage
+### What I found
+The push system is only partially broken:
 
-### Problem 1: APK Crash on "Allow" Notification Permission
+1. **Device tokens are being saved**
+   - `push_tokens` has recent Android token rows, so the APK is registering with FCM and sending tokens to the backend.
 
-**Root cause**: On Android 13+, granting the `POST_NOTIFICATIONS` runtime permission can trigger an Activity recreation. The Capacitor bridge's `getPermissionStates()` method crashes when the WebView context is destroyed mid-callback. The current 500ms delay is insufficient because the Activity recreation timing varies by device.
+2. **The FCM backend function works**
+   - A manual call to `send-push-notification` succeeded (`sent: 1`, `cleaned: 1`), which means:
+   - `FCM_SERVICE_ACCOUNT_KEY` is actually being used
+   - FCM delivery from the backend is functional
+   - stale tokens are being cleaned up
 
-**Fix approach**: Completely decouple FCM registration from the permission grant flow. Instead of requesting permission and immediately registering in one async sequence, we:
+3. **In-app notifications are being inserted**
+   - Recent `notifications` rows exist for leave/check-in flows, so the bell icon path is working.
 
-1. **Check permission status first** — use `checkPermissions()` (not `requestPermissions()`) to see current state
-2. **If already granted** — proceed directly to `register()` (no Activity recreation risk)
-3. **If not granted** — call `requestPermissions()` but do NOT call `register()` afterward. Instead, set a flag in `localStorage` (`fcm_needs_register = true`)
-4. **On next mount** (after Activity recreation completes and WebView is rebuilt) — detect the flag and call `register()` safely
-5. **Wrap everything** in try-catch with `isUnmounted` guards
+4. **The broken link is the automatic backend trigger path**
+   - Notifications are inserted, but there are no corresponding automatic push-function executions/logs.
+   - So the issue is not FCM itself — it is the current `notifications -> DB trigger -> send-push-notification` pipeline.
 
-This eliminates the crash because `register()` never runs in the same lifecycle as `requestPermissions()`.
+5. **Android tray delivery setup is incomplete**
+   - The app uses `channel_id: "default"` in FCM payloads, but the client does not create that Android notification channel.
+   - This can prevent reliable notification-drawer behavior on some Android devices.
 
-**File**: `src/hooks/usePushNotifications.ts` — rewrite
+6. **One requested event is still missing**
+   - **Day End / check-out** push notification is not currently sent.
 
 ---
 
-### Problem 2: Missing Notification Events
+## Fix approach
 
-Currently only these events trigger notifications:
-- Leave applied → manager only
+### 1) Stop depending on the silent DB-trigger hop for push delivery
+I will make push delivery happen explicitly from app-side notification helpers:
+
+- Keep inserting rows into `notifications` so the **bell icon continues to work**
+- Immediately invoke the backend push function for the same recipients
+- This removes the unreliable trigger bridge from the critical path
+
+This is the safest fix because:
+- token storage already works
+- the push function already works
+- only the middle bridge is failing
+
+### 2) Harden Android notification setup in the APK
+Update the push hook to:
+
+- create a **real Android notification channel** named `default`
+- keep the deferred registration logic that avoids the Android permission crash
+- add listener coverage for:
+  - registration
+  - registrationError
+  - pushNotificationReceived
+  - pushNotificationActionPerformed
+- re-register safely when permission is already granted
+
+### 3) Expand event coverage to match requested behavior
+Ensure both **in-app + native push** happen for:
+
+- Leave applied → manager + admins
 - Leave approved/rejected → employee
-- Regularization request → manager only  
-- Regularization approved/rejected → employee
-- Expense submit/approve/reject → various
+- Check-in / Day Start → manager + admins
+- Check-out / Day End → manager + admins
+- Regularisation request → manager + admins
+- Regularisation approved/rejected → employee
 
-**Missing events to add**:
+### 4) Avoid duplicate or stale delivery
+- Keep stale-token cleanup in the edge function
+- Make notification sending go through one shared helper so all event flows behave consistently
+- Remove dependence on the trigger path so pushes do not silently fail
 
-#### A. Check-in notification to Manager + Admin
-When an employee checks in (Start My Day), notify their reporting manager and all admin users.
+---
 
-**File**: `src/hooks/useAttendance.ts` — after successful check-in insert/update, insert notifications for manager + admins
+## Implementation steps
 
-#### B. Leave applied → notify Admin users too (currently only manager)
-**File**: `src/components/LeaveApplicationModal.tsx` — after notifying manager, also notify all admin users
+### Step 1: Centralize “insert notification + send push”
+Update `src/utils/notificationHelpers.ts` to provide a single reusable helper that:
 
-#### C. Regularization request → notify Admin users too (currently only manager)
-**File**: `src/components/RegularizationRequestModal.tsx` — same pattern
+- inserts notification rows into `notifications`
+- calls the backend push function for each recipient
+- logs per-recipient failures without breaking the in-app notification insert
 
-#### D. Fallback to admins when no reporting manager
-All notification points that target `reporting_manager_id` should fall back to admin users when manager is null.
+This becomes the single source of truth for notification delivery.
 
-**Implementation for admin lookup**: Create a reusable helper function:
-```typescript
-// src/utils/notificationHelpers.ts
-async function getAdminUserIds(): Promise<string[]>
-async function getNotificationRecipients(userId: string): Promise<string[]>
-// Returns [managerId, ...adminIds], deduped
+### Step 2: Replace direct `notifications.insert(...)` calls
+Update all places that currently only write notification rows so they use the shared helper instead.
+
+Files to update:
+- `src/components/LeaveApplicationModal.tsx`
+- `src/components/RegularizationRequestModal.tsx`
+- `src/hooks/useAttendance.ts`
+- `src/pages/AttendanceManagement.tsx`
+- `src/pages/PendingApprovals.tsx`
+
+### Step 3: Add missing Day End notification
+Update `src/hooks/useAttendance.ts` so `checkOut()` also notifies manager + admins.
+
+### Step 4: Create Android notification channel
+Update `src/hooks/usePushNotifications.ts` to:
+- create channel `default`
+- register listeners safely
+- preserve deferred registration after Android permission grant
+- handle notification taps cleanly
+
+### Step 5: Neutralize the unreliable trigger path
+I will remove or stop relying on the `on_notification_inserted` trigger path so push delivery does not depend on the failing database hop.
+
+This prevents confusion and future duplicate pushes once explicit delivery is in place.
+
+---
+
+## Files involved
+
+### Frontend
+- `src/hooks/usePushNotifications.ts`
+- `src/utils/notificationHelpers.ts`
+- `src/hooks/useAttendance.ts`
+- `src/components/LeaveApplicationModal.tsx`
+- `src/components/RegularizationRequestModal.tsx`
+- `src/pages/AttendanceManagement.tsx`
+- `src/pages/PendingApprovals.tsx`
+
+### Backend
+- migration to disable/remove trigger dependency:
+  - `on_notification_inserted`
+  - `notify_push_on_insert()`
+
+### Existing backend function kept
+- `supabase/functions/send-push-notification/index.ts`
+
+---
+
+## Technical details
+
+### Why this is the right fix
+The investigation shows:
+
+```text
+APK token registration: working
+notifications table inserts: working
+FCM backend send: working
+automatic DB-trigger dispatch: failing
 ```
 
+So the reliable fix is to connect the already-working pieces directly.
+
+### Android drawer behavior
+For background/closed delivery, the payload already includes a `notification` object, which is correct for system-tray display. I will add the missing Android channel setup so the device can present those notifications consistently.
+
+### Real-time bell icon behavior
+Nothing will be removed from the in-app system. Notification rows will still be inserted exactly as before, so bell icon behavior remains intact.
+
+### Expected result after implementation
+When the app is in foreground, background, or closed:
+
+- bell icon still updates
+- Android notification drawer shows native push alerts
+- leave/check-in/check-out/regularisation events go to the right people
+- employee approval/rejection messages reach the employee device
+
 ---
 
-### Technical Details
+## Validation plan
+After implementation, I will verify this flow end-to-end:
 
-#### Files to create:
-- `src/utils/notificationHelpers.ts` — helper to fetch manager + admin user IDs for notification targeting
-
-#### Files to modify:
-- `src/hooks/usePushNotifications.ts` — decouple permission from registration using localStorage flag
-- `src/hooks/useAttendance.ts` — add check-in notification to manager + admins
-- `src/components/LeaveApplicationModal.tsx` — add admin notifications on leave apply
-- `src/components/RegularizationRequestModal.tsx` — add admin notifications on regularization request
-- `src/pages/PendingApprovals.tsx` — ensure leave/reg decision notifications already work (they do)
-- `src/pages/AttendanceManagement.tsx` — ensure leave/reg decision notifications already work (they do)
-
-#### No database changes needed
-The `notifications` table and `push_tokens` table already exist. The DB trigger `on_notification_inserted` already fires the edge function for every notification insert. The `FCM_SERVICE_ACCOUNT_KEY` secret still needs to be provided by you for push delivery to work.
-
-### Prerequisite reminder
-You still need to provide the **FCM Service Account Key** secret for push notifications to actually deliver to Android devices. Without it, bell icon notifications work but native push won't fire.
-
+1. Log in on Android and confirm a `push_tokens` row is created/updated
+2. Apply leave from employee account
+3. Confirm manager/admin get:
+   - bell icon notification
+   - Android tray notification
+4. Approve/reject leave
+5. Confirm employee gets:
+   - bell icon notification
+   - Android tray notification
+6. Start Day / End Day
+7. Confirm manager/admin receive native push for both events
+8. Repeat with app in:
+   - foreground
+   - background
+   - fully closed
