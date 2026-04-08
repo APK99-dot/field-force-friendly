@@ -7,9 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Search, Download, Users, Clock, MapPin, UserCheck, User, Calendar, TrendingUp, CheckCircle2, XCircle } from 'lucide-react';
+import { Search, Download, Users, Clock, MapPin, UserCheck, User, Calendar, TrendingUp, CheckCircle2, XCircle, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { downloadCSVString } from '@/utils/nativeDownload';
 
@@ -46,6 +47,7 @@ const LiveAttendanceMonitoring = () => {
   const [summaryStats, setSummaryStats] = useState<SummaryStats>({ totalPresent: 0, totalAbsent: 0, totalHalfDay: 0, totalOnLeave: 0, averageHours: 0, totalEmployees: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [detailRecord, setDetailRecord] = useState<AttendanceData | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -334,9 +336,9 @@ const LiveAttendanceMonitoring = () => {
                           <img
                             src={r.signed_photo_url}
                             alt="Check-in"
-                            className="h-8 w-8 rounded object-cover border"
+                            className="h-8 w-8 rounded object-cover border cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                             loading="lazy"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => { e.stopPropagation(); setPreviewPhoto(r.signed_photo_url!); }}
                           />
                         ) : <span className="text-xs text-muted-foreground">--</span>}
                       </TableCell>
@@ -373,7 +375,12 @@ const LiveAttendanceMonitoring = () => {
                 {/* Photo */}
                 {detailRecord.signed_photo_url && (
                   <div className="flex justify-center">
-                    <img src={detailRecord.signed_photo_url} alt="Check-in photo" className="h-32 w-32 rounded-lg object-cover border shadow-sm" />
+                    <img
+                      src={detailRecord.signed_photo_url}
+                      alt="Check-in photo"
+                      className="h-32 w-32 rounded-lg object-cover border shadow-sm cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                      onClick={() => setPreviewPhoto(detailRecord.signed_photo_url!)}
+                    />
                   </div>
                 )}
 
@@ -465,6 +472,25 @@ const LiveAttendanceMonitoring = () => {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Fullscreen Photo Preview */}
+      <Dialog open={!!previewPhoto} onOpenChange={(open) => !open && setPreviewPhoto(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none flex items-center justify-center">
+          <button
+            onClick={() => setPreviewPhoto(null)}
+            className="absolute top-3 right-3 z-50 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          {previewPhoto && (
+            <img
+              src={previewPhoto}
+              alt="Attendance photo preview"
+              className="max-w-full max-h-[90vh] object-contain rounded"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
