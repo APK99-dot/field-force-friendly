@@ -23,7 +23,6 @@ export async function getAdminUserIds(): Promise<string[]> {
 export async function getNotificationRecipients(
   userId: string
 ): Promise<string[]> {
-  // Fetch manager
   const { data: userData } = await supabase
     .from("users")
     .select("reporting_manager_id, full_name")
@@ -33,19 +32,19 @@ export async function getNotificationRecipients(
   const managerId = userData?.reporting_manager_id || null;
   const adminIds = await getAdminUserIds();
 
-  // Combine and dedupe, also exclude the user themselves
   const recipientSet = new Set<string>();
   if (managerId) recipientSet.add(managerId);
   adminIds.forEach((id) => recipientSet.add(id));
-  recipientSet.delete(userId); // Don't notify yourself
+  recipientSet.delete(userId);
 
   return Array.from(recipientSet);
 }
 
 /**
- * Send a notification to multiple recipients at once.
+ * Send in-app notification (bell icon) + native push notification for each recipient.
+ * This bypasses the unreliable DB trigger and calls the edge function directly.
  */
-export async function sendNotificationToMany(
+export async function sendNotificationWithPush(
   recipientIds: string[],
   notification: {
     title: string;
@@ -57,6 +56,7 @@ export async function sendNotificationToMany(
 ): Promise<void> {
   if (recipientIds.length === 0) return;
 
+  // 1) Insert in-app notification rows (for bell icon)
   const rows = recipientIds.map((uid) => ({
     user_id: uid,
     title: notification.title,
@@ -67,5 +67,27 @@ export async function sendNotificationToMany(
   }));
 
   const { error } = await supabase.from("notifications").insert(rows);
-  if (error) console.error("Failed to send notifications:", error);
+  if (error) console.error("Failed to insert notifications:", error);
+
+  // 2) Invoke push edge function for each recipient (fire-and-forget)
+  for (const uid of recipientIds) {
+    try {
+      supabase.functions.invoke("send-push-notification", {
+        body: {
+          user_id: uid,
+          title: notification.title,
+          message: notification.message,
+        },
+      }).then(({ error: fnErr }) => {
+        if (fnErr) console.warn("Push invoke error for", uid, fnErr);
+      }).catch((e) => console.warn("Push invoke failed for", uid, e));
+    } catch (e) {
+      console.warn("Push dispatch error for", uid, e);
+    }
+  }
 }
+
+/**
+ * @deprecated Use sendNotificationWithPush instead
+ */
+export const sendNotificationToMany = sendNotificationWithPush;
