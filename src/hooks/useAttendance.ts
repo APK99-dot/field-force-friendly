@@ -171,7 +171,7 @@ export function useAttendance(userId: string | undefined) {
 
     // Notify manager + admins about check-in
     try {
-      const { getNotificationRecipients, sendNotificationToMany } = await import('@/utils/notificationHelpers');
+      const { getNotificationRecipients, sendNotificationWithPush } = await import('@/utils/notificationHelpers');
       const { data: userData } = await supabase
         .from('users')
         .select('full_name')
@@ -179,7 +179,7 @@ export function useAttendance(userId: string | undefined) {
         .single();
 
       const recipients = await getNotificationRecipients(userId);
-      await sendNotificationToMany(recipients, {
+      await sendNotificationWithPush(recipients, {
         title: `Check-In - ${userData?.full_name || 'Employee'}`,
         message: `Checked in at ${format(new Date(), 'h:mm a, MMM dd yyyy')}`,
         type: 'attendance',
@@ -218,6 +218,26 @@ export function useAttendance(userId: string | undefined) {
     if (error) throw error;
 
     await fetchData();
+
+    // Notify manager + admins about check-out (Day End)
+    try {
+      const { getNotificationRecipients, sendNotificationWithPush } = await import('@/utils/notificationHelpers');
+      const { data: userData } = await supabase
+        .from('users')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
+
+      const recipients = await getNotificationRecipients(userId);
+      await sendNotificationWithPush(recipients, {
+        title: `Day End - ${userData?.full_name || 'Employee'}`,
+        message: `Checked out at ${format(new Date(), 'h:mm a, MMM dd yyyy')}`,
+        type: 'attendance',
+        related_table: 'attendance',
+      });
+    } catch (notifError) {
+      console.error('Error sending check-out notification:', notifError);
+    }
   };
 
   // Build attendance map

@@ -127,12 +127,14 @@ export default function PendingApprovals() {
       if (error) throw error;
 
       if (app) {
-        await supabase.from("notifications").insert({
-          user_id: app.user_id,
-          title: `Leave ${status === "approved" ? "Approved" : "Rejected"}`,
-          message: `Your ${app.leave_type_name} from ${format(new Date(app.from_date), "MMM dd")} to ${format(new Date(app.to_date), "MMM dd")}${status === "rejected" && reason ? ` - Reason: ${reason}` : ""} has been ${status}.`,
-          type: "leave_decision", related_table: "leave_applications", related_id: id,
-        });
+        try {
+          const { sendNotificationWithPush } = await import('@/utils/notificationHelpers');
+          await sendNotificationWithPush([app.user_id], {
+            title: `Leave ${status === "approved" ? "Approved" : "Rejected"}`,
+            message: `Your ${app.leave_type_name} from ${format(new Date(app.from_date), "MMM dd")} to ${format(new Date(app.to_date), "MMM dd")}${status === "rejected" && reason ? ` - Reason: ${reason}` : ""} has been ${status}.`,
+            type: "leave_decision", related_table: "leave_applications", related_id: id,
+          });
+        } catch (e) { console.error('Push notification error:', e); }
       }
       toast.success(`Leave ${status} successfully`);
       setLeaveRequests((prev) => prev.filter((l) => l.id !== id));
@@ -173,12 +175,14 @@ export default function PendingApprovals() {
       }).eq("id", id);
       if (error) throw error;
 
-      await supabase.from("notifications").insert({
-        user_id: request.user_id,
-        title: `Regularisation ${status === "approved" ? "Approved" : "Rejected"}`,
-        message: `Your regularisation for ${format(new Date(request.attendance_date || request.date), "MMM dd, yyyy")}${status === "rejected" && reason ? ` - Reason: ${reason}` : ""} has been ${status}.`,
-        type: "regularization_decision", related_table: "regularization_requests", related_id: id,
-      });
+      try {
+        const { sendNotificationWithPush } = await import('@/utils/notificationHelpers');
+        await sendNotificationWithPush([request.user_id], {
+          title: `Regularisation ${status === "approved" ? "Approved" : "Rejected"}`,
+          message: `Your regularisation for ${format(new Date(request.attendance_date || request.date), "MMM dd, yyyy")}${status === "rejected" && reason ? ` - Reason: ${reason}` : ""} has been ${status}.`,
+          type: "regularization_decision", related_table: "regularization_requests", related_id: id,
+        });
+      } catch (e) { console.error('Push notification error:', e); }
 
       toast.success(`Regularisation ${status} successfully`);
       setRegRequests((prev) => prev.filter((r) => r.id !== id));

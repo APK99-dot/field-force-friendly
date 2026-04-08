@@ -87,7 +87,7 @@ const RegularizationRequestModal: React.FC<RegularizationRequestModalProps> = ({
 
       // Notify manager + all admins
       try {
-        const { getNotificationRecipients, sendNotificationToMany } = await import('@/utils/notificationHelpers');
+        const { getNotificationRecipients, sendNotificationWithPush } = await import('@/utils/notificationHelpers');
         const { data: userData } = await supabase
           .from('users')
           .select('full_name')
@@ -96,7 +96,7 @@ const RegularizationRequestModal: React.FC<RegularizationRequestModalProps> = ({
 
         if (insertedReq) {
           const recipients = await getNotificationRecipients(userId);
-          await sendNotificationToMany(recipients, {
+          await sendNotificationWithPush(recipients, {
             title: `Regularisation Request - ${userData?.full_name || 'Employee'}`,
             message: `Date: ${format(new Date(attendanceDate), 'MMM dd, yyyy')}, Reason: ${reason.trim().substring(0, 100)}`,
             type: 'regularization_request',
