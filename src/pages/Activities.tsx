@@ -844,7 +844,7 @@ export default function Activities() {
                   setShowAddSiteDialog(true);
                   return;
                 }
-                setForm({ ...form, site_id: v });
+                setForm({ ...form, site_id: v, milestone_id: "" });
               }}>
                 <SelectTrigger><SelectValue placeholder="Select site (optional)" /></SelectTrigger>
                 <SelectContent>
@@ -856,6 +856,22 @@ export default function Activities() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Milestone dropdown - shown when a site is selected */}
+            {form.site_id && siteMilestones.length > 0 && (
+              <div>
+                <Label className="text-xs">Select Milestone</Label>
+                <Select value={form.milestone_id} onValueChange={(v) => setForm({ ...form, milestone_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select milestone (optional)" /></SelectTrigger>
+                  <SelectContent>
+                    {siteMilestones.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name} ({m.status === "not_started" ? "Not Started" : m.status === "in_progress" ? "In Progress" : "Completed"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Activity Type *</Label>
