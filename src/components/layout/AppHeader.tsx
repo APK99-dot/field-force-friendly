@@ -16,6 +16,7 @@ import {
   FolderKanban,
   Users2,
   Shield,
+  Handshake,
   AlertTriangle,
   Receipt,
   ClipboardList,
@@ -49,6 +50,7 @@ const allNavigationItems = [
   { icon: ClipboardList, label: "Activities", href: "/activities", color: "from-teal-500 to-teal-600", module: "module_activities" },
   { icon: Building2, label: "Projects/Sites", href: "/sites", color: "from-cyan-500 to-cyan-600", module: null as string | null },
   { icon: Users2, label: "My Team", href: "/my-team", color: "from-indigo-500 to-indigo-600", module: null as string | null },
+  { icon: Handshake, label: "Vendors", href: "/vendors", color: "from-amber-500 to-amber-600", module: null as string | null },
 ];
 
 const adminItems = [
