@@ -625,6 +625,7 @@ export default function SiteMasterManagement() {
                 </Button>
               </div>
             </div>
+            <div>
               <Label className="text-xs flex items-center gap-1.5 mb-2">
                 <Users className="h-3.5 w-3.5" />
                 Assign Users ({selectedUserIds.length} selected)
