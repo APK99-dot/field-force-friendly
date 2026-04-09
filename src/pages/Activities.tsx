@@ -240,7 +240,7 @@ export default function Activities() {
       .from("activity_types_master")
       .select("name")
       .eq("is_active", true)
-      .order("name");
+      .order("sort_order");
     setActivityTypes((data || []).map((d: any) => d.name));
   }, []);
 

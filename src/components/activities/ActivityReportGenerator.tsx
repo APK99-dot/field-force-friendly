@@ -74,7 +74,7 @@ export default function ActivityReportGenerator({ isAdmin }: Props) {
     }
     setTeamMembers(members);
 
-    const { data: types } = await supabase.from('activity_types_master').select('name').eq('is_active', true).order('name');
+    const { data: types } = await supabase.from('activity_types_master').select('name').eq('is_active', true).order('sort_order');
     setActivityTypes((types || []).map((t: any) => t.name));
   };
 
