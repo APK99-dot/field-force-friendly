@@ -122,6 +122,7 @@ const defaultForm = {
   description: "",
   status: "planned",
   site_id: "",
+  milestone_id: "",
   location_address: "",
   total_hours: 0,
   owner_user_id: "",
@@ -161,6 +162,9 @@ export default function Activities() {
   const [showAddSiteDialog, setShowAddSiteDialog] = useState(false);
   const [newSiteName, setNewSiteName] = useState("");
   const [addingSite, setAddingSite] = useState(false);
+
+  // Milestones for selected site
+  const [siteMilestones, setSiteMilestones] = useState<{ id: string; name: string; status: string }[]>([]);
 
   // Transcribe audio recording via edge function
   const transcribeAudio = useCallback(async (audioBlob: Blob) => {
