@@ -592,6 +592,7 @@ export default function Activities() {
         description: form.description || null,
         status: form.status,
         site_id: form.site_id || null,
+        milestone_id: form.milestone_id || null,
         location_address: form.location_address || null,
         total_hours: form.total_hours || 0,
         ...(attachmentUrls.length > 0 ? { attachment_urls: attachmentUrls } : {}),
