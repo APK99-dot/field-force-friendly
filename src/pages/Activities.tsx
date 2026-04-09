@@ -547,6 +547,7 @@ export default function Activities() {
       description: a.description || "",
       status: a.status,
       site_id: a.site_id || "",
+      milestone_id: a.milestone_id || "",
       location_address: a.location_address || "",
       total_hours: a.total_hours || 0,
       owner_user_id: a.user_id,
