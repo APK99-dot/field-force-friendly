@@ -147,25 +147,47 @@ export default function SiteMasterManagement() {
     setLoading(false);
   }, []);
 
+  const fetchMilestonesForSite = useCallback(async (siteId: string) => {
+    const { data } = await supabase.from("site_milestones").select("*").eq("site_id", siteId).order("start_date");
+    return (data || []).map((m: any) => ({
+      id: m.id,
+      name: m.name,
+      start_date: m.start_date,
+      end_date: m.end_date,
+      status: m.status,
+      priority: m.priority || "medium",
+    })) as SiteMilestone[];
+  }, []);
+
   useEffect(() => {
     fetchSites();
     fetchUsers();
     fetchAssignments();
   }, [fetchSites, fetchUsers, fetchAssignments]);
 
+  // Load milestones when detail panel opens
+  useEffect(() => {
+    if (detailSite) {
+      fetchMilestonesForSite(detailSite.id).then(setDetailMilestones);
+    }
+  }, [detailSite, fetchMilestonesForSite]);
+
   const handleOpenCreate = () => {
     setEditingSite(null);
     setForm({ site_name: "", description: "", start_date: new Date().toISOString().split("T")[0], end_date: "", flag: "green" });
     setSelectedUserIds([]);
     setUserSearch("");
+    setMilestones([]);
     setShowDialog(true);
   };
 
-  const handleOpenEdit = (site: Site) => {
+  const handleOpenEdit = async (site: Site) => {
     setEditingSite(site);
     setForm({ site_name: site.site_name, description: site.description || "", start_date: site.start_date || "", end_date: site.end_date || "", flag: site.flag || "green" });
     setSelectedUserIds(siteAssignments[site.id] || []);
     setUserSearch("");
+    const ms = await fetchMilestonesForSite(site.id);
+    setMilestones(ms);
     setShowDialog(true);
   };
 
