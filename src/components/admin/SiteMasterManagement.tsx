@@ -478,6 +478,36 @@ export default function SiteMasterManagement() {
                 })()}
               </div>
 
+              {/* Milestones */}
+              <div>
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
+                  <Target className="h-3.5 w-3.5" /> Milestones
+                </Label>
+                {detailMilestones.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No milestones added</p>
+                ) : (
+                  <div className="space-y-2">
+                    {detailMilestones.map((ms) => {
+                      const statusLabel = ms.status === "not_started" ? "Not Started" : ms.status === "in_progress" ? "In Progress" : "Completed";
+                      const statusColor = ms.status === "completed" ? "bg-emerald-100 text-emerald-700" : ms.status === "in_progress" ? "bg-blue-100 text-blue-700" : "bg-muted text-muted-foreground";
+                      const priorityColor = ms.priority === "high" ? "text-red-600" : ms.priority === "medium" ? "text-amber-600" : "text-muted-foreground";
+                      return (
+                        <div key={ms.id} className="border rounded-lg p-2.5 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">{ms.name}</span>
+                            <Badge variant="outline" className={`text-[10px] ${statusColor}`}>{statusLabel}</Badge>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span>{ms.start_date ? format(new Date(ms.start_date), "dd MMM") : ""} → {ms.end_date ? format(new Date(ms.end_date), "dd MMM yyyy") : ""}</span>
+                            <span className={`font-medium ${priorityColor}`}>{ms.priority?.charAt(0).toUpperCase() + ms.priority?.slice(1)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Actions */}
               <div className="flex gap-2 pt-2 border-t">
                 <Button size="sm" variant="outline" className="flex-1" onClick={() => { handleOpenEdit(detailSite); }}>
