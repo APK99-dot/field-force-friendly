@@ -112,6 +112,8 @@ export default function SiteMasterManagement() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [siteAssignments, setSiteAssignments] = useState<Record<string, string[]>>({});
   const [userSearch, setUserSearch] = useState("");
+  const [milestones, setMilestones] = useState<SiteMilestone[]>([]);
+  const [detailMilestones, setDetailMilestones] = useState<SiteMilestone[]>([]);
 
   // Detail sheet state
   const [detailSite, setDetailSite] = useState<Site | null>(null);
