@@ -3304,6 +3304,57 @@ export type Database = {
           },
         ]
       }
+      vendors: {
+        Row: {
+          address: string | null
+          category: string | null
+          company: string | null
+          contact_person: string | null
+          created_at: string
+          created_by: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          services: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          category?: string | null
+          company?: string | null
+          contact_person?: string | null
+          created_at?: string
+          created_by: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone: string
+          services?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          category?: string | null
+          company?: string | null
+          contact_person?: string | null
+          created_at?: string
+          created_by?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string
+          services?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       visits: {
         Row: {
           check_in_location: Json | null
