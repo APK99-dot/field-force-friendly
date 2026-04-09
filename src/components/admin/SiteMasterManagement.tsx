@@ -35,7 +35,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Plus, Edit, ToggleLeft, ToggleRight, Loader2, Building2, Users, Search, Flag } from "lucide-react";
+import { Plus, Edit, ToggleLeft, ToggleRight, Loader2, Building2, Users, Search, Flag, Milestone, Trash2, Target } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -53,6 +53,16 @@ interface Site {
   start_date: string;
   end_date: string | null;
   flag: SiteFlag;
+}
+
+interface SiteMilestone {
+  id?: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  priority: string;
+  _delete?: boolean;
 }
 
 interface UserOption {
