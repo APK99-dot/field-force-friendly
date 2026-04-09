@@ -1,41 +1,78 @@
 
 
-## Plan: Fix Missing Check-in Photos in Live Attendance
+## Plan: Activity + Project/Site Integration with Milestones
 
-### Root Cause
-The `attendance-photos` storage bucket has an RLS policy that only allows users to view their **own** photos:
-```sql
--- Current policy
-bucket_id = 'attendance-photos' AND auth.uid() = storage.foldername(name)[1]
-```
+### Overview
+Create a milestone tracking system for project sites, link milestones to activities, and display milestone/site info on activity cards.
 
-There is **no admin/manager SELECT policy** for `attendance-photos`. So when the admin views the Live Attendance table, `createSignedUrl` fails for every other user's photos, returning null — hence the `--` placeholders.
+---
 
-This is why only one employee (the logged-in user themselves) shows a photo.
+### Database Changes
 
-### Fix
-Add a storage RLS policy allowing admins to view all attendance photos.
+**New table: `site_milestones`**
+- `id` (uuid, PK)
+- `site_id` (uuid, FK to project_sites.id, NOT NULL)
+- `name` (text, NOT NULL)
+- `start_date` (date, NOT NULL)
+- `end_date` (date, NOT NULL)
+- `status` (text, NOT NULL, default 'not_started') -- values: not_started, in_progress, completed
+- `priority` (text, default 'medium') -- values: low, medium, high
+- `created_at`, `updated_at` (timestamptz)
 
-### Implementation
+RLS: Admins full access, authenticated users can view.
 
-**Step 1: Database migration**
-Add a new storage SELECT policy:
-```sql
-CREATE POLICY "Admins can view all attendance photos"
-ON storage.objects FOR SELECT
-USING (
-  bucket_id = 'attendance-photos'
-  AND has_role(auth.uid(), 'admin'::app_role)
-);
-```
+**Alter `activity_events`**
+- Add `milestone_id` (uuid, nullable) column
 
-This mirrors the existing "Admins can view all employee photos" pattern already in place for the `employee-photos` bucket.
+---
 
-### Files
-- One migration file (no frontend code changes needed)
+### Step 1: Database migration
+Create the `site_milestones` table with RLS policies. Add `milestone_id` column to `activity_events`.
 
-### Why this is sufficient
-- The `getSignedUrl` logic in `LiveAttendanceMonitoring.tsx` already correctly extracts paths and generates signed URLs
-- The only reason it fails is the missing RLS permission
-- Once admins can SELECT from the bucket, `createSignedUrl` will succeed and photos will appear for all employees
+### Step 2: Add milestone section to Site Create/Edit dialog
+In `SiteMasterManagement.tsx`:
+- Add a repeatable "Milestones" section below the Flag picker in the Add/Edit Site dialog
+- Each milestone row: Name, Start Date, End Date, Status dropdown, Priority dropdown, delete button
+- "Add Milestone" button to add more rows
+- On save, insert/update/delete milestones alongside the site save
+
+### Step 3: Show milestones in Site detail panel
+In the Sheet detail panel for a site:
+- Display list of milestones with name, dates, status badge, priority
+- Allow inline status changes
+
+### Step 4: Add milestone dropdown to Activity form
+In `Activities.tsx` Log New Activity dialog:
+- When a site is selected, fetch its milestones
+- Show a "Select Milestone" dropdown below the Project/Site field
+- Clear milestone when site changes
+
+### Step 5: Display milestone info on Activity cards
+In the `ActivityCard` component:
+- Show milestone name and status alongside site name
+- Show site flag indicator
+- Read-only display (milestone data comes from the site_milestones table)
+
+### Step 6: Update Activity hook and types
+- Add `milestone_id` to the `Activity` interface
+- Add `milestone_name` and `milestone_status` as joined fields
+- Fetch milestone data when loading activities
+
+---
+
+### Files to create/modify
+
+| File | Action |
+|------|--------|
+| `supabase/migrations/...` | New migration for `site_milestones` table + `milestone_id` column |
+| `src/components/admin/SiteMasterManagement.tsx` | Add milestone section to create/edit dialog and detail panel |
+| `src/pages/Activities.tsx` | Add milestone dropdown in form, show milestone on cards |
+| `src/hooks/useActivities.ts` | Add milestone_id to create/update, fetch milestone names |
+
+---
+
+### Technical details
+- The existing `pm_milestones` table belongs to the PM module and uses `project_id`. The new `site_milestones` table is separate and uses `site_id` to keep the two modules independent.
+- Milestone data on activity cards is read-only -- activities reference milestones but cannot modify them.
+- Site flag is already stored on `project_sites.flag` and will be fetched alongside site data for display on activity cards.
 
