@@ -79,7 +79,7 @@ export function useActivities() {
 
       let userMap: Record<string, string> = {};
       let projectMap: Record<string, string> = {};
-      let siteMap: Record<string, { name: string; active: boolean }> = {};
+      let siteMap: Record<string, { name: string; active: boolean; flag: string }> = {};
 
       if (userIds.length > 0) {
         const { data: usersData } = await supabase.from("users").select("id, full_name").in("id", userIds);
