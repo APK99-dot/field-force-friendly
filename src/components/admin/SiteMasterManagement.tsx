@@ -249,6 +249,26 @@ export default function SiteMasterManagement() {
         );
       }
 
+      // Save milestones
+      const existingMs = milestones.filter(m => m.id);
+      const newMs = milestones.filter(m => !m.id && !m._delete);
+      const toDeleteMs = existingMs.filter(m => m._delete);
+      const toUpdateMs = existingMs.filter(m => !m._delete);
+
+      if (toDeleteMs.length > 0) {
+        await supabase.from("site_milestones").delete().in("id", toDeleteMs.map(m => m.id!));
+      }
+      for (const m of toUpdateMs) {
+        await supabase.from("site_milestones").update({
+          name: m.name, start_date: m.start_date, end_date: m.end_date, status: m.status, priority: m.priority,
+        }).eq("id", m.id!);
+      }
+      if (newMs.length > 0) {
+        await supabase.from("site_milestones").insert(
+          newMs.map(m => ({ site_id: siteId, name: m.name, start_date: m.start_date, end_date: m.end_date, status: m.status, priority: m.priority }))
+        );
+      }
+
       setShowDialog(false);
       setDetailSite(null);
       fetchSites();
