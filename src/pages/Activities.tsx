@@ -122,6 +122,7 @@ const defaultForm = {
   description: "",
   status: "planned",
   site_id: "",
+  milestone_id: "",
   location_address: "",
   total_hours: 0,
   owner_user_id: "",
@@ -161,6 +162,9 @@ export default function Activities() {
   const [showAddSiteDialog, setShowAddSiteDialog] = useState(false);
   const [newSiteName, setNewSiteName] = useState("");
   const [addingSite, setAddingSite] = useState(false);
+
+  // Milestones for selected site
+  const [siteMilestones, setSiteMilestones] = useState<{ id: string; name: string; status: string }[]>([]);
 
   // Transcribe audio recording via edge function
   const transcribeAudio = useCallback(async (audioBlob: Blob) => {
@@ -243,6 +247,17 @@ export default function Activities() {
       .order("sort_order");
     setActivityTypes((data || []).map((d: any) => d.name));
   }, []);
+
+  // Fetch milestones when site_id changes in form
+  useEffect(() => {
+    if (!form.site_id || form.site_id === "__add_new_site__") {
+      setSiteMilestones([]);
+      return;
+    }
+    supabase.from("site_milestones").select("id, name, status").eq("site_id", form.site_id).order("start_date").then(({ data }) => {
+      setSiteMilestones((data || []).map((m: any) => ({ id: m.id, name: m.name, status: m.status })));
+    });
+  }, [form.site_id]);
 
   useEffect(() => {
     fetchActivityTypes();
@@ -543,6 +558,7 @@ export default function Activities() {
       description: a.description || "",
       status: a.status,
       site_id: a.site_id || "",
+      milestone_id: a.milestone_id || "",
       location_address: a.location_address || "",
       total_hours: a.total_hours || 0,
       owner_user_id: a.user_id,
@@ -587,6 +603,7 @@ export default function Activities() {
         description: form.description || null,
         status: form.status,
         site_id: form.site_id || null,
+        milestone_id: form.milestone_id || null,
         location_address: form.location_address || null,
         total_hours: form.total_hours || 0,
         ...(attachmentUrls.length > 0 ? { attachment_urls: attachmentUrls } : {}),
@@ -827,7 +844,7 @@ export default function Activities() {
                   setShowAddSiteDialog(true);
                   return;
                 }
-                setForm({ ...form, site_id: v });
+                setForm({ ...form, site_id: v, milestone_id: "" });
               }}>
                 <SelectTrigger><SelectValue placeholder="Select site (optional)" /></SelectTrigger>
                 <SelectContent>
@@ -839,6 +856,22 @@ export default function Activities() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Milestone dropdown - shown when a site is selected */}
+            {form.site_id && siteMilestones.length > 0 && (
+              <div>
+                <Label className="text-xs">Select Milestone</Label>
+                <Select value={form.milestone_id} onValueChange={(v) => setForm({ ...form, milestone_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select milestone (optional)" /></SelectTrigger>
+                  <SelectContent>
+                    {siteMilestones.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name} ({m.status === "not_started" ? "Not Started" : m.status === "in_progress" ? "In Progress" : "Completed"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Activity Type *</Label>
@@ -1368,7 +1401,22 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateAct
               </p>
             )}
             {(a.site_name || a.project_name) && (
-              <p className="text-xs text-primary ml-6 mt-0.5">📁 {a.site_name || a.project_name}</p>
+              <div className="ml-6 mt-0.5 space-y-0.5">
+                <p className="text-xs text-primary">
+                  📍 {a.site_name || a.project_name}
+                  {a.site_flag && (
+                    <span className={`ml-1.5 inline-block h-2 w-2 rounded-full ${a.site_flag === "red" ? "bg-red-500" : a.site_flag === "orange" ? "bg-orange-500" : "bg-emerald-500"}`} />
+                  )}
+                </p>
+                {a.milestone_name && (
+                  <p className="text-xs text-muted-foreground">
+                    🎯 {a.milestone_name}
+                    <span className="ml-1.5 text-[10px]">
+                      ({a.milestone_status === "not_started" ? "Not Started" : a.milestone_status === "in_progress" ? "In Progress" : "Completed"})
+                    </span>
+                  </p>
+                )}
+              </div>
             )}
             {a.user_full_name && (
               <p className="text-xs text-muted-foreground ml-6 mt-0.5">👤 {a.user_full_name}</p>

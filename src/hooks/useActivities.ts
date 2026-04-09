@@ -20,6 +20,7 @@ export interface Activity {
   status: string;
   project_id: string | null;
   site_id: string | null;
+  milestone_id: string | null;
   location_lat: number | null;
   location_lng: number | null;
   location_address: string | null;
@@ -32,6 +33,9 @@ export interface Activity {
   user_full_name?: string;
   project_name?: string;
   site_name?: string;
+  site_flag?: string;
+  milestone_name?: string;
+  milestone_status?: string;
 }
 
 export interface ActivityFilters {
@@ -75,7 +79,7 @@ export function useActivities() {
 
       let userMap: Record<string, string> = {};
       let projectMap: Record<string, string> = {};
-      let siteMap: Record<string, { name: string; active: boolean }> = {};
+      let siteMap: Record<string, { name: string; active: boolean; flag: string }> = {};
 
       if (userIds.length > 0) {
         const { data: usersData } = await supabase.from("users").select("id, full_name").in("id", userIds);
@@ -88,18 +92,30 @@ export function useActivities() {
       }
 
       if (siteIds.length > 0) {
-        const { data: siteData } = await supabase.from("project_sites").select("id, site_name, is_active").in("id", siteIds);
-        (siteData || []).forEach((s: any) => { siteMap[s.id] = { name: s.site_name, active: s.is_active }; });
+        const { data: siteData } = await supabase.from("project_sites").select("id, site_name, is_active, flag").in("id", siteIds);
+        (siteData || []).forEach((s: any) => { siteMap[s.id] = { name: s.site_name, active: s.is_active, flag: s.flag || "green" }; });
+      }
+
+      // Fetch milestone names
+      const milestoneIds = [...new Set((data || []).filter((a: any) => a.milestone_id).map((a: any) => a.milestone_id))];
+      let milestoneMap: Record<string, { name: string; status: string }> = {};
+      if (milestoneIds.length > 0) {
+        const { data: msData } = await supabase.from("site_milestones").select("id, name, status").in("id", milestoneIds);
+        (msData || []).forEach((m: any) => { milestoneMap[m.id] = { name: m.name, status: m.status }; });
       }
 
       const mapped: Activity[] = (data || []).map((a: any) => {
         const siteInfo = a.site_id ? siteMap[a.site_id] : null;
+        const msInfo = a.milestone_id ? milestoneMap[a.milestone_id] : null;
         return {
           ...a,
           attachment_urls: a.attachment_urls || [],
           user_full_name: userMap[a.user_id] || "",
           project_name: a.project_id ? projectMap[a.project_id] || "" : "",
           site_name: siteInfo ? `${siteInfo.name}${!siteInfo.active ? " (Inactive)" : ""}` : "",
+          site_flag: siteInfo?.flag || "",
+          milestone_name: msInfo?.name || "",
+          milestone_status: msInfo?.status || "",
         };
       });
 
@@ -176,6 +192,7 @@ export function useActivities() {
         status: activity.status || "planned",
         project_id: activity.project_id || null,
         site_id: activity.site_id || null,
+        milestone_id: (activity as any).milestone_id || null,
         location_lat: activity.location_lat || null,
         location_lng: activity.location_lng || null,
         location_address: activity.location_address || null,
@@ -201,7 +218,7 @@ export function useActivities() {
       'activity_name', 'activity_type', 'activity_date', 'start_time', 'end_time',
       'duration_type', 'total_hours', 'total_days', 'from_date', 'to_date',
       'description', 'remarks', 'status',
-      'project_id', 'site_id', 'location_address',
+      'project_id', 'site_id', 'milestone_id', 'location_address',
       'status_changed_at', 'status_change_lat', 'status_change_lng',
       'location_lat', 'location_lng', 'attachment_urls',
     ];

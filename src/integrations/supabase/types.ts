@@ -30,6 +30,7 @@ export type Database = {
           location_address: string | null
           location_lat: number | null
           location_lng: number | null
+          milestone_id: string | null
           project_id: string | null
           remarks: string | null
           retailer_id: string | null
@@ -60,6 +61,7 @@ export type Database = {
           location_address?: string | null
           location_lat?: number | null
           location_lng?: number | null
+          milestone_id?: string | null
           project_id?: string | null
           remarks?: string | null
           retailer_id?: string | null
@@ -90,6 +92,7 @@ export type Database = {
           location_address?: string | null
           location_lat?: number | null
           location_lng?: number | null
+          milestone_id?: string | null
           project_id?: string | null
           remarks?: string | null
           retailer_id?: string | null
@@ -106,6 +109,13 @@ export type Database = {
           visit_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "activity_events_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "site_milestones"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "activity_events_project_id_fkey"
             columns: ["project_id"]
@@ -3139,6 +3149,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "site_assignments_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "project_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_milestones: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          name: string
+          priority: string | null
+          site_id: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          name: string
+          priority?: string | null
+          site_id: string
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          name?: string
+          priority?: string | null
+          site_id?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_milestones_site_id_fkey"
             columns: ["site_id"]
             isOneToOne: false
             referencedRelation: "project_sites"

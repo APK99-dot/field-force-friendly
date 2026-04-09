@@ -35,7 +35,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Plus, Edit, ToggleLeft, ToggleRight, Loader2, Building2, Users, Search, Flag } from "lucide-react";
+import { Plus, Edit, ToggleLeft, ToggleRight, Loader2, Building2, Users, Search, Flag, Milestone, Trash2, Target } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -53,6 +53,16 @@ interface Site {
   start_date: string;
   end_date: string | null;
   flag: SiteFlag;
+}
+
+interface SiteMilestone {
+  id?: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  priority: string;
+  _delete?: boolean;
 }
 
 interface UserOption {
@@ -102,6 +112,8 @@ export default function SiteMasterManagement() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [siteAssignments, setSiteAssignments] = useState<Record<string, string[]>>({});
   const [userSearch, setUserSearch] = useState("");
+  const [milestones, setMilestones] = useState<SiteMilestone[]>([]);
+  const [detailMilestones, setDetailMilestones] = useState<SiteMilestone[]>([]);
 
   // Detail sheet state
   const [detailSite, setDetailSite] = useState<Site | null>(null);
@@ -135,25 +147,47 @@ export default function SiteMasterManagement() {
     setLoading(false);
   }, []);
 
+  const fetchMilestonesForSite = useCallback(async (siteId: string) => {
+    const { data } = await supabase.from("site_milestones").select("*").eq("site_id", siteId).order("start_date");
+    return (data || []).map((m: any) => ({
+      id: m.id,
+      name: m.name,
+      start_date: m.start_date,
+      end_date: m.end_date,
+      status: m.status,
+      priority: m.priority || "medium",
+    })) as SiteMilestone[];
+  }, []);
+
   useEffect(() => {
     fetchSites();
     fetchUsers();
     fetchAssignments();
   }, [fetchSites, fetchUsers, fetchAssignments]);
 
+  // Load milestones when detail panel opens
+  useEffect(() => {
+    if (detailSite) {
+      fetchMilestonesForSite(detailSite.id).then(setDetailMilestones);
+    }
+  }, [detailSite, fetchMilestonesForSite]);
+
   const handleOpenCreate = () => {
     setEditingSite(null);
     setForm({ site_name: "", description: "", start_date: new Date().toISOString().split("T")[0], end_date: "", flag: "green" });
     setSelectedUserIds([]);
     setUserSearch("");
+    setMilestones([]);
     setShowDialog(true);
   };
 
-  const handleOpenEdit = (site: Site) => {
+  const handleOpenEdit = async (site: Site) => {
     setEditingSite(site);
     setForm({ site_name: site.site_name, description: site.description || "", start_date: site.start_date || "", end_date: site.end_date || "", flag: site.flag || "green" });
     setSelectedUserIds(siteAssignments[site.id] || []);
     setUserSearch("");
+    const ms = await fetchMilestonesForSite(site.id);
+    setMilestones(ms);
     setShowDialog(true);
   };
 
@@ -212,6 +246,26 @@ export default function SiteMasterManagement() {
       if (toAdd.length > 0) {
         await supabase.from("site_assignments").insert(
           toAdd.map(uid => ({ site_id: siteId, user_id: uid, assigned_by: user?.id }))
+        );
+      }
+
+      // Save milestones
+      const existingMs = milestones.filter(m => m.id);
+      const newMs = milestones.filter(m => !m.id && !m._delete);
+      const toDeleteMs = existingMs.filter(m => m._delete);
+      const toUpdateMs = existingMs.filter(m => !m._delete);
+
+      if (toDeleteMs.length > 0) {
+        await supabase.from("site_milestones").delete().in("id", toDeleteMs.map(m => m.id!));
+      }
+      for (const m of toUpdateMs) {
+        await supabase.from("site_milestones").update({
+          name: m.name, start_date: m.start_date, end_date: m.end_date, status: m.status, priority: m.priority,
+        }).eq("id", m.id!);
+      }
+      if (newMs.length > 0) {
+        await supabase.from("site_milestones").insert(
+          newMs.map(m => ({ site_id: siteId, name: m.name, start_date: m.start_date, end_date: m.end_date, status: m.status, priority: m.priority }))
         );
       }
 
@@ -424,6 +478,36 @@ export default function SiteMasterManagement() {
                 })()}
               </div>
 
+              {/* Milestones */}
+              <div>
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
+                  <Target className="h-3.5 w-3.5" /> Milestones
+                </Label>
+                {detailMilestones.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No milestones added</p>
+                ) : (
+                  <div className="space-y-2">
+                    {detailMilestones.map((ms) => {
+                      const statusLabel = ms.status === "not_started" ? "Not Started" : ms.status === "in_progress" ? "In Progress" : "Completed";
+                      const statusColor = ms.status === "completed" ? "bg-emerald-100 text-emerald-700" : ms.status === "in_progress" ? "bg-blue-100 text-blue-700" : "bg-muted text-muted-foreground";
+                      const priorityColor = ms.priority === "high" ? "text-red-600" : ms.priority === "medium" ? "text-amber-600" : "text-muted-foreground";
+                      return (
+                        <div key={ms.id} className="border rounded-lg p-2.5 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">{ms.name}</span>
+                            <Badge variant="outline" className={`text-[10px] ${statusColor}`}>{statusLabel}</Badge>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span>{ms.start_date ? format(new Date(ms.start_date), "dd MMM") : ""} → {ms.end_date ? format(new Date(ms.end_date), "dd MMM yyyy") : ""}</span>
+                            <span className={`font-medium ${priorityColor}`}>{ms.priority?.charAt(0).toUpperCase() + ms.priority?.slice(1)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Actions */}
               <div className="flex gap-2 pt-2 border-t">
                 <Button size="sm" variant="outline" className="flex-1" onClick={() => { handleOpenEdit(detailSite); }}>
@@ -497,6 +581,79 @@ export default function SiteMasterManagement() {
                 <Flag className="h-3.5 w-3.5" /> Flag
               </Label>
               <FlagPicker value={form.flag} onChange={(f) => setForm({ ...form, flag: f })} />
+            </div>
+            {/* Milestone section */}
+            <div>
+              <Label className="text-xs flex items-center gap-1.5 mb-2">
+                <Target className="h-3.5 w-3.5" /> Milestones ({milestones.filter(m => !m._delete).length})
+              </Label>
+              <div className="space-y-2">
+                {milestones.filter(m => !m._delete).map((ms, idx) => {
+                  const realIdx = milestones.indexOf(ms);
+                  return (
+                    <div key={realIdx} className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">Milestone {idx + 1}</span>
+                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => {
+                          setMilestones(prev => prev.map((m, i) => i === realIdx ? { ...m, _delete: true } : m));
+                        }}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <Input
+                        placeholder="Milestone name"
+                        value={ms.name}
+                        onChange={(e) => setMilestones(prev => prev.map((m, i) => i === realIdx ? { ...m, name: e.target.value } : m))}
+                        className="h-8 text-sm"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          type="date"
+                          value={ms.start_date}
+                          onChange={(e) => setMilestones(prev => prev.map((m, i) => i === realIdx ? { ...m, start_date: e.target.value } : m))}
+                          className="h-8 text-sm"
+                        />
+                        <Input
+                          type="date"
+                          value={ms.end_date}
+                          min={ms.start_date || undefined}
+                          onChange={(e) => setMilestones(prev => prev.map((m, i) => i === realIdx ? { ...m, end_date: e.target.value } : m))}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          value={ms.status}
+                          onChange={(e) => setMilestones(prev => prev.map((m, i) => i === realIdx ? { ...m, status: e.target.value } : m))}
+                          className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                        >
+                          <option value="not_started">Not Started</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                        <select
+                          value={ms.priority}
+                          onChange={(e) => setMilestones(prev => prev.map((m, i) => i === realIdx ? { ...m, priority: e.target.value } : m))}
+                          className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                        >
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                        </select>
+                      </div>
+                    </div>
+                  );
+                })}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setMilestones(prev => [...prev, { name: "", start_date: form.start_date || "", end_date: "", status: "not_started", priority: "medium" }])}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Milestone
+                </Button>
+              </div>
             </div>
             <div>
               <Label className="text-xs flex items-center gap-1.5 mb-2">
