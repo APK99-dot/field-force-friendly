@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserProfile } from "@/hooks/useUserProfile";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,62 +11,25 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import {
-  Plus,
-  Search,
-  Phone,
-  Mail,
-  MapPin,
-  Building2,
-  Edit,
-  Trash2,
-  Filter,
-  User,
-  Briefcase,
-  StickyNote,
-  X,
+  Plus, Search, Phone, Mail, MapPin, Edit, Trash2, Filter, User, Briefcase, StickyNote, X,
 } from "lucide-react";
 
 const CATEGORIES = [
-  "Civil",
-  "Electrical",
-  "Plumbing",
-  "Painting",
-  "Carpentry",
-  "Fabrication",
-  "Transport",
-  "Labour Supply",
-  "Material Supply",
-  "Other",
+  "Civil", "Electrical", "Plumbing", "Painting", "Carpentry",
+  "Fabrication", "Transport", "Labour Supply", "Material Supply", "Other",
 ];
 
 const STATUSES = ["active", "inactive", "blacklisted"] as const;
@@ -75,10 +38,9 @@ type VendorStatus = (typeof STATUSES)[number];
 interface Vendor {
   id: string;
   name: string;
-  phone: string;
-  company: string | null;
-  contact_person: string | null;
-  email: string | null;
+  phone: string[];
+  contact_person: string[];
+  email: string[];
   address: string | null;
   category: string | null;
   services: string | null;
@@ -91,10 +53,9 @@ interface Vendor {
 
 interface VendorForm {
   name: string;
-  phone: string;
-  company: string;
-  contact_person: string;
-  email: string;
+  phones: string[];
+  contact_persons: string[];
+  emails: string[];
   address: string;
   category: string;
   services: string;
@@ -104,10 +65,9 @@ interface VendorForm {
 
 const emptyForm: VendorForm = {
   name: "",
-  phone: "",
-  company: "",
-  contact_person: "",
-  email: "",
+  phones: [""],
+  contact_persons: [""],
+  emails: [""],
   address: "",
   category: "",
   services: "",
@@ -117,15 +77,75 @@ const emptyForm: VendorForm = {
 
 function statusColor(status: string) {
   switch (status) {
-    case "active":
-      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-    case "inactive":
-      return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
-    case "blacklisted":
-      return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-    default:
-      return "";
+    case "active": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+    case "inactive": return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+    case "blacklisted": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+    default: return "";
   }
+}
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// Helper to parse JSONB array from DB (could be string[] or Json)
+function toStringArray(val: any): string[] {
+  if (Array.isArray(val)) return val.map(String).filter(Boolean);
+  if (typeof val === "string") {
+    try { const parsed = JSON.parse(val); if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean); } catch {}
+    return val ? [val] : [];
+  }
+  return [];
+}
+
+/* ─── Multi-entry field component ─── */
+function MultiEntryField({
+  label, icon: Icon, entries, onChange, placeholder, type = "text", required = false,
+}: {
+  label: string; icon: any; entries: string[]; onChange: (entries: string[]) => void;
+  placeholder: string; type?: string; required?: boolean;
+}) {
+  const update = (i: number, val: string) => {
+    const next = [...entries];
+    next[i] = val;
+    onChange(next);
+  };
+  const add = () => onChange([...entries, ""]);
+  const remove = (i: number) => {
+    if (entries.length <= 1) { onChange([""]); return; }
+    onChange(entries.filter((_, idx) => idx !== i));
+  };
+
+  return (
+    <div>
+      <Label className="text-xs flex items-center gap-1">
+        <Icon className="h-3 w-3" /> {label} {required && "*"}
+      </Label>
+      <div className="space-y-1.5 mt-1">
+        {entries.map((val, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <Input
+              value={val}
+              onChange={(e) => update(i, e.target.value)}
+              placeholder={placeholder}
+              type={type}
+              className="h-9 flex-1"
+            />
+            <Button
+              type="button" variant="ghost" size="icon"
+              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+              onClick={() => remove(i)}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ))}
+      </div>
+      <Button type="button" variant="ghost" size="sm" className="mt-1 h-7 text-xs gap-1 text-primary" onClick={add}>
+        <Plus className="h-3 w-3" /> Add {label}
+      </Button>
+    </div>
+  );
 }
 
 export default function Vendors() {
@@ -142,7 +162,6 @@ export default function Vendors() {
   const [deleteVendor, setDeleteVendor] = useState<Vendor | null>(null);
   const [form, setForm] = useState<VendorForm>(emptyForm);
 
-  // Fetch vendors
   const { data: vendors = [], isLoading } = useQuery({
     queryKey: ["vendors"],
     queryFn: async () => {
@@ -151,11 +170,15 @@ export default function Vendors() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as Vendor[];
+      return (data || []).map((v: any) => ({
+        ...v,
+        phone: toStringArray(v.phone),
+        contact_person: toStringArray(v.contact_person),
+        email: toStringArray(v.email),
+      })) as Vendor[];
     },
   });
 
-  // Filter + search
   const filtered = useMemo(() => {
     let list = vendors;
     if (search.trim()) {
@@ -163,28 +186,26 @@ export default function Vendors() {
       list = list.filter(
         (v) =>
           v.name.toLowerCase().includes(q) ||
-          v.phone.includes(q) ||
-          (v.company && v.company.toLowerCase().includes(q))
+          v.phone.some((p) => p.includes(q)) ||
+          v.contact_person.some((c) => c.toLowerCase().includes(q))
       );
     }
-    if (filterCategory !== "all") {
-      list = list.filter((v) => v.category === filterCategory);
-    }
-    if (filterStatus !== "all") {
-      list = list.filter((v) => v.status === filterStatus);
-    }
+    if (filterCategory !== "all") list = list.filter((v) => v.category === filterCategory);
+    if (filterStatus !== "all") list = list.filter((v) => v.status === filterStatus);
     return list;
   }, [vendors, search, filterCategory, filterStatus]);
 
-  // Upsert mutation
   const upsertMutation = useMutation({
     mutationFn: async (payload: { form: VendorForm; id?: string }) => {
+      const phones = payload.form.phones.map((p) => p.trim()).filter(Boolean);
+      const contacts = payload.form.contact_persons.map((c) => c.trim()).filter(Boolean);
+      const emails = payload.form.emails.map((e) => e.trim()).filter(Boolean);
+
       const row: any = {
         name: payload.form.name.trim(),
-        phone: payload.form.phone.trim(),
-        company: payload.form.company.trim() || null,
-        contact_person: payload.form.contact_person.trim() || null,
-        email: payload.form.email.trim() || null,
+        phone: phones,
+        contact_person: contacts,
+        email: emails,
         address: payload.form.address.trim() || null,
         category: payload.form.category || null,
         services: payload.form.services.trim() || null,
@@ -207,15 +228,14 @@ export default function Vendors() {
     },
     onError: (err: any) => {
       const msg = err?.message || "";
-      if (msg.includes("vendors_phone_unique") || msg.includes("duplicate key")) {
-        toast({ title: "Duplicate phone", description: "A vendor with this phone number already exists.", variant: "destructive" });
+      if (msg.includes("already exists for another vendor") || msg.includes("duplicate")) {
+        toast({ title: "Duplicate phone", description: msg, variant: "destructive" });
       } else {
         toast({ title: "Error", description: msg, variant: "destructive" });
       }
     },
   });
 
-  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("vendors").delete().eq("id", id);
@@ -242,10 +262,9 @@ export default function Vendors() {
     setEditingVendor(v);
     setForm({
       name: v.name,
-      phone: v.phone,
-      company: v.company || "",
-      contact_person: v.contact_person || "",
-      email: v.email || "",
+      phones: v.phone.length > 0 ? [...v.phone] : [""],
+      contact_persons: v.contact_person.length > 0 ? [...v.contact_person] : [""],
+      emails: v.email.length > 0 ? [...v.email] : [""],
       address: v.address || "",
       category: v.category || "",
       services: v.services || "",
@@ -262,23 +281,34 @@ export default function Vendors() {
   }, []);
 
   const handleSubmit = () => {
-    if (!form.name.trim() || !form.phone.trim()) {
-      toast({ title: "Name and Phone are required", variant: "destructive" });
+    if (!form.name.trim()) {
+      toast({ title: "Name is required", variant: "destructive" });
       return;
+    }
+    const phones = form.phones.map((p) => p.trim()).filter(Boolean);
+    if (phones.length === 0) {
+      toast({ title: "At least one phone number is required", variant: "destructive" });
+      return;
+    }
+    // Check for duplicate phones within form
+    const uniquePhones = new Set(phones);
+    if (uniquePhones.size !== phones.length) {
+      toast({ title: "Duplicate phone numbers in form", variant: "destructive" });
+      return;
+    }
+    // Validate emails
+    const emails = form.emails.map((e) => e.trim()).filter(Boolean);
+    for (const email of emails) {
+      if (!isValidEmail(email)) {
+        toast({ title: "Invalid email", description: `"${email}" is not a valid email address.`, variant: "destructive" });
+        return;
+      }
     }
     upsertMutation.mutate({ form, id: editingVendor?.id });
   };
 
-  const updateField = (field: keyof VendorForm, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
   return (
-    <motion.div
-      className="space-y-4 p-4 pb-24"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-    >
+    <motion.div className="space-y-4 p-4 pb-24" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -296,12 +326,7 @@ export default function Vendors() {
       <div className="space-y-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search name, phone, company..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9"
-          />
+          <Input placeholder="Search name, phone, contact..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <div className="flex gap-2">
           <Select value={filterCategory} onValueChange={setFilterCategory}>
@@ -311,9 +336,7 @@ export default function Vendors() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
+              {CATEGORIES.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
             </SelectContent>
           </Select>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -344,32 +367,25 @@ export default function Vendors() {
       ) : (
         <div className="space-y-2">
           {filtered.map((v) => (
-            <Card
-              key={v.id}
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => setDetailVendor(v)}
-            >
+            <Card key={v.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDetailVendor(v)}>
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold text-sm truncate">{v.name}</h3>
-                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColor(v.status)}`}>
-                        {v.status}
-                      </Badge>
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColor(v.status)}`}>{v.status}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Phone className="h-3 w-3" /> {v.phone}
+                      <Phone className="h-3 w-3" /> {v.phone[0] || "—"}
+                      {v.phone.length > 1 && <span className="text-[10px] text-primary">+{v.phone.length - 1} more</span>}
                     </p>
-                    {v.company && (
+                    {v.contact_person.length > 0 && v.contact_person[0] && (
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Building2 className="h-3 w-3" /> {v.company}
+                        <User className="h-3 w-3" /> {v.contact_person[0]}
                       </p>
                     )}
                   </div>
-                  {v.category && (
-                    <Badge variant="secondary" className="text-[10px] shrink-0">{v.category}</Badge>
-                  )}
+                  {v.category && <Badge variant="secondary" className="text-[10px] shrink-0">{v.category}</Badge>}
                 </div>
               </CardContent>
             </Card>
@@ -383,58 +399,54 @@ export default function Vendors() {
           <DialogHeader>
             <DialogTitle>{editingVendor ? "Edit Vendor" : "Add Vendor"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div>
               <Label className="text-xs">Name *</Label>
-              <Input value={form.name} onChange={(e) => updateField("name", e.target.value)} placeholder="Vendor name" />
+              <Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="Vendor name" />
             </div>
-            <div>
-              <Label className="text-xs">Phone *</Label>
-              <Input value={form.phone} onChange={(e) => updateField("phone", e.target.value)} placeholder="Phone number" type="tel" />
-            </div>
-            <div>
-              <Label className="text-xs">Company</Label>
-              <Input value={form.company} onChange={(e) => updateField("company", e.target.value)} placeholder="Company name" />
-            </div>
-            <div>
-              <Label className="text-xs">Contact Person</Label>
-              <Input value={form.contact_person} onChange={(e) => updateField("contact_person", e.target.value)} placeholder="Contact person" />
-            </div>
-            <div>
-              <Label className="text-xs">Email</Label>
-              <Input value={form.email} onChange={(e) => updateField("email", e.target.value)} placeholder="Email" type="email" />
-            </div>
+
+            <MultiEntryField
+              label="Phone" icon={Phone} entries={form.phones} placeholder="Phone number"
+              type="tel" required
+              onChange={(phones) => setForm((p) => ({ ...p, phones }))}
+            />
+
+            <MultiEntryField
+              label="Contact Person" icon={User} entries={form.contact_persons} placeholder="Contact person name"
+              onChange={(contact_persons) => setForm((p) => ({ ...p, contact_persons }))}
+            />
+
+            <MultiEntryField
+              label="Email" icon={Mail} entries={form.emails} placeholder="Email address"
+              type="email"
+              onChange={(emails) => setForm((p) => ({ ...p, emails }))}
+            />
+
             <div>
               <Label className="text-xs">Address</Label>
-              <Textarea value={form.address} onChange={(e) => updateField("address", e.target.value)} placeholder="Address" rows={2} />
+              <Textarea value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} placeholder="Address" rows={2} />
             </div>
             <div>
               <Label className="text-xs">Category</Label>
-              <Select value={form.category} onValueChange={(val) => updateField("category", val)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
+              <Select value={form.category} onValueChange={(val) => setForm((p) => ({ ...p, category: val }))}>
+                <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
+                  {CATEGORIES.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label className="text-xs">Services</Label>
-              <Input value={form.services} onChange={(e) => updateField("services", e.target.value)} placeholder="Services offered" />
+              <Input value={form.services} onChange={(e) => setForm((p) => ({ ...p, services: e.target.value }))} placeholder="Services offered" />
             </div>
             <div>
               <Label className="text-xs">Notes</Label>
-              <Textarea value={form.notes} onChange={(e) => updateField("notes", e.target.value)} placeholder="Notes" rows={2} />
+              <Textarea value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Notes" rows={2} />
             </div>
             <div>
               <Label className="text-xs">Status</Label>
-              <Select value={form.status} onValueChange={(val) => updateField("status", val)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={form.status} onValueChange={(val) => setForm((p) => ({ ...p, status: val as VendorStatus }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
@@ -460,21 +472,21 @@ export default function Vendors() {
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
                   {detailVendor.name}
-                  <Badge variant="outline" className={`text-xs ${statusColor(detailVendor.status)}`}>
-                    {detailVendor.status}
-                  </Badge>
+                  <Badge variant="outline" className={`text-xs ${statusColor(detailVendor.status)}`}>{detailVendor.status}</Badge>
                 </SheetTitle>
               </SheetHeader>
               <div className="mt-6 space-y-4">
                 {/* Action Buttons */}
                 <div className="flex gap-2">
-                  <a href={`tel:${detailVendor.phone}`} className="flex-1">
-                    <Button variant="outline" className="w-full gap-2 text-emerald-600">
-                      <Phone className="h-4 w-4" /> Call
-                    </Button>
-                  </a>
-                  {detailVendor.email && (
-                    <a href={`mailto:${detailVendor.email}`} className="flex-1">
+                  {detailVendor.phone[0] && (
+                    <a href={`tel:${detailVendor.phone[0]}`} className="flex-1">
+                      <Button variant="outline" className="w-full gap-2 text-emerald-600">
+                        <Phone className="h-4 w-4" /> Call
+                      </Button>
+                    </a>
+                  )}
+                  {detailVendor.email[0] && (
+                    <a href={`mailto:${detailVendor.email[0]}`} className="flex-1">
                       <Button variant="outline" className="w-full gap-2 text-blue-600">
                         <Mail className="h-4 w-4" /> Email
                       </Button>
@@ -484,36 +496,63 @@ export default function Vendors() {
 
                 {/* Details */}
                 <div className="space-y-3">
-                  <DetailRow icon={Phone} label="Phone" value={detailVendor.phone} />
-                  {detailVendor.company && <DetailRow icon={Building2} label="Company" value={detailVendor.company} />}
-                  {detailVendor.contact_person && <DetailRow icon={User} label="Contact Person" value={detailVendor.contact_person} />}
-                  {detailVendor.email && <DetailRow icon={Mail} label="Email" value={detailVendor.email} />}
+                  {/* Phones */}
+                  {detailVendor.phone.length > 0 && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-muted-foreground">Phone</p>
+                        {detailVendor.phone.map((p, i) => (
+                          <a key={i} href={`tel:${p}`} className="text-sm block text-primary hover:underline">{p}</a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contact Persons */}
+                  {detailVendor.contact_person.filter(Boolean).length > 0 && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-muted-foreground">Contact Person</p>
+                        {detailVendor.contact_person.filter(Boolean).map((c, i) => (
+                          <p key={i} className="text-sm">{c}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Emails */}
+                  {detailVendor.email.filter(Boolean).length > 0 && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-muted-foreground">Email</p>
+                        {detailVendor.email.filter(Boolean).map((e, i) => (
+                          <a key={i} href={`mailto:${e}`} className="text-sm block text-primary hover:underline">{e}</a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {detailVendor.address && <DetailRow icon={MapPin} label="Address" value={detailVendor.address} />}
                   {detailVendor.category && <DetailRow icon={Filter} label="Category" value={detailVendor.category} />}
                   {detailVendor.services && <DetailRow icon={Briefcase} label="Services" value={detailVendor.services} />}
                   {detailVendor.notes && <DetailRow icon={StickyNote} label="Notes" value={detailVendor.notes} />}
                 </div>
 
-                {/* Admin actions */}
                 {isAdmin && (
                   <div className="flex gap-2 pt-4 border-t">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 gap-1.5"
-                      onClick={() => {
-                        openEdit(detailVendor);
-                        setDetailVendor(null);
-                      }}
-                    >
+                    <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => { openEdit(detailVendor); setDetailVendor(null); }}>
                       <Edit className="h-3.5 w-3.5" /> Edit
                     </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="flex-1 gap-1.5"
-                      onClick={() => setDeleteVendor(detailVendor)}
-                    >
+                    <Button variant="destructive" size="sm" className="flex-1 gap-1.5" onClick={() => setDeleteVendor(detailVendor)}>
                       <Trash2 className="h-3.5 w-3.5" /> Delete
                     </Button>
                   </div>
