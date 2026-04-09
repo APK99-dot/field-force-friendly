@@ -1401,7 +1401,22 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateAct
               </p>
             )}
             {(a.site_name || a.project_name) && (
-              <p className="text-xs text-primary ml-6 mt-0.5">📁 {a.site_name || a.project_name}</p>
+              <div className="ml-6 mt-0.5 space-y-0.5">
+                <p className="text-xs text-primary">
+                  📍 {a.site_name || a.project_name}
+                  {a.site_flag && (
+                    <span className={`ml-1.5 inline-block h-2 w-2 rounded-full ${a.site_flag === "red" ? "bg-red-500" : a.site_flag === "orange" ? "bg-orange-500" : "bg-emerald-500"}`} />
+                  )}
+                </p>
+                {a.milestone_name && (
+                  <p className="text-xs text-muted-foreground">
+                    🎯 {a.milestone_name}
+                    <span className="ml-1.5 text-[10px]">
+                      ({a.milestone_status === "not_started" ? "Not Started" : a.milestone_status === "in_progress" ? "In Progress" : "Completed"})
+                    </span>
+                  </p>
+                )}
+              </div>
             )}
             {a.user_full_name && (
               <p className="text-xs text-muted-foreground ml-6 mt-0.5">👤 {a.user_full_name}</p>
