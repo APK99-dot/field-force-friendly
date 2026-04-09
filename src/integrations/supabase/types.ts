@@ -3308,15 +3308,14 @@ export type Database = {
         Row: {
           address: string | null
           category: string | null
-          company: string | null
-          contact_person: string | null
+          contact_person: Json | null
           created_at: string
           created_by: string
-          email: string | null
+          email: Json | null
           id: string
           name: string
           notes: string | null
-          phone: string
+          phone: Json
           services: string | null
           status: string
           updated_at: string
@@ -3324,15 +3323,14 @@ export type Database = {
         Insert: {
           address?: string | null
           category?: string | null
-          company?: string | null
-          contact_person?: string | null
+          contact_person?: Json | null
           created_at?: string
           created_by: string
-          email?: string | null
+          email?: Json | null
           id?: string
           name: string
           notes?: string | null
-          phone: string
+          phone?: Json
           services?: string | null
           status?: string
           updated_at?: string
@@ -3340,15 +3338,14 @@ export type Database = {
         Update: {
           address?: string | null
           category?: string | null
-          company?: string | null
-          contact_person?: string | null
+          contact_person?: Json | null
           created_at?: string
           created_by?: string
-          email?: string | null
+          email?: Json | null
           id?: string
           name?: string
           notes?: string | null
-          phone?: string
+          phone?: Json
           services?: string | null
           status?: string
           updated_at?: string
