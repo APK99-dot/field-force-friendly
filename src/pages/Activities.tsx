@@ -174,6 +174,8 @@ export default function Activities() {
 
   // Milestones for selected site
   const [siteMilestones, setSiteMilestones] = useState<{ id: string; name: string; status: string }[]>([]);
+  // New milestones to create
+  const [newMilestones, setNewMilestones] = useState<{ name: string; start_date: string; end_date: string }[]>([]);
 
   // Transcribe audio recording via edge function
   const transcribeAudio = useCallback(async (audioBlob: Blob) => {
