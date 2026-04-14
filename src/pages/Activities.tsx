@@ -875,17 +875,21 @@ export default function Activities() {
               </Select>
             </div>
             {/* Milestone dropdown - shown when a site is selected */}
-            {form.site_id && siteMilestones.length > 0 && (
+            {form.site_id && form.site_id !== "__add_new_site__" && (
               <div>
                 <Label className="text-xs">Select Milestone</Label>
                 <Select value={form.milestone_id} onValueChange={(v) => setForm({ ...form, milestone_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select milestone (optional)" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={siteMilestones.length === 0 ? "No milestones for this site" : "Select milestone (optional)"} /></SelectTrigger>
                   <SelectContent>
-                    {siteMilestones.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.name} ({m.status === "not_started" ? "Not Started" : m.status === "in_progress" ? "In Progress" : "Completed"})
-                      </SelectItem>
-                    ))}
+                    {siteMilestones.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">No milestones added for this site</div>
+                    ) : (
+                      siteMilestones.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name} ({m.status === "not_started" ? "Not Started" : m.status === "in_progress" ? "In Progress" : "Completed"})
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
