@@ -886,6 +886,26 @@ export default function Activities() {
                 </Select>
               </div>
             )}
+            {/* Flag picker - shown when a site is selected */}
+            {form.site_id && form.site_id !== "__add_new_site__" && (
+              <div>
+                <Label className="text-xs flex items-center gap-1.5 mb-2">Site Flag</Label>
+                <div className="flex items-center gap-3">
+                  {(["green", "orange", "red"] as SiteFlag[]).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setForm({ ...form, site_flag: f })}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-colors ${
+                        form.site_flag === f ? "border-primary bg-primary/10 font-medium" : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <span className={`inline-block rounded-full h-3 w-3 ${FLAG_CONFIG[f].color}`} />
+                      {FLAG_CONFIG[f].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Activity Type *</Label>
