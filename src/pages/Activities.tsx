@@ -257,14 +257,18 @@ export default function Activities() {
     setActivityTypes((data || []).map((d: any) => d.name));
   }, []);
 
-  // Fetch milestones when site_id changes in form
+  // Fetch milestones and flag when site_id changes in form
   useEffect(() => {
     if (!form.site_id || form.site_id === "__add_new_site__") {
       setSiteMilestones([]);
+      setForm(f => ({ ...f, site_flag: "" }));
       return;
     }
     supabase.from("site_milestones").select("id, name, status").eq("site_id", form.site_id).order("start_date").then(({ data }) => {
       setSiteMilestones((data || []).map((m: any) => ({ id: m.id, name: m.name, status: m.status })));
+    });
+    supabase.from("project_sites").select("flag").eq("id", form.site_id).maybeSingle().then(({ data }) => {
+      setForm(f => ({ ...f, site_flag: data?.flag || "green" }));
     });
   }, [form.site_id]);
 
