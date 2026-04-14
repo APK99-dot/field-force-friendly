@@ -641,6 +641,10 @@ export default function Activities() {
           await createActivity(payload, targetUserId);
         }
       }
+      // Update site flag if changed
+      if (form.site_id && form.site_flag) {
+        await supabase.from("project_sites").update({ flag: form.site_flag }).eq("id", form.site_id);
+      }
       clearRecording();
       setShowForm(false);
       fetchActivities();
