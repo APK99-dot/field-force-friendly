@@ -109,6 +109,14 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
+type SiteFlag = "red" | "orange" | "green";
+
+const FLAG_CONFIG: Record<SiteFlag, { color: string; label: string }> = {
+  red: { color: "bg-red-500", label: "Critical / Urgent" },
+  orange: { color: "bg-orange-500", label: "Needs Attention" },
+  green: { color: "bg-emerald-500", label: "On Track" },
+};
+
 const defaultForm = {
   activity_name: "",
   activity_type: "",
@@ -123,6 +131,7 @@ const defaultForm = {
   status: "planned",
   site_id: "",
   milestone_id: "",
+  site_flag: "" as string,
   location_address: "",
   total_hours: 0,
   owner_user_id: "",
@@ -248,14 +257,18 @@ export default function Activities() {
     setActivityTypes((data || []).map((d: any) => d.name));
   }, []);
 
-  // Fetch milestones when site_id changes in form
+  // Fetch milestones and flag when site_id changes in form
   useEffect(() => {
     if (!form.site_id || form.site_id === "__add_new_site__") {
       setSiteMilestones([]);
+      setForm(f => ({ ...f, site_flag: "" }));
       return;
     }
     supabase.from("site_milestones").select("id, name, status").eq("site_id", form.site_id).order("start_date").then(({ data }) => {
       setSiteMilestones((data || []).map((m: any) => ({ id: m.id, name: m.name, status: m.status })));
+    });
+    supabase.from("project_sites").select("flag").eq("id", form.site_id).maybeSingle().then(({ data }) => {
+      setForm(f => ({ ...f, site_flag: data?.flag || "green" }));
     });
   }, [form.site_id]);
 
@@ -559,6 +572,7 @@ export default function Activities() {
       status: a.status,
       site_id: a.site_id || "",
       milestone_id: a.milestone_id || "",
+      site_flag: "",
       location_address: a.location_address || "",
       total_hours: a.total_hours || 0,
       owner_user_id: a.user_id,
@@ -626,6 +640,10 @@ export default function Activities() {
         } else {
           await createActivity(payload, targetUserId);
         }
+      }
+      // Update site flag if changed
+      if (form.site_id && form.site_flag) {
+        await supabase.from("project_sites").update({ flag: form.site_flag }).eq("id", form.site_id);
       }
       clearRecording();
       setShowForm(false);
@@ -870,6 +888,27 @@ export default function Activities() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+            {/* Flag picker - shown when a site is selected */}
+            {form.site_id && form.site_id !== "__add_new_site__" && (
+              <div>
+                <Label className="text-xs flex items-center gap-1.5 mb-2">Site Flag</Label>
+                <div className="flex items-center gap-3">
+                  {(["green", "orange", "red"] as SiteFlag[]).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setForm({ ...form, site_flag: f })}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-colors ${
+                        form.site_flag === f ? "border-primary bg-primary/10 font-medium" : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <span className={`inline-block rounded-full h-3 w-3 ${FLAG_CONFIG[f].color}`} />
+                      {FLAG_CONFIG[f].label}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             <div className="grid grid-cols-2 gap-3">
