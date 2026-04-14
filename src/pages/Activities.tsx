@@ -109,6 +109,14 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
+type SiteFlag = "red" | "orange" | "green";
+
+const FLAG_CONFIG: Record<SiteFlag, { color: string; label: string }> = {
+  red: { color: "bg-red-500", label: "Critical / Urgent" },
+  orange: { color: "bg-orange-500", label: "Needs Attention" },
+  green: { color: "bg-emerald-500", label: "On Track" },
+};
+
 const defaultForm = {
   activity_name: "",
   activity_type: "",
@@ -123,6 +131,7 @@ const defaultForm = {
   status: "planned",
   site_id: "",
   milestone_id: "",
+  site_flag: "" as string,
   location_address: "",
   total_hours: 0,
   owner_user_id: "",
