@@ -906,6 +906,7 @@ export default function Activities() {
                   ))}
                 </div>
               </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Activity Type *</Label>
