@@ -649,6 +649,21 @@ export default function Activities() {
       if (form.site_id && form.site_flag) {
         await supabase.from("project_sites").update({ flag: form.site_flag }).eq("id", form.site_id);
       }
+      // Save new milestones to site
+      const validMilestones = newMilestones.filter(m => m.name.trim());
+      if (form.site_id && validMilestones.length > 0) {
+        await supabase.from("site_milestones").insert(
+          validMilestones.map(m => ({
+            site_id: form.site_id,
+            name: m.name.trim(),
+            start_date: m.start_date || form.activity_date,
+            end_date: m.end_date || m.start_date || form.activity_date,
+            status: "not_started",
+            priority: "medium",
+          }))
+        );
+      }
+      setNewMilestones([]);
       clearRecording();
       setShowForm(false);
       fetchActivities();
