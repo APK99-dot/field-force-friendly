@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,6 +22,8 @@ export default function PWAInstallBanner() {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // Hide banner inside native APK/iOS app
+    if (Capacitor.isNativePlatform()) return;
     if (window.matchMedia("(display-mode: standalone)").matches) return;
 
     const dismissedAt = localStorage.getItem("pwa-banner-dismissed");
