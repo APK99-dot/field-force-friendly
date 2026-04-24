@@ -19,8 +19,30 @@ interface UserProfileState {
   initials: string;
 }
 
+const PROFILE_CACHE_KEY = "user_profile_cache_v1";
+
+function readCache(userId: string | undefined): { profile: UserProfile; role: string } | undefined {
+  if (!userId) return undefined;
+  try {
+    const raw = localStorage.getItem(PROFILE_CACHE_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    if (parsed?.userId !== userId) return undefined;
+    return { profile: parsed.profile, role: parsed.role };
+  } catch {
+    return undefined;
+  }
+}
+
+function writeCache(userId: string, profile: UserProfile, role: string) {
+  try {
+    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ userId, profile, role }));
+  } catch { /* quota */ }
+}
+
 export function useUserProfile(): UserProfileState {
   const { user } = useCurrentUser();
+  const cached = readCache(user?.id);
 
   // Primary query — only the data needed for first paint (name, avatar, role flag)
   const { data, isLoading } = useQuery({
@@ -51,10 +73,12 @@ export function useUserProfile(): UserProfileState {
       };
 
       const role = rpcData?.[0]?.role ?? "user";
+      writeCache(user.id, profile, role);
       return { profile, role };
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
+    initialData: cached,
   });
 
   // Secondary query — role display name (not blocking dashboard render)
