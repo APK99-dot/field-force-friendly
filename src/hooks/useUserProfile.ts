@@ -22,12 +22,12 @@ interface UserProfileState {
 export function useUserProfile(): UserProfileState {
   const { user } = useCurrentUser();
 
+  // Primary query — only the data needed for first paint (name, avatar, role flag)
   const { data, isLoading } = useQuery({
-    queryKey: ["user-profile-full", user?.id],
+    queryKey: ["user-profile-core", user?.id],
     queryFn: async () => {
       if (!user) return null;
 
-      // Fire ensure_current_user + profile fetch in parallel
       const [rpcRes, profileRes] = await Promise.all([
         supabase.rpc("ensure_current_user", {
           _email: user.email ?? "",
@@ -51,33 +51,32 @@ export function useUserProfile(): UserProfileState {
       };
 
       const role = rpcData?.[0]?.role ?? "user";
-
-      // Fetch role name (non-blocking — we already have the critical data)
-      let roleName: string | null = null;
-      const { data: userRow } = await supabase
-        .from("users")
-        .select("role_id")
-        .eq("id", user.id)
-        .single();
-
-      if (userRow?.role_id) {
-        const { data: roleRow } = await supabase
-          .from("roles")
-          .select("name")
-          .eq("id", userRow.role_id)
-          .single();
-        roleName = roleRow?.name ?? null;
-      }
-
-      return { profile, role, roleName };
+      return { profile, role };
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
   });
 
+  // Secondary query — role display name (not blocking dashboard render)
+  const { data: roleNameData } = useQuery({
+    queryKey: ["user-role-name", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data: userRow } = await supabase
+        .from("users")
+        .select("role_id, roles(name)")
+        .eq("id", user.id)
+        .single();
+      // @ts-expect-error nested relation typing
+      return userRow?.roles?.name ?? null;
+    },
+    enabled: !!user,
+    staleTime: 30 * 60 * 1000,
+  });
+
   const profile = data?.profile ?? null;
   const role = data?.role ?? null;
-  const roleName = data?.roleName ?? null;
+  const roleName = roleNameData ?? null;
 
   const displayName = profile?.full_name || profile?.username || "";
   const initials = displayName
