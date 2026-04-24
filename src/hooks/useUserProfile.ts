@@ -67,8 +67,8 @@ export function useUserProfile(): UserProfileState {
         .select("role_id, roles(name)")
         .eq("id", user.id)
         .single();
-      // @ts-expect-error nested relation typing
-      return userRow?.roles?.name ?? null;
+      const roles = (userRow as { roles?: { name?: string } | null } | null)?.roles;
+      return roles?.name ?? null;
     },
     enabled: !!user,
     staleTime: 30 * 60 * 1000,
