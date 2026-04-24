@@ -33,7 +33,7 @@ export function useFaceMatching() {
       }
 
       const confidence = data.confidence || 0;
-      const matched = confidence >= 70 && (data.matched === true);
+      const matched = confidence >= 75 && (data.matched === true);
       const matchResult: FaceMatchResult = {
         confidence,
         matched,
