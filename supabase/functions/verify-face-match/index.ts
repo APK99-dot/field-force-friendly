@@ -133,15 +133,19 @@ No markdown, no code fences, no extra text.`,
     let confidence = 0;
     let matched = false;
     try {
-      const jsonMatch = content.match(/\{[^}]+\}/);
+      // Match the outermost { ... } including newlines
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         confidence = parseInt(parsed.confidence) || 0;
         // Apply our threshold strictly, don't trust AI's matched field
         matched = confidence >= CONFIDENCE_THRESHOLD;
+      } else {
+        console.error("No JSON found in AI response:", content);
+        matched = false;
       }
-    } catch {
-      console.error("Failed to parse AI response:", content);
+    } catch (parseErr) {
+      console.error("Failed to parse AI response:", content, parseErr);
       // On parse failure, don't match
       matched = false;
     }
