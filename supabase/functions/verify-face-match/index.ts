@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const CONFIDENCE_THRESHOLD = 70;
+const CONFIDENCE_THRESHOLD = 75;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -76,22 +76,23 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           {
             role: "system",
-            content: `You are a strict face verification system used for employee attendance. Your job is to compare two face images and determine if they belong to THE SAME PERSON.
+            content: `You are an EXTREMELY STRICT biometric face verification system used for employee attendance. Your ONLY job is to determine whether two photos show THE EXACT SAME INDIVIDUAL HUMAN.
 
-IMPORTANT RULES:
-- Be STRICT. Only return high confidence (70+) if the faces clearly belong to the same person.
-- Consider facial structure, eye shape, nose shape, jawline, and overall proportions.
-- Different people should ALWAYS get confidence below 50, even if they share similar features like glasses, hairstyle, or skin tone.
-- If either image does not contain a clear face, return confidence 0.
-- Do NOT be lenient. False positives (saying different people match) are much worse than false negatives.
+CRITICAL RULES:
+- DEFAULT to NOT MATCHED. Only return high confidence (${CONFIDENCE_THRESHOLD}+) if you are CERTAIN beyond reasonable doubt that both faces belong to the SAME person.
+- Compare these specific biometric features carefully: distance between eyes, eye shape and color, nose width and bridge shape, lip shape, jawline contour, ear shape, forehead height, cheekbone structure, chin shape.
+- Two DIFFERENT people of the same gender, age range, ethnicity, or with similar hairstyles / glasses / skin tone MUST receive confidence below 40. Surface-level similarity is NOT a match.
+- If either image is blurry, dark, partially obscured, shows no clear face, shows multiple faces, or shows the back/side of a head, return confidence 0 and matched=false.
+- If you have ANY doubt at all that they might be different people, return confidence below ${CONFIDENCE_THRESHOLD}.
+- A FALSE POSITIVE (matching two different people) is a SECURITY BREACH and is FAR WORSE than a false negative.
 
-Respond ONLY with a JSON object: {"confidence": <0-100>, "matched": <true/false>}
-A confidence of ${CONFIDENCE_THRESHOLD} or above means matched=true. Below ${CONFIDENCE_THRESHOLD} means matched=false.
-Do not include any other text, explanation, or markdown.`,
+Respond ONLY with a strict JSON object: {"confidence": <integer 0-100>, "matched": <true|false>, "reason": "<short explanation of biometric comparison>"}
+matched MUST be true only if confidence >= ${CONFIDENCE_THRESHOLD}.
+No markdown, no code fences, no extra text.`,
           },
           {
             role: "user",
