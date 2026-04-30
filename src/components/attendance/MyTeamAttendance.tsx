@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, CloudOff, XCircle, Search, Eye, ChevronRight, ChevronDown, Users, FileBarChart } from "lucide-react";
+import { CheckCircle, CloudOff, XCircle, Search, Eye, ChevronRight, Users, FileBarChart } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -45,7 +45,6 @@ export default function MyTeamAttendance() {
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [memberHistory, setMemberHistory] = useState<MemberAttendance[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [expandedManagers, setExpandedManagers] = useState<Set<string>>(new Set());
   const [showReport, setShowReport] = useState(false);
   const today = format(new Date(), "yyyy-MM-dd");
 
@@ -58,42 +57,34 @@ export default function MyTeamAttendance() {
   }, []);
 
   const fetchTeamData = useCallback(async () => {
-    if (!currentUserId) return;
     setLoading(true);
     try {
-      // Get all subordinates using the hierarchy function
-      const { data: subordinates } = await supabase.rpc("get_user_hierarchy", {
-        _manager_id: currentUserId,
-      });
+      // Fetch all active users in the organisation
+      const { data: users } = await supabase
+        .from("users")
+        .select("id, full_name, username, reporting_manager_id")
+        .eq("is_active", true)
+        .order("full_name");
 
-      if (!subordinates || subordinates.length === 0) {
-        setTeamMembers([]);
+      const memberList = (users || []) as TeamMember[];
+      setTeamMembers(memberList);
+
+      if (memberList.length === 0) {
+        setAttendanceMap({});
+        setLeaveMap({});
         setLoading(false);
         return;
       }
 
-      const subIds = subordinates.map((s: any) => s.user_id);
-
-      // Fetch user details
-      const { data: users } = await supabase
-        .from("users")
-        .select("id, full_name, username, reporting_manager_id")
-        .in("id", subIds)
-        .eq("is_active", true)
-        .order("full_name");
-
-      setTeamMembers(users || []);
-
-      // Fetch today's attendance for all team members
+      // Fetch today's attendance for everyone
       const { data: attendanceData } = await supabase
         .from("attendance")
         .select("user_id, date, check_in_time, check_out_time, status, total_hours")
-        .in("user_id", subIds)
         .eq("date", today);
 
       const attMap: Record<string, MemberAttendance | null> = {};
-      subIds.forEach((id: string) => {
-        attMap[id] = null;
+      memberList.forEach((m) => {
+        attMap[m.id] = null;
       });
       attendanceData?.forEach((a: any) => {
         attMap[a.user_id] = a;
@@ -104,7 +95,6 @@ export default function MyTeamAttendance() {
       const { data: leaves } = await supabase
         .from("leave_applications")
         .select("user_id, from_date, to_date, status")
-        .in("user_id", subIds)
         .eq("status", "approved")
         .lte("from_date", today)
         .gte("to_date", today);
@@ -120,7 +110,7 @@ export default function MyTeamAttendance() {
     } finally {
       setLoading(false);
     }
-  }, [currentUserId, today]);
+  }, [today]);
 
   useEffect(() => {
     fetchTeamData();
