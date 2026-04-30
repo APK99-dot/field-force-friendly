@@ -301,7 +301,7 @@ export default function MyTeamAttendance() {
         </div>
 
         <div className="space-y-1">
-          {directReports.map((member) => renderMemberRow(member, 0))}
+          {filteredMembers.map((member) => renderMemberRow(member))}
         </div>
       </div>
 
