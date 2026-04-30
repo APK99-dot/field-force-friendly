@@ -145,30 +145,6 @@ export default function MyTeamAttendance() {
     );
   }, [teamMembers, searchQuery]);
 
-  // Group members by their direct manager for hierarchy display
-  const directReports = useMemo(() => {
-    return filteredMembers.filter((m) => m.reporting_manager_id === currentUserId);
-  }, [filteredMembers, currentUserId]);
-
-  const getChildrenOf = useCallback(
-    (managerId: string) => filteredMembers.filter((m) => m.reporting_manager_id === managerId),
-    [filteredMembers]
-  );
-
-  const hasChildren = useCallback(
-    (userId: string) => filteredMembers.some((m) => m.reporting_manager_id === userId),
-    [filteredMembers]
-  );
-
-  const toggleExpand = (userId: string) => {
-    setExpandedManagers((prev) => {
-      const next = new Set(prev);
-      if (next.has(userId)) next.delete(userId);
-      else next.add(userId);
-      return next;
-    });
-  };
-
   const openMemberDetail = async (member: TeamMember) => {
     setSelectedMember(member);
     setHistoryLoading(true);
@@ -204,40 +180,14 @@ export default function MyTeamAttendance() {
     absent: { color: "text-[hsl(0,45%,35%)]", bg: "bg-[hsl(0,40%,94%)]", label: "Absent" },
   };
 
-  const roleColors = [
-    "border-l-[hsl(350,50%,55%)]",  // level 0 - direct
-    "border-l-[hsl(265,40%,55%)]",  // level 1 
-    "border-l-[hsl(210,50%,55%)]",  // level 2
-    "border-l-[hsl(150,40%,45%)]",  // level 3
-  ];
-
-  const renderMemberRow = (member: TeamMember, level: number = 0) => {
+  const renderMemberRow = (member: TeamMember) => {
     const status = getStatus(member.id);
     const config = statusConfig[status] || statusConfig.absent;
     const att = attendanceMap[member.id];
-    const children = getChildrenOf(member.id);
-    const isExpanded = expandedManagers.has(member.id);
-    const presentDays = 0; // Will show attendance ratio from history
-    const workingDays = new Date().getDate(); // Approximate
 
     return (
       <div key={member.id}>
-        <div
-          className={cn(
-            "flex items-center gap-3 py-3 px-3 rounded-xl transition-all hover:bg-accent/50 border-l-4",
-            roleColors[Math.min(level, roleColors.length - 1)]
-          )}
-          style={{ marginLeft: level * 16 }}
-        >
-          {/* Expand toggle for managers */}
-          <div className="w-5 flex-shrink-0">
-            {children.length > 0 ? (
-              <button onClick={() => toggleExpand(member.id)} className="text-muted-foreground hover:text-foreground">
-                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              </button>
-            ) : null}
-          </div>
-
+        <div className="flex items-center gap-3 py-3 px-3 rounded-xl transition-all hover:bg-accent/50 border-l-4 border-l-[hsl(210,50%,55%)]">
           <Avatar className="h-10 w-10 flex-shrink-0">
             <AvatarFallback className="text-xs font-semibold bg-muted">
               {getInitials(member.full_name)}
@@ -258,9 +208,6 @@ export default function MyTeamAttendance() {
             <Badge className={cn("text-[11px] px-2 py-0.5 font-medium border-0", config.bg, config.color)}>
               {config.label}
             </Badge>
-            {children.length > 0 && (
-              <span className="text-xs text-muted-foreground">{children.length}</span>
-            )}
             <Button
               variant="ghost"
               size="icon"
@@ -271,9 +218,6 @@ export default function MyTeamAttendance() {
             </Button>
           </div>
         </div>
-
-        {/* Render children if expanded */}
-        {isExpanded && children.map((child) => renderMemberRow(child, level + 1))}
       </div>
     );
   };
