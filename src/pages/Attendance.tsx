@@ -44,7 +44,6 @@ export default function Attendance() {
   const [activeView, setActiveView] = useState<"my" | "team">("my");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [userId, setUserId] = useState<string>();
-  const [hasTeam, setHasTeam] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [regModalOpen, setRegModalOpen] = useState(false);
   const [selectedRecordForReg, setSelectedRecordForReg] = useState<any>(null);
@@ -77,11 +76,6 @@ export default function Attendance() {
         supabase.from("profiles").select("profile_picture_url").eq("id", user.id).single()
           .then(({ data }) => {
             if (data?.profile_picture_url) setProfilePictureUrl(data.profile_picture_url);
-          });
-        // Check if user has subordinates
-        supabase.rpc("get_user_hierarchy", { _manager_id: user.id })
-          .then(({ data }) => {
-            setHasTeam(!!data && data.length > 0);
           });
       }
     });
@@ -443,7 +437,6 @@ export default function Attendance() {
       </div>
 
       {/* My Attendance / My Team Toggle */}
-      {hasTeam && (
       <div className="grid grid-cols-2 gap-0 rounded-full border overflow-hidden">
         <button
           onClick={() => setActiveView("my")}
@@ -468,9 +461,8 @@ export default function Attendance() {
           My Team
         </button>
       </div>
-      )}
 
-      {activeView === "team" && hasTeam ? (
+      {activeView === "team" ? (
         <MyTeamAttendance />
       ) : (
       <>
