@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppHeader } from "./AppHeader";
 import { BottomNav } from "./BottomNav";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,8 +10,26 @@ import PWAInstallBanner from "@/components/PWAInstallBanner";
 import { useNativeStartup } from "@/hooks/useNativeStartup";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 
+// Keys of caches scoped to the signed-in user. Must be cleared on user change.
+const USER_SCOPED_CACHE_KEYS = [
+  "user_profile_cache_v1",
+  "dashboard_cache_v1",
+];
+
+function clearUserScopedCaches() {
+  try {
+    USER_SCOPED_CACHE_KEYS.forEach((k) => localStorage.removeItem(k));
+    // Sweep any other per-user caches we may add later
+    Object.keys(localStorage)
+      .filter((k) => k.endsWith("_cache_v1") || k.startsWith("nav_prefs_"))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch { /* ignore */ }
+}
+
 export function AppLayout() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const lastUserIdRef = useRef<string | null>(null);
   useNativeStartup();
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
