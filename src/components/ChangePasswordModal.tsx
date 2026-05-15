@@ -132,6 +132,17 @@ export default function ChangePasswordModal({ userId, onComplete }: ChangePasswo
           <Button type="submit" className="w-full h-11" disabled={loading}>
             {loading ? "Updating..." : "Set New Password"}
           </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-11"
+            onClick={handleLogout}
+            disabled={loading}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
         </form>
       </DialogContent>
     </Dialog>
