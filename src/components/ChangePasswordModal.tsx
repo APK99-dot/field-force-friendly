@@ -3,9 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface ChangePasswordModalProps {
   userId: string;
@@ -13,11 +14,22 @@ interface ChangePasswordModalProps {
 }
 
 export default function ChangePasswordModal({ userId, onComplete }: ChangePasswordModalProps) {
+  const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      localStorage.removeItem("remember_me_expires");
+      await supabase.auth.signOut();
+      navigate("/auth", { replace: true });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to sign out");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,6 +131,17 @@ export default function ChangePasswordModal({ userId, onComplete }: ChangePasswo
 
           <Button type="submit" className="w-full h-11" disabled={loading}>
             {loading ? "Updating..." : "Set New Password"}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-11"
+            onClick={handleLogout}
+            disabled={loading}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
           </Button>
         </form>
       </DialogContent>
