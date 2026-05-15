@@ -14,11 +14,22 @@ interface ChangePasswordModalProps {
 }
 
 export default function ChangePasswordModal({ userId, onComplete }: ChangePasswordModalProps) {
+  const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      localStorage.removeItem("remember_me_expires");
+      await supabase.auth.signOut();
+      navigate("/auth", { replace: true });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to sign out");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
