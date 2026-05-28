@@ -3,6 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import IOSInstallPrompt from "./IOSInstallPrompt";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
