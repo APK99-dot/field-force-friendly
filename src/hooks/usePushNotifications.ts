@@ -3,10 +3,18 @@ import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 
 const FCM_FLAG = "fcm_needs_register";
+const LAST_TOKEN_KEY = "fcm_last_token";
 
 /**
- * Registers FCM push token on native Android devices.
- * Creates the required notification channel for Android 8+.
+ * Registers FCM push token on native Android devices and keeps it fresh.
+ *
+ * Refresh strategy:
+ *  - Re-registers on every mount (covers app launches & updates).
+ *  - Re-registers on App `resume` event (covers warm starts after long idle).
+ *  - Every received token upserts the row (touches last_seen_at) AND deletes
+ *    any older tokens this same user previously registered from this device
+ *    (tracked via localStorage).
+ *
  * On web this is a no-op.
  */
 export function usePushNotifications(userId: string | undefined) {
@@ -21,12 +29,66 @@ export function usePushNotifications(userId: string | undefined) {
     let errListener: { remove: () => void } | undefined;
     let notifListener: { remove: () => void } | undefined;
     let actionListener: { remove: () => void } | undefined;
+    let resumeListener: { remove: () => void } | undefined;
+    let PushNotificationsRef: any;
+
+    const saveToken = async (tokenValue: string) => {
+      if (!tokenValue || !userId) return;
+      try {
+        const previousToken = localStorage.getItem(LAST_TOKEN_KEY);
+
+        // Upsert current token (refreshes last_seen_at via the trigger/default).
+        const { error } = await supabase
+          .from("push_tokens" as any)
+          .upsert(
+            {
+              user_id: userId,
+              token: tokenValue,
+              platform: "android",
+              last_seen_at: new Date().toISOString(),
+            } as any,
+            { onConflict: "token" }
+          );
+
+        if (error) {
+          console.error("Failed to save push token:", error);
+          return;
+        }
+
+        // If this device previously registered a different token for this
+        // user, remove the old row so we don't accumulate dead tokens.
+        if (previousToken && previousToken !== tokenValue) {
+          const { error: delErr } = await supabase
+            .from("push_tokens" as any)
+            .delete()
+            .eq("user_id", userId)
+            .eq("token", previousToken);
+          if (delErr) console.warn("Failed to remove old push token:", delErr);
+        }
+
+        localStorage.setItem(LAST_TOKEN_KEY, tokenValue);
+        console.log("Push token saved & refreshed");
+      } catch (upsertErr) {
+        console.error("Push token upsert threw:", upsertErr);
+      }
+    };
+
+    const tryRegister = async () => {
+      if (!PushNotificationsRef) return;
+      try {
+        const perm = await PushNotificationsRef.checkPermissions();
+        if (perm?.receive === "granted") {
+          await PushNotificationsRef.register();
+        }
+      } catch (e) {
+        console.warn("Re-register failed:", e);
+      }
+    };
 
     const init = async () => {
-      let PushNotifications: any;
       try {
         const mod = await import("@capacitor/push-notifications");
-        PushNotifications = mod.PushNotifications;
+        PushNotificationsRef = mod.PushNotifications;
       } catch (e) {
         console.warn("Push notifications plugin not available:", e);
         return;
@@ -34,81 +96,72 @@ export function usePushNotifications(userId: string | undefined) {
 
       if (isUnmounted.current) return;
 
-      // Create the Android notification channel (required for Android 8+)
+      // Android notification channel (required Android 8+)
       try {
-        await PushNotifications.createChannel({
+        await PushNotificationsRef.createChannel({
           id: "default",
           name: "Default Notifications",
           description: "General app notifications",
-          importance: 5, // MAX
-          visibility: 1, // PUBLIC
+          importance: 5,
+          visibility: 1,
           sound: "default",
           vibration: true,
         });
-        console.log("Notification channel 'default' created");
       } catch (e) {
-        // createChannel may not exist on iOS or older plugin versions
         console.warn("createChannel not available:", e);
       }
 
-      // Registration listener — saves FCM token to backend
+      // Registration listener — fires on every successful register() and on
+      // background FCM-driven token rotations.
       try {
-        regListener = await PushNotifications.addListener(
+        regListener = await PushNotificationsRef.addListener(
           "registration",
           async (token: any) => {
             if (isUnmounted.current) return;
             console.log("FCM token received:", token?.value?.substring(0, 20) + "...");
-            if (!token?.value || !userId) return;
-            try {
-              const { error } = await supabase
-                .from("push_tokens" as any)
-                .upsert(
-                  { user_id: userId, token: token.value, platform: "android" } as any,
-                  { onConflict: "token" }
-                );
-              if (error) console.error("Failed to save push token:", error);
-              else console.log("Push token saved successfully");
-            } catch (upsertErr) {
-              console.error("Push token upsert threw:", upsertErr);
-            }
+            await saveToken(token?.value);
           }
         );
       } catch (e) {
         console.warn("Failed to add registration listener:", e);
       }
 
-      // Error listener
       try {
-        errListener = await PushNotifications.addListener(
+        errListener = await PushNotificationsRef.addListener(
           "registrationError",
           (err: any) => console.error("Push registration error:", err)
         );
-      } catch (e) {
-        console.warn("Failed to add registrationError listener:", e);
-      }
+      } catch (_) {}
 
-      // Foreground notification listener
       try {
-        notifListener = await PushNotifications.addListener(
+        notifListener = await PushNotificationsRef.addListener(
           "pushNotificationReceived",
           (notification: any) => {
             console.log("Push received in foreground:", notification);
           }
         );
-      } catch (e) {
-        console.warn("Failed to add pushNotificationReceived listener:", e);
-      }
+      } catch (_) {}
 
-      // Notification tap listener
       try {
-        actionListener = await PushNotifications.addListener(
+        actionListener = await PushNotificationsRef.addListener(
           "pushNotificationActionPerformed",
           (action: any) => {
             console.log("Push notification tapped:", action);
           }
         );
+      } catch (_) {}
+
+      // Re-register on app resume so a fresh token is requested whenever the
+      // user comes back to the app (covers FCM rotations, reinstalls, app
+      // data clears).
+      try {
+        const { App } = await import("@capacitor/app");
+        resumeListener = await App.addListener("resume", () => {
+          console.log("App resumed — re-registering FCM token");
+          tryRegister();
+        });
       } catch (e) {
-        console.warn("Failed to add pushNotificationActionPerformed listener:", e);
+        console.warn("App resume listener unavailable:", e);
       }
 
       if (isUnmounted.current) return;
@@ -119,17 +172,17 @@ export function usePushNotifications(userId: string | undefined) {
         localStorage.removeItem(FCM_FLAG);
         console.log("Deferred FCM registration, registering now...");
         try {
-          await PushNotifications.register();
+          await PushNotificationsRef.register();
         } catch (e) {
-          console.warn("Deferred PushNotifications.register() failed:", e);
+          console.warn("Deferred register() failed:", e);
         }
         return;
       }
 
-      // Check current permission status
+      // Standard path: check permission, register if granted, else request.
       let currentStatus: string | undefined;
       try {
-        const result = await PushNotifications.checkPermissions();
+        const result = await PushNotificationsRef.checkPermissions();
         currentStatus = result?.receive;
       } catch (e) {
         console.warn("checkPermissions failed:", e);
@@ -140,16 +193,18 @@ export function usePushNotifications(userId: string | undefined) {
 
       if (currentStatus === "granted") {
         try {
-          await PushNotifications.register();
+          // Always register on every mount — this re-triggers the
+          // 'registration' listener with the current token, refreshing
+          // last_seen_at and validating the token is still issued by FCM.
+          await PushNotificationsRef.register();
         } catch (e) {
-          console.warn("PushNotifications.register() failed:", e);
+          console.warn("register() failed:", e);
         }
         return;
       }
 
-      // Request permission — DO NOT register immediately on Android 13+
       try {
-        const permResult = await PushNotifications.requestPermissions();
+        const permResult = await PushNotificationsRef.requestPermissions();
         if (permResult?.receive === "granted") {
           localStorage.setItem(FCM_FLAG, "true");
           console.log("Permission granted — FCM registration deferred to next mount");
@@ -169,6 +224,7 @@ export function usePushNotifications(userId: string | undefined) {
       try { errListener?.remove(); } catch (_) {}
       try { notifListener?.remove(); } catch (_) {}
       try { actionListener?.remove(); } catch (_) {}
+      try { resumeListener?.remove(); } catch (_) {}
     };
   }, [userId]);
 }

@@ -129,6 +129,19 @@ Deno.serve(async (req) => {
     const serviceAccount = JSON.parse(fcmKeyJson);
     const projectId = serviceAccount.project_id;
 
+    // Purge tokens not seen in 60+ days (stale / uninstalled devices)
+    try {
+      const cutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+      const { error: purgeErr, count } = await supabase
+        .from("push_tokens")
+        .delete({ count: "exact" })
+        .lt("last_seen_at", cutoff);
+      if (purgeErr) console.warn("[dispatch] Stale purge failed:", purgeErr);
+      else if (count) console.log(`[dispatch] Purged ${count} stale tokens`);
+    } catch (e) {
+      console.warn("[dispatch] Stale purge threw:", e);
+    }
+
     // Fetch all tokens for all recipients in one query
     const { data: tokens, error: tokErr } = await supabase
       .from("push_tokens")
