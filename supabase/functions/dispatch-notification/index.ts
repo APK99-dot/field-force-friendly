@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import webpush from "npm:web-push@3.6.7";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -116,12 +117,20 @@ Deno.serve(async (req) => {
       console.log(`[dispatch] Inserted ${rows.length} notification rows`);
     }
 
-    // 2) Send FCM push notifications
+    // 2) Send Web Push (iPhone PWA + desktop browsers) — runs in parallel with FCM
+    const webPushResult = await sendWebPush(supabase, recipient_ids, {
+      title,
+      message,
+      related_table,
+      related_id,
+    });
+
+    // 3) Send FCM push notifications (Android APK)
     const fcmKeyJson = Deno.env.get("FCM_SERVICE_ACCOUNT_KEY");
     if (!fcmKeyJson) {
-      console.warn("[dispatch] FCM_SERVICE_ACCOUNT_KEY not configured — skipping push");
+      console.warn("[dispatch] FCM_SERVICE_ACCOUNT_KEY not configured — skipping FCM");
       return new Response(
-        JSON.stringify({ notifications_inserted: rows.length, push_skipped: true }),
+        JSON.stringify({ notifications_inserted: rows.length, fcm_skipped: true, web_push: webPushResult }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -230,6 +239,7 @@ Deno.serve(async (req) => {
       push_tokens_found: tokens.length,
       push_sent: sent,
       push_stale_cleaned: staleIds.length,
+      web_push: webPushResult,
     };
     console.log("[dispatch] Result:", JSON.stringify(result));
 
