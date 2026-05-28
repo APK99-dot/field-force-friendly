@@ -169,16 +169,16 @@ export function useAttendance(userId: string | undefined) {
 
     await fetchData();
 
-    // Notify manager + admins about check-in
+    // Notify ALL active users about check-in (broadcast)
     try {
-      const { getNotificationRecipients, sendNotificationWithPush } = await import('@/utils/notificationHelpers');
+      const { getAllActiveUserIds, sendNotificationWithPush } = await import('@/utils/notificationHelpers');
       const { data: userData } = await supabase
         .from('users')
         .select('full_name')
         .eq('id', userId)
         .single();
 
-      const recipients = await getNotificationRecipients(userId);
+      const recipients = await getAllActiveUserIds(userId);
       await sendNotificationWithPush(recipients, {
         title: `Check-In - ${userData?.full_name || 'Employee'}`,
         message: `Checked in at ${format(new Date(), 'h:mm a, MMM dd yyyy')}`,
@@ -188,6 +188,7 @@ export function useAttendance(userId: string | undefined) {
     } catch (notifError) {
       console.error('Error sending check-in notification:', notifError);
     }
+
   };
 
   const checkOut = async (data?: CheckOutData) => {
