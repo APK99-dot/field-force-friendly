@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import webpush from "npm:web-push@3.6.7";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -116,12 +117,20 @@ Deno.serve(async (req) => {
       console.log(`[dispatch] Inserted ${rows.length} notification rows`);
     }
 
-    // 2) Send FCM push notifications
+    // 2) Send Web Push (iPhone PWA + desktop browsers) — runs in parallel with FCM
+    const webPushResult = await sendWebPush(supabase, recipient_ids, {
+      title,
+      message,
+      related_table,
+      related_id,
+    });
+
+    // 3) Send FCM push notifications (Android APK)
     const fcmKeyJson = Deno.env.get("FCM_SERVICE_ACCOUNT_KEY");
     if (!fcmKeyJson) {
-      console.warn("[dispatch] FCM_SERVICE_ACCOUNT_KEY not configured — skipping push");
+      console.warn("[dispatch] FCM_SERVICE_ACCOUNT_KEY not configured — skipping FCM");
       return new Response(
-        JSON.stringify({ notifications_inserted: rows.length, push_skipped: true }),
+        JSON.stringify({ notifications_inserted: rows.length, fcm_skipped: true, web_push: webPushResult }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -230,6 +239,7 @@ Deno.serve(async (req) => {
       push_tokens_found: tokens.length,
       push_sent: sent,
       push_stale_cleaned: staleIds.length,
+      web_push: webPushResult,
     };
     console.log("[dispatch] Result:", JSON.stringify(result));
 
@@ -245,3 +255,80 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+// ---- Web Push (iPhone PWA + desktop) ---------------------------------------
+async function sendWebPush(
+  supabase: any,
+  recipientIds: string[],
+  payload: { title: string; message: string; related_table?: string | null; related_id?: string | null }
+): Promise<{ sent: number; failed: number; pruned: number; skipped?: string }> {
+  const pub = Deno.env.get("VAPID_PUBLIC_KEY");
+  const priv = Deno.env.get("VAPID_PRIVATE_KEY");
+  const subject = Deno.env.get("VAPID_SUBJECT") || "mailto:admin@bharathbuilders.app";
+  if (!pub || !priv) {
+    console.warn("[web-push] VAPID keys not configured — skipping");
+    return { sent: 0, failed: 0, pruned: 0, skipped: "vapid_keys_missing" };
+  }
+  try {
+    webpush.setVapidDetails(subject, pub, priv);
+  } catch (e) {
+    console.error("[web-push] setVapidDetails failed:", e);
+    return { sent: 0, failed: 0, pruned: 0, skipped: "vapid_invalid" };
+  }
+
+  const { data: subs, error } = await supabase
+    .from("web_push_subscriptions")
+    .select("id, endpoint, p256dh, auth")
+    .in("user_id", recipientIds);
+
+  if (error) {
+    console.error("[web-push] fetch subscriptions failed:", error);
+    return { sent: 0, failed: 0, pruned: 0, skipped: "fetch_failed" };
+  }
+  if (!subs || subs.length === 0) {
+    return { sent: 0, failed: 0, pruned: 0 };
+  }
+
+  const json = JSON.stringify({
+    title: payload.title,
+    message: payload.message,
+    data: { related_table: payload.related_table, related_id: payload.related_id, url: "/" },
+  });
+
+  const staleIds: string[] = [];
+  let sent = 0;
+  let failed = 0;
+
+  await Promise.all(
+    subs.map(async (s: any) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          json,
+          { TTL: 60 * 60 * 24 }
+        );
+        sent++;
+        // Refresh last_seen_at (fire & forget)
+        supabase
+          .from("web_push_subscriptions")
+          .update({ last_seen_at: new Date().toISOString() })
+          .eq("id", s.id)
+          .then(() => {}, () => {});
+      } catch (e: any) {
+        failed++;
+        const status = e?.statusCode;
+        if (status === 404 || status === 410) {
+          staleIds.push(s.id);
+        } else {
+          console.warn("[web-push] send failed:", status, e?.body || e?.message);
+        }
+      }
+    })
+  );
+
+  if (staleIds.length > 0) {
+    await supabase.from("web_push_subscriptions").delete().in("id", staleIds);
+  }
+
+  return { sent, failed, pruned: staleIds.length };
+}

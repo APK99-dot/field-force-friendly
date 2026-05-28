@@ -28,6 +28,29 @@ const reloading = checkAndBustCache();
 if (!reloading) {
   requestNativePermissions();
 
+  // Register service worker for Web Push (iPhone PWA + desktop).
+  // Skipped inside Lovable editor iframes / preview hosts to avoid stale-shell issues.
+  if ("serviceWorker" in navigator) {
+    const isInIframe = (() => {
+      try { return window.self !== window.top; } catch { return true; }
+    })();
+    const host = window.location.hostname;
+    const isPreviewHost =
+      host.includes("lovableproject.com") || host.includes("id-preview--");
+    if (!isInIframe && !isPreviewHost) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker
+          .register("/sw.js", { scope: "/" })
+          .catch((e) => console.warn("[SW] register failed:", e));
+      });
+    } else {
+      // Clean up any SW that may have been registered in a preview session
+      navigator.serviceWorker.getRegistrations().then((regs) =>
+        regs.forEach((r) => r.unregister().catch(() => {}))
+      );
+    }
+  }
+
   createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
       <App />

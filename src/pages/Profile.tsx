@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import NotificationsEnableCard from "@/components/NotificationsEnableCard";
 import { toast } from "sonner";
 import {
   Camera,
@@ -261,6 +262,9 @@ export default function Profile() {
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Notifications */}
+        {profile?.id && <NotificationsEnableCard userId={profile.id} />}
+
         {/* Edit Toggle */}
         <div className="flex justify-end">
           {isEditing ? (
