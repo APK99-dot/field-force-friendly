@@ -1,9 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
 
-// VAPID public key — safe to ship in client code. Pairs with VAPID_PRIVATE_KEY secret.
-export const VAPID_PUBLIC_KEY =
-  "BOMNJ-aptPO6NNmjKh14Yhd2GxP6nagtAGkNd8EwhCdO0TFDw-UrHxX2yQnLP5uAFUJVpj_lWRHw0mq8JaUWtHs";
+// VAPID public key is fetched from the backend so it always matches the
+// VAPID_PRIVATE_KEY secret used to sign push messages.
+let cachedVapidPublicKey: string | null = null;
+
+async function getVapidPublicKey(): Promise<string> {
+  if (cachedVapidPublicKey) return cachedVapidPublicKey;
+  const { data, error } = await supabase.functions.invoke("get-vapid-public-key");
+  if (error || !data?.publicKey) throw new Error("VAPID public key unavailable");
+  cachedVapidPublicKey = data.publicKey as string;
+  return cachedVapidPublicKey;
+}
 
 export type PushSupport =
   | "supported"        // browser supports Web Push, SW can register
@@ -57,9 +65,10 @@ export async function subscribeToWebPush(userId: string): Promise<{ ok: boolean;
     const reg = await getRegistration();
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
+      const vapidKey = await getVapidPublicKey();
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
       });
     }
 
