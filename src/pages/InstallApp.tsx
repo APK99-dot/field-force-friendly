@@ -50,7 +50,7 @@ export default function InstallApp() {
       >
         <div className="text-center space-y-3">
           <img src="/pwa-icon-512.png" alt="App Icon" className="w-24 h-24 mx-auto rounded-2xl shadow-elevated" />
-          <h1 className="text-2xl font-bold text-foreground">Install Field Force Friendly</h1>
+          <h1 className="text-2xl font-bold text-foreground">Install Bharath Builders</h1>
           <p className="text-muted-foreground text-sm">
             Install this app on your device for a faster, native-like experience.
           </p>
