@@ -255,3 +255,80 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+// ---- Web Push (iPhone PWA + desktop) ---------------------------------------
+async function sendWebPush(
+  supabase: any,
+  recipientIds: string[],
+  payload: { title: string; message: string; related_table?: string | null; related_id?: string | null }
+): Promise<{ sent: number; failed: number; pruned: number; skipped?: string }> {
+  const pub = Deno.env.get("VAPID_PUBLIC_KEY");
+  const priv = Deno.env.get("VAPID_PRIVATE_KEY");
+  const subject = Deno.env.get("VAPID_SUBJECT") || "mailto:admin@bharathbuilders.app";
+  if (!pub || !priv) {
+    console.warn("[web-push] VAPID keys not configured — skipping");
+    return { sent: 0, failed: 0, pruned: 0, skipped: "vapid_keys_missing" };
+  }
+  try {
+    webpush.setVapidDetails(subject, pub, priv);
+  } catch (e) {
+    console.error("[web-push] setVapidDetails failed:", e);
+    return { sent: 0, failed: 0, pruned: 0, skipped: "vapid_invalid" };
+  }
+
+  const { data: subs, error } = await supabase
+    .from("web_push_subscriptions")
+    .select("id, endpoint, p256dh, auth")
+    .in("user_id", recipientIds);
+
+  if (error) {
+    console.error("[web-push] fetch subscriptions failed:", error);
+    return { sent: 0, failed: 0, pruned: 0, skipped: "fetch_failed" };
+  }
+  if (!subs || subs.length === 0) {
+    return { sent: 0, failed: 0, pruned: 0 };
+  }
+
+  const json = JSON.stringify({
+    title: payload.title,
+    message: payload.message,
+    data: { related_table: payload.related_table, related_id: payload.related_id, url: "/" },
+  });
+
+  const staleIds: string[] = [];
+  let sent = 0;
+  let failed = 0;
+
+  await Promise.all(
+    subs.map(async (s: any) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          json,
+          { TTL: 60 * 60 * 24 }
+        );
+        sent++;
+        // Refresh last_seen_at (fire & forget)
+        supabase
+          .from("web_push_subscriptions")
+          .update({ last_seen_at: new Date().toISOString() })
+          .eq("id", s.id)
+          .then(() => {}, () => {});
+      } catch (e: any) {
+        failed++;
+        const status = e?.statusCode;
+        if (status === 404 || status === 410) {
+          staleIds.push(s.id);
+        } else {
+          console.warn("[web-push] send failed:", status, e?.body || e?.message);
+        }
+      }
+    })
+  );
+
+  if (staleIds.length > 0) {
+    await supabase.from("web_push_subscriptions").delete().in("id", staleIds);
+  }
+
+  return { sent, failed, pruned: staleIds.length };
+}
