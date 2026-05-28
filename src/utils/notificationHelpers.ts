@@ -41,6 +41,30 @@ export async function getNotificationRecipients(
 }
 
 /**
+ * Get ALL active user IDs (excluding the given user). Used for broadcast-style
+ * notifications (e.g. attendance check-in/check-out) where every team member
+ * should be informed regardless of hierarchy or role.
+ */
+export async function getAllActiveUserIds(
+  excludeUserId?: string
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("users")
+    .select("id")
+    .eq("is_active", true);
+
+  if (error) {
+    console.error("Failed to fetch active user IDs:", error);
+    return [];
+  }
+  return (data || [])
+    .map((u: any) => u.id as string)
+    .filter((id) => id !== excludeUserId);
+}
+
+
+
+/**
  * Send in-app notification (bell icon) + native push notification via a single
  * backend call. This replaces the old client-side insert + fire-and-forget
  * approach which was unreliable in mobile WebViews.
