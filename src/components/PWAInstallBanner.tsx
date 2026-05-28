@@ -21,6 +21,7 @@ export default function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [iosSheetOpen, setIosSheetOpen] = useState(false);
 
   useEffect(() => {
     // Hide banner inside native APK/iOS app
@@ -87,48 +88,51 @@ export default function PWAInstallBanner() {
   const hasPrompt = !!(deferredPrompt || getGlobalPrompt());
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: 60 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 60 }}
-        className="fixed bottom-16 md:bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.1)] p-4"
-      >
-        <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-2">
-              <Download className="h-5 w-5 text-foreground" />
-              <span className="text-sm font-semibold text-foreground">Install App</span>
+    <>
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0, y: 60 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 60 }}
+          className="fixed bottom-16 md:bottom-0 left-0 right-0 z-50 bg-background border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.1)] p-4"
+        >
+          <div className="max-w-lg mx-auto">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <Download className="h-5 w-5 text-foreground" />
+                <span className="text-sm font-semibold text-foreground">Install App</span>
+              </div>
+              <button onClick={handleDismiss} className="text-muted-foreground hover:text-foreground p-1">
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <button onClick={handleDismiss} className="text-muted-foreground hover:text-foreground p-1">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
 
-          <p className="text-xs text-muted-foreground mb-3">
-            {isIOS
-              ? "Tap the Share button, then 'Add to Home Screen' for a better experience"
-              : "Install this app for a better experience"}
-          </p>
+            <p className="text-xs text-muted-foreground mb-3">
+              {isIOS
+                ? "Install on your iPhone to receive notifications and use offline"
+                : "Install this app for a better experience"}
+            </p>
 
-          <div className="flex items-center gap-2">
-            <Button
-              className="flex-1 h-11 text-sm font-semibold"
-              onClick={hasPrompt ? handleInstall : handleDismiss}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Install Now
-            </Button>
-            <Button
-              variant="outline"
-              className="h-11 text-sm font-medium shrink-0"
-              onClick={handleDismiss}
-            >
-              Maybe Later
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                className="flex-1 h-11 text-sm font-semibold"
+                onClick={isIOS ? () => setIosSheetOpen(true) : hasPrompt ? handleInstall : handleDismiss}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {isIOS ? "Show install steps" : "Install Now"}
+              </Button>
+              <Button
+                variant="outline"
+                className="h-11 text-sm font-medium shrink-0"
+                onClick={handleDismiss}
+              >
+                Maybe Later
+              </Button>
+            </div>
           </div>
-        </div>
-      </motion.div>
-    </AnimatePresence>
+        </motion.div>
+      </AnimatePresence>
+      <IOSInstallPrompt open={iosSheetOpen} onClose={() => setIosSheetOpen(false)} />
+    </>
   );
 }
