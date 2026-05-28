@@ -241,11 +241,13 @@ export default function AttendanceManagement() {
       const { error } = await supabase.from("leave_applications").update(updateData).eq("id", applicationId);
       if (error) throw error;
 
-      // Notify employee
+      // Notify employee + admins
       if (app) {
         try {
-          const { sendNotificationWithPush } = await import('@/utils/notificationHelpers');
-          await sendNotificationWithPush([app.user_id], {
+          const { sendNotificationWithPush, getAdminUserIds } = await import('@/utils/notificationHelpers');
+          const adminIds = await getAdminUserIds();
+          const recipients = Array.from(new Set([app.user_id, ...adminIds]));
+          await sendNotificationWithPush(recipients, {
             title: `Leave ${newStatus === 'approved' ? 'Approved' : 'Rejected'}`,
             message: `Your leave from ${format(new Date(app.from_date), 'MMM dd')} to ${format(new Date(app.to_date), 'MMM dd')}${newStatus === 'rejected' && rejectionReason ? ` - Reason: ${rejectionReason}` : ''} has been ${newStatus}.`,
             type: 'leave_decision',
@@ -311,10 +313,12 @@ export default function AttendanceManagement() {
       const { error } = await supabase.from("regularization_requests").update(updateData).eq("id", requestId);
       if (error) throw error;
 
-      // Notify employee
+      // Notify employee + admins
       try {
-        const { sendNotificationWithPush } = await import('@/utils/notificationHelpers');
-        await sendNotificationWithPush([request.user_id], {
+        const { sendNotificationWithPush, getAdminUserIds } = await import('@/utils/notificationHelpers');
+        const adminIds = await getAdminUserIds();
+        const recipients = Array.from(new Set([request.user_id, ...adminIds]));
+        await sendNotificationWithPush(recipients, {
           title: `Regularisation ${newStatus === 'approved' ? 'Approved' : 'Rejected'}`,
           message: `Your regularisation for ${format(new Date(request.attendance_date || request.date), 'MMM dd, yyyy')}${newStatus === 'rejected' && rejectionReason ? ` - Reason: ${rejectionReason}` : ''} has been ${newStatus}.`,
           type: 'regularization_decision',
