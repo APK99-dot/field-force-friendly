@@ -220,16 +220,16 @@ export function useAttendance(userId: string | undefined) {
 
     await fetchData();
 
-    // Notify manager + admins about check-out (Day End)
+    // Notify ALL active users about check-out / Day End (broadcast)
     try {
-      const { getNotificationRecipients, sendNotificationWithPush } = await import('@/utils/notificationHelpers');
+      const { getAllActiveUserIds, sendNotificationWithPush } = await import('@/utils/notificationHelpers');
       const { data: userData } = await supabase
         .from('users')
         .select('full_name')
         .eq('id', userId)
         .single();
 
-      const recipients = await getNotificationRecipients(userId);
+      const recipients = await getAllActiveUserIds(userId);
       await sendNotificationWithPush(recipients, {
         title: `Day End - ${userData?.full_name || 'Employee'}`,
         message: `Checked out at ${format(new Date(), 'h:mm a, MMM dd yyyy')}`,
@@ -239,6 +239,7 @@ export function useAttendance(userId: string | undefined) {
     } catch (notifError) {
       console.error('Error sending check-out notification:', notifError);
     }
+
   };
 
   // Build attendance map
