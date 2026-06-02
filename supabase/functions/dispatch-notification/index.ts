@@ -248,6 +248,7 @@ Deno.serve(async (req) => {
       push_tokens_found: tokens.length,
       push_sent: sent,
       push_stale_cleaned: staleIds.length,
+      recipients_without_token: recipientsWithoutTokens.length,
       web_push: webPushResult,
     };
     console.log("[dispatch] Result:", JSON.stringify(result));
