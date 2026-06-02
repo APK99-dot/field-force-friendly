@@ -228,7 +228,7 @@ Deno.serve(async (req) => {
         } else {
           const errBody = await res.text();
           console.error(`[dispatch] FCM error for user ${t.user_id}:`, errBody);
-          if (errBody.includes("UNREGISTERED") || errBody.includes("INVALID_ARGUMENT")) {
+          if (errBody.includes("UNREGISTERED") || errBody.includes("NOT_FOUND") || errBody.includes("INVALID_ARGUMENT")) {
             staleIds.push(t.id);
           }
         }
