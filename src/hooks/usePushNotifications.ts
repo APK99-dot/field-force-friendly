@@ -206,8 +206,16 @@ export function usePushNotifications(userId: string | undefined) {
       try {
         const permResult = await PushNotificationsRef.requestPermissions();
         if (permResult?.receive === "granted") {
+          // Register immediately so the 'registration' listener fires and the
+          // current FCM token is saved right away. Also set the deferred flag
+          // as a fallback for Android 13+ Activity recreation.
           localStorage.setItem(FCM_FLAG, "true");
-          console.log("Permission granted — FCM registration deferred to next mount");
+          console.log("Permission granted — registering FCM token now");
+          try {
+            await PushNotificationsRef.register();
+          } catch (e) {
+            console.warn("Immediate register() after grant failed:", e);
+          }
         } else {
           console.log("Push notification permission not granted");
         }

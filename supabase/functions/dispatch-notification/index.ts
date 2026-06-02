@@ -175,6 +175,15 @@ Deno.serve(async (req) => {
 
     console.log(`[dispatch] Found ${tokens.length} push tokens for ${recipient_ids.length} recipients`);
 
+    // Diagnostic: which recipients have NO registered Android token? These users
+    // will only see the in-app bell, not a system banner, until they reopen the
+    // (current) APK so its FCM token re-registers.
+    const usersWithTokens = new Set(tokens.map((t: any) => t.user_id));
+    const recipientsWithoutTokens = recipient_ids.filter((id) => !usersWithTokens.has(id));
+    if (recipientsWithoutTokens.length > 0) {
+      console.warn(`[dispatch] ${recipientsWithoutTokens.length} recipient(s) have NO Android push token:`, recipientsWithoutTokens);
+    }
+
     let accessToken: string;
     try {
       accessToken = await getAccessToken(serviceAccount);
@@ -219,7 +228,7 @@ Deno.serve(async (req) => {
         } else {
           const errBody = await res.text();
           console.error(`[dispatch] FCM error for user ${t.user_id}:`, errBody);
-          if (errBody.includes("UNREGISTERED") || errBody.includes("INVALID_ARGUMENT")) {
+          if (errBody.includes("UNREGISTERED") || errBody.includes("NOT_FOUND") || errBody.includes("INVALID_ARGUMENT")) {
             staleIds.push(t.id);
           }
         }
@@ -239,6 +248,7 @@ Deno.serve(async (req) => {
       push_tokens_found: tokens.length,
       push_sent: sent,
       push_stale_cleaned: staleIds.length,
+      recipients_without_token: recipientsWithoutTokens.length,
       web_push: webPushResult,
     };
     console.log("[dispatch] Result:", JSON.stringify(result));
