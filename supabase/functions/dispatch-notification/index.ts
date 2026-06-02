@@ -175,6 +175,15 @@ Deno.serve(async (req) => {
 
     console.log(`[dispatch] Found ${tokens.length} push tokens for ${recipient_ids.length} recipients`);
 
+    // Diagnostic: which recipients have NO registered Android token? These users
+    // will only see the in-app bell, not a system banner, until they reopen the
+    // (current) APK so its FCM token re-registers.
+    const usersWithTokens = new Set(tokens.map((t: any) => t.user_id));
+    const recipientsWithoutTokens = recipient_ids.filter((id) => !usersWithTokens.has(id));
+    if (recipientsWithoutTokens.length > 0) {
+      console.warn(`[dispatch] ${recipientsWithoutTokens.length} recipient(s) have NO Android push token:`, recipientsWithoutTokens);
+    }
+
     let accessToken: string;
     try {
       accessToken = await getAccessToken(serviceAccount);
