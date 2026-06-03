@@ -200,6 +200,20 @@ const LiveAttendanceMonitoring = () => {
     user.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const displayData = cardFilter
+    ? filteredData.filter(r => {
+        if (cardFilter === 'present') return r.status === 'present' || r.status === 'regularized';
+        if (cardFilter === 'absent') return r.status === 'absent';
+        if (cardFilter === 'leave') return r.status === 'leave' || r.status === 'half-day';
+        return true;
+      })
+    : filteredData;
+
+  const cardClasses = (active: boolean) =>
+    `p-0 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 ${active ? 'ring-2 ring-primary' : ''}`;
+  const toggleCardFilter = (f: 'present' | 'absent' | 'leave' | null) =>
+    setCardFilter(prev => (prev === f ? null : f));
+
   return (
     <div className="space-y-3 sm:space-y-6">
       {/* Summary Cards */}
