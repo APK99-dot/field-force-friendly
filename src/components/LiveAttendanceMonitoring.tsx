@@ -48,6 +48,7 @@ const LiveAttendanceMonitoring = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [detailRecord, setDetailRecord] = useState<AttendanceData | null>(null);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const [cardFilter, setCardFilter] = useState<'present' | 'absent' | 'leave' | null>(null);
 
   useEffect(() => {
     fetchUsers();
