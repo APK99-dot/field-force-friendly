@@ -7,12 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Search, Download, Users, Clock, MapPin, UserCheck, User, Calendar, TrendingUp, CheckCircle2, XCircle, X } from 'lucide-react';
+import { Search, Download, Users, Clock, MapPin, UserCheck, User, Calendar, TrendingUp, CheckCircle2, XCircle, X, FileSpreadsheet, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { downloadCSVString } from '@/utils/nativeDownload';
+import { downloadCSVString, downloadXLSX, downloadPDF } from '@/utils/nativeDownload';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
 
 interface UserInfo {
   id: string;
@@ -48,7 +50,11 @@ const LiveAttendanceMonitoring = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [detailRecord, setDetailRecord] = useState<AttendanceData | null>(null);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
-  const [cardFilter, setCardFilter] = useState<'present' | 'absent' | 'leave' | null>(null);
+  const [modalType, setModalType] = useState<'all' | 'present' | 'absent' | 'leave' | 'hours' | null>(null);
+  const [modalSearch, setModalSearch] = useState('');
+  const [modalStatusFilter, setModalStatusFilter] = useState('all');
+  const [modalPage, setModalPage] = useState(1);
+  const MODAL_PAGE_SIZE = 10;
 
   useEffect(() => {
     fetchUsers();
@@ -200,32 +206,117 @@ const LiveAttendanceMonitoring = () => {
     user.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const displayData = cardFilter
-    ? filteredData.filter(r => {
-        if (cardFilter === 'present') return r.status === 'present' || r.status === 'regularized';
-        if (cardFilter === 'absent') return r.status === 'absent';
-        if (cardFilter === 'leave') return r.status === 'leave' || r.status === 'half-day';
-        return true;
-      })
-    : filteredData;
+  // Table always shows the full filtered dataset (unchanged behavior)
+  const displayData = filteredData;
 
-  const cardClasses = (active: boolean) =>
-    `p-0 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 ${active ? 'ring-2 ring-primary' : ''}`;
-  const toggleCardFilter = (f: 'present' | 'absent' | 'leave' | null) =>
-    setCardFilter(prev => (prev === f ? null : f));
+  const cardClasses = () =>
+    `p-0 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5`;
+
+  const openModal = (type: 'all' | 'present' | 'absent' | 'leave' | 'hours') => {
+    setModalType(type);
+    setModalSearch('');
+    setModalStatusFilter('all');
+    setModalPage(1);
+  };
+
+  const modalTitles: Record<string, string> = {
+    all: 'All Employees',
+    present: 'Present Today',
+    absent: 'Absent Today',
+    leave: 'On Leave',
+    hours: 'Employee Working Hours',
+  };
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const modalBaseRecords = (() => {
+    if (!modalType) return [] as AttendanceData[];
+    const today = filteredData.filter(r => r.date === todayStr);
+    if (modalType === 'present') return today.filter(r => r.status === 'present' || r.status === 'regularized');
+    if (modalType === 'absent') return today.filter(r => r.status === 'absent');
+    if (modalType === 'leave') return today.filter(r => r.status === 'leave' || r.status === 'half-day');
+    if (modalType === 'hours') return today.filter(r => (r.status === 'present' || r.status === 'regularized'));
+    return today;
+  })();
+
+  const modalRecords = modalBaseRecords.filter(r => {
+    const matchesSearch = !modalSearch ||
+      r.profiles?.full_name?.toLowerCase().includes(modalSearch.toLowerCase()) ||
+      r.profiles?.username?.toLowerCase().includes(modalSearch.toLowerCase());
+    const matchesStatus = modalStatusFilter === 'all' || r.status === modalStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const modalTotalPages = Math.max(1, Math.ceil(modalRecords.length / MODAL_PAGE_SIZE));
+  const modalPageRecords = modalRecords.slice((modalPage - 1) * MODAL_PAGE_SIZE, modalPage * MODAL_PAGE_SIZE);
+
+  const exportModalExcel = async () => {
+    try {
+      const rows = modalRecords.map(r => ({
+        Employee: r.profiles?.full_name || 'Unknown',
+        Username: r.profiles?.username || '',
+        Date: r.date,
+        'Check In': r.check_in_time ? format(new Date(r.check_in_time), 'HH:mm') : '--',
+        'Check Out': r.check_out_time ? format(new Date(r.check_out_time), 'HH:mm') : '--',
+        Hours: r.active_market_hours ? `${r.active_market_hours.toFixed(1)}h` : '--',
+        Status: r.status,
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Records');
+      await downloadXLSX(wb, `${modalTitles[modalType || 'all']}-${todayStr}.xlsx`);
+    } catch { toast.error('Failed to export Excel'); }
+  };
+
+  const exportModalPDF = async () => {
+    try {
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      doc.setFontSize(14);
+      doc.text(modalTitles[modalType || 'all'], 14, 15);
+      doc.setFontSize(9);
+      doc.text(`Generated: ${format(new Date(), 'PPpp')}`, 14, 21);
+      const headers = ['Employee', 'Date', 'In', 'Out', 'Hours', 'Status'];
+      const colX = [14, 70, 100, 120, 140, 165];
+      let y = 30;
+      doc.setFont('helvetica', 'bold');
+      headers.forEach((h, i) => doc.text(h, colX[i], y));
+      doc.line(14, y + 1, 196, y + 1);
+      y += 6;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      modalRecords.forEach(r => {
+        if (y > 285) { doc.addPage(); y = 20; }
+        const vals = [
+          (r.profiles?.full_name || 'Unknown').slice(0, 28),
+          r.date,
+          r.check_in_time ? format(new Date(r.check_in_time), 'HH:mm') : '--',
+          r.check_out_time ? format(new Date(r.check_out_time), 'HH:mm') : '--',
+          r.active_market_hours ? `${r.active_market_hours.toFixed(1)}h` : '--',
+          r.status,
+        ];
+        vals.forEach((v, i) => doc.text(String(v), colX[i], y));
+        y += 5;
+      });
+      await downloadPDF(doc, `${modalTitles[modalType || 'all']}-${todayStr}.pdf`);
+    } catch { toast.error('Failed to export PDF'); }
+  };
+
+  const openUserDetail = (record: AttendanceData) => {
+    setModalType(null);
+    setDetailRecord(record);
+  };
 
   return (
     <div className="space-y-3 sm:space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-4">
-        <Card className={cardClasses(cardFilter === null)} onClick={() => setCardFilter(null)}>
+        <Card className={cardClasses()} onClick={() => openModal('all')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Total Employees</CardTitle>
             <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0"><div className="text-xl sm:text-2xl font-bold">{summaryStats.totalEmployees}</div></CardContent>
         </Card>
-        <Card className={cardClasses(cardFilter === 'present')} onClick={() => toggleCardFilter('present')}>
+        <Card className={cardClasses()} onClick={() => openModal('present')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Present Today</CardTitle>
             <UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -235,14 +326,14 @@ const LiveAttendanceMonitoring = () => {
             {summaryStats.totalEmployees > 0 && <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{Math.round((summaryStats.totalPresent / summaryStats.totalEmployees) * 100)}% attendance</p>}
           </CardContent>
         </Card>
-        <Card className={cardClasses(cardFilter === 'absent')} onClick={() => toggleCardFilter('absent')}>
+        <Card className={cardClasses()} onClick={() => openModal('absent')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Absent Today</CardTitle>
             <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0"><div className="text-xl sm:text-2xl font-bold text-destructive">{summaryStats.totalAbsent}</div></CardContent>
         </Card>
-        <Card className={cardClasses(cardFilter === 'leave')} onClick={() => toggleCardFilter('leave')}>
+        <Card className={cardClasses()} onClick={() => openModal('leave')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">On Leave</CardTitle>
             <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -252,7 +343,7 @@ const LiveAttendanceMonitoring = () => {
             {summaryStats.totalHalfDay > 0 && <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{summaryStats.totalHalfDay} half-day</p>}
           </CardContent>
         </Card>
-        <Card className={cardClasses(cardFilter === 'present')} onClick={() => toggleCardFilter('present')}>
+        <Card className={cardClasses()} onClick={() => openModal('hours')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Avg Hours</CardTitle>
             <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -503,6 +594,97 @@ const LiveAttendanceMonitoring = () => {
               alt="Attendance photo preview"
               className="max-w-full max-h-[90vh] object-contain rounded"
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* KPI Records Modal */}
+      <Dialog open={!!modalType} onOpenChange={(open) => !open && setModalType(null)}>
+        <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] p-0 flex flex-col gap-0">
+          <DialogHeader className="p-4 sm:p-6 pb-3 border-b">
+            <DialogTitle className="text-base sm:text-lg">{modalTitles[modalType || 'all']} ({modalRecords.length})</DialogTitle>
+          </DialogHeader>
+
+          {/* Controls */}
+          <div className="p-3 sm:p-4 border-b space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input placeholder="Search employee..." value={modalSearch} onChange={e => { setModalSearch(e.target.value); setModalPage(1); }} className="pl-10 h-9 text-sm" />
+              </div>
+              <Select value={modalStatusFilter} onValueChange={v => { setModalStatusFilter(v); setModalPage(1); }}>
+                <SelectTrigger className="h-9 text-sm w-full sm:w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="present">Present</SelectItem>
+                  <SelectItem value="regularized">Regularized</SelectItem>
+                  <SelectItem value="absent">Absent</SelectItem>
+                  <SelectItem value="half-day">Half Day</SelectItem>
+                  <SelectItem value="leave">On Leave</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={exportModalExcel}><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={exportModalPDF}><FileText className="h-3.5 w-3.5" />PDF</Button>
+            </div>
+          </div>
+
+          {/* Records list */}
+          <div className="flex-1 overflow-y-auto">
+            {modalRecords.length === 0 ? (
+              <div className="text-center py-10 text-sm text-muted-foreground">No records found.</div>
+            ) : (
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead className="text-xs sm:text-sm">Employee</TableHead>
+                  {modalType === 'hours' ? (
+                    <>
+                      <TableHead className="text-xs sm:text-sm">Check In</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Check Out</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Hours</TableHead>
+                    </>
+                  ) : (
+                    <>
+                      <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Check In</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Status</TableHead>
+                    </>
+                  )}
+                </TableRow></TableHeader>
+                <TableBody>
+                  {modalPageRecords.map(r => (
+                    <TableRow key={r.id} className="cursor-pointer hover:bg-muted/70" onClick={() => openUserDetail(r)}>
+                      <TableCell className="font-medium text-xs sm:text-sm py-2">
+                        <span className="text-primary hover:underline">{r.profiles?.full_name || 'Unknown'}</span>
+                      </TableCell>
+                      {modalType === 'hours' ? (
+                        <>
+                          <TableCell className="text-xs sm:text-sm py-2">{r.check_in_time ? format(new Date(r.check_in_time), 'HH:mm') : '--'}</TableCell>
+                          <TableCell className="text-xs sm:text-sm py-2">{r.check_out_time ? format(new Date(r.check_out_time), 'HH:mm') : '--'}</TableCell>
+                          <TableCell className="text-xs sm:text-sm py-2 font-medium">{r.active_market_hours ? `${r.active_market_hours.toFixed(1)}h` : '--'}</TableCell>
+                        </>
+                      ) : (
+                        <>
+                          <TableCell className="text-xs sm:text-sm py-2 hidden sm:table-cell">{r.check_in_time ? format(new Date(r.check_in_time), 'HH:mm') : '--'}</TableCell>
+                          <TableCell className="py-2">{getStatusBadge(r.status)}</TableCell>
+                        </>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+
+          {/* Pagination */}
+          {modalRecords.length > MODAL_PAGE_SIZE && (
+            <div className="flex items-center justify-between p-3 border-t">
+              <span className="text-xs text-muted-foreground">Page {modalPage} of {modalTotalPages}</span>
+              <div className="flex gap-1">
+                <Button variant="outline" size="sm" className="h-8" disabled={modalPage <= 1} onClick={() => setModalPage(p => Math.max(1, p - 1))}><ChevronLeft className="h-4 w-4" /></Button>
+                <Button variant="outline" size="sm" className="h-8" disabled={modalPage >= modalTotalPages} onClick={() => setModalPage(p => Math.min(modalTotalPages, p + 1))}><ChevronRight className="h-4 w-4" /></Button>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>
