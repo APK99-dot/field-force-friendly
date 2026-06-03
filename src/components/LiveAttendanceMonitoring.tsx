@@ -218,14 +218,14 @@ const LiveAttendanceMonitoring = () => {
     <div className="space-y-3 sm:space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-4">
-        <Card className="p-0">
+        <Card className={cardClasses(cardFilter === null)} onClick={() => setCardFilter(null)}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Total Employees</CardTitle>
             <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0"><div className="text-xl sm:text-2xl font-bold">{summaryStats.totalEmployees}</div></CardContent>
         </Card>
-        <Card className="p-0">
+        <Card className={cardClasses(cardFilter === 'present')} onClick={() => toggleCardFilter('present')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Present Today</CardTitle>
             <UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -235,14 +235,14 @@ const LiveAttendanceMonitoring = () => {
             {summaryStats.totalEmployees > 0 && <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{Math.round((summaryStats.totalPresent / summaryStats.totalEmployees) * 100)}% attendance</p>}
           </CardContent>
         </Card>
-        <Card className="p-0">
+        <Card className={cardClasses(cardFilter === 'absent')} onClick={() => toggleCardFilter('absent')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Absent Today</CardTitle>
             <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0"><div className="text-xl sm:text-2xl font-bold text-destructive">{summaryStats.totalAbsent}</div></CardContent>
         </Card>
-        <Card className="p-0">
+        <Card className={cardClasses(cardFilter === 'leave')} onClick={() => toggleCardFilter('leave')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">On Leave</CardTitle>
             <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -252,7 +252,7 @@ const LiveAttendanceMonitoring = () => {
             {summaryStats.totalHalfDay > 0 && <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{summaryStats.totalHalfDay} half-day</p>}
           </CardContent>
         </Card>
-        <Card className="p-0">
+        <Card className={cardClasses(cardFilter === 'present')} onClick={() => toggleCardFilter('present')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Avg Hours</CardTitle>
             <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
