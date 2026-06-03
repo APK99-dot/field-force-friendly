@@ -326,7 +326,7 @@ const LiveAttendanceMonitoring = () => {
             {summaryStats.totalEmployees > 0 && <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{Math.round((summaryStats.totalPresent / summaryStats.totalEmployees) * 100)}% attendance</p>}
           </CardContent>
         </Card>
-        <Card className={cardClasses(cardFilter === 'absent')} onClick={() => toggleCardFilter('absent')}>
+        <Card className={cardClasses()} onClick={() => openModal('absent')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Absent Today</CardTitle>
             <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
