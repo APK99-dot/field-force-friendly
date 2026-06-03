@@ -597,6 +597,97 @@ const LiveAttendanceMonitoring = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* KPI Records Modal */}
+      <Dialog open={!!modalType} onOpenChange={(open) => !open && setModalType(null)}>
+        <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] p-0 flex flex-col gap-0">
+          <DialogHeader className="p-4 sm:p-6 pb-3 border-b">
+            <DialogTitle className="text-base sm:text-lg">{modalTitles[modalType || 'all']} ({modalRecords.length})</DialogTitle>
+          </DialogHeader>
+
+          {/* Controls */}
+          <div className="p-3 sm:p-4 border-b space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input placeholder="Search employee..." value={modalSearch} onChange={e => { setModalSearch(e.target.value); setModalPage(1); }} className="pl-10 h-9 text-sm" />
+              </div>
+              <Select value={modalStatusFilter} onValueChange={v => { setModalStatusFilter(v); setModalPage(1); }}>
+                <SelectTrigger className="h-9 text-sm w-full sm:w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="present">Present</SelectItem>
+                  <SelectItem value="regularized">Regularized</SelectItem>
+                  <SelectItem value="absent">Absent</SelectItem>
+                  <SelectItem value="half-day">Half Day</SelectItem>
+                  <SelectItem value="leave">On Leave</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={exportModalExcel}><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={exportModalPDF}><FileText className="h-3.5 w-3.5" />PDF</Button>
+            </div>
+          </div>
+
+          {/* Records list */}
+          <div className="flex-1 overflow-y-auto">
+            {modalRecords.length === 0 ? (
+              <div className="text-center py-10 text-sm text-muted-foreground">No records found.</div>
+            ) : (
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead className="text-xs sm:text-sm">Employee</TableHead>
+                  {modalType === 'hours' ? (
+                    <>
+                      <TableHead className="text-xs sm:text-sm">Check In</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Check Out</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Hours</TableHead>
+                    </>
+                  ) : (
+                    <>
+                      <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Check In</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Status</TableHead>
+                    </>
+                  )}
+                </TableRow></TableHeader>
+                <TableBody>
+                  {modalPageRecords.map(r => (
+                    <TableRow key={r.id} className="cursor-pointer hover:bg-muted/70" onClick={() => openUserDetail(r)}>
+                      <TableCell className="font-medium text-xs sm:text-sm py-2">
+                        <span className="text-primary hover:underline">{r.profiles?.full_name || 'Unknown'}</span>
+                      </TableCell>
+                      {modalType === 'hours' ? (
+                        <>
+                          <TableCell className="text-xs sm:text-sm py-2">{r.check_in_time ? format(new Date(r.check_in_time), 'HH:mm') : '--'}</TableCell>
+                          <TableCell className="text-xs sm:text-sm py-2">{r.check_out_time ? format(new Date(r.check_out_time), 'HH:mm') : '--'}</TableCell>
+                          <TableCell className="text-xs sm:text-sm py-2 font-medium">{r.active_market_hours ? `${r.active_market_hours.toFixed(1)}h` : '--'}</TableCell>
+                        </>
+                      ) : (
+                        <>
+                          <TableCell className="text-xs sm:text-sm py-2 hidden sm:table-cell">{r.check_in_time ? format(new Date(r.check_in_time), 'HH:mm') : '--'}</TableCell>
+                          <TableCell className="py-2">{getStatusBadge(r.status)}</TableCell>
+                        </>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+
+          {/* Pagination */}
+          {modalRecords.length > MODAL_PAGE_SIZE && (
+            <div className="flex items-center justify-between p-3 border-t">
+              <span className="text-xs text-muted-foreground">Page {modalPage} of {modalTotalPages}</span>
+              <div className="flex gap-1">
+                <Button variant="outline" size="sm" className="h-8" disabled={modalPage <= 1} onClick={() => setModalPage(p => Math.max(1, p - 1))}><ChevronLeft className="h-4 w-4" /></Button>
+                <Button variant="outline" size="sm" className="h-8" disabled={modalPage >= modalTotalPages} onClick={() => setModalPage(p => Math.min(modalTotalPages, p + 1))}><ChevronRight className="h-4 w-4" /></Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
