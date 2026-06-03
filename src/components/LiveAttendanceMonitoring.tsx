@@ -340,7 +340,7 @@ const LiveAttendanceMonitoring = () => {
                   <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Face Match</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {filteredData.map(r => (
+                  {displayData.map(r => (
                     <TableRow key={r.id} className="cursor-pointer hover:bg-muted/70" onClick={() => setDetailRecord(r)}>
                       <TableCell className="font-medium text-xs sm:text-sm py-2 sm:py-3">
                         <span className="text-primary hover:underline">{r.profiles?.full_name || 'Unknown'}</span>
