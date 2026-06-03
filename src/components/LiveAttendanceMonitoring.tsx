@@ -7,12 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Search, Download, Users, Clock, MapPin, UserCheck, User, Calendar, TrendingUp, CheckCircle2, XCircle, X } from 'lucide-react';
+import { Search, Download, Users, Clock, MapPin, UserCheck, User, Calendar, TrendingUp, CheckCircle2, XCircle, X, FileSpreadsheet, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { downloadCSVString } from '@/utils/nativeDownload';
+import { downloadCSVString, downloadXLSX, downloadPDF } from '@/utils/nativeDownload';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
 
 interface UserInfo {
   id: string;
