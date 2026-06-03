@@ -343,7 +343,7 @@ const LiveAttendanceMonitoring = () => {
             {summaryStats.totalHalfDay > 0 && <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{summaryStats.totalHalfDay} half-day</p>}
           </CardContent>
         </Card>
-        <Card className={cardClasses(cardFilter === 'present')} onClick={() => toggleCardFilter('present')}>
+        <Card className={cardClasses()} onClick={() => openModal('hours')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Avg Hours</CardTitle>
             <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
