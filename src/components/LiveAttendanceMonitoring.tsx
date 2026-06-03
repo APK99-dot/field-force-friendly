@@ -206,19 +206,104 @@ const LiveAttendanceMonitoring = () => {
     user.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const displayData = cardFilter
-    ? filteredData.filter(r => {
-        if (cardFilter === 'present') return r.status === 'present' || r.status === 'regularized';
-        if (cardFilter === 'absent') return r.status === 'absent';
-        if (cardFilter === 'leave') return r.status === 'leave' || r.status === 'half-day';
-        return true;
-      })
-    : filteredData;
+  // Table always shows the full filtered dataset (unchanged behavior)
+  const displayData = filteredData;
 
-  const cardClasses = (active: boolean) =>
-    `p-0 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 ${active ? 'ring-2 ring-primary' : ''}`;
-  const toggleCardFilter = (f: 'present' | 'absent' | 'leave' | null) =>
-    setCardFilter(prev => (prev === f ? null : f));
+  const cardClasses = () =>
+    `p-0 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5`;
+
+  const openModal = (type: 'all' | 'present' | 'absent' | 'leave' | 'hours') => {
+    setModalType(type);
+    setModalSearch('');
+    setModalStatusFilter('all');
+    setModalPage(1);
+  };
+
+  const modalTitles: Record<string, string> = {
+    all: 'All Employees',
+    present: 'Present Today',
+    absent: 'Absent Today',
+    leave: 'On Leave',
+    hours: 'Employee Working Hours',
+  };
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const modalBaseRecords = (() => {
+    if (!modalType) return [] as AttendanceData[];
+    const today = filteredData.filter(r => r.date === todayStr);
+    if (modalType === 'present') return today.filter(r => r.status === 'present' || r.status === 'regularized');
+    if (modalType === 'absent') return today.filter(r => r.status === 'absent');
+    if (modalType === 'leave') return today.filter(r => r.status === 'leave' || r.status === 'half-day');
+    if (modalType === 'hours') return today.filter(r => (r.status === 'present' || r.status === 'regularized'));
+    return today;
+  })();
+
+  const modalRecords = modalBaseRecords.filter(r => {
+    const matchesSearch = !modalSearch ||
+      r.profiles?.full_name?.toLowerCase().includes(modalSearch.toLowerCase()) ||
+      r.profiles?.username?.toLowerCase().includes(modalSearch.toLowerCase());
+    const matchesStatus = modalStatusFilter === 'all' || r.status === modalStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const modalTotalPages = Math.max(1, Math.ceil(modalRecords.length / MODAL_PAGE_SIZE));
+  const modalPageRecords = modalRecords.slice((modalPage - 1) * MODAL_PAGE_SIZE, modalPage * MODAL_PAGE_SIZE);
+
+  const exportModalExcel = async () => {
+    try {
+      const rows = modalRecords.map(r => ({
+        Employee: r.profiles?.full_name || 'Unknown',
+        Username: r.profiles?.username || '',
+        Date: r.date,
+        'Check In': r.check_in_time ? format(new Date(r.check_in_time), 'HH:mm') : '--',
+        'Check Out': r.check_out_time ? format(new Date(r.check_out_time), 'HH:mm') : '--',
+        Hours: r.active_market_hours ? `${r.active_market_hours.toFixed(1)}h` : '--',
+        Status: r.status,
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Records');
+      await downloadXLSX(wb, `${modalTitles[modalType || 'all']}-${todayStr}.xlsx`);
+    } catch { toast.error('Failed to export Excel'); }
+  };
+
+  const exportModalPDF = async () => {
+    try {
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      doc.setFontSize(14);
+      doc.text(modalTitles[modalType || 'all'], 14, 15);
+      doc.setFontSize(9);
+      doc.text(`Generated: ${format(new Date(), 'PPpp')}`, 14, 21);
+      const headers = ['Employee', 'Date', 'In', 'Out', 'Hours', 'Status'];
+      const colX = [14, 70, 100, 120, 140, 165];
+      let y = 30;
+      doc.setFont('helvetica', 'bold');
+      headers.forEach((h, i) => doc.text(h, colX[i], y));
+      doc.line(14, y + 1, 196, y + 1);
+      y += 6;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      modalRecords.forEach(r => {
+        if (y > 285) { doc.addPage(); y = 20; }
+        const vals = [
+          (r.profiles?.full_name || 'Unknown').slice(0, 28),
+          r.date,
+          r.check_in_time ? format(new Date(r.check_in_time), 'HH:mm') : '--',
+          r.check_out_time ? format(new Date(r.check_out_time), 'HH:mm') : '--',
+          r.active_market_hours ? `${r.active_market_hours.toFixed(1)}h` : '--',
+          r.status,
+        ];
+        vals.forEach((v, i) => doc.text(String(v), colX[i], y));
+        y += 5;
+      });
+      await downloadPDF(doc, `${modalTitles[modalType || 'all']}-${todayStr}.pdf`);
+    } catch { toast.error('Failed to export PDF'); }
+  };
+
+  const openUserDetail = (record: AttendanceData) => {
+    setModalType(null);
+    setDetailRecord(record);
+  };
 
   return (
     <div className="space-y-3 sm:space-y-6">
