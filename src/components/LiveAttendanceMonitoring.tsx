@@ -48,6 +48,7 @@ const LiveAttendanceMonitoring = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [detailRecord, setDetailRecord] = useState<AttendanceData | null>(null);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const [cardFilter, setCardFilter] = useState<'present' | 'absent' | 'leave' | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -199,18 +200,32 @@ const LiveAttendanceMonitoring = () => {
     user.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const displayData = cardFilter
+    ? filteredData.filter(r => {
+        if (cardFilter === 'present') return r.status === 'present' || r.status === 'regularized';
+        if (cardFilter === 'absent') return r.status === 'absent';
+        if (cardFilter === 'leave') return r.status === 'leave' || r.status === 'half-day';
+        return true;
+      })
+    : filteredData;
+
+  const cardClasses = (active: boolean) =>
+    `p-0 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 ${active ? 'ring-2 ring-primary' : ''}`;
+  const toggleCardFilter = (f: 'present' | 'absent' | 'leave' | null) =>
+    setCardFilter(prev => (prev === f ? null : f));
+
   return (
     <div className="space-y-3 sm:space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-4">
-        <Card className="p-0">
+        <Card className={cardClasses(cardFilter === null)} onClick={() => setCardFilter(null)}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Total Employees</CardTitle>
             <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0"><div className="text-xl sm:text-2xl font-bold">{summaryStats.totalEmployees}</div></CardContent>
         </Card>
-        <Card className="p-0">
+        <Card className={cardClasses(cardFilter === 'present')} onClick={() => toggleCardFilter('present')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Present Today</CardTitle>
             <UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -220,14 +235,14 @@ const LiveAttendanceMonitoring = () => {
             {summaryStats.totalEmployees > 0 && <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{Math.round((summaryStats.totalPresent / summaryStats.totalEmployees) * 100)}% attendance</p>}
           </CardContent>
         </Card>
-        <Card className="p-0">
+        <Card className={cardClasses(cardFilter === 'absent')} onClick={() => toggleCardFilter('absent')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Absent Today</CardTitle>
             <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0"><div className="text-xl sm:text-2xl font-bold text-destructive">{summaryStats.totalAbsent}</div></CardContent>
         </Card>
-        <Card className="p-0">
+        <Card className={cardClasses(cardFilter === 'leave')} onClick={() => toggleCardFilter('leave')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">On Leave</CardTitle>
             <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -237,7 +252,7 @@ const LiveAttendanceMonitoring = () => {
             {summaryStats.totalHalfDay > 0 && <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{summaryStats.totalHalfDay} half-day</p>}
           </CardContent>
         </Card>
-        <Card className="p-0">
+        <Card className={cardClasses(cardFilter === 'present')} onClick={() => toggleCardFilter('present')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Avg Hours</CardTitle>
             <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -325,7 +340,7 @@ const LiveAttendanceMonitoring = () => {
                   <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Face Match</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {filteredData.map(r => (
+                  {displayData.map(r => (
                     <TableRow key={r.id} className="cursor-pointer hover:bg-muted/70" onClick={() => setDetailRecord(r)}>
                       <TableCell className="font-medium text-xs sm:text-sm py-2 sm:py-3">
                         <span className="text-primary hover:underline">{r.profiles?.full_name || 'Unknown'}</span>
