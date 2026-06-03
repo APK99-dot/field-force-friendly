@@ -50,7 +50,11 @@ const LiveAttendanceMonitoring = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [detailRecord, setDetailRecord] = useState<AttendanceData | null>(null);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
-  const [cardFilter, setCardFilter] = useState<'present' | 'absent' | 'leave' | null>(null);
+  const [modalType, setModalType] = useState<'all' | 'present' | 'absent' | 'leave' | 'hours' | null>(null);
+  const [modalSearch, setModalSearch] = useState('');
+  const [modalStatusFilter, setModalStatusFilter] = useState('all');
+  const [modalPage, setModalPage] = useState(1);
+  const MODAL_PAGE_SIZE = 10;
 
   useEffect(() => {
     fetchUsers();
