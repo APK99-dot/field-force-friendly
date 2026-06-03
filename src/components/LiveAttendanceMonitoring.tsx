@@ -333,7 +333,7 @@ const LiveAttendanceMonitoring = () => {
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0"><div className="text-xl sm:text-2xl font-bold text-destructive">{summaryStats.totalAbsent}</div></CardContent>
         </Card>
-        <Card className={cardClasses(cardFilter === 'leave')} onClick={() => toggleCardFilter('leave')}>
+        <Card className={cardClasses()} onClick={() => openModal('leave')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">On Leave</CardTitle>
             <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
