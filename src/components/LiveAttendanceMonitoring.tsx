@@ -309,7 +309,7 @@ const LiveAttendanceMonitoring = () => {
     <div className="space-y-3 sm:space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-4">
-        <Card className={cardClasses(cardFilter === null)} onClick={() => setCardFilter(null)}>
+        <Card className={cardClasses()} onClick={() => openModal('all')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">Total Employees</CardTitle>
             <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
