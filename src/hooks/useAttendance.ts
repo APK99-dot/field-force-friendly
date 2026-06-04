@@ -171,15 +171,14 @@ export function useAttendance(userId: string | undefined) {
 
     // Notify ALL active users about check-in (broadcast)
     try {
-      const { getAllActiveUserIds, sendNotificationWithPush } = await import('@/utils/notificationHelpers');
+      const { broadcastNotificationToActiveUsers } = await import('@/utils/notificationHelpers');
       const { data: userData } = await supabase
         .from('users')
         .select('full_name')
         .eq('id', userId)
         .single();
 
-      const recipients = await getAllActiveUserIds(userId);
-      await sendNotificationWithPush(recipients, {
+      await broadcastNotificationToActiveUsers(userId, {
         title: `Check-In - ${userData?.full_name || 'Employee'}`,
         message: `Checked in at ${format(new Date(), 'h:mm a, MMM dd yyyy')}`,
         type: 'attendance',
@@ -222,15 +221,14 @@ export function useAttendance(userId: string | undefined) {
 
     // Notify ALL active users about check-out / Day End (broadcast)
     try {
-      const { getAllActiveUserIds, sendNotificationWithPush } = await import('@/utils/notificationHelpers');
+      const { broadcastNotificationToActiveUsers } = await import('@/utils/notificationHelpers');
       const { data: userData } = await supabase
         .from('users')
         .select('full_name')
         .eq('id', userId)
         .single();
 
-      const recipients = await getAllActiveUserIds(userId);
-      await sendNotificationWithPush(recipients, {
+      await broadcastNotificationToActiveUsers(userId, {
         title: `Day End - ${userData?.full_name || 'Employee'}`,
         message: `Checked out at ${format(new Date(), 'h:mm a, MMM dd yyyy')}`,
         type: 'attendance',
