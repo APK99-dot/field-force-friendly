@@ -8,7 +8,9 @@ const corsHeaders = {
 };
 
 interface DispatchPayload {
-  recipient_ids: string[];
+  recipient_ids?: string[];
+  broadcast_all_active?: boolean;
+  exclude_user_id?: string;
   title: string;
   message: string;
   type?: string;
@@ -85,20 +87,63 @@ Deno.serve(async (req) => {
 
   try {
     const body = (await req.json()) as DispatchPayload;
-    const { recipient_ids, title, message, type, related_table, related_id } = body;
+    const { title, message, type, related_table, related_id } = body;
 
-    if (!recipient_ids || !Array.isArray(recipient_ids) || recipient_ids.length === 0 || !title || !message) {
+    if (!title || !message) {
       return new Response(
-        JSON.stringify({ error: "Missing recipient_ids, title, or message" }),
+        JSON.stringify({ error: "Missing title or message" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[dispatch] Recipients: ${recipient_ids.length}, title: "${title}"`);
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const shouldBroadcastAttendance =
+      related_table === "attendance" &&
+      type === "attendance" &&
+      (title.startsWith("Check-In - ") || title.startsWith("Day End - "));
+
+    let recipient_ids: string[] = [];
+    if (body.broadcast_all_active || shouldBroadcastAttendance) {
+      const { data: activeUsers, error: activeErr } = await supabase
+        .from("users")
+        .select("id, full_name")
+        .eq("is_active", true);
+
+      if (activeErr) {
+        console.error("[dispatch] Failed to resolve active broadcast recipients:", activeErr);
+        return new Response(
+          JSON.stringify({ error: "Failed to resolve active recipients" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const attendanceActorName = shouldBroadcastAttendance
+        ? title.replace(/^Check-In - |^Day End - /, "").trim()
+        : "";
+      const inferredActorId = attendanceActorName
+        ? (activeUsers || []).find((u: any) => (u.full_name || "").trim() === attendanceActorName)?.id
+        : undefined;
+      const excludedUserId = body.exclude_user_id || inferredActorId;
+
+      recipient_ids = (activeUsers || [])
+        .map((u: any) => u.id as string)
+        .filter((id) => id !== excludedUserId);
+    } else if (Array.isArray(body.recipient_ids)) {
+      recipient_ids = body.recipient_ids;
+    }
+
+    recipient_ids = Array.from(new Set(recipient_ids.filter(Boolean)));
+    if (recipient_ids.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "No notification recipients resolved" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[dispatch] Recipients: ${recipient_ids.length}, broadcast_all_active: ${!!body.broadcast_all_active}, attendance_auto_broadcast: ${shouldBroadcastAttendance}, title: "${title}"`);
 
     // 1) Insert in-app notification rows (bell icon)
     const rows = recipient_ids.map((uid) => ({

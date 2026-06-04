@@ -107,6 +107,49 @@ export async function sendNotificationWithPush(
 }
 
 /**
+ * Broadcast a notification to every active user except the actor. Recipient
+ * selection happens in the backend so attendance alerts do not depend on the
+ * check-in user's app version, permissions, or client-side query result.
+ */
+export async function broadcastNotificationToActiveUsers(
+  excludeUserId: string | undefined,
+  notification: {
+    title: string;
+    message: string;
+    type?: string;
+    related_table?: string;
+    related_id?: string;
+  }
+): Promise<void> {
+  if (!excludeUserId) return;
+
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "dispatch-notification",
+      {
+        body: {
+          broadcast_all_active: true,
+          exclude_user_id: excludeUserId,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type || "info",
+          related_table: notification.related_table || null,
+          related_id: notification.related_id || null,
+        },
+      }
+    );
+
+    if (error) {
+      console.error("Broadcast notification dispatch failed:", error);
+    } else {
+      console.log("Broadcast notification dispatch result:", data);
+    }
+  } catch (e) {
+    console.error("Broadcast notification dispatch error:", e);
+  }
+}
+
+/**
  * @deprecated Use sendNotificationWithPush instead
  */
 export const sendNotificationToMany = sendNotificationWithPush;
