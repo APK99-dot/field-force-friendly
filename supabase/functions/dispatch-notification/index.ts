@@ -100,11 +100,16 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    const shouldBroadcastAttendance =
+      related_table === "attendance" &&
+      type === "attendance" &&
+      (title.startsWith("Check-In - ") || title.startsWith("Day End - "));
+
     let recipient_ids: string[] = [];
-    if (body.broadcast_all_active) {
+    if (body.broadcast_all_active || shouldBroadcastAttendance) {
       const { data: activeUsers, error: activeErr } = await supabase
         .from("users")
-        .select("id")
+        .select("id, full_name")
         .eq("is_active", true);
 
       if (activeErr) {
@@ -115,9 +120,17 @@ Deno.serve(async (req) => {
         );
       }
 
+      const attendanceActorName = shouldBroadcastAttendance
+        ? title.replace(/^Check-In - |^Day End - /, "").trim()
+        : "";
+      const inferredActorId = attendanceActorName
+        ? (activeUsers || []).find((u: any) => (u.full_name || "").trim() === attendanceActorName)?.id
+        : undefined;
+      const excludedUserId = body.exclude_user_id || inferredActorId;
+
       recipient_ids = (activeUsers || [])
         .map((u: any) => u.id as string)
-        .filter((id) => id !== body.exclude_user_id);
+        .filter((id) => id !== excludedUserId);
     } else if (Array.isArray(body.recipient_ids)) {
       recipient_ids = body.recipient_ids;
     }
@@ -130,7 +143,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[dispatch] Recipients: ${recipient_ids.length}, broadcast_all_active: ${!!body.broadcast_all_active}, title: "${title}"`);
+    console.log(`[dispatch] Recipients: ${recipient_ids.length}, broadcast_all_active: ${!!body.broadcast_all_active}, attendance_auto_broadcast: ${shouldBroadcastAttendance}, title: "${title}"`);
 
     // 1) Insert in-app notification rows (bell icon)
     const rows = recipient_ids.map((uid) => ({
