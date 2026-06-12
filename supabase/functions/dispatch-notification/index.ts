@@ -11,6 +11,11 @@ interface DispatchPayload {
   recipient_ids?: string[];
   broadcast_all_active?: boolean;
   exclude_user_id?: string;
+  // Resolve recipients server-side as the actor's reporting manager + all
+  // admins (used for leave / regularization requests). Bypasses client RLS so
+  // admins are never dropped.
+  notify_actor_chain?: boolean;
+  actor_user_id?: string;
   title: string;
   message: string;
   type?: string;
