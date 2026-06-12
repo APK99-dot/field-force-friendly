@@ -90,8 +90,30 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = (await req.json()) as DispatchPayload;
+    const body = (await req.json()) as DispatchPayload & { debug_vapid?: boolean };
     const { title, message, type, related_table, related_id } = body;
+
+    if ((body as any).debug_vapid) {
+      const pub = Deno.env.get("VAPID_PUBLIC_KEY") || "";
+      const priv = Deno.env.get("VAPID_PRIVATE_KEY") || "";
+      const result: any = { pub_len: pub.length, priv_len: priv.length };
+      try {
+        const pubBytes = b64urlToBytes(pub);
+        const x = bytesToB64url(pubBytes.slice(1, 33));
+        const y = bytesToB64url(pubBytes.slice(33, 65));
+        result.pub_first_byte = pubBytes[0];
+        result.pub_bytes_len = pubBytes.length;
+        const jwk: JsonWebKey = { kty: "EC", crv: "P-256", x, y, d: priv, ext: true };
+        const signKey = await crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+        const verifyKey = await crypto.subtle.importKey("raw", pubBytes as BufferSource, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+        const msg = new TextEncoder().encode("test");
+        const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, signKey, msg as BufferSource);
+        result.signature_verifies = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, verifyKey, sig, msg as BufferSource);
+      } catch (e: any) {
+        result.error = e?.message || String(e);
+      }
+      return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     if (!title || !message) {
       return new Response(
