@@ -116,6 +116,7 @@ export function AppLayout() {
         />
       )}
       <PWAInstallBanner />
+      {userId && <WebPushPrompt userId={userId} />}
     </div>
   );
 }
