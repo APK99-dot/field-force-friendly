@@ -150,6 +150,50 @@ export async function broadcastNotificationToActiveUsers(
 }
 
 /**
+ * Notify an actor's reporting manager + all admins for approval-style events
+ * (leave requests, regularization requests). Recipient resolution happens
+ * server-side so admins are never dropped by the submitter's RLS scope. Sends
+ * in-app + FCM (APK) + Web Push (PWA) in one call.
+ */
+export async function notifyManagersAndAdmins(
+  actorUserId: string,
+  notification: {
+    title: string;
+    message: string;
+    type?: string;
+    related_table?: string;
+    related_id?: string;
+  }
+): Promise<void> {
+  if (!actorUserId) return;
+
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "dispatch-notification",
+      {
+        body: {
+          notify_actor_chain: true,
+          actor_user_id: actorUserId,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type || "info",
+          related_table: notification.related_table || null,
+          related_id: notification.related_id || null,
+        },
+      }
+    );
+
+    if (error) {
+      console.error("Actor-chain notification dispatch failed:", error);
+    } else {
+      console.log("Actor-chain notification dispatch result:", data);
+    }
+  } catch (e) {
+    console.error("Actor-chain notification dispatch error:", e);
+  }
+}
+
+/**
  * @deprecated Use sendNotificationWithPush instead
  */
 export const sendNotificationToMany = sendNotificationWithPush;
