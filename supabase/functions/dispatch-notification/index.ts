@@ -136,6 +136,26 @@ Deno.serve(async (req) => {
       recipient_ids = (activeUsers || [])
         .map((u: any) => u.id as string)
         .filter((id) => id !== excludedUserId);
+    } else if (body.notify_actor_chain && body.actor_user_id) {
+      // Resolve reporting manager + all admins server-side (RLS-safe).
+      const [{ data: actor }, { data: admins, error: adminErr }] = await Promise.all([
+        supabase
+          .from("users")
+          .select("reporting_manager_id")
+          .eq("id", body.actor_user_id)
+          .maybeSingle(),
+        supabase.from("user_roles").select("user_id").eq("role", "admin"),
+      ]);
+
+      if (adminErr) {
+        console.error("[dispatch] Failed to resolve admins for actor chain:", adminErr);
+      }
+
+      const set = new Set<string>();
+      if (actor?.reporting_manager_id) set.add(actor.reporting_manager_id as string);
+      (admins || []).forEach((a: any) => set.add(a.user_id as string));
+      set.delete(body.actor_user_id);
+      recipient_ids = Array.from(set);
     } else if (Array.isArray(body.recipient_ids)) {
       recipient_ids = body.recipient_ids;
     }
