@@ -457,7 +457,7 @@ async function buildVapidAuth(
       JSON.stringify({
         aud,
         exp: Math.floor(Date.now() / 1000) + 12 * 60 * 60,
-        sub: subject,
+        sub,
       })
     )
   );
