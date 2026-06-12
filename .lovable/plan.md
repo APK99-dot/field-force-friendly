@@ -1,40 +1,47 @@
-## Findings
+# Fix iOS PWA Web Push Delivery
 
-- The hosted backend is healthy.
-- The notification bell is receiving some rows, but not every recipient is being included for every event.
-- Android APK push tokens exist for most users, but **Anand G Pai** and **Nikhil R** currently have no APK push token registered.
-- No iPhone PWA web-push subscriptions are currently registered for any active user.
-- The current attendance broadcast logic appears inconsistent with the requirement that all active members receive check-in/check-out notifications.
+## Diagnosis (confirmed via live test + DB)
 
-## Answer to your APK question
+The Web Push subscription pipeline on iOS is healthy. The failure is purely in the **send** step of the `dispatch-notification` edge function.
 
-A new APK is **not always required** for server-side recipient fixes, notification bell fixes, and PWA/web-push fixes.
+Evidence:
+- `web_push_subscriptions` contains 2 valid iOS rows (Apple endpoints, p256dh + auth keys). One belongs to admin **Suyog**, who should receive leave/regularisation alerts.
+- `notify_actor_chain` correctly resolves the admin/manager recipients — the in-app bell row for the leave request was inserted for Suyog.
+- A live diagnostic dispatch to Suyog returned:
 
-A new APK **is required** if the installed Android app does not contain the newer native push registration code, because only the APK can register its FCM token on that phone. Users without registered APK tokens will still see bell notifications in the app, but they will not get Android system notification banners.
+```text
+"web_push": { "sent": 0, "failed": 1, "pruned": 0 }
+```
 
-## Plan
+`failed: 1` with `pruned: 0` means the send threw an exception that was **not** a 404/410 expired subscription. The send fails inside `npm:web-push@3.6.7`, which does not run correctly in the Supabase/Deno edge runtime (its Node `https` + crypto payload-encryption path throws). FCM works only because that path is hand-rolled with Web Crypto; Web Push is the one path still depending on the broken npm library. The error is currently swallowed by a `console.warn` in the catch block, which is why nothing reaches the device and the result looked "successful".
 
-1. **Fix attendance recipient selection**
-   - Ensure check-in and check-out notifications are sent to all active users except the person performing the action.
-   - Keep the existing notification UI/design unchanged.
+## Fix
 
-2. **Add push registration self-healing**
-   - Improve Android APK registration so token registration happens immediately after permission is granted, not only on a later mount/resume.
-   - Keep the existing resume refresh behavior.
+Rewrite the `sendWebPush` helper in `supabase/functions/dispatch-notification/index.ts` to send Web Push natively with Web Crypto — no `npm:web-push` dependency.
 
-3. **Use the backend registration path for iPhone PWA**
-   - Adjust web-push subscription saving to use the existing secure backend function, so iPhone PWA subscriptions are saved reliably.
-   - Keep Profile/Settings “Enable Notifications” behavior unchanged visually.
+Implementation pieces (all standard Web Crypto, same primitives already used for FCM JWT in this file):
 
-4. **Add a small debug signal in logs**
-   - Make notification dispatch log the count of in-app rows, Android tokens, and iPhone/web subscriptions so future delivery issues can be diagnosed quickly.
+1. **Remove** `import webpush from "npm:web-push@3.6.7"` and the `webpush.setVapidDetails` / `webpush.sendNotification` calls.
+2. **VAPID auth (RFC 8292):** build an ES256 JWT signed with the VAPID private key (`VAPID_PRIVATE_KEY`), with `aud` = the push endpoint origin, `exp` ~12h, `sub` = `VAPID_SUBJECT`. Import the key via `crypto.subtle.importKey` (the VAPID keys are URL-safe base64; convert the raw private key to a JWK/PKCS8 form for `ECDSA P-256`).
+3. **Payload encryption (RFC 8291, aes128gcm):**
+   - Generate an ephemeral P-256 keypair.
+   - Derive shared secret via ECDH with the subscription `p256dh`.
+   - HKDF (SHA-256) using the subscription `auth` secret and salt to derive content-encryption key + nonce.
+   - Encrypt the JSON payload with `AES-128-GCM` and frame it in the aes128gcm content-encoding header (salt + record size + ephemeral public key + ciphertext).
+4. **POST to the endpoint** with headers: `Authorization: vapid t=<jwt>, k=<vapid public key>`, `Content-Encoding: aes128gcm`, `TTL`, `Content-Type: application/octet-stream`, `Urgency: high`.
+5. **Status handling:** keep the existing prune logic — on `404`/`410` add to `staleIds` and delete; log other non-2xx with the response body so future failures are visible. Return `{ sent, failed, pruned }` as before.
+6. **Better logging:** log the endpoint host + status code on failure (instead of swallowing) so the result and logs reflect real outcomes.
 
-5. **Validation**
-   - Re-check database counts for notification rows, APK tokens, and web-push subscriptions after changes.
-   - Confirm whether affected Android users need to open the current APK or install a newly generated APK depending on whether their app version contains the latest token-registration code.
+Optionally extract the encryption into a small inline helper within the same `index.ts` (edge functions must stay single-file).
 
-## After implementation
+## Validation
 
-- Android users should open the app once and allow notifications.
-- If their installed APK is older than the push-token registration changes, regenerate/reinstall the APK.
-- iPhone users must install the PWA from Safari, open it from the Home Screen, then tap Enable Notifications in Profile/Settings.
+1. Deploy the updated function.
+2. Re-run the same diagnostic dispatch to admin Suyog (`f21e7370-…`) and confirm the response shows `web_push: { sent: 1, failed: 0 }`.
+3. On the iPhone 15 PWA (Home Screen), confirm the banner appears.
+4. Trigger a real leave request from a normal user and confirm the admin/manager receives the iOS system notification, and that `notify_actor_chain` resolves + sends to the Web Push subscription.
+
+## Notes
+
+- No frontend, subscription, or VAPID-key changes are required — keys and subscriptions are already correct and consistent.
+- APK/FCM behaviour is untouched.
