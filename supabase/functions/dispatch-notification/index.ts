@@ -96,7 +96,8 @@ Deno.serve(async (req) => {
     if ((body as any).debug_vapid) {
       const pub = Deno.env.get("VAPID_PUBLIC_KEY") || "";
       const priv = Deno.env.get("VAPID_PRIVATE_KEY") || "";
-      const result: any = { pub_len: pub.length, priv_len: priv.length };
+      const subj = Deno.env.get("VAPID_SUBJECT") || "(unset)";
+      const result: any = { pub_len: pub.length, priv_len: priv.length, subject: subj };
       try {
         const pubBytes = b64urlToBytes(pub);
         const x = bytesToB64url(pubBytes.slice(1, 33));
