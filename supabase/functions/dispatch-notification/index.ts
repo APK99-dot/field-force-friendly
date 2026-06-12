@@ -409,6 +409,22 @@ async function hkdfExpand(prk: Uint8Array, info: Uint8Array, length: number): Pr
 
 const TEXT = new TextEncoder();
 
+/**
+ * Normalize the VAPID subject. Apple is strict: it must be a bare
+ * `mailto:user@domain` or `https://...` with no spaces or angle brackets.
+ */
+function normalizeVapidSubject(raw: string): string {
+  let s = (raw || "").trim();
+  if (!s) return "mailto:admin@bharathbuilders.app";
+  // Strip angle brackets and internal spaces around the address.
+  s = s.replace(/[<>]/g, "").replace(/\s+/g, "");
+  if (s.startsWith("mailto:") || s.startsWith("https://") || s.startsWith("http://")) {
+    return s;
+  }
+  // Bare email or domain — assume mailto.
+  return `mailto:${s}`;
+}
+
 /** Build the ES256 VAPID JWT + return the Authorization header value. */
 async function buildVapidAuth(
   endpoint: string,
@@ -418,6 +434,8 @@ async function buildVapidAuth(
 ): Promise<string> {
   const url = new URL(endpoint);
   const aud = `${url.protocol}//${url.host}`;
+  const sub = normalizeVapidSubject(subject);
+
 
   const pubBytes = b64urlToBytes(vapidPublicKey); // 65 bytes: 0x04 || x || y
   const x = bytesToB64url(pubBytes.slice(1, 33));
