@@ -163,9 +163,6 @@ export default function Activities() {
 
   // Dynamic activity types from DB
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
-  const [showAddTypeDialog, setShowAddTypeDialog] = useState(false);
-  const [newTypeName, setNewTypeName] = useState("");
-  const [addingType, setAddingType] = useState(false);
 
   // Add new site dialog
   const [showAddSiteDialog, setShowAddSiteDialog] = useState(false);
