@@ -111,22 +111,22 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
           className="p-0 gap-0 max-w-none w-screen h-[100dvh] rounded-none flex flex-col overflow-hidden border-0 [&>button]:hidden"
         >
           {/* Hero header */}
-          <div className="relative shrink-0 bg-gradient-primary text-primary-foreground px-4 sm:px-8 pt-5 pb-5 safe-top">
+          <div className="relative shrink-0 bg-gradient-primary text-primary-foreground px-4 sm:px-8 pt-8 sm:pt-10 pb-6 sm:pb-8 safe-top">
             <button
               type="button"
               onClick={onClose}
-              className="absolute right-3 top-3 sm:right-6 sm:top-5 rounded-full p-1.5 bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors"
+              className="absolute right-3 top-5 sm:right-6 sm:top-8 rounded-full p-1.5 bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
             <div className="max-w-6xl mx-auto w-full">
-              <div className="flex items-start gap-3 pr-10">
-                <div className="h-12 w-12 rounded-xl bg-primary-foreground/15 flex items-center justify-center shrink-0">
-                  <Building2 className="h-6 w-6" />
+              <div className="flex items-start gap-4 pr-10">
+                <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl bg-primary-foreground/15 flex items-center justify-center shrink-0 mt-1">
+                  <Building2 className="h-7 w-7 sm:h-8 sm:w-8" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-xl sm:text-2xl font-bold truncate">{site?.site_name}</h2>
-                  <p className="text-xs sm:text-sm text-primary-foreground/70 mt-0.5">
+                  <h2 className="text-xl sm:text-2xl font-bold truncate leading-tight">{site?.site_name}</h2>
+                  <p className="text-xs sm:text-sm text-primary-foreground/70 mt-1.5">
                     {site?.start_date ? format(new Date(site.start_date), "dd MMM yyyy") : "—"}
                     {" – "}
                     {site?.end_date ? format(new Date(site.end_date), "dd MMM yyyy") : "Ongoing"}
@@ -134,7 +134,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 mt-4">
+              <div className="flex flex-wrap items-center gap-2 mt-6 sm:mt-7">
                 <Select value={currentStatus} onValueChange={handleStatusChange} disabled={savingStatus}>
                   <SelectTrigger className="h-9 w-[150px] rounded-full text-xs font-semibold bg-primary-foreground/10 border-primary-foreground/25 text-primary-foreground">
                     {savingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
