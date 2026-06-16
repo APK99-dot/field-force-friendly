@@ -5,13 +5,19 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Target } from "lucide-react";
+import { Plus, Edit, Trash2, Target, ListChecks } from "lucide-react";
 import { format } from "date-fns";
 import { MILESTONE_STATUSES, milestoneStatusLabel } from "@/components/admin/SiteMilestonesDialog";
 
@@ -58,6 +64,7 @@ interface Props {
 }
 
 export default function SiteMilestonesEditor({ value, onChange }: Props) {
+  const [open, setOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [draft, setDraft] = useState<LocalMilestone>(emptyMilestone());
   const [error, setError] = useState("");
@@ -93,103 +100,140 @@ export default function SiteMilestonesEditor({ value, onChange }: Props) {
     setShowForm(false);
   };
 
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setShowForm(false);
+  };
+
   return (
     <div className="space-y-2">
       <Label className="text-xs flex items-center gap-1.5">
-        <Target className="h-3.5 w-3.5" /> Milestones ({value.length})
+        <Target className="h-3.5 w-3.5" /> Milestones
       </Label>
 
-      {!showForm && (
-        <>
-          {value.length > 0 && (
-            <div className="space-y-2">
-              {value.map((m) => (
-                <div key={m.key} className="border rounded-lg p-2.5 space-y-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="text-sm font-medium flex items-center gap-2">
-                      {m.name}
-                      {!m.is_active && <Badge variant="outline" className="text-[10px]">Inactive</Badge>}
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(m)}><Edit className="h-3.5 w-3.5" /></Button>
-                      <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => remove(m.key)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant={STATUS_VARIANT[m.status] || "secondary"} className="text-[10px]">{milestoneStatusLabel(m.status)}</Badge>
-                    <span className="text-xs text-muted-foreground">{m.percent_complete}% complete</span>
-                  </div>
-                  {m.start_date && m.end_date && (
-                    <div className="text-xs text-muted-foreground">
-                      Planned: {format(new Date(m.start_date), "dd MMM yyyy")} → {format(new Date(m.end_date), "dd MMM yyyy")}
-                    </div>
-                  )}
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full justify-between font-normal"
+        onClick={() => { setShowForm(false); setOpen(true); }}
+      >
+        <span className="flex items-center gap-2">
+          <ListChecks className="h-4 w-4" />
+          {value.length > 0 ? "Manage Milestones" : "Add Milestone"}
+        </span>
+        <Badge variant="secondary" className="text-[10px]">
+          {value.length} milestone{value.length === 1 ? "" : "s"}
+        </Badge>
+      </Button>
+
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-[520px] max-h-[88vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" /> Manage Milestones
+            </DialogTitle>
+          </DialogHeader>
+
+          {showForm ? (
+            <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+              <div>
+                <Label className="text-xs">Milestone Name *</Label>
+                <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Foundation Complete" autoFocus />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Planned Start *</Label>
+                  <Input type="date" value={draft.start_date} onChange={(e) => setDraft({ ...draft, start_date: e.target.value })} />
                 </div>
-              ))}
+                <div>
+                  <Label className="text-xs">Planned End *</Label>
+                  <Input type="date" value={draft.end_date} min={draft.start_date || undefined} onChange={(e) => setDraft({ ...draft, end_date: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Actual Start</Label>
+                  <Input type="date" value={draft.actual_start_date} onChange={(e) => setDraft({ ...draft, actual_start_date: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs">Actual End</Label>
+                  <Input type="date" value={draft.actual_end_date} min={draft.actual_start_date || undefined} onChange={(e) => setDraft({ ...draft, actual_end_date: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">% Completion</Label>
+                  <Input type="number" min={0} max={100} value={draft.percent_complete} onChange={(e) => setDraft({ ...draft, percent_complete: Number(e.target.value) })} />
+                </div>
+                <div>
+                  <Label className="text-xs">Status</Label>
+                  <Select value={draft.status} onValueChange={(v) => setDraft({ ...draft, status: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {MILESTONE_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Notes</Label>
+                <Textarea value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} rows={2} placeholder="Optional notes..." />
+              </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={draft.is_active} onChange={(e) => setDraft({ ...draft, is_active: e.target.checked })} />
+                Active (available for selection in Activities)
+              </label>
+              {error && <p className="text-xs text-destructive">{error}</p>}
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setShowForm(false)}>Cancel</Button>
+                <Button type="button" className="flex-1" onClick={save}>Save Milestone</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+              <Button type="button" size="sm" onClick={openCreate} className="w-full">
+                <Plus className="h-4 w-4 mr-1" /> Add Milestone
+              </Button>
+              {value.length === 0 ? (
+                <p className="text-center py-8 text-sm text-muted-foreground">No milestones yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {value.map((m) => (
+                    <div key={m.key} className="border rounded-lg p-2.5 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="text-sm font-medium flex items-center gap-2">
+                          {m.name}
+                          {!m.is_active && <Badge variant="outline" className="text-[10px]">Inactive</Badge>}
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(m)}><Edit className="h-3.5 w-3.5" /></Button>
+                          <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => remove(m.key)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant={STATUS_VARIANT[m.status] || "secondary"} className="text-[10px]">{milestoneStatusLabel(m.status)}</Badge>
+                        <span className="text-xs text-muted-foreground">{m.percent_complete}% complete</span>
+                      </div>
+                      {m.start_date && m.end_date && (
+                        <div className="text-xs text-muted-foreground">
+                          Planned: {format(new Date(m.start_date), "dd MMM yyyy")} → {format(new Date(m.end_date), "dd MMM yyyy")}
+                        </div>
+                      )}
+                      {(m.actual_start_date || m.actual_end_date) && (
+                        <div className="text-xs text-muted-foreground">
+                          Actual: {m.actual_start_date ? format(new Date(m.actual_start_date), "dd MMM yyyy") : "—"} → {m.actual_end_date ? format(new Date(m.actual_end_date), "dd MMM yyyy") : "—"}
+                        </div>
+                      )}
+                      {m.notes && <p className="text-xs text-muted-foreground italic">{m.notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Button type="button" className="w-full" onClick={() => setOpen(false)}>Done</Button>
             </div>
           )}
-          <Button type="button" size="sm" variant="outline" className="w-full" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1" /> Add Milestone
-          </Button>
-        </>
-      )}
-
-      {showForm && (
-        <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
-          <div>
-            <Label className="text-xs">Milestone Name *</Label>
-            <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Foundation Complete" autoFocus />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Planned Start *</Label>
-              <Input type="date" value={draft.start_date} onChange={(e) => setDraft({ ...draft, start_date: e.target.value })} />
-            </div>
-            <div>
-              <Label className="text-xs">Planned End *</Label>
-              <Input type="date" value={draft.end_date} min={draft.start_date || undefined} onChange={(e) => setDraft({ ...draft, end_date: e.target.value })} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Actual Start</Label>
-              <Input type="date" value={draft.actual_start_date} onChange={(e) => setDraft({ ...draft, actual_start_date: e.target.value })} />
-            </div>
-            <div>
-              <Label className="text-xs">Actual End</Label>
-              <Input type="date" value={draft.actual_end_date} min={draft.actual_start_date || undefined} onChange={(e) => setDraft({ ...draft, actual_end_date: e.target.value })} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">% Completion</Label>
-              <Input type="number" min={0} max={100} value={draft.percent_complete} onChange={(e) => setDraft({ ...draft, percent_complete: Number(e.target.value) })} />
-            </div>
-            <div>
-              <Label className="text-xs">Status</Label>
-              <Select value={draft.status} onValueChange={(v) => setDraft({ ...draft, status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {MILESTONE_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div>
-            <Label className="text-xs">Notes</Label>
-            <Textarea value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} rows={2} placeholder="Optional notes..." />
-          </div>
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={draft.is_active} onChange={(e) => setDraft({ ...draft, is_active: e.target.checked })} />
-            Active (available for selection in Activities)
-          </label>
-          {error && <p className="text-xs text-destructive">{error}</p>}
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button type="button" className="flex-1" onClick={save}>Save Milestone</Button>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
