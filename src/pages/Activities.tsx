@@ -554,13 +554,13 @@ export default function Activities() {
       from_date: a.from_date || "",
       to_date: a.to_date || "",
       description: a.description || "",
-      status: a.status,
       site_id: a.site_id || "",
       milestone_id: a.milestone_id || "",
       site_flag: "",
       location_address: a.location_address || "",
       total_hours: a.total_hours || 0,
       owner_user_id: a.user_id,
+      photos: a.photo_urls || [],
     });
     setEditingId(a.id);
     setShowForm(true);
