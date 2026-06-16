@@ -35,6 +35,7 @@ export interface Activity {
   description: string | null;
   remarks: string | null;
   status: string;
+  activity_code: string | null;
   project_id: string | null;
   site_id: string | null;
   milestone_id: string | null;
