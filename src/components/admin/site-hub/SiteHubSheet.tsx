@@ -102,7 +102,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
     if (!o) { setStatus(null); onClose(); }
   };
 
-  const completedMs = milestones.filter((m) => m.status === "completed").length;
+  
 
   return (
     <>
