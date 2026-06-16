@@ -231,7 +231,9 @@ export function useActivities() {
       ? ({
           ...data,
           attachment_urls: Array.isArray(data.attachment_urls) ? (data.attachment_urls as string[]) : [],
-        } as Activity)
+          status_history: Array.isArray((data as any).status_history) ? (data as any).status_history : [],
+          photo_urls: Array.isArray((data as any).photo_urls) ? (data as any).photo_urls : [],
+        } as unknown as Activity)
       : null;
   }, [toast]);
 
