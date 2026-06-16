@@ -426,46 +426,30 @@ export default function SiteMasterManagement() {
             No sites created yet. Click "Add Site" to create one.
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Site Name</TableHead>
-                <TableHead>Assigned Users</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sites.map((site) => {
-                const assignedNames = getAssignedNames(site.id);
-                const totalAssigned = assignedNames.length;
-                return (
-                  <TableRow key={site.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDetailSite(site)}>
-                    <TableCell className="font-medium text-primary underline-offset-2 hover:underline">
-                      {site.site_name}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                        {totalAssigned === 0 ? (
-                          <span className="text-xs text-muted-foreground">None</span>
-                        ) : (
-                          <span className="text-xs">
-                            {assignedNames.slice(0, 2).join(", ")}
-                            {totalAssigned > 2 && ` +${totalAssigned - 2}`}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_VARIANT[site.status] || "secondary"}>
-                        {siteStatusLabel(site.status)}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+            initial="hidden"
+            animate="show"
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
+          >
+            {sites.map((site) => {
+              const stats = milestoneStats[site.id] || { avg: 0, count: 0 };
+              return (
+                <motion.div
+                  key={site.id}
+                  variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}
+                >
+                  <SiteCard
+                    site={site}
+                    assignedNames={getAssignedNames(site.id)}
+                    progress={stats.avg}
+                    milestoneCount={stats.count}
+                    onOpen={() => setDetailSite(site)}
+                  />
+                </motion.div>
+              );
+            })}
+          </motion.div>
         )}
       </CardContent>
 
