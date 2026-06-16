@@ -62,6 +62,19 @@ import { Separator } from "@/components/ui/separator";
 import ActivityReportGenerator from "@/components/activities/ActivityReportGenerator";
 import ActivityPhotoManager from "@/components/activities/ActivityPhotoManager";
 import ActivityDetailsDialog from "@/components/activities/ActivityDetailsDialog";
+import { milestoneStatusLabel } from "@/components/admin/SiteMilestonesDialog";
+
+interface MilestoneOption {
+  id: string;
+  name: string;
+  status: string;
+  percent_complete: number;
+  start_date: string;
+  end_date: string;
+  actual_start_date: string | null;
+  actual_end_date: string | null;
+  notes: string | null;
+}
 import { PlayCircle } from "lucide-react";
 import {
   DropdownMenu,
