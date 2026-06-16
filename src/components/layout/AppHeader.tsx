@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Receipt,
   ClipboardList,
+  ListChecks,
   X,
   Search,
   Settings,
