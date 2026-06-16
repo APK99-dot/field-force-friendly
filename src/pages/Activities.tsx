@@ -795,6 +795,18 @@ export default function Activities() {
         </div>
       </motion.div>
 
+      {/* Activity Calendar (Day / Week / Month) */}
+      <motion.div variants={item} className="px-4 pb-1">
+        <ActivityCalendar
+          activities={calendarActivities}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          onOpenActivity={setDetailsActivity}
+          view={calendarView}
+          onChangeView={setCalendarView}
+        />
+      </motion.div>
+
       {/* Activity Report Generator - visible to admins and managers with subordinates */}
       {(isAdmin || hasSubordinates) && (
         <motion.div variants={item} className="px-4">
