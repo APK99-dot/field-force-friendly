@@ -191,6 +191,22 @@ export default function SiteMasterManagement() {
   const [uploading, setUploading] = useState(false);
 
   const [detailSite, setDetailSite] = useState<Site | null>(null);
+  const [milestoneStats, setMilestoneStats] = useState<Record<string, { avg: number; count: number }>>({});
+
+  const fetchMilestoneStats = useCallback(async () => {
+    const { data } = await supabase.from("site_milestones").select("site_id, percent_complete");
+    const acc: Record<string, { sum: number; count: number }> = {};
+    (data || []).forEach((m: any) => {
+      if (!acc[m.site_id]) acc[m.site_id] = { sum: 0, count: 0 };
+      acc[m.site_id].sum += m.percent_complete ?? 0;
+      acc[m.site_id].count += 1;
+    });
+    const stats: Record<string, { avg: number; count: number }> = {};
+    Object.entries(acc).forEach(([id, v]) => {
+      stats[id] = { avg: v.count ? Math.round(v.sum / v.count) : 0, count: v.count };
+    });
+    setMilestoneStats(stats);
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     const { data } = await supabase.from("users").select("id, full_name").eq("is_active", true).order("full_name");
