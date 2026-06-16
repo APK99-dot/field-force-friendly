@@ -529,6 +529,14 @@ export default function Activities() {
     }, new Set<string>());
   }, [activities, selectedUserId, currentUserId]);
 
+  // Activities scoped to the active user selection, for the calendar grid
+  const calendarActivities = useMemo(() => {
+    if (selectedUserId === "all") return activities;
+    const uid = selectedUserId || currentUserId;
+    if (!uid) return [];
+    return activities.filter((a) => a.user_id === uid);
+  }, [activities, selectedUserId, currentUserId]);
+
   // GPS distance calculation
   const gpsStats = useMemo(() => {
     const pts = gpsData.points;
