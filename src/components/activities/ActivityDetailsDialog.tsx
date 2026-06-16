@@ -85,6 +85,26 @@ export default function ActivityDetailsDialog({ activity, open, onClose, onSaveP
             </div>
           )}
 
+          {/* Description */}
+          {activity.description && (
+            <div>
+              <p className="text-xs font-semibold mb-1">Description</p>
+              <p className="text-xs text-muted-foreground whitespace-pre-wrap">{activity.description}</p>
+            </div>
+          )}
+
+          {/* Linked milestone */}
+          {activity.milestone_name && (
+            <div className="rounded-lg border p-3">
+              <p className="text-xs font-semibold flex items-center gap-1.5 mb-0.5">
+                <CircleDot className="h-3.5 w-3.5" /> Linked Milestone
+              </p>
+              <p className="text-xs text-muted-foreground">{activity.milestone_name}</p>
+            </div>
+          )}
+
+
+
 
           {/* Times */}
           {(activity.start_time || activity.end_time) && (
