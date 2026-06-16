@@ -116,6 +116,46 @@ const getActivitySeriesKey = (activity: ActivityType) =>
     activity.total_days ?? "",
   ].join("::");
 
+const buildRecurringDates = (form: {
+  recurrence_pattern: string;
+  recurrence_interval: number;
+  recurrence_start_date: string;
+  recurrence_end_date: string;
+  recurrence_no_end: boolean;
+}): string[] => {
+  if (!form.recurrence_start_date) return [];
+  const start = new Date(`${form.recurrence_start_date}T00:00:00`);
+  if (isNaN(start.getTime())) return [];
+  const MAX_OCCURRENCES = 366;
+  let end: Date;
+  if (form.recurrence_no_end || !form.recurrence_end_date) {
+    end = new Date(start);
+    end.setDate(end.getDate() + 90);
+  } else {
+    end = new Date(`${form.recurrence_end_date}T00:00:00`);
+    if (isNaN(end.getTime()) || end < start) return [];
+  }
+  const dates: string[] = [];
+  const d = new Date(start);
+  while (d <= end && dates.length < MAX_OCCURRENCES) {
+    dates.push(format(d, "yyyy-MM-dd"));
+    switch (form.recurrence_pattern) {
+      case "weekly":
+        d.setDate(d.getDate() + 7);
+        break;
+      case "monthly":
+        d.setMonth(d.getMonth() + 1);
+        break;
+      case "custom":
+        d.setDate(d.getDate() + Math.max(1, form.recurrence_interval || 1));
+        break;
+      default:
+        d.setDate(d.getDate() + 1);
+    }
+  }
+  return dates;
+};
+
 const container = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.05 } },
@@ -144,6 +184,11 @@ const defaultForm = {
   half_day_type: "",
   from_date: "",
   to_date: "",
+  recurrence_pattern: "daily",
+  recurrence_interval: 1,
+  recurrence_start_date: format(new Date(), "yyyy-MM-dd"),
+  recurrence_end_date: "",
+  recurrence_no_end: false,
   description: "",
   site_id: "",
   milestone_id: "",
@@ -580,6 +625,11 @@ export default function Activities() {
       half_day_type: (a as any).half_day_type || "",
       from_date: a.from_date || "",
       to_date: a.to_date || "",
+      recurrence_pattern: "daily",
+      recurrence_interval: 1,
+      recurrence_start_date: a.activity_date || format(new Date(), "yyyy-MM-dd"),
+      recurrence_end_date: "",
+      recurrence_no_end: false,
       description: a.description || "",
       site_id: a.site_id || "",
       milestone_id: a.milestone_id || "",
@@ -657,6 +707,22 @@ export default function Activities() {
             }, targetUserId, true);
           }
           toast.success(`Activity logged for ${payload.total_days} days`);
+        } else if (form.duration_type === "recurring") {
+          const dates = buildRecurringDates(form);
+          if (dates.length === 0) {
+            toast.error("Please set a valid recurrence schedule.");
+            setSaving(false);
+            return;
+          }
+          for (const dateStr of dates) {
+            await createActivity({
+              ...payload,
+              activity_date: dateStr,
+              start_time: form.start_time ? `${dateStr}T${form.start_time}:00` : null,
+              end_time: form.end_time ? `${dateStr}T${form.end_time}:00` : null,
+            }, targetUserId, true);
+          }
+          toast.success(`Recurring activity created for ${dates.length} occurrences`);
         } else {
           await createActivity(payload, targetUserId);
         }
@@ -1118,9 +1184,55 @@ export default function Activities() {
                       <SelectItem value="half_day">Half Day</SelectItem>
                       <SelectItem value="full_day">Full Day</SelectItem>
                       <SelectItem value="multiple_days">Multiple Days</SelectItem>
+                      <SelectItem value="recurring">Recurring</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                {form.duration_type === "recurring" && (
+                  <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+                    <div>
+                      <Label className="text-xs">Repeat</Label>
+                      <Select value={form.recurrence_pattern} onValueChange={(v) => setForm(prev => ({ ...prev, recurrence_pattern: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="custom">Custom Interval</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {form.recurrence_pattern === "custom" && (
+                      <div>
+                        <Label className="text-xs">Every N days *</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={form.recurrence_interval}
+                          onChange={(e) => setForm({ ...form, recurrence_interval: Math.max(1, parseInt(e.target.value) || 1) })}
+                        />
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Start Date *</Label>
+                        <Input type="date" value={form.recurrence_start_date} onChange={(e) => setForm({ ...form, recurrence_start_date: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">End Date {form.recurrence_no_end ? "" : "*"}</Label>
+                        <Input type="date" value={form.recurrence_end_date} min={form.recurrence_start_date || undefined} disabled={form.recurrence_no_end} onChange={(e) => setForm({ ...form, recurrence_end_date: e.target.value })} />
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={form.recurrence_no_end}
+                        onChange={(e) => setForm({ ...form, recurrence_no_end: e.target.checked })}
+                      />
+                      No End Date (generate next 90 days)
+                    </label>
+                  </div>
+                )}
                 {form.duration_type === "half_day" && (
                   <div>
                     <Label className="text-xs">Half Day Period</Label>
