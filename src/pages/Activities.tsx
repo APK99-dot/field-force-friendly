@@ -120,6 +120,7 @@ const FLAG_CONFIG: Record<SiteFlag, { color: string; label: string }> = {
 const defaultForm = {
   activity_name: "",
   activity_type: "",
+  custom_activity_name: "",
   activity_date: format(new Date(), "yyyy-MM-dd"),
   start_time: "",
   end_time: "",
