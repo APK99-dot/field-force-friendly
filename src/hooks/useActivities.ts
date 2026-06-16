@@ -218,6 +218,8 @@ export function useActivities() {
         location_lng: activity.location_lng || null,
         location_address: activity.location_address || null,
         attachment_urls: activity.attachment_urls || [],
+        status_history: (activity.status_history as any) || [],
+        photo_urls: (activity.photo_urls as any) || [],
       })
       .select("*")
       .single();
