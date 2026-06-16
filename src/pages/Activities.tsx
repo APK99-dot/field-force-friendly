@@ -1191,27 +1191,6 @@ export default function Activities() {
         </DialogContent>
       </Dialog>
 
-      {/* Add New Activity Type Dialog */}
-      <Dialog open={showAddTypeDialog} onOpenChange={setShowAddTypeDialog}>
-        <DialogContent className="sm:max-w-[360px]">
-          <DialogHeader>
-            <DialogTitle>Add New Activity Type</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 mt-2">
-            <Input
-              placeholder="e.g. Quality Check"
-              value={newTypeName}
-              onChange={(e) => setNewTypeName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddNewType()}
-              autoFocus
-            />
-            <Button className="w-full" onClick={handleAddNewType} disabled={addingType || !newTypeName.trim()}>
-              {addingType ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-              {addingType ? "Adding..." : "Add Type"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Add New Site Dialog */}
       <Dialog open={showAddSiteDialog} onOpenChange={setShowAddSiteDialog}>
