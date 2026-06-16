@@ -1459,6 +1459,8 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onStatusCha
         updates.status_change_lng = pos.longitude;
         updates.location_lat = pos.latitude;
         updates.location_lng = pos.longitude;
+        historyEntry.lat = pos.latitude;
+        historyEntry.lng = pos.longitude;
 
         // Reverse geocode
         try {
@@ -1466,6 +1468,7 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onStatusCha
           const geo = await res.json();
           if (geo.display_name) {
             updates.location_address = geo.display_name;
+            historyEntry.address = geo.display_name;
           }
         } catch {}
       } catch (geoErr) {
@@ -1475,15 +1478,18 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onStatusCha
 
       // Set start/end time based on transition
       if (newStatus === "in_progress" && !a.start_time) {
-        updates.start_time = new Date().toISOString();
+        updates.start_time = now;
       } else if (newStatus === "completed") {
-        updates.end_time = new Date().toISOString();
+        updates.end_time = now;
       }
+
+      updates.status_history = [...(a.status_history || []), historyEntry];
 
       const targetId = await getStatusUpdateTargetId(a, selectedDateStr);
       await updateActivity(targetId, updates);
       toast.success(`Status changed to ${statusLabels[newStatus]}`);
       onStatusChanged();
+
     } catch (err: any) {
       toast.error(err.message || "Failed to update status");
     } finally {
