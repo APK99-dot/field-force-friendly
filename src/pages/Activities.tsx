@@ -1218,7 +1218,21 @@ export default function Activities() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Activity Details Dialog */}
+      <ActivityDetailsDialog
+        activity={detailsActivity}
+        open={!!detailsActivity}
+        onClose={() => setDetailsActivity(null)}
+        onSavePhotos={async (photos) => {
+          if (!detailsActivity) return;
+          await updateActivity(detailsActivity.id, { photo_urls: photos });
+          setDetailsActivity({ ...detailsActivity, photo_urls: photos });
+          fetchActivities();
+        }}
+      />
     </motion.div>
+
   );
 }
 
