@@ -39,6 +39,7 @@ import { Plus, Edit, ToggleLeft, ToggleRight, Loader2, Building2, Users, Search,
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import SiteMilestonesDialog from "@/components/admin/SiteMilestonesDialog";
 
 type SiteFlag = "red" | "orange" | "green";
 
