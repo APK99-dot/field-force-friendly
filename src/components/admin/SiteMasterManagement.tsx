@@ -246,7 +246,8 @@ export default function SiteMasterManagement() {
     fetchSites();
     fetchUsers();
     fetchAssignments();
-  }, [fetchSites, fetchUsers, fetchAssignments]);
+    fetchMilestoneStats();
+  }, [fetchSites, fetchUsers, fetchAssignments, fetchMilestoneStats]);
 
   const handleOpenCreate = () => {
     setEditingSite(null);
