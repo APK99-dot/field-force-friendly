@@ -116,6 +116,46 @@ const getActivitySeriesKey = (activity: ActivityType) =>
     activity.total_days ?? "",
   ].join("::");
 
+const buildRecurringDates = (form: {
+  recurrence_pattern: string;
+  recurrence_interval: number;
+  recurrence_start_date: string;
+  recurrence_end_date: string;
+  recurrence_no_end: boolean;
+}): string[] => {
+  if (!form.recurrence_start_date) return [];
+  const start = new Date(`${form.recurrence_start_date}T00:00:00`);
+  if (isNaN(start.getTime())) return [];
+  const MAX_OCCURRENCES = 366;
+  let end: Date;
+  if (form.recurrence_no_end || !form.recurrence_end_date) {
+    end = new Date(start);
+    end.setDate(end.getDate() + 90);
+  } else {
+    end = new Date(`${form.recurrence_end_date}T00:00:00`);
+    if (isNaN(end.getTime()) || end < start) return [];
+  }
+  const dates: string[] = [];
+  const d = new Date(start);
+  while (d <= end && dates.length < MAX_OCCURRENCES) {
+    dates.push(format(d, "yyyy-MM-dd"));
+    switch (form.recurrence_pattern) {
+      case "weekly":
+        d.setDate(d.getDate() + 7);
+        break;
+      case "monthly":
+        d.setMonth(d.getMonth() + 1);
+        break;
+      case "custom":
+        d.setDate(d.getDate() + Math.max(1, form.recurrence_interval || 1));
+        break;
+      default:
+        d.setDate(d.getDate() + 1);
+    }
+  }
+  return dates;
+};
+
 const container = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.05 } },
