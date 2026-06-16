@@ -132,13 +132,13 @@ const defaultForm = {
   from_date: "",
   to_date: "",
   description: "",
-  status: "planned",
   site_id: "",
   milestone_id: "",
   site_flag: "" as string,
   location_address: "",
   total_hours: 0,
   owner_user_id: "",
+  photos: [] as ActivityPhotoEntry[],
 };
 
 export default function Activities() {
