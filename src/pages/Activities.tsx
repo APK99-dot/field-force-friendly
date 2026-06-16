@@ -895,6 +895,12 @@ export default function Activities() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              {form.site_status && form.site_id !== "__add_new_site__" && (
+                <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
+                  Site Status:
+                  <Badge variant="outline" className="text-[10px] capitalize">{form.site_status}</Badge>
+                </p>
+              )}
             </div>
             {/* Milestone selection (read-only, sourced from Site master) */}
             {form.site_id && form.site_id !== "__add_new_site__" && (
