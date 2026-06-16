@@ -894,89 +894,49 @@ export default function Activities() {
                 </SelectContent>
               </Select>
             </div>
-            {/* Existing milestones list */}
-            {form.site_id && form.site_id !== "__add_new_site__" && siteMilestones.length > 0 && (
-              <div>
-                <Label className="text-xs text-muted-foreground">Existing Milestones</Label>
-                <div className="space-y-1 mt-1">
-                  {siteMilestones.map((m) => (
-                    <div key={m.id} className="flex items-center gap-2 text-xs px-2.5 py-1.5 border rounded-lg bg-muted/30">
-                      <span className="font-medium">{m.name}</span>
-                      <Badge variant="outline" className="text-[10px]">
-                        {m.status === "not_started" ? "Not Started" : m.status === "in_progress" ? "In Progress" : "Completed"}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {/* Add new milestones - repeatable */}
+            {/* Milestone selection (read-only, sourced from Site master) */}
             {form.site_id && form.site_id !== "__add_new_site__" && (
               <div>
-                <Label className="text-xs flex items-center justify-between">
-                  <span>Add Milestones</span>
-                  <button
-                    type="button"
-                    onClick={() => setNewMilestones(prev => [...prev, { name: "", start_date: "", end_date: "" }])}
-                    className="flex items-center gap-1 text-primary text-xs font-medium hover:underline"
+                <Label className="text-xs">Milestone</Label>
+                {siteMilestones.length === 0 ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    No active milestones for this site. Add milestones in Projects / Sites.
+                  </p>
+                ) : (
+                  <Select
+                    value={form.milestone_id || "__none__"}
+                    onValueChange={(v) => setForm({ ...form, milestone_id: v === "__none__" ? "" : v })}
                   >
-                    <Plus className="h-3 w-3" /> Add Milestone
-                  </button>
-                </Label>
-                {newMilestones.length > 0 && (
-                  <div className="space-y-2 mt-2">
-                    {newMilestones.map((ms, idx) => (
-                      <div key={idx} className="border rounded-lg p-2.5 space-y-2 bg-muted/20 relative">
-                        <button
-                          type="button"
-                          onClick={() => setNewMilestones(prev => prev.filter((_, i) => i !== idx))}
-                          className="absolute top-1.5 right-1.5 text-muted-foreground hover:text-destructive"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                        <Input
-                          value={ms.name}
-                          onChange={(e) => {
-                            const updated = [...newMilestones];
-                            updated[idx] = { ...updated[idx], name: e.target.value };
-                            setNewMilestones(updated);
-                          }}
-                          placeholder="Milestone name"
-                          className="h-8 text-sm"
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-[10px] text-muted-foreground">Start Date</Label>
-                            <Input
-                              type="date"
-                              value={ms.start_date}
-                              onChange={(e) => {
-                                const updated = [...newMilestones];
-                                updated[idx] = { ...updated[idx], start_date: e.target.value };
-                                setNewMilestones(updated);
-                              }}
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-[10px] text-muted-foreground">End Date</Label>
-                            <Input
-                              type="date"
-                              value={ms.end_date}
-                              onChange={(e) => {
-                                const updated = [...newMilestones];
-                                updated[idx] = { ...updated[idx], end_date: e.target.value };
-                                setNewMilestones(updated);
-                              }}
-                              className="h-8 text-sm"
-                              min={ms.start_date || undefined}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                    <SelectTrigger><SelectValue placeholder="Select milestone (optional)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
+                      {siteMilestones.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
+                {(() => {
+                  const sel = siteMilestones.find((m) => m.id === form.milestone_id);
+                  if (!sel) return null;
+                  return (
+                    <div className="mt-2 border rounded-lg p-2.5 bg-muted/30 space-y-1 text-xs">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px]">{milestoneStatusLabel(sel.status)}</Badge>
+                        <span className="text-muted-foreground">{sel.percent_complete}% complete</span>
+                      </div>
+                      <div className="text-muted-foreground">
+                        Planned: {format(new Date(sel.start_date), "dd MMM yyyy")} → {format(new Date(sel.end_date), "dd MMM yyyy")}
+                      </div>
+                      {(sel.actual_start_date || sel.actual_end_date) && (
+                        <div className="text-muted-foreground">
+                          Actual: {sel.actual_start_date ? format(new Date(sel.actual_start_date), "dd MMM yyyy") : "—"} → {sel.actual_end_date ? format(new Date(sel.actual_end_date), "dd MMM yyyy") : "—"}
+                        </div>
+                      )}
+                      {sel.notes && <p className="text-muted-foreground italic">{sel.notes}</p>}
+                    </div>
+                  );
+                })()}
               </div>
             )}
             {form.site_id && form.site_id !== "__add_new_site__" && (
