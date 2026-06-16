@@ -118,6 +118,8 @@ export default function SiteMasterManagement() {
 
   // Detail sheet state
   const [detailSite, setDetailSite] = useState<Site | null>(null);
+  // Milestone management dialog
+  const [milestoneSite, setMilestoneSite] = useState<Site | null>(null);
 
   const fetchUsers = useCallback(async () => {
     const { data } = await supabase.from("users").select("id, full_name").eq("is_active", true).order("full_name");
