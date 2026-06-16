@@ -26,22 +26,44 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Plus, Edit, ToggleLeft, ToggleRight, Loader2, Building2, Users, Search, Flag, Milestone, Trash2, Target } from "lucide-react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Plus, Edit, Loader2, Building2, Users, Check, ChevronsUpDown, X,
+  Paperclip, Download, Target,
+} from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import SiteMilestonesDialog from "@/components/admin/SiteMilestonesDialog";
+import SiteMilestonesEditor, { LocalMilestone } from "@/components/admin/SiteMilestonesEditor";
+import { milestoneStatusLabel } from "@/components/admin/SiteMilestonesDialog";
+import {
+  uploadSiteAttachment,
+  attachmentName,
+  getSiteAttachmentUrl,
+} from "@/utils/siteAttachments";
 
 type SiteFlag = "red" | "orange" | "green";
+type SiteStatus = "planned" | "started" | "completed" | "dropped";
 
 interface Site {
   id: string;
@@ -54,42 +76,98 @@ interface Site {
   start_date: string;
   end_date: string | null;
   flag: SiteFlag;
+  status: SiteStatus;
+  attachment_urls: string[];
 }
-
-
 
 interface UserOption {
   id: string;
   full_name: string;
 }
 
-const FLAG_CONFIG: Record<SiteFlag, { color: string; label: string }> = {
-  red: { color: "bg-red-500", label: "Critical / Urgent" },
-  orange: { color: "bg-orange-500", label: "Needs Attention" },
-  green: { color: "bg-emerald-500", label: "On Track" },
-};
+export const SITE_STATUSES: { value: SiteStatus; label: string }[] = [
+  { value: "planned", label: "Planned" },
+  { value: "started", label: "Started" },
+  { value: "completed", label: "Completed" },
+  { value: "dropped", label: "Dropped" },
+];
 
-function FlagDot({ flag, size = "sm" }: { flag: SiteFlag; size?: "sm" | "md" }) {
-  const px = size === "sm" ? "h-3 w-3" : "h-4 w-4";
-  return <span className={`inline-block rounded-full ${px} ${FLAG_CONFIG[flag].color}`} />;
+export function siteStatusLabel(status?: string | null) {
+  return SITE_STATUSES.find((s) => s.value === status)?.label || "Planned";
 }
 
-function FlagPicker({ value, onChange }: { value: SiteFlag; onChange: (f: SiteFlag) => void }) {
+const STATUS_VARIANT: Record<SiteStatus, "default" | "secondary" | "destructive" | "outline"> = {
+  planned: "secondary",
+  started: "default",
+  completed: "default",
+  dropped: "destructive",
+};
+
+interface FormState {
+  site_name: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  status: SiteStatus;
+}
+
+const emptyForm: FormState = {
+  site_name: "",
+  description: "",
+  start_date: new Date().toISOString().split("T")[0],
+  end_date: "",
+  status: "planned",
+};
+
+function UserMultiSelect({
+  users, selected, onChange,
+}: { users: UserOption[]; selected: string[]; onChange: (ids: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const toggle = (id: string) =>
+    onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
+  const selectedUsers = users.filter((u) => selected.includes(u.id));
+
   return (
-    <div className="flex items-center gap-3">
-      {(["green", "orange", "red"] as SiteFlag[]).map((f) => (
-        <button
-          key={f}
-          type="button"
-          onClick={() => onChange(f)}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-colors ${
-            value === f ? "border-primary bg-primary/10 font-medium" : "border-border hover:bg-muted/50"
-          }`}
-        >
-          <FlagDot flag={f} />
-          {FLAG_CONFIG[f].label}
-        </button>
-      ))}
+    <div className="space-y-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" role="combobox" className="w-full justify-between font-normal">
+            {selected.length === 0 ? "Select users..." : `${selected.length} user${selected.length > 1 ? "s" : ""} selected`}
+            <ChevronsUpDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Search users..." />
+            <CommandList>
+              <CommandEmpty>No users found.</CommandEmpty>
+              <CommandGroup>
+                {users.map((u) => {
+                  const isSel = selected.includes(u.id);
+                  return (
+                    <CommandItem key={u.id} value={u.full_name} onSelect={() => toggle(u.id)}>
+                      <Check className={`mr-2 h-4 w-4 ${isSel ? "opacity-100" : "opacity-0"}`} />
+                      {u.full_name}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {selectedUsers.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedUsers.map((u) => (
+            <Badge key={u.id} variant="secondary" className="gap-1 pr-1">
+              {u.full_name}
+              <button type="button" onClick={() => toggle(u.id)} className="rounded-full hover:bg-muted-foreground/20">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -99,17 +177,17 @@ export default function SiteMasterManagement() {
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingSite, setEditingSite] = useState<Site | null>(null);
-  const [form, setForm] = useState({ site_name: "", description: "", start_date: new Date().toISOString().split("T")[0], end_date: "", flag: "green" as SiteFlag });
+  const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [allUsers, setAllUsers] = useState<UserOption[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [siteAssignments, setSiteAssignments] = useState<Record<string, string[]>>({});
-  const [userSearch, setUserSearch] = useState("");
+  const [milestones, setMilestones] = useState<LocalMilestone[]>([]);
+  const [originalMilestoneIds, setOriginalMilestoneIds] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
 
-  // Detail sheet state
   const [detailSite, setDetailSite] = useState<Site | null>(null);
-  // Milestone management dialog
-  const [milestoneSite, setMilestoneSite] = useState<Site | null>(null);
 
   const fetchUsers = useCallback(async () => {
     const { data } = await supabase.from("users").select("id, full_name").eq("is_active", true).order("full_name");
@@ -135,7 +213,12 @@ export default function SiteMasterManagement() {
     if (error) {
       toast.error(error.message);
     } else {
-      setSites((data || []).map((s: any) => ({ ...s, flag: s.flag || "green" })) as Site[]);
+      setSites((data || []).map((s: any) => ({
+        ...s,
+        flag: s.flag || "green",
+        status: s.status || "planned",
+        attachment_urls: s.attachment_urls || [],
+      })) as Site[]);
     }
     setLoading(false);
   }, []);
@@ -148,18 +231,94 @@ export default function SiteMasterManagement() {
 
   const handleOpenCreate = () => {
     setEditingSite(null);
-    setForm({ site_name: "", description: "", start_date: new Date().toISOString().split("T")[0], end_date: "", flag: "green" });
+    setForm(emptyForm);
     setSelectedUserIds([]);
-    setUserSearch("");
+    setMilestones([]);
+    setOriginalMilestoneIds([]);
+    setAttachments([]);
     setShowDialog(true);
   };
 
   const handleOpenEdit = async (site: Site) => {
     setEditingSite(site);
-    setForm({ site_name: site.site_name, description: site.description || "", start_date: site.start_date || "", end_date: site.end_date || "", flag: site.flag || "green" });
+    setForm({
+      site_name: site.site_name,
+      description: site.description || "",
+      start_date: site.start_date || "",
+      end_date: site.end_date || "",
+      status: site.status || "planned",
+    });
     setSelectedUserIds(siteAssignments[site.id] || []);
-    setUserSearch("");
+    setAttachments(site.attachment_urls || []);
+    setDetailSite(null);
+    // load milestones
+    const { data } = await supabase.from("site_milestones").select("*").eq("site_id", site.id).order("start_date");
+    const loaded: LocalMilestone[] = (data || []).map((m: any) => ({
+      id: m.id,
+      key: m.id,
+      name: m.name,
+      start_date: m.start_date,
+      end_date: m.end_date,
+      actual_start_date: m.actual_start_date || "",
+      actual_end_date: m.actual_end_date || "",
+      percent_complete: m.percent_complete ?? 0,
+      status: m.status,
+      notes: m.notes || "",
+      is_active: m.is_active,
+    }));
+    setMilestones(loaded);
+    setOriginalMilestoneIds(loaded.map((m) => m.id!).filter(Boolean));
     setShowDialog(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setUploading(true);
+    try {
+      const uploaded: string[] = [];
+      for (const f of files) {
+        uploaded.push(await uploadSiteAttachment(f));
+      }
+      setAttachments((prev) => [...prev, ...uploaded]);
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const openAttachment = async (stored: string) => {
+    const url = await getSiteAttachmentUrl(stored);
+    if (url) window.open(url, "_blank");
+    else toast.error("Could not open file");
+  };
+
+  const persistMilestones = async (siteId: string) => {
+    const currentIds = milestones.map((m) => m.id).filter(Boolean) as string[];
+    const toDelete = originalMilestoneIds.filter((id) => !currentIds.includes(id));
+    if (toDelete.length > 0) {
+      await supabase.from("site_milestones").delete().in("id", toDelete);
+    }
+    for (const m of milestones) {
+      const payload = {
+        name: m.name,
+        start_date: m.start_date,
+        end_date: m.end_date,
+        actual_start_date: m.actual_start_date || null,
+        actual_end_date: m.actual_end_date || null,
+        percent_complete: m.percent_complete,
+        status: m.status,
+        notes: m.notes || null,
+        is_active: m.is_active,
+      };
+      if (m.id) {
+        await supabase.from("site_milestones").update(payload).eq("id", m.id);
+      } else {
+        await supabase.from("site_milestones").insert({ site_id: siteId, ...payload });
+      }
+    }
   };
 
   const handleSave = async () => {
@@ -176,54 +335,41 @@ export default function SiteMasterManagement() {
         description: form.description || null,
         start_date: form.start_date,
         end_date: form.end_date || null,
-        flag: form.flag,
+        status: form.status,
+        is_active: form.status !== "dropped",
+        attachment_urls: attachments,
       };
 
+      let userIds = [...selectedUserIds];
+
       if (editingSite) {
-        const { error } = await supabase
-          .from("project_sites")
-          .update(payload)
-          .eq("id", editingSite.id);
+        const { error } = await supabase.from("project_sites").update(payload).eq("id", editingSite.id);
         if (error) throw error;
         siteId = editingSite.id;
         toast.success("Site updated");
       } else {
         payload.created_by = user?.id;
-        const { data: newSite, error } = await supabase
-          .from("project_sites")
-          .insert(payload)
-          .select("id")
-          .single();
+        const { data: newSite, error } = await supabase.from("project_sites").insert(payload).select("id").single();
         if (error) throw error;
         siteId = newSite.id;
-
-        if (user?.id && !selectedUserIds.includes(user.id)) {
-          setSelectedUserIds(prev => [...prev, user.id]);
-        }
+        if (user?.id && !userIds.includes(user.id)) userIds.push(user.id);
         toast.success("Site created");
       }
 
+      // reconcile assignments
       const currentAssigned = siteAssignments[siteId] || [];
-      const toRemove = currentAssigned.filter(uid => !selectedUserIds.includes(uid));
-      const toAdd = selectedUserIds.filter(uid => !currentAssigned.includes(uid));
-
-      if (!editingSite && user?.id && !toAdd.includes(user.id)) {
-        toAdd.push(user.id);
-      }
-
+      const toRemove = currentAssigned.filter((uid) => !userIds.includes(uid));
+      const toAdd = userIds.filter((uid) => !currentAssigned.includes(uid));
       if (toRemove.length > 0) {
         await supabase.from("site_assignments").delete().eq("site_id", siteId).in("user_id", toRemove);
       }
       if (toAdd.length > 0) {
-        await supabase.from("site_assignments").insert(
-          toAdd.map(uid => ({ site_id: siteId, user_id: uid, assigned_by: user?.id }))
-        );
+        await supabase.from("site_assignments").insert(toAdd.map((uid) => ({ site_id: siteId, user_id: uid, assigned_by: user?.id })));
       }
 
-
+      await persistMilestones(siteId);
 
       setShowDialog(false);
-      setDetailSite(null);
       fetchSites();
       fetchAssignments();
     } catch (err: any) {
@@ -233,54 +379,10 @@ export default function SiteMasterManagement() {
     }
   };
 
-  const handleToggleActive = async (site: Site) => {
-    const newActive = !site.is_active;
-    const { error } = await supabase
-      .from("project_sites")
-      .update({
-        is_active: newActive,
-        deleted_at: newActive ? null : new Date().toISOString(),
-      })
-      .eq("id", site.id);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success(newActive ? "Site reactivated" : "Site deactivated");
-      setDetailSite(null);
-      fetchSites();
-    }
-  };
-
-  const handleUpdateFlag = async (site: Site, flag: SiteFlag) => {
-    const { error } = await supabase
-      .from("project_sites")
-      .update({ flag })
-      .eq("id", site.id);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Flag updated");
-      setDetailSite({ ...site, flag });
-      fetchSites();
-    }
-  };
-
-  const toggleUser = (userId: string) => {
-    setSelectedUserIds(prev =>
-      prev.includes(userId)
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
-  };
-
   const getAssignedNames = (siteId: string) => {
     const ids = siteAssignments[siteId] || [];
-    return ids.map(id => allUsers.find(u => u.id === id)?.full_name || "Unknown");
+    return ids.map((id) => allUsers.find((u) => u.id === id)?.full_name || "Unknown");
   };
-
-  const filteredUsers = allUsers.filter(u =>
-    u.full_name.toLowerCase().includes(userSearch.toLowerCase())
-  );
 
   return (
     <Card>
@@ -309,14 +411,12 @@ export default function SiteMasterManagement() {
                 <TableHead>Site Name</TableHead>
                 <TableHead>Assigned Users</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Milestones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sites.map((site) => {
                 const assignedNames = getAssignedNames(site.id);
                 const totalAssigned = assignedNames.length;
-                const flag = site.flag || "green";
                 return (
                   <TableRow key={site.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDetailSite(site)}>
                     <TableCell className="font-medium text-primary underline-offset-2 hover:underline">
@@ -336,14 +436,9 @@ export default function SiteMasterManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={site.is_active ? "default" : "secondary"}>
-                        {site.is_active ? "Active" : "Inactive"}
+                      <Badge variant={STATUS_VARIANT[site.status] || "secondary"}>
+                        {siteStatusLabel(site.status)}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <Button size="sm" variant="outline" onClick={() => setMilestoneSite(site)}>
-                        <Target className="h-3.5 w-3.5 mr-1" /> Milestones
-                      </Button>
                     </TableCell>
                   </TableRow>
                 );
@@ -362,15 +457,12 @@ export default function SiteMasterManagement() {
           </SheetHeader>
           {detailSite && (
             <div className="space-y-5 mt-4">
-              {/* Description */}
               {detailSite.description && (
                 <div>
                   <Label className="text-xs text-muted-foreground">Description</Label>
                   <p className="text-sm">{detailSite.description}</p>
                 </div>
               )}
-
-              {/* Dates */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">Start Date</Label>
@@ -381,18 +473,14 @@ export default function SiteMasterManagement() {
                   <p className="text-sm">{detailSite.end_date ? format(new Date(detailSite.end_date), "dd MMM yyyy") : "Ongoing"}</p>
                 </div>
               </div>
-
-              {/* Status */}
               <div>
                 <Label className="text-xs text-muted-foreground">Status</Label>
                 <div className="mt-1">
-                  <Badge variant={detailSite.is_active ? "default" : "secondary"}>
-                    {detailSite.is_active ? "Active" : "Inactive"}
+                  <Badge variant={STATUS_VARIANT[detailSite.status] || "secondary"}>
+                    {siteStatusLabel(detailSite.status)}
                   </Badge>
                 </div>
               </div>
-
-              {/* Assigned Users */}
               <div>
                 <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
                   <Users className="h-3.5 w-3.5" /> Assigned Users
@@ -403,7 +491,7 @@ export default function SiteMasterManagement() {
                   return (
                     <div className="space-y-1.5">
                       {names.map((name, i) => {
-                        const initials = name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+                        const initials = name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
                         return (
                           <div key={i} className="flex items-center gap-2">
                             <Avatar className="h-6 w-6">
@@ -417,31 +505,25 @@ export default function SiteMasterManagement() {
                   );
                 })()}
               </div>
-
-
-              {/* Milestones */}
+              {detailSite.attachment_urls.length > 0 && (
+                <div>
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
+                    <Paperclip className="h-3.5 w-3.5" /> Attachments
+                  </Label>
+                  <div className="space-y-1.5">
+                    {detailSite.attachment_urls.map((a, i) => (
+                      <button key={i} type="button" onClick={() => openAttachment(a)}
+                        className="flex items-center gap-2 text-sm text-primary hover:underline w-full text-left">
+                        <Download className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{attachmentName(a)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="pt-2 border-t">
-                <Button size="sm" variant="secondary" className="w-full" onClick={() => setMilestoneSite(detailSite)}>
-                  <Target className="h-4 w-4 mr-1" /> Manage Milestones
-                </Button>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-2 border-t">
-                <Button size="sm" variant="outline" className="flex-1" onClick={() => { handleOpenEdit(detailSite); }}>
-                  <Edit className="h-4 w-4 mr-1" /> Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => handleToggleActive(detailSite)}
-                >
-                  {detailSite.is_active ? (
-                    <><ToggleRight className="h-4 w-4 mr-1 text-emerald-500" /> Deactivate</>
-                  ) : (
-                    <><ToggleLeft className="h-4 w-4 mr-1" /> Reactivate</>
-                  )}
+                <Button size="sm" variant="outline" className="w-full" onClick={() => handleOpenEdit(detailSite)}>
+                  <Edit className="h-4 w-4 mr-1" /> Edit Site
                 </Button>
               </div>
             </div>
@@ -451,96 +533,72 @@ export default function SiteMasterManagement() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="sm:max-w-[440px] max-h-[85vh] flex flex-col">
+        <DialogContent className="sm:max-w-[460px] max-h-[88vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{editingSite ? "Edit Site" : "Add New Site"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2 overflow-y-auto flex-1 pr-1">
             <div>
               <Label className="text-xs">Site Name *</Label>
-              <Input
-                value={form.site_name}
-                onChange={(e) => setForm({ ...form, site_name: e.target.value })}
-                placeholder="e.g. Koramangala Site"
-                autoFocus
-              />
+              <Input value={form.site_name} onChange={(e) => setForm({ ...form, site_name: e.target.value })} placeholder="e.g. Koramangala Site" autoFocus />
             </div>
             <div>
               <Label className="text-xs">Description</Label>
-              <Textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Optional description..."
-                rows={2}
-              />
+              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Optional description..." rows={2} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Start Date *</Label>
-                <Input
-                  type="date"
-                  value={form.start_date}
-                  onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-                />
+                <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
               </div>
               <div>
                 <Label className="text-xs">End Date</Label>
-                <Input
-                  type="date"
-                  value={form.end_date}
-                  onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-                  min={form.start_date || undefined}
-                />
+                <Input type="date" value={form.end_date} min={form.start_date || undefined} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
               </div>
             </div>
             <div>
-              <Label className="text-xs flex items-center gap-1.5 mb-2">
-                <Users className="h-3.5 w-3.5" />
-                Assign Users ({selectedUserIds.length} selected)
-              </Label>
-              <div className="relative mb-2">
-                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
-                  placeholder="Search users..."
-                  className="pl-8 h-9 text-sm"
-                />
-              </div>
-              <ScrollArea className="h-[180px] border rounded-lg">
-                <div className="p-2 space-y-1">
-                  {filteredUsers.map(user => {
-                    const isSelected = selectedUserIds.includes(user.id);
-                    const initials = user.full_name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-                    return (
-                      <label
-                        key={user.id}
-                        className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
-                          isSelected ? "bg-primary/10" : "hover:bg-muted/50"
-                        }`}
-                      >
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleUser(user.id)}
-                        />
-                        <Avatar className="h-7 w-7">
-                          <AvatarFallback className="text-[10px] bg-muted">{initials}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{user.full_name}</span>
-                      </label>
-                    );
-                  })}
-                  {filteredUsers.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">No users found</p>
-                  )}
-                </div>
-              </ScrollArea>
+              <Label className="text-xs">Status</Label>
+              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as SiteStatus })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SITE_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-            {editingSite && (
-              <Button variant="secondary" className="w-full" onClick={() => setMilestoneSite(editingSite)}>
-                <Target className="h-4 w-4 mr-1" /> Manage Milestones
-              </Button>
-            )}
+
+            <div>
+              <Label className="text-xs flex items-center gap-1.5 mb-2">
+                <Users className="h-3.5 w-3.5" /> Assign Users
+              </Label>
+              <UserMultiSelect users={allUsers} selected={selectedUserIds} onChange={setSelectedUserIds} />
+            </div>
+
+            <SiteMilestonesEditor value={milestones} onChange={setMilestones} />
+
+            <div>
+              <Label className="text-xs flex items-center gap-1.5 mb-2">
+                <Paperclip className="h-3.5 w-3.5" /> Attachments
+              </Label>
+              <div className="space-y-1.5 mb-2">
+                {attachments.map((a, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 border rounded-lg px-2.5 py-1.5">
+                    <button type="button" onClick={() => openAttachment(a)} className="flex items-center gap-2 text-sm text-primary hover:underline truncate">
+                      <Download className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{attachmentName(a)}</span>
+                    </button>
+                    <button type="button" onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))} className="text-destructive shrink-0">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <label className="flex items-center justify-center gap-2 border border-dashed rounded-lg py-3 text-sm text-muted-foreground cursor-pointer hover:bg-muted/40">
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                {uploading ? "Uploading..." : "Add files / photos / documents"}
+                <input type="file" multiple className="hidden" onChange={handleFileUpload} disabled={uploading} />
+              </label>
+            </div>
+
             <Button className="w-full" onClick={handleSave} disabled={saving || !form.site_name.trim() || !form.start_date}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingSite ? "Update Site" : "Create Site"}
@@ -548,13 +606,6 @@ export default function SiteMasterManagement() {
           </div>
         </DialogContent>
       </Dialog>
-
-      <SiteMilestonesDialog
-        siteId={milestoneSite?.id || null}
-        siteName={milestoneSite?.site_name}
-        open={!!milestoneSite}
-        onOpenChange={(o) => { if (!o) setMilestoneSite(null); }}
-      />
     </Card>
   );
 }
