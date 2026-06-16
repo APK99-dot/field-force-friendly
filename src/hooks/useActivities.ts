@@ -129,6 +129,8 @@ export function useActivities() {
         return {
           ...a,
           attachment_urls: a.attachment_urls || [],
+          status_history: Array.isArray(a.status_history) ? a.status_history : [],
+          photo_urls: Array.isArray(a.photo_urls) ? a.photo_urls : [],
           user_full_name: userMap[a.user_id] || "",
           project_name: a.project_id ? projectMap[a.project_id] || "" : "",
           site_name: siteInfo ? `${siteInfo.name}${!siteInfo.active ? " (Inactive)" : ""}` : "",
