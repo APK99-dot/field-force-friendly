@@ -29,9 +29,10 @@ interface ActivityDetailsDialogProps {
   open: boolean;
   onClose: () => void;
   onSavePhotos?: (photos: ActivityPhotoEntry[]) => Promise<void> | void;
+  attendance?: { check_in_time: string | null; check_out_time: string | null } | null;
 }
 
-export default function ActivityDetailsDialog({ activity, open, onClose, onSavePhotos }: ActivityDetailsDialogProps) {
+export default function ActivityDetailsDialog({ activity, open, onClose, onSavePhotos, attendance }: ActivityDetailsDialogProps) {
   if (!activity) return null;
 
   const history = [...(activity.status_history || [])].sort(
@@ -52,12 +53,58 @@ export default function ActivityDetailsDialog({ activity, open, onClose, onSaveP
 
         <div className="space-y-4 mt-1">
           {/* Status + type */}
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">{activity.activity_type}</p>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              {activity.activity_code && (
+                <Badge variant="secondary" className="font-mono text-[10px] shrink-0">{activity.activity_code}</Badge>
+              )}
+              <p className="text-xs text-muted-foreground truncate">{activity.activity_type}</p>
+            </div>
             <Badge variant="outline" className={STATUS_COLORS[activity.status] || ""}>
               {STATUS_LABELS[activity.status] || activity.status}
             </Badge>
           </div>
+
+          {/* Owner */}
+          {activity.user_full_name && (
+            <p className="text-xs text-muted-foreground">By {activity.user_full_name}</p>
+          )}
+
+          {/* Check-in / out */}
+          {attendance && (attendance.check_in_time || attendance.check_out_time) && (
+            <div className="rounded-lg border p-3 space-y-1">
+              <p className="text-xs font-semibold flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" /> Check-in / Check-out
+              </p>
+              {attendance.check_in_time && (
+                <p className="text-xs text-muted-foreground">Check-in: {format(parseISO(attendance.check_in_time), "MMM d, yyyy h:mm a")}</p>
+              )}
+              {attendance.check_out_time && (
+                <p className="text-xs text-muted-foreground">Check-out: {format(parseISO(attendance.check_out_time), "MMM d, yyyy h:mm a")}</p>
+              )}
+            </div>
+          )}
+
+          {/* Description */}
+          {activity.description && (
+            <div>
+              <p className="text-xs font-semibold mb-1">Description</p>
+              <p className="text-xs text-muted-foreground whitespace-pre-wrap">{activity.description}</p>
+            </div>
+          )}
+
+          {/* Linked milestone */}
+          {activity.milestone_name && (
+            <div className="rounded-lg border p-3">
+              <p className="text-xs font-semibold flex items-center gap-1.5 mb-0.5">
+                <CircleDot className="h-3.5 w-3.5" /> Linked Milestone
+              </p>
+              <p className="text-xs text-muted-foreground">{activity.milestone_name}</p>
+            </div>
+          )}
+
+
+
 
           {/* Times */}
           {(activity.start_time || activity.end_time) && (

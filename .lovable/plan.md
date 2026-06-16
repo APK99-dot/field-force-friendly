@@ -1,58 +1,54 @@
-# Milestone Management Refactor
+## Projects / Sites → Project Hub Dashboard
 
-Milestones become a managed child entity of each Site, edited only from Projects / Sites. The Activities module consumes them read-only via a dropdown — no more inline milestone creation.
+Transform the Projects/Sites module from a plain table into a modern, visually engaging project dashboard. Each site becomes a single hub showing details, team, milestones, gallery, documents, and full activity history — fully responsive across desktop, mobile PWA, and APK.
 
-## 1. Database (migration)
+### 1. Database changes (one migration)
 
-Extend `public.site_milestones` (existing `start_date`/`end_date` become the Planned dates):
+- Add `activity_code` (text, unique) to `activity_events`, auto-generated as a friendly sequential ID `ACT-0001`, `ACT-0002`, … via a Postgres sequence + `BEFORE INSERT` trigger.
+- Backfill existing activities with sequential codes ordered by `created_at`.
+- This requires no client change to creation logic — codes generate server-side automatically. The `activity_code` is naturally linked to its `site_id`, so all activity IDs for a site are queryable directly.
 
-- Add `actual_start_date date` (nullable)
-- Add `actual_end_date date` (nullable)
-- Add `percent_complete integer not null default 0` (0–100, validated via trigger)
-- Add `notes text` (nullable)
-- Add `is_active boolean not null default true` (so Activities can load only active milestones)
-- Keep `status text` but broaden allowed values to: `not_started`, `in_progress`, `completed`, `delayed`, `on_hold`
-- Re-affirm existing GRANTs; add a validation trigger for `percent_complete` between 0 and 100 and `actual_end_date >= actual_start_date`.
+```text
+activity_events
+ ├─ activity_code  ACT-0001  (new, unique, auto)
+ └─ site_id        → project_sites.id   (existing link)
+```
 
-`start_date`/`end_date` stay NOT NULL and are surfaced in the UI as **Planned Start / Planned End**.
+### 2. Redesigned Sites landing (`SiteMasterManagement.tsx`)
 
-## 2. Projects / Sites — Milestone Management popup
+Replace the bare table with a modern **card grid** dashboard:
+- Each site rendered as a visual card: name, status badge (color-coded: Planned/Started/Completed/Dropped), assigned-user avatars (stacked), milestone progress bar (avg % complete), counts for activities/photos/docs, and date range.
+- Subtle gradients, shadows, hover lift (framer-motion), responsive grid (1 col mobile → 2–3 cols desktop).
+- "Add Site" and search/filter controls in a clean header.
 
-In `src/components/admin/SiteMasterManagement.tsx`:
+### 3. Site Project Hub (large side sheet/drawer)
 
-- Add a **Milestones** button on each site row (and in the site detail Sheet) that opens a new dialog component.
-- New component `src/components/admin/SiteMilestonesDialog.tsx`:
-  - Lists existing milestones for the site with name, status badge, % complete, planned vs actual dates.
-  - Create / Edit / Delete milestones. Each milestone form has: Milestone Name, Planned Start, Planned End, Actual Start, Actual End, Percentage Completion (slider/number 0–100), Status (Not Started / In Progress / Completed / Delayed / On Hold), Notes.
-  - Saves directly to `site_milestones` (live CRUD, not deferred).
-- The site Edit dialog also exposes the same Milestones management entry point (button opening the dialog), satisfying "manage milestones from Edit Site".
-- Remove the deferred milestone save logic currently bundled into `handleSave` (milestones now managed independently in their own dialog).
+Clicking a site opens a wide `Sheet` (full-width on mobile, ~640–720px on desktop) with tabbed sections so it stays clean on every screen:
 
-## 3. Activities — consume milestones (read-only)
+- **Overview** — description, status, date range, flag, progress summary, assigned-user list with avatars.
+- **Milestones** — list with progress bar, % completion, planned vs actual dates, status badges (read-only view; editing stays in Edit Site).
+- **Gallery** — combined grid of (a) all `photo_urls` from activities linked to the site and (b) site-level image attachments. Each photo shows: uploaded/captured by (activity owner's name), date & time, and the related Activity ID (`ACT-xxxx`) as a clickable chip. Tap a photo to enlarge.
+- **Activities** — list/timeline of all activities for the site, each row showing Activity ID, name, user, date/time, and status. Clicking an Activity ID opens the full Activity record (reusing `ActivityDetailsDialog`) with details, user, date/time, description, status, GPS/location, check-in/out, photos & attachments, and linked milestone.
+- **Documents** — non-image attachments list with download.
 
-In `src/pages/Activities.tsx`:
+The existing Edit Site dialog (milestones editor, attachments, user multiselect, status dropdown) is preserved and reachable from the hub header.
 
-- **Remove** the inline "Add Milestones" repeatable section and the milestone-insert code in the save handler (lines ~641–655).
-- Keep/replace the "Existing Milestones" block with a **Milestone dropdown**:
-  - When a site is selected, load only `is_active = true` milestones for that site.
-  - Dropdown bound to `form.milestone_id`.
-  - On selection, show a read-only details panel: status, % complete, planned/actual dates, notes. No editing from Activities.
-- `newMilestones` state and its UI are deleted.
-- Activity save continues to store `milestone_id` only (no milestone writes).
+### 4. Activity record consumption
 
-## 4. Activity display
+- `ActivityDetailsDialog` is reused for the click-through from the gallery and activity list. It will be passed a fully-mapped activity object (joined user name, site, milestone, photos, status history). Add GPS/location and check-in/out display if not already shown.
+- Fetch the site's activities + attendance (check-in/out) in the hub via a dedicated query keyed on `site_id`.
 
-- Activity card milestone badge keeps showing milestone name + status; extend status label mapping to include `delayed` and `on_hold`.
+### 5. Responsiveness & polish
 
-## Technical notes
+- Card grid and tabs collapse gracefully: tabs become horizontally scrollable on narrow screens; gallery is a fluid `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4`; milestone/activity rows stack.
+- Respects safe-area insets (already handled by Sheet). Uses semantic Navy & Gold design tokens — no hardcoded colors.
 
-- Milestones remain the single source of truth in `site_milestones`, keyed by `site_id`; Activities reference them by `milestone_id` and never create/update milestone rows.
-- The status label helper in Activities and the milestone dialog will share the 5-status set.
-- `useActivities` already joins `milestone_name`/`milestone_status`; will extend the join select to also pull `percent_complete` and dates for the read-only details panel.
+### Technical notes
 
-## Verification
-
-- Create a site → open Milestones → add a milestone with all fields → confirm it persists and shows correct status/% .
-- In Activities, select that site → milestone dropdown lists only active milestones → selecting shows read-only details → save activity stores milestone_id.
-- Confirm Activity form no longer offers inline milestone creation.
-- Build passes.
+- New data hook (e.g. `useSiteHub(siteId)`) loads milestones, activities (with codes), photos, attachments, assigned users, and attendance in parallel; refetch on `visibilitychange` per project convention.
+- Activity photos lack an explicit uploader field, so "uploaded by" uses the activity's owner (`user_id` → full name); capture time uses each photo entry's `at` timestamp.
+- Gallery photo → Activity mapping done by tagging each `photo_urls` entry with its parent activity's id/code during the fetch.
+- No inline sub-components in render (per project rule); extract Gallery, MilestoneList, ActivityList, SiteCard into their own files.
+</content>
+<summary>Turn Projects/Sites into a modern card-grid dashboard with a tabbed project-hub drawer (overview, milestones, gallery, activities, documents), add auto sequential Activity IDs (ACT-0001) linked to sites, and clickable activity records — fully responsive.</summary>
+</invoke>

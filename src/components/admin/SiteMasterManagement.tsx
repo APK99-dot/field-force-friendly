@@ -61,6 +61,9 @@ import {
   attachmentName,
   getSiteAttachmentUrl,
 } from "@/utils/siteAttachments";
+import SiteCard from "@/components/admin/site-hub/SiteCard";
+import SiteHubSheet, { type HubSite } from "@/components/admin/site-hub/SiteHubSheet";
+import { motion } from "framer-motion";
 
 type SiteFlag = "red" | "orange" | "green";
 type SiteStatus = "planned" | "started" | "completed" | "dropped";
@@ -188,6 +191,22 @@ export default function SiteMasterManagement() {
   const [uploading, setUploading] = useState(false);
 
   const [detailSite, setDetailSite] = useState<Site | null>(null);
+  const [milestoneStats, setMilestoneStats] = useState<Record<string, { avg: number; count: number }>>({});
+
+  const fetchMilestoneStats = useCallback(async () => {
+    const { data } = await supabase.from("site_milestones").select("site_id, percent_complete");
+    const acc: Record<string, { sum: number; count: number }> = {};
+    (data || []).forEach((m: any) => {
+      if (!acc[m.site_id]) acc[m.site_id] = { sum: 0, count: 0 };
+      acc[m.site_id].sum += m.percent_complete ?? 0;
+      acc[m.site_id].count += 1;
+    });
+    const stats: Record<string, { avg: number; count: number }> = {};
+    Object.entries(acc).forEach(([id, v]) => {
+      stats[id] = { avg: v.count ? Math.round(v.sum / v.count) : 0, count: v.count };
+    });
+    setMilestoneStats(stats);
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     const { data } = await supabase.from("users").select("id, full_name").eq("is_active", true).order("full_name");
@@ -227,7 +246,8 @@ export default function SiteMasterManagement() {
     fetchSites();
     fetchUsers();
     fetchAssignments();
-  }, [fetchSites, fetchUsers, fetchAssignments]);
+    fetchMilestoneStats();
+  }, [fetchSites, fetchUsers, fetchAssignments, fetchMilestoneStats]);
 
   const handleOpenCreate = () => {
     setEditingSite(null);
@@ -372,6 +392,7 @@ export default function SiteMasterManagement() {
       setShowDialog(false);
       fetchSites();
       fetchAssignments();
+      fetchMilestoneStats();
     } catch (err: any) {
       toast.error(err.message || "Failed to save site");
     } finally {
@@ -405,131 +426,44 @@ export default function SiteMasterManagement() {
             No sites created yet. Click "Add Site" to create one.
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Site Name</TableHead>
-                <TableHead>Assigned Users</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sites.map((site) => {
-                const assignedNames = getAssignedNames(site.id);
-                const totalAssigned = assignedNames.length;
-                return (
-                  <TableRow key={site.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDetailSite(site)}>
-                    <TableCell className="font-medium text-primary underline-offset-2 hover:underline">
-                      {site.site_name}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                        {totalAssigned === 0 ? (
-                          <span className="text-xs text-muted-foreground">None</span>
-                        ) : (
-                          <span className="text-xs">
-                            {assignedNames.slice(0, 2).join(", ")}
-                            {totalAssigned > 2 && ` +${totalAssigned - 2}`}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_VARIANT[site.status] || "secondary"}>
-                        {siteStatusLabel(site.status)}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+            initial="hidden"
+            animate="show"
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
+          >
+            {sites.map((site) => {
+              const stats = milestoneStats[site.id] || { avg: 0, count: 0 };
+              return (
+                <motion.div
+                  key={site.id}
+                  variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}
+                >
+                  <SiteCard
+                    site={site}
+                    assignedNames={getAssignedNames(site.id)}
+                    progress={stats.avg}
+                    milestoneCount={stats.count}
+                    onOpen={() => setDetailSite(site)}
+                  />
+                </motion.div>
+              );
+            })}
+          </motion.div>
         )}
       </CardContent>
 
-      {/* Detail Side Panel */}
-      <Sheet open={!!detailSite} onOpenChange={(open) => { if (!open) setDetailSite(null); }}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{detailSite?.site_name}</SheetTitle>
-            <SheetDescription>Site details and actions</SheetDescription>
-          </SheetHeader>
-          {detailSite && (
-            <div className="space-y-5 mt-4">
-              {detailSite.description && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Description</Label>
-                  <p className="text-sm">{detailSite.description}</p>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Start Date</Label>
-                  <p className="text-sm">{detailSite.start_date ? format(new Date(detailSite.start_date), "dd MMM yyyy") : "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">End Date</Label>
-                  <p className="text-sm">{detailSite.end_date ? format(new Date(detailSite.end_date), "dd MMM yyyy") : "Ongoing"}</p>
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Status</Label>
-                <div className="mt-1">
-                  <Badge variant={STATUS_VARIANT[detailSite.status] || "secondary"}>
-                    {siteStatusLabel(detailSite.status)}
-                  </Badge>
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
-                  <Users className="h-3.5 w-3.5" /> Assigned Users
-                </Label>
-                {(() => {
-                  const names = getAssignedNames(detailSite.id);
-                  if (names.length === 0) return <p className="text-sm text-muted-foreground">No users assigned</p>;
-                  return (
-                    <div className="space-y-1.5">
-                      {names.map((name, i) => {
-                        const initials = name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
-                        return (
-                          <div key={i} className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarFallback className="text-[10px] bg-muted">{initials}</AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm">{name}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-              </div>
-              {detailSite.attachment_urls.length > 0 && (
-                <div>
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
-                    <Paperclip className="h-3.5 w-3.5" /> Attachments
-                  </Label>
-                  <div className="space-y-1.5">
-                    {detailSite.attachment_urls.map((a, i) => (
-                      <button key={i} type="button" onClick={() => openAttachment(a)}
-                        className="flex items-center gap-2 text-sm text-primary hover:underline w-full text-left">
-                        <Download className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{attachmentName(a)}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="pt-2 border-t">
-                <Button size="sm" variant="outline" className="w-full" onClick={() => handleOpenEdit(detailSite)}>
-                  <Edit className="h-4 w-4 mr-1" /> Edit Site
-                </Button>
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+      {/* Project Hub */}
+      <SiteHubSheet
+        site={detailSite as HubSite | null}
+        open={!!detailSite}
+        onClose={() => setDetailSite(null)}
+        onEdit={(s) => {
+          const full = sites.find((x) => x.id === s.id);
+          if (full) handleOpenEdit(full);
+        }}
+      />
+
 
       {/* Create/Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
