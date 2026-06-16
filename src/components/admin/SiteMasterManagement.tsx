@@ -458,6 +458,7 @@ export default function SiteMasterManagement() {
         site={detailSite as HubSite | null}
         open={!!detailSite}
         onClose={() => setDetailSite(null)}
+        onStatusChanged={() => fetchSites()}
         onEdit={(s) => {
           const full = sites.find((x) => x.id === s.id);
           if (full) handleOpenEdit(full);
