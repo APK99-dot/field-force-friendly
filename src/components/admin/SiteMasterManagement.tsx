@@ -317,6 +317,7 @@ export default function SiteMasterManagement() {
                 <TableHead>Site Name</TableHead>
                 <TableHead>Assigned Users</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Milestones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
