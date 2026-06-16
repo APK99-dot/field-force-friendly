@@ -42,12 +42,8 @@ const STATUSES: { value: string; label: string }[] = [
   { value: "dropped", label: "Dropped" },
 ];
 
-const STATUS_CHIP: Record<string, string> = {
-  planned: "bg-info/15 text-info border-info/30",
-  started: "bg-warning/15 text-warning border-warning/30",
-  completed: "bg-success/15 text-success border-success/30",
-  dropped: "bg-destructive/15 text-destructive border-destructive/30",
-};
+
+
 
 function initials(name: string) {
   return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
