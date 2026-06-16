@@ -3167,10 +3167,15 @@ export type Database = {
       }
       site_milestones: {
         Row: {
+          actual_end_date: string | null
+          actual_start_date: string | null
           created_at: string
           end_date: string
           id: string
+          is_active: boolean
           name: string
+          notes: string | null
+          percent_complete: number
           priority: string | null
           site_id: string
           start_date: string
@@ -3178,10 +3183,15 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          actual_end_date?: string | null
+          actual_start_date?: string | null
           created_at?: string
           end_date: string
           id?: string
+          is_active?: boolean
           name: string
+          notes?: string | null
+          percent_complete?: number
           priority?: string | null
           site_id: string
           start_date: string
@@ -3189,10 +3199,15 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          actual_end_date?: string | null
+          actual_start_date?: string | null
           created_at?: string
           end_date?: string
           id?: string
+          is_active?: boolean
           name?: string
+          notes?: string | null
+          percent_complete?: number
           priority?: string | null
           site_id?: string
           start_date?: string
