@@ -56,15 +56,7 @@ interface Site {
   flag: SiteFlag;
 }
 
-interface SiteMilestone {
-  id?: string;
-  name: string;
-  start_date: string;
-  end_date: string;
-  status: string;
-  priority: string;
-  _delete?: boolean;
-}
+
 
 interface UserOption {
   id: string;
