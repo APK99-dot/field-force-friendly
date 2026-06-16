@@ -421,6 +421,13 @@ export default function SiteMasterManagement() {
               </div>
 
 
+              {/* Milestones */}
+              <div className="pt-2 border-t">
+                <Button size="sm" variant="secondary" className="w-full" onClick={() => setMilestoneSite(detailSite)}>
+                  <Target className="h-4 w-4 mr-1" /> Manage Milestones
+                </Button>
+              </div>
+
               {/* Actions */}
               <div className="flex gap-2 pt-2 border-t">
                 <Button size="sm" variant="outline" className="flex-1" onClick={() => { handleOpenEdit(detailSite); }}>
