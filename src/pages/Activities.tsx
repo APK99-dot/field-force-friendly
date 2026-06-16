@@ -565,6 +565,11 @@ export default function Activities() {
 
   const handleSave = async () => {
     if (!form.activity_type) return;
+    const isOther = form.activity_type.trim().toLowerCase() === "other";
+    if (isOther && !form.custom_activity_name.trim()) {
+      toast({ title: "Custom activity name required", description: "Please enter a name for the 'Other' activity type.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       // Upload audio if recorded
