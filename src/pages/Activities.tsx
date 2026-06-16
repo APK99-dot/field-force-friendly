@@ -86,7 +86,7 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   planned: "Planned",
-  in_progress: "In Progress",
+  in_progress: "Work In Progress",
   completed: "Completed",
 };
 
