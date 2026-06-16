@@ -1572,32 +1572,21 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onStatusCha
           </div>
 
           <div className="flex flex-col items-end gap-2 shrink-0">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild disabled={changingStatus}>
-                <button className="cursor-pointer">
-                  <Badge variant="outline" className={`${statusColors[a.status] || ""} ${changingStatus ? "opacity-50" : "hover:opacity-80"}`}>
-                    {changingStatus ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                    {statusLabels[a.status] || a.status}
-                  </Badge>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel className="text-xs">Change Status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {statusOptions.map((s) => (
-                  <DropdownMenuItem
-                    key={s}
-                    onClick={() => handleStatusChange(s)}
-                    className={a.status === s ? "font-bold" : ""}
-                  >
-                    <Badge variant="outline" className={`${statusColors[s]} mr-2 text-[10px]`}>
-                      {statusLabels[s]}
-                    </Badge>
-                    {a.status === s && <CheckCircle2 className="h-3.5 w-3.5 ml-auto text-primary" />}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Badge variant="outline" className={statusColors[a.status] || ""}>
+              {statusLabels[a.status] || a.status}
+            </Badge>
+            {a.status === "planned" && (
+              <Button size="sm" className="h-8 gap-1.5" onClick={() => handleStatusChange("in_progress")} disabled={changingStatus}>
+                {changingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5" />}
+                Start / Check-In
+              </Button>
+            )}
+            {a.status === "in_progress" && (
+              <Button size="sm" className="h-8 gap-1.5 bg-success text-success-foreground hover:bg-success/90" onClick={() => handleStatusChange("completed")} disabled={changingStatus}>
+                {changingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                Complete
+              </Button>
+            )}
             <div className="flex gap-1">
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(a)}>
                 <Edit className="h-3.5 w-3.5" />
@@ -1607,6 +1596,7 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onStatusCha
               </Button>
             </div>
           </div>
+
         </div>
       </CardContent>
     </Card>
