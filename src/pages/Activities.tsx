@@ -55,11 +55,14 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentPosition } from "@/utils/nativePermissions";
-import { useActivities, type Activity as ActivityType } from "@/hooks/useActivities";
+import { useActivities, type Activity as ActivityType, type ActivityPhotoEntry, type ActivityStatusEntry } from "@/hooks/useActivities";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import ActivityReportGenerator from "@/components/activities/ActivityReportGenerator";
+import ActivityPhotoManager from "@/components/activities/ActivityPhotoManager";
+import ActivityDetailsDialog from "@/components/activities/ActivityDetailsDialog";
+import { PlayCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,7 +86,7 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   planned: "Planned",
-  in_progress: "In Progress",
+  in_progress: "Work In Progress",
   completed: "Completed",
 };
 
@@ -129,13 +132,13 @@ const defaultForm = {
   from_date: "",
   to_date: "",
   description: "",
-  status: "planned",
   site_id: "",
   milestone_id: "",
   site_flag: "" as string,
   location_address: "",
   total_hours: 0,
   owner_user_id: "",
+  photos: [] as ActivityPhotoEntry[],
 };
 
 export default function Activities() {
@@ -151,6 +154,7 @@ export default function Activities() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const [detailsActivity, setDetailsActivity] = useState<ActivityType | null>(null);
   const [saving, setSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
@@ -551,13 +555,13 @@ export default function Activities() {
       from_date: a.from_date || "",
       to_date: a.to_date || "",
       description: a.description || "",
-      status: a.status,
       site_id: a.site_id || "",
       milestone_id: a.milestone_id || "",
       site_flag: "",
       location_address: a.location_address || "",
       total_hours: a.total_hours || 0,
       owner_user_id: a.user_id,
+      photos: a.photo_urls || [],
     });
     setEditingId(a.id);
     setShowForm(true);
@@ -602,16 +606,18 @@ export default function Activities() {
           ? Math.max(1, Math.ceil((new Date(form.to_date).getTime() - new Date(form.from_date).getTime()) / 86400000) + 1)
           : null,
         description: form.description || null,
-        status: form.status,
         site_id: form.site_id || null,
         milestone_id: form.milestone_id || null,
         location_address: form.location_address || null,
         total_hours: form.total_hours || 0,
+        photo_urls: form.photos || [],
         ...(attachmentUrls.length > 0 ? { attachment_urls: attachmentUrls } : {}),
       };
       if (editingId) {
         await updateActivity(editingId, payload);
       } else {
+        payload.status = "planned";
+        payload.status_history = [{ status: "planned", at: new Date().toISOString() } as ActivityStatusEntry];
         const targetUserId = isManagerOrAdmin && form.owner_user_id ? form.owner_user_id : undefined;
         if (form.duration_type === "multiple_days" && form.from_date && form.to_date) {
           const start = new Date(form.from_date);
@@ -811,6 +817,7 @@ export default function Activities() {
                   isAdmin={isAdmin}
                   onEdit={handleOpenEdit}
                   onDelete={handleDelete}
+                  onOpenDetails={setDetailsActivity}
                   onStatusChanged={() => fetchActivities()}
                   updateActivity={updateActivity}
                   getStatusUpdateTargetId={getStatusUpdateTargetId}
@@ -819,6 +826,7 @@ export default function Activities() {
               ))
             )}
           </>
+
         )}
 
         {activeTab === "gps" && (
@@ -1105,21 +1113,24 @@ export default function Activities() {
                 </div>
               )}
             </div>
+            <div>
+              <Label className="text-xs">Photos</Label>
+              <div className="mt-1">
+                <ActivityPhotoManager
+                  photos={form.photos}
+                  editable
+                  onChange={(photos) => setForm((f) => ({ ...f, photos }))}
+                />
+              </div>
+            </div>
             <Collapsible>
+
               <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 rounded-md border bg-muted/50 text-sm font-medium hover:bg-muted transition-colors">
                 <span>Others</span>
                 <ChevronDown className="h-4 w-4 transition-transform duration-200 [&[data-state=open]>svg]:rotate-180" />
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-3 pt-3">
-                <div>
-                  <Label className="text-xs">Status</Label>
-                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {statusOptions.map((s) => <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+
                 <div>
                   <Label className="text-xs">Duration Type</Label>
                   <Select value={form.duration_type} onValueChange={(v) => setForm(prev => ({ ...prev, duration_type: v }))}>
@@ -1207,7 +1218,21 @@ export default function Activities() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Activity Details Dialog */}
+      <ActivityDetailsDialog
+        activity={detailsActivity}
+        open={!!detailsActivity}
+        onClose={() => setDetailsActivity(null)}
+        onSavePhotos={async (photos) => {
+          if (!detailsActivity) return;
+          await updateActivity(detailsActivity.id, { photo_urls: photos });
+          setDetailsActivity({ ...detailsActivity, photo_urls: photos });
+          fetchActivities();
+        }}
+      />
     </motion.div>
+
   );
 }
 
@@ -1425,17 +1450,21 @@ function GPSTrackView({
 }
 
 // ---- Activity Card Component ----
-function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateActivity, getStatusUpdateTargetId, selectedDateStr }: { a: ActivityType; isAdmin: boolean; onEdit: (a: ActivityType) => void; onDelete: (id: string) => void; onStatusChanged: () => void; updateActivity: (id: string, updates: Partial<ActivityType>) => Promise<void>; getStatusUpdateTargetId: (activity: ActivityType, targetDate: string) => Promise<string>; selectedDateStr: string }) {
+function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onStatusChanged, updateActivity, getStatusUpdateTargetId, selectedDateStr }: { a: ActivityType; isAdmin: boolean; onEdit: (a: ActivityType) => void; onDelete: (id: string) => void; onOpenDetails: (a: ActivityType) => void; onStatusChanged: () => void; updateActivity: (id: string, updates: Partial<ActivityType>) => Promise<void>; getStatusUpdateTargetId: (activity: ActivityType, targetDate: string) => Promise<string>; selectedDateStr: string }) {
   const [changingStatus, setChangingStatus] = useState(false);
 
   const handleStatusChange = async (newStatus: string) => {
     if (newStatus === a.status) return;
     setChangingStatus(true);
     try {
+      const now = new Date().toISOString();
       const updates: Partial<ActivityType> = {
         status: newStatus,
-        status_changed_at: new Date().toISOString(),
+        status_changed_at: now,
       };
+
+      const historyEntry: ActivityStatusEntry = { status: newStatus, at: now };
+
 
       // Capture GPS location
       try {
@@ -1444,6 +1473,8 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateAct
         updates.status_change_lng = pos.longitude;
         updates.location_lat = pos.latitude;
         updates.location_lng = pos.longitude;
+        historyEntry.lat = pos.latitude;
+        historyEntry.lng = pos.longitude;
 
         // Reverse geocode
         try {
@@ -1451,6 +1482,7 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateAct
           const geo = await res.json();
           if (geo.display_name) {
             updates.location_address = geo.display_name;
+            historyEntry.address = geo.display_name;
           }
         } catch {}
       } catch (geoErr) {
@@ -1460,15 +1492,18 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateAct
 
       // Set start/end time based on transition
       if (newStatus === "in_progress" && !a.start_time) {
-        updates.start_time = new Date().toISOString();
+        updates.start_time = now;
       } else if (newStatus === "completed") {
-        updates.end_time = new Date().toISOString();
+        updates.end_time = now;
       }
+
+      updates.status_history = [...(a.status_history || []), historyEntry];
 
       const targetId = await getStatusUpdateTargetId(a, selectedDateStr);
       await updateActivity(targetId, updates);
       toast.success(`Status changed to ${statusLabels[newStatus]}`);
       onStatusChanged();
+
     } catch (err: any) {
       toast.error(err.message || "Failed to update status");
     } finally {
@@ -1480,7 +1515,8 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateAct
     <Card className="shadow-card">
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onOpenDetails(a)}>
+
             <div className="flex items-center gap-2 mb-1">
               <Activity className="h-4 w-4 text-muted-foreground shrink-0" />
               <span className="font-semibold text-sm truncate">{a.activity_name}</span>
@@ -1542,34 +1578,29 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateAct
                 )}
               </p>
             )}
+            {a.photo_urls && a.photo_urls.length > 0 && (
+              <p className="text-[10px] text-muted-foreground ml-6 mt-1">
+                📷 {a.photo_urls.length} photo{a.photo_urls.length > 1 ? "s" : ""}
+              </p>
+            )}
           </div>
+
           <div className="flex flex-col items-end gap-2 shrink-0">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild disabled={changingStatus}>
-                <button className="cursor-pointer">
-                  <Badge variant="outline" className={`${statusColors[a.status] || ""} ${changingStatus ? "opacity-50" : "hover:opacity-80"}`}>
-                    {changingStatus ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                    {statusLabels[a.status] || a.status}
-                  </Badge>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel className="text-xs">Change Status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {statusOptions.map((s) => (
-                  <DropdownMenuItem
-                    key={s}
-                    onClick={() => handleStatusChange(s)}
-                    className={a.status === s ? "font-bold" : ""}
-                  >
-                    <Badge variant="outline" className={`${statusColors[s]} mr-2 text-[10px]`}>
-                      {statusLabels[s]}
-                    </Badge>
-                    {a.status === s && <CheckCircle2 className="h-3.5 w-3.5 ml-auto text-primary" />}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Badge variant="outline" className={statusColors[a.status] || ""}>
+              {statusLabels[a.status] || a.status}
+            </Badge>
+            {a.status === "planned" && (
+              <Button size="sm" className="h-8 gap-1.5" onClick={() => handleStatusChange("in_progress")} disabled={changingStatus}>
+                {changingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5" />}
+                Start / Check-In
+              </Button>
+            )}
+            {a.status === "in_progress" && (
+              <Button size="sm" className="h-8 gap-1.5 bg-success text-success-foreground hover:bg-success/90" onClick={() => handleStatusChange("completed")} disabled={changingStatus}>
+                {changingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                Complete
+              </Button>
+            )}
             <div className="flex gap-1">
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(a)}>
                 <Edit className="h-3.5 w-3.5" />
@@ -1579,6 +1610,7 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onStatusChanged, updateAct
               </Button>
             </div>
           </div>
+
         </div>
       </CardContent>
     </Card>

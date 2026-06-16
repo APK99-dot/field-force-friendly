@@ -2,6 +2,23 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+export interface ActivityStatusEntry {
+  status: string;
+  at: string;
+  lat?: number | null;
+  lng?: number | null;
+  address?: string | null;
+}
+
+export interface ActivityPhotoEntry {
+  url: string;
+  at: string;
+  lat?: number | null;
+  lng?: number | null;
+  address?: string | null;
+}
+
+
 export interface Activity {
   id: string;
   user_id: string;
@@ -28,6 +45,8 @@ export interface Activity {
   status_change_lat: number | null;
   status_change_lng: number | null;
   attachment_urls: string[];
+  status_history: ActivityStatusEntry[];
+  photo_urls: ActivityPhotoEntry[];
   created_at: string;
   // joined
   user_full_name?: string;
@@ -110,6 +129,8 @@ export function useActivities() {
         return {
           ...a,
           attachment_urls: a.attachment_urls || [],
+          status_history: Array.isArray(a.status_history) ? a.status_history : [],
+          photo_urls: Array.isArray(a.photo_urls) ? a.photo_urls : [],
           user_full_name: userMap[a.user_id] || "",
           project_name: a.project_id ? projectMap[a.project_id] || "" : "",
           site_name: siteInfo ? `${siteInfo.name}${!siteInfo.active ? " (Inactive)" : ""}` : "",
@@ -197,6 +218,8 @@ export function useActivities() {
         location_lng: activity.location_lng || null,
         location_address: activity.location_address || null,
         attachment_urls: activity.attachment_urls || [],
+        status_history: (activity.status_history as any) || [],
+        photo_urls: (activity.photo_urls as any) || [],
       })
       .select("*")
       .single();
@@ -208,7 +231,9 @@ export function useActivities() {
       ? ({
           ...data,
           attachment_urls: Array.isArray(data.attachment_urls) ? (data.attachment_urls as string[]) : [],
-        } as Activity)
+          status_history: Array.isArray((data as any).status_history) ? (data as any).status_history : [],
+          photo_urls: Array.isArray((data as any).photo_urls) ? (data as any).photo_urls : [],
+        } as unknown as Activity)
       : null;
   }, [toast]);
 
@@ -221,6 +246,7 @@ export function useActivities() {
       'project_id', 'site_id', 'milestone_id', 'location_address',
       'status_changed_at', 'status_change_lat', 'status_change_lng',
       'location_lat', 'location_lng', 'attachment_urls',
+      'status_history', 'photo_urls',
     ];
     fields.forEach((f) => {
       if ((updates as any)[f] !== undefined) updatePayload[f] = (updates as any)[f];
