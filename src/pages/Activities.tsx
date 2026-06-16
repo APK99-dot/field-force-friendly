@@ -148,6 +148,7 @@ const defaultForm = {
   site_id: "",
   milestone_id: "",
   site_flag: "" as string,
+  site_status: "" as string,
   location_address: "",
   total_hours: 0,
   owner_user_id: "",
@@ -276,7 +277,7 @@ export default function Activities() {
   useEffect(() => {
     if (!form.site_id || form.site_id === "__add_new_site__") {
       setSiteMilestones([]);
-      setForm(f => ({ ...f, site_flag: "" }));
+      setForm(f => ({ ...f, site_flag: "", site_status: "" }));
       return;
     }
     supabase
@@ -298,8 +299,8 @@ export default function Activities() {
           notes: m.notes,
         })));
       });
-    supabase.from("project_sites").select("flag").eq("id", form.site_id).maybeSingle().then(({ data }) => {
-      setForm(f => ({ ...f, site_flag: data?.flag || "green" }));
+    supabase.from("project_sites").select("flag, status").eq("id", form.site_id).maybeSingle().then(({ data }) => {
+      setForm(f => ({ ...f, site_flag: data?.flag || "green", site_status: data?.status || "planned" }));
     });
   }, [form.site_id]);
 
@@ -583,6 +584,7 @@ export default function Activities() {
       site_id: a.site_id || "",
       milestone_id: a.milestone_id || "",
       site_flag: "",
+      site_status: "",
       location_address: a.location_address || "",
       total_hours: a.total_hours || 0,
       owner_user_id: a.user_id,
@@ -893,6 +895,12 @@ export default function Activities() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              {form.site_status && form.site_id !== "__add_new_site__" && (
+                <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
+                  Site Status:
+                  <Badge variant="outline" className="text-[10px] capitalize">{form.site_status}</Badge>
+                </p>
+              )}
             </div>
             {/* Milestone selection (read-only, sourced from Site master) */}
             {form.site_id && form.site_id !== "__add_new_site__" && (
