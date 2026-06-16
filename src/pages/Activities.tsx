@@ -667,6 +667,22 @@ export default function Activities() {
             }, targetUserId, true);
           }
           toast.success(`Activity logged for ${payload.total_days} days`);
+        } else if (form.duration_type === "recurring") {
+          const dates = buildRecurringDates(form);
+          if (dates.length === 0) {
+            toast.error("Please set a valid recurrence schedule.");
+            setSaving(false);
+            return;
+          }
+          for (const dateStr of dates) {
+            await createActivity({
+              ...payload,
+              activity_date: dateStr,
+              start_time: form.start_time ? `${dateStr}T${form.start_time}:00` : null,
+              end_time: form.end_time ? `${dateStr}T${form.end_time}:00` : null,
+            }, targetUserId, true);
+          }
+          toast.success(`Recurring activity created for ${dates.length} occurrences`);
         } else {
           await createActivity(payload, targetUserId);
         }
