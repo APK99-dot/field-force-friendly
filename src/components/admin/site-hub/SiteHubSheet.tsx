@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import {
   Loader2, Edit, Users, Download, Building2, Image as ImageIcon,
-  Target, Activity as ActivityIcon, FileText, X, ChevronDown,
+  Target, Activity as ActivityIcon, FileText, X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
