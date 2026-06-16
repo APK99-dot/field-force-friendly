@@ -1517,7 +1517,7 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onStatusCha
                   <p className="text-xs text-muted-foreground">
                     🎯 {a.milestone_name}
                     <span className="ml-1.5 text-[10px]">
-                      ({a.milestone_status === "not_started" ? "Not Started" : a.milestone_status === "in_progress" ? "In Progress" : "Completed"})
+                      ({milestoneStatusLabel(a.milestone_status)})
                     </span>
                   </p>
                 )}
