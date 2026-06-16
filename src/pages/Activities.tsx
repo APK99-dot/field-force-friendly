@@ -816,6 +816,7 @@ export default function Activities() {
                   isAdmin={isAdmin}
                   onEdit={handleOpenEdit}
                   onDelete={handleDelete}
+                  onOpenDetails={setDetailsActivity}
                   onStatusChanged={() => fetchActivities()}
                   updateActivity={updateActivity}
                   getStatusUpdateTargetId={getStatusUpdateTargetId}
@@ -824,6 +825,7 @@ export default function Activities() {
               ))
             )}
           </>
+
         )}
 
         {activeTab === "gps" && (
