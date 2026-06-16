@@ -538,6 +538,11 @@ export default function SiteMasterManagement() {
                 </div>
               </ScrollArea>
             </div>
+            {editingSite && (
+              <Button variant="secondary" className="w-full" onClick={() => setMilestoneSite(editingSite)}>
+                <Target className="h-4 w-4 mr-1" /> Manage Milestones
+              </Button>
+            )}
             <Button className="w-full" onClick={handleSave} disabled={saving || !form.site_name.trim() || !form.start_date}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingSite ? "Update Site" : "Create Site"}
@@ -545,6 +550,13 @@ export default function SiteMasterManagement() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <SiteMilestonesDialog
+        siteId={milestoneSite?.id || null}
+        siteName={milestoneSite?.site_name}
+        open={!!milestoneSite}
+        onOpenChange={(o) => { if (!o) setMilestoneSite(null); }}
+      />
     </Card>
   );
 }
