@@ -170,7 +170,6 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                     ["activities", "Activities"],
                     ["gallery", "Gallery"],
                     ["documents", "Documents"],
-                    ["team", "Team Members"],
                   ].map(([v, l]) => (
                     <TabsTrigger
                       key={v}
@@ -273,20 +272,6 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                     )}
                   </TabsContent>
 
-                  <TabsContent value="team" className="mt-0">
-                    {assignedUsers.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-8 text-center">No users assigned.</p>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                        {assignedUsers.map((u) => (
-                          <div key={u.id} className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-card">
-                            <Avatar className="h-10 w-10"><AvatarFallback className="text-xs bg-primary/10 text-primary">{initials(u.full_name)}</AvatarFallback></Avatar>
-                            <span className="text-sm font-medium truncate">{u.full_name}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </TabsContent>
                 </div>
               </div>
             </Tabs>
