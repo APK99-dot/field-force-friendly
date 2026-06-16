@@ -166,7 +166,6 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                 <TabsList className="w-full max-w-6xl mx-auto justify-start overflow-x-auto bg-transparent p-0 h-auto gap-1">
                   {[
                     ["overview", "Overview"],
-                    ["progress", "Progress"],
                     ["milestones", "Milestones"],
                     ["activities", "Activities"],
                     ["gallery", "Gallery"],
