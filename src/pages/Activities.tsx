@@ -979,7 +979,7 @@ export default function Activities() {
                 <Label className="text-xs">Activity Type *</Label>
                 <Select value={form.activity_type} onValueChange={(v) => {
                     if (v === "__add_new__") {
-                      navigate("/admin/activity-types");
+                      navigate("/activity-types");
                       return;
                     }
                     setForm({ ...form, activity_type: v });

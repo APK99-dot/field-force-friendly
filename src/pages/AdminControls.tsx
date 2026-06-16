@@ -58,14 +58,6 @@ const allAdminModules = [
     path: "/admin/company",
     permission: "field_admin_company_profile",
   },
-  {
-    title: "Activity Type Master",
-    description: "Manage activity types shown in the Activities module",
-    icon: ListChecks,
-    color: "bg-green-100 text-green-600",
-    path: "/admin/activity-types",
-    permission: "field_admin_attendance_mgmt",
-  },
 ];
 
 const container = {

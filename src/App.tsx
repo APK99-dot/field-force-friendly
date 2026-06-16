@@ -78,7 +78,8 @@ const App = () => (
             <Route path="/admin/company" element={<Suspense fallback={<PageFallback />}><CompanyProfile /></Suspense>} />
             <Route path="/admin/sites" element={<Navigate to="/sites" replace />} />
             <Route path="/sites" element={<Suspense fallback={<PageFallback />}><SiteMasterPage /></Suspense>} />
-            <Route path="/admin/activity-types" element={<Suspense fallback={<PageFallback />}><ActivityTypeMasterPage /></Suspense>} />
+            <Route path="/activity-types" element={<Suspense fallback={<PageFallback />}><ActivityTypeMasterPage /></Suspense>} />
+            <Route path="/admin/activity-types" element={<Navigate to="/activity-types" replace />} />
             <Route path="/projects" element={<Suspense fallback={<PageFallback />}><ProjectsPage /></Suspense>} />
             <Route path="/projects/:id" element={<Suspense fallback={<PageFallback />}><ProjectDetailPage /></Suspense>} />
             <Route path="/templates" element={<Suspense fallback={<PageFallback />}><TemplatesPage /></Suspense>} />
