@@ -62,6 +62,7 @@ import { Separator } from "@/components/ui/separator";
 import ActivityReportGenerator from "@/components/activities/ActivityReportGenerator";
 import ActivityPhotoManager from "@/components/activities/ActivityPhotoManager";
 import ActivityDetailsDialog from "@/components/activities/ActivityDetailsDialog";
+import ActivityCalendar, { type CalendarView } from "@/components/activities/ActivityCalendar";
 import { milestoneStatusLabel } from "@/components/admin/SiteMilestonesDialog";
 
 interface MilestoneOption {
@@ -169,6 +170,7 @@ export default function Activities() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [detailsActivity, setDetailsActivity] = useState<ActivityType | null>(null);
+  const [calendarView, setCalendarView] = useState<CalendarView>("week");
   const [saving, setSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
@@ -527,6 +529,14 @@ export default function Activities() {
     }, new Set<string>());
   }, [activities, selectedUserId, currentUserId]);
 
+  // Activities scoped to the active user selection, for the calendar grid
+  const calendarActivities = useMemo(() => {
+    if (selectedUserId === "all") return activities;
+    const uid = selectedUserId || currentUserId;
+    if (!uid) return [];
+    return activities.filter((a) => a.user_id === uid);
+  }, [activities, selectedUserId, currentUserId]);
+
   // GPS distance calculation
   const gpsStats = useMemo(() => {
     const pts = gpsData.points;
@@ -783,6 +793,18 @@ export default function Activities() {
           <p className="text-lg font-bold text-violet-600">{stats.totalHours}h</p>
           <p className="text-[10px] text-muted-foreground">Hours</p>
         </div>
+      </motion.div>
+
+      {/* Activity Calendar (Day / Week / Month) */}
+      <motion.div variants={item} className="px-4 pb-1">
+        <ActivityCalendar
+          activities={calendarActivities}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          onOpenActivity={setDetailsActivity}
+          view={calendarView}
+          onChangeView={setCalendarView}
+        />
       </motion.div>
 
       {/* Activity Report Generator - visible to admins and managers with subordinates */}
