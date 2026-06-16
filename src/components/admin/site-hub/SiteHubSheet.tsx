@@ -243,34 +243,10 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="progress" className="mt-0 space-y-5">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="rounded-xl border bg-card p-4 shadow-card text-center">
-                        <p className="text-2xl font-bold">{avgProgress}%</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">Average completion</p>
-                      </div>
-                      <div className="rounded-xl border bg-card p-4 shadow-card text-center">
-                        <p className="text-2xl font-bold">{completedMs}/{milestones.length}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">Milestones completed</p>
-                      </div>
-                      <div className="rounded-xl border bg-card p-4 shadow-card text-center">
-                        <p className="text-2xl font-bold">{activities.length}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">Activities logged</p>
-                      </div>
-                    </div>
-                    <div className="rounded-xl border bg-card p-4 shadow-card space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground font-medium">Overall progress</span>
-                        <span className="font-bold">{avgProgress}%</span>
-                      </div>
-                      <Progress value={avgProgress} className="h-3" />
-                    </div>
-                    <SiteMilestoneList milestones={milestones} />
+                  <TabsContent value="milestones" className="mt-0">
+                    <SiteMilestoneList milestones={milestones} activities={activities} />
                   </TabsContent>
 
-                  <TabsContent value="milestones" className="mt-0">
-                    <SiteMilestoneList milestones={milestones} />
-                  </TabsContent>
 
                   <TabsContent value="gallery" className="mt-0">
                     <SiteGallery gallery={gallery} onActivityClick={openActivityById} />
