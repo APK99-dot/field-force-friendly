@@ -170,7 +170,6 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                     ["activities", "Activities"],
                     ["gallery", "Gallery"],
                     ["documents", "Documents"],
-                    ["team", "Team Members"],
                   ].map(([v, l]) => (
                     <TabsTrigger
                       key={v}
