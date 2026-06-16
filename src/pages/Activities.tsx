@@ -542,6 +542,7 @@ export default function Activities() {
     setForm({
       activity_name: a.activity_name,
       activity_type: a.activity_type,
+      custom_activity_name: a.activity_type?.trim().toLowerCase() === "other" ? a.activity_name : "",
       activity_date: a.activity_date,
       start_time: a.start_time ? format(parseISO(a.start_time), "HH:mm") : "",
       end_time: a.end_time ? format(parseISO(a.end_time), "HH:mm") : "",
