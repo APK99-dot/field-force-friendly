@@ -39,6 +39,7 @@ import { Plus, Edit, ToggleLeft, ToggleRight, Loader2, Building2, Users, Search,
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import SiteMilestonesDialog from "@/components/admin/SiteMilestonesDialog";
 
 type SiteFlag = "red" | "orange" | "green";
 
@@ -55,15 +56,7 @@ interface Site {
   flag: SiteFlag;
 }
 
-interface SiteMilestone {
-  id?: string;
-  name: string;
-  start_date: string;
-  end_date: string;
-  status: string;
-  priority: string;
-  _delete?: boolean;
-}
+
 
 interface UserOption {
   id: string;
@@ -112,11 +105,11 @@ export default function SiteMasterManagement() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [siteAssignments, setSiteAssignments] = useState<Record<string, string[]>>({});
   const [userSearch, setUserSearch] = useState("");
-  const [milestones, setMilestones] = useState<SiteMilestone[]>([]);
-  const [detailMilestones, setDetailMilestones] = useState<SiteMilestone[]>([]);
 
   // Detail sheet state
   const [detailSite, setDetailSite] = useState<Site | null>(null);
+  // Milestone management dialog
+  const [milestoneSite, setMilestoneSite] = useState<Site | null>(null);
 
   const fetchUsers = useCallback(async () => {
     const { data } = await supabase.from("users").select("id, full_name").eq("is_active", true).order("full_name");
@@ -147,37 +140,17 @@ export default function SiteMasterManagement() {
     setLoading(false);
   }, []);
 
-  const fetchMilestonesForSite = useCallback(async (siteId: string) => {
-    const { data } = await supabase.from("site_milestones").select("*").eq("site_id", siteId).order("start_date");
-    return (data || []).map((m: any) => ({
-      id: m.id,
-      name: m.name,
-      start_date: m.start_date,
-      end_date: m.end_date,
-      status: m.status,
-      priority: m.priority || "medium",
-    })) as SiteMilestone[];
-  }, []);
-
   useEffect(() => {
     fetchSites();
     fetchUsers();
     fetchAssignments();
   }, [fetchSites, fetchUsers, fetchAssignments]);
 
-  // Load milestones when detail panel opens
-  useEffect(() => {
-    if (detailSite) {
-      fetchMilestonesForSite(detailSite.id).then(setDetailMilestones);
-    }
-  }, [detailSite, fetchMilestonesForSite]);
-
   const handleOpenCreate = () => {
     setEditingSite(null);
     setForm({ site_name: "", description: "", start_date: new Date().toISOString().split("T")[0], end_date: "", flag: "green" });
     setSelectedUserIds([]);
     setUserSearch("");
-    setMilestones([]);
     setShowDialog(true);
   };
 
@@ -186,8 +159,6 @@ export default function SiteMasterManagement() {
     setForm({ site_name: site.site_name, description: site.description || "", start_date: site.start_date || "", end_date: site.end_date || "", flag: site.flag || "green" });
     setSelectedUserIds(siteAssignments[site.id] || []);
     setUserSearch("");
-    const ms = await fetchMilestonesForSite(site.id);
-    setMilestones(ms);
     setShowDialog(true);
   };
 
@@ -249,25 +220,7 @@ export default function SiteMasterManagement() {
         );
       }
 
-      // Save milestones
-      const existingMs = milestones.filter(m => m.id);
-      const newMs = milestones.filter(m => !m.id && !m._delete);
-      const toDeleteMs = existingMs.filter(m => m._delete);
-      const toUpdateMs = existingMs.filter(m => !m._delete);
 
-      if (toDeleteMs.length > 0) {
-        await supabase.from("site_milestones").delete().in("id", toDeleteMs.map(m => m.id!));
-      }
-      for (const m of toUpdateMs) {
-        await supabase.from("site_milestones").update({
-          name: m.name, start_date: m.start_date, end_date: m.end_date, status: m.status, priority: m.priority,
-        }).eq("id", m.id!);
-      }
-      if (newMs.length > 0) {
-        await supabase.from("site_milestones").insert(
-          newMs.map(m => ({ site_id: siteId, name: m.name, start_date: m.start_date, end_date: m.end_date, status: m.status, priority: m.priority }))
-        );
-      }
 
       setShowDialog(false);
       setDetailSite(null);
@@ -356,6 +309,7 @@ export default function SiteMasterManagement() {
                 <TableHead>Site Name</TableHead>
                 <TableHead>Assigned Users</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Milestones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -385,6 +339,11 @@ export default function SiteMasterManagement() {
                       <Badge variant={site.is_active ? "default" : "secondary"}>
                         {site.is_active ? "Active" : "Inactive"}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <Button size="sm" variant="outline" onClick={() => setMilestoneSite(site)}>
+                        <Target className="h-3.5 w-3.5 mr-1" /> Milestones
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
@@ -459,6 +418,13 @@ export default function SiteMasterManagement() {
                 })()}
               </div>
 
+
+              {/* Milestones */}
+              <div className="pt-2 border-t">
+                <Button size="sm" variant="secondary" className="w-full" onClick={() => setMilestoneSite(detailSite)}>
+                  <Target className="h-4 w-4 mr-1" /> Manage Milestones
+                </Button>
+              </div>
 
               {/* Actions */}
               <div className="flex gap-2 pt-2 border-t">
@@ -570,6 +536,11 @@ export default function SiteMasterManagement() {
                 </div>
               </ScrollArea>
             </div>
+            {editingSite && (
+              <Button variant="secondary" className="w-full" onClick={() => setMilestoneSite(editingSite)}>
+                <Target className="h-4 w-4 mr-1" /> Manage Milestones
+              </Button>
+            )}
             <Button className="w-full" onClick={handleSave} disabled={saving || !form.site_name.trim() || !form.start_date}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingSite ? "Update Site" : "Create Site"}
@@ -577,6 +548,13 @@ export default function SiteMasterManagement() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <SiteMilestonesDialog
+        siteId={milestoneSite?.id || null}
+        siteName={milestoneSite?.site_name}
+        open={!!milestoneSite}
+        onOpenChange={(o) => { if (!o) setMilestoneSite(null); }}
+      />
     </Card>
   );
 }
