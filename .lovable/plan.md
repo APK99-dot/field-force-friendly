@@ -1,47 +1,55 @@
-# Fix iOS PWA Web Push Delivery
+# Activities Field Execution Tracking
 
-## Diagnosis (confirmed via live test + DB)
+Enhance the Activities module so field staff can start, complete, geo-stamp, and photo-document each activity, with a full audit timeline.
 
-The Web Push subscription pipeline on iOS is healthy. The failure is purely in the **send** step of the `dispatch-notification` edge function.
+## What changes for the user
 
-Evidence:
-- `web_push_subscriptions` contains 2 valid iOS rows (Apple endpoints, p256dh + auth keys). One belongs to admin **Suyog**, who should receive leave/regularisation alerts.
-- `notify_actor_chain` correctly resolves the admin/manager recipients — the in-app bell row for the leave request was inserted for Suyog.
-- A live diagnostic dispatch to Suyog returned:
+- The **Status dropdown is removed** from the activity create/edit form. New activities always start as **Planned**.
+- Each activity card gets two action buttons:
+  - **Start / Check-In** (Planned → Work In Progress) — captures GPS + timestamp.
+  - **Complete ✓** (In Progress → Completed) — captures GPS + timestamp.
+- A new **Activity Details** view (opened by tapping a card) shows: current status, full status history timeline (each change with time + location), geo-stamp info, start/end times, and all uploaded photos.
+- **Photos**: capture from camera or upload from gallery/files, multiple per activity, each tagged with the GPS location and time it was added.
+- Works across Web, Mobile browser, APK (Capacitor), and PWA, reusing existing permission-aware helpers.
 
-```text
-"web_push": { "sent": 0, "failed": 1, "pruned": 0 }
-```
+## Data model (migration)
 
-`failed: 1` with `pruned: 0` means the send threw an exception that was **not** a 404/410 expired subscription. The send fails inside `npm:web-push@3.6.7`, which does not run correctly in the Supabase/Deno edge runtime (its Node `https` + crypto payload-encryption path throws). FCM works only because that path is hand-rolled with Web Crypto; Web Push is the one path still depending on the broken npm library. The error is currently swallowed by a `console.warn` in the catch block, which is why nothing reaches the device and the result looked "successful".
+Add to `activity_events`:
+- `status_history jsonb not null default '[]'` — array of `{ status, at, lat, lng, address }` entries.
+- `photo_urls jsonb not null default '[]'` — array of `{ url, at, lat, lng, address }` entries.
 
-## Fix
+Re-affirm existing GRANTs (table already has policies; no new table). Keep existing `status`, `status_changed_at`, `status_change_lat/lng`, `location_lat/lng/address`, `start_time`, `end_time` columns — they continue to hold the latest values for backward compatibility and map markers.
 
-Rewrite the `sendWebPush` helper in `supabase/functions/dispatch-notification/index.ts` to send Web Push natively with Web Crypto — no `npm:web-push` dependency.
+New storage bucket **`activity-photos`** (public, like `activity-audio`) with `storage.objects` RLS policies allowing authenticated users to upload/read their own folder (`{user_id}/...`) and read for viewing.
 
-Implementation pieces (all standard Web Crypto, same primitives already used for FCM JWT in this file):
+## Implementation
 
-1. **Remove** `import webpush from "npm:web-push@3.6.7"` and the `webpush.setVapidDetails` / `webpush.sendNotification` calls.
-2. **VAPID auth (RFC 8292):** build an ES256 JWT signed with the VAPID private key (`VAPID_PRIVATE_KEY`), with `aud` = the push endpoint origin, `exp` ~12h, `sub` = `VAPID_SUBJECT`. Import the key via `crypto.subtle.importKey` (the VAPID keys are URL-safe base64; convert the raw private key to a JWK/PKCS8 form for `ECDSA P-256`).
-3. **Payload encryption (RFC 8291, aes128gcm):**
-   - Generate an ephemeral P-256 keypair.
-   - Derive shared secret via ECDH with the subscription `p256dh`.
-   - HKDF (SHA-256) using the subscription `auth` secret and salt to derive content-encryption key + nonce.
-   - Encrypt the JSON payload with `AES-128-GCM` and frame it in the aes128gcm content-encoding header (salt + record size + ephemeral public key + ciphertext).
-4. **POST to the endpoint** with headers: `Authorization: vapid t=<jwt>, k=<vapid public key>`, `Content-Encoding: aes128gcm`, `TTL`, `Content-Type: application/octet-stream`, `Urgency: high`.
-5. **Status handling:** keep the existing prune logic — on `404`/`410` add to `staleIds` and delete; log other non-2xx with the response body so future failures are visible. Return `{ sent, failed, pruned }` as before.
-6. **Better logging:** log the endpoint host + status code on failure (instead of swallowing) so the result and logs reflect real outcomes.
+### Form (`src/pages/Activities.tsx`)
+- Remove the Status `<Select>` block inside the "Others" collapsible (lines ~1114-1122) and drop `status` from `defaultForm`, `handleOpenEdit`, and the save payload (new records default to `planned` server-side default / explicit `planned`).
+- Add a **Photos** section in the form: a "Take Photo" button (opens existing `CameraCapture`) and an "Upload" file input (`accept="image/*" multiple`). Selected/captured images are compressed via `compressImage`, uploaded to `activity-photos`, GPS-tagged via `getCurrentPosition` + Nominatim reverse geocode, and appended to a local `photos` state, then saved into `photo_urls` on save.
 
-Optionally extract the encryption into a small inline helper within the same `index.ts` (edge functions must stay single-file).
+### Status workflow (ActivityCard)
+- Replace the status dropdown menu with explicit buttons:
+  - When `status === 'planned'`: show **Start / Check-In**.
+  - When `status === 'in_progress'`: show **Complete ✓**.
+  - When `completed`: show a static badge.
+- Reuse existing `handleStatusChange` logic (GPS capture + reverse geocode + start/end time) and additionally **append an entry to `status_history`** on each transition. Keep `status_change_*` and `location_*` updated as today.
+- Keep the green status badge for display.
 
-## Validation
+### Details view
+- Add an **Activity Details** dialog (safe-area-aware, consistent with existing dialogs) opened on card tap. Sections:
+  - Current status badge + activity name/type.
+  - **Status history timeline**: each `status_history` entry with label, formatted time, and `lat,lng` / address.
+  - **Geo stamp**: latest location address + coordinates.
+  - **Times**: start_time / end_time.
+  - **Photos**: responsive grid of all `photo_urls` with capture time + location caption; tap to view full size.
+- Photo capture/upload also available here for in-progress activities.
 
-1. Deploy the updated function.
-2. Re-run the same diagnostic dispatch to admin Suyog (`f21e7370-…`) and confirm the response shows `web_push: { sent: 1, failed: 0 }`.
-3. On the iPhone 15 PWA (Home Screen), confirm the banner appears.
-4. Trigger a real leave request from a normal user and confirm the admin/manager receives the iOS system notification, and that `notify_actor_chain` resolves + sends to the Web Push subscription.
+### Hook (`src/hooks/useActivities.ts`)
+- Add `status_history` and `photo_urls` to the `Activity` interface, the `updateActivity` field whitelist, the `createActivity` insert, and default them to `[]` in the mapper.
 
-## Notes
+### Cross-platform handling
+- Photo capture uses existing `CameraCapture` (web/PWA) and the file input fallback; on native, `takeNativePhoto` from `nativePermissions` is attempted first. GPS uses existing `getCurrentPosition` (native plugin → web fallback). No new permission code needed.
 
-- No frontend, subscription, or VAPID-key changes are required — keys and subscriptions are already correct and consistent.
-- APK/FCM behaviour is untouched.
+## Verification
+- Build passes; create an activity (defaults to Planned), Start it (status → Work In Progress with geo + timestamp), add camera + gallery photos, Complete it, then open Details to confirm timeline, geo stamp, times, and all photos render. Spot-check on mobile viewport.

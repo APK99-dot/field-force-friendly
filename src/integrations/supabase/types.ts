@@ -31,6 +31,7 @@ export type Database = {
           location_lat: number | null
           location_lng: number | null
           milestone_id: string | null
+          photo_urls: Json
           project_id: string | null
           remarks: string | null
           retailer_id: string | null
@@ -40,6 +41,7 @@ export type Database = {
           status_change_lat: number | null
           status_change_lng: number | null
           status_changed_at: string | null
+          status_history: Json
           to_date: string | null
           total_days: number | null
           total_hours: number | null
@@ -62,6 +64,7 @@ export type Database = {
           location_lat?: number | null
           location_lng?: number | null
           milestone_id?: string | null
+          photo_urls?: Json
           project_id?: string | null
           remarks?: string | null
           retailer_id?: string | null
@@ -71,6 +74,7 @@ export type Database = {
           status_change_lat?: number | null
           status_change_lng?: number | null
           status_changed_at?: string | null
+          status_history?: Json
           to_date?: string | null
           total_days?: number | null
           total_hours?: number | null
@@ -93,6 +97,7 @@ export type Database = {
           location_lat?: number | null
           location_lng?: number | null
           milestone_id?: string | null
+          photo_urls?: Json
           project_id?: string | null
           remarks?: string | null
           retailer_id?: string | null
@@ -102,6 +107,7 @@ export type Database = {
           status_change_lat?: number | null
           status_change_lng?: number | null
           status_changed_at?: string | null
+          status_history?: Json
           to_date?: string | null
           total_days?: number | null
           total_hours?: number | null
