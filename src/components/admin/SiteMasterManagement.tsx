@@ -453,88 +453,17 @@ export default function SiteMasterManagement() {
         )}
       </CardContent>
 
-      {/* Detail Side Panel */}
-      <Sheet open={!!detailSite} onOpenChange={(open) => { if (!open) setDetailSite(null); }}>
-        <SheetContent className="sm:max-w-md overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{detailSite?.site_name}</SheetTitle>
-            <SheetDescription>Site details and actions</SheetDescription>
-          </SheetHeader>
-          {detailSite && (
-            <div className="space-y-5 mt-4">
-              {detailSite.description && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Description</Label>
-                  <p className="text-sm">{detailSite.description}</p>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Start Date</Label>
-                  <p className="text-sm">{detailSite.start_date ? format(new Date(detailSite.start_date), "dd MMM yyyy") : "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">End Date</Label>
-                  <p className="text-sm">{detailSite.end_date ? format(new Date(detailSite.end_date), "dd MMM yyyy") : "Ongoing"}</p>
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Status</Label>
-                <div className="mt-1">
-                  <Badge variant={STATUS_VARIANT[detailSite.status] || "secondary"}>
-                    {siteStatusLabel(detailSite.status)}
-                  </Badge>
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
-                  <Users className="h-3.5 w-3.5" /> Assigned Users
-                </Label>
-                {(() => {
-                  const names = getAssignedNames(detailSite.id);
-                  if (names.length === 0) return <p className="text-sm text-muted-foreground">No users assigned</p>;
-                  return (
-                    <div className="space-y-1.5">
-                      {names.map((name, i) => {
-                        const initials = name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
-                        return (
-                          <div key={i} className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarFallback className="text-[10px] bg-muted">{initials}</AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm">{name}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-              </div>
-              {detailSite.attachment_urls.length > 0 && (
-                <div>
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
-                    <Paperclip className="h-3.5 w-3.5" /> Attachments
-                  </Label>
-                  <div className="space-y-1.5">
-                    {detailSite.attachment_urls.map((a, i) => (
-                      <button key={i} type="button" onClick={() => openAttachment(a)}
-                        className="flex items-center gap-2 text-sm text-primary hover:underline w-full text-left">
-                        <Download className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{attachmentName(a)}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="pt-2 border-t">
-                <Button size="sm" variant="outline" className="w-full" onClick={() => handleOpenEdit(detailSite)}>
-                  <Edit className="h-4 w-4 mr-1" /> Edit Site
-                </Button>
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+      {/* Project Hub */}
+      <SiteHubSheet
+        site={detailSite as HubSite | null}
+        open={!!detailSite}
+        onClose={() => setDetailSite(null)}
+        onEdit={(s) => {
+          const full = sites.find((x) => x.id === s.id);
+          if (full) handleOpenEdit(full);
+        }}
+      />
+
 
       {/* Create/Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
