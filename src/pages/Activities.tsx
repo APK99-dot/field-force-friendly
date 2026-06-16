@@ -1110,7 +1110,18 @@ export default function Activities() {
                 </div>
               )}
             </div>
+            <div>
+              <Label className="text-xs">Photos</Label>
+              <div className="mt-1">
+                <ActivityPhotoManager
+                  photos={form.photos}
+                  editable
+                  onChange={(photos) => setForm((f) => ({ ...f, photos }))}
+                />
+              </div>
+            </div>
             <Collapsible>
+
               <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 rounded-md border bg-muted/50 text-sm font-medium hover:bg-muted transition-colors">
                 <span>Others</span>
                 <ChevronDown className="h-4 w-4 transition-transform duration-200 [&[data-state=open]>svg]:rotate-180" />
