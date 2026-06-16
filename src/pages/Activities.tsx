@@ -77,6 +77,7 @@ import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 const LeafletMap = lazy(() => import("@/components/LeafletMap"));
 
 const statusOptions = ["planned", "in_progress", "completed"];
+void statusOptions;
 
 const statusColors: Record<string, string> = {
   planned: "bg-muted text-muted-foreground",
