@@ -277,29 +277,8 @@ export default function Activities() {
     fetchActivityTypes();
   }, [fetchActivityTypes]);
 
-  const handleAddNewType = async () => {
-    const trimmed = newTypeName.trim();
-    if (!trimmed) return;
-    if (activityTypes.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
-      toast.error("This activity type already exists");
-      return;
-    }
-    setAddingType(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from("activity_types_master").insert({ name: trimmed, created_by: user?.id });
-      if (error) throw error;
-      await fetchActivityTypes();
-      setForm((f) => ({ ...f, activity_type: trimmed }));
-      setNewTypeName("");
-      setShowAddTypeDialog(false);
-      toast.success(`"${trimmed}" added`);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to add type");
-    } finally {
-      setAddingType(false);
-    }
-  };
+
+
 
   // Timeline state
   const [attendance, setAttendance] = useState<{ check_in_time: string | null; check_out_time: string | null } | null>(null);
