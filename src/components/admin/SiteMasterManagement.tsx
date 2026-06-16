@@ -392,6 +392,7 @@ export default function SiteMasterManagement() {
       setShowDialog(false);
       fetchSites();
       fetchAssignments();
+      fetchMilestoneStats();
     } catch (err: any) {
       toast.error(err.message || "Failed to save site");
     } finally {
