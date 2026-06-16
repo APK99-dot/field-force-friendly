@@ -12,6 +12,7 @@ import {
   Building2,
   ArrowLeft,
   Search,
+  ListChecks,
   
 } from "lucide-react";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
@@ -56,6 +57,14 @@ const allAdminModules = [
     color: "bg-indigo-100 text-indigo-600",
     path: "/admin/company",
     permission: "field_admin_company_profile",
+  },
+  {
+    title: "Activity Type Master",
+    description: "Manage activity types shown in the Activities module",
+    icon: ListChecks,
+    color: "bg-green-100 text-green-600",
+    path: "/admin/activity-types",
+    permission: "field_admin_attendance_mgmt",
   },
 ];
 

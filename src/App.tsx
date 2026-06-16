@@ -28,6 +28,7 @@ const PendingApprovals = lazy(() => import("./pages/PendingApprovals"));
 const Activities = lazy(() => import("./pages/Activities"));
 const ActivityTimeline = lazy(() => import("./pages/ActivityTimeline"));
 const SiteMasterPage = lazy(() => import("./pages/SiteMaster"));
+const ActivityTypeMasterPage = lazy(() => import("./pages/ActivityTypeMaster"));
 const InstallApp = lazy(() => import("./pages/InstallApp"));
 const Profile = lazy(() => import("./pages/Profile"));
 const MyTeam = lazy(() => import("./pages/MyTeam"));
@@ -77,6 +78,7 @@ const App = () => (
             <Route path="/admin/company" element={<Suspense fallback={<PageFallback />}><CompanyProfile /></Suspense>} />
             <Route path="/admin/sites" element={<Navigate to="/sites" replace />} />
             <Route path="/sites" element={<Suspense fallback={<PageFallback />}><SiteMasterPage /></Suspense>} />
+            <Route path="/admin/activity-types" element={<Suspense fallback={<PageFallback />}><ActivityTypeMasterPage /></Suspense>} />
             <Route path="/projects" element={<Suspense fallback={<PageFallback />}><ProjectsPage /></Suspense>} />
             <Route path="/projects/:id" element={<Suspense fallback={<PageFallback />}><ProjectDetailPage /></Suspense>} />
             <Route path="/templates" element={<Suspense fallback={<PageFallback />}><TemplatesPage /></Suspense>} />

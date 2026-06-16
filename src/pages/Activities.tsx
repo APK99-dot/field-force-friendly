@@ -163,9 +163,6 @@ export default function Activities() {
 
   // Dynamic activity types from DB
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
-  const [showAddTypeDialog, setShowAddTypeDialog] = useState(false);
-  const [newTypeName, setNewTypeName] = useState("");
-  const [addingType, setAddingType] = useState(false);
 
   // Add new site dialog
   const [showAddSiteDialog, setShowAddSiteDialog] = useState(false);
@@ -280,29 +277,8 @@ export default function Activities() {
     fetchActivityTypes();
   }, [fetchActivityTypes]);
 
-  const handleAddNewType = async () => {
-    const trimmed = newTypeName.trim();
-    if (!trimmed) return;
-    if (activityTypes.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
-      toast.error("This activity type already exists");
-      return;
-    }
-    setAddingType(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from("activity_types_master").insert({ name: trimmed, created_by: user?.id });
-      if (error) throw error;
-      await fetchActivityTypes();
-      setForm((f) => ({ ...f, activity_type: trimmed }));
-      setNewTypeName("");
-      setShowAddTypeDialog(false);
-      toast.success(`"${trimmed}" added`);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to add type");
-    } finally {
-      setAddingType(false);
-    }
-  };
+
+
 
   // Timeline state
   const [attendance, setAttendance] = useState<{ check_in_time: string | null; check_out_time: string | null } | null>(null);
@@ -1003,7 +979,7 @@ export default function Activities() {
                 <Label className="text-xs">Activity Type *</Label>
                 <Select value={form.activity_type} onValueChange={(v) => {
                     if (v === "__add_new__") {
-                      setShowAddTypeDialog(true);
+                      navigate("/admin/activity-types");
                       return;
                     }
                     setForm({ ...form, activity_type: v });
@@ -1191,27 +1167,6 @@ export default function Activities() {
         </DialogContent>
       </Dialog>
 
-      {/* Add New Activity Type Dialog */}
-      <Dialog open={showAddTypeDialog} onOpenChange={setShowAddTypeDialog}>
-        <DialogContent className="sm:max-w-[360px]">
-          <DialogHeader>
-            <DialogTitle>Add New Activity Type</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 mt-2">
-            <Input
-              placeholder="e.g. Quality Check"
-              value={newTypeName}
-              onChange={(e) => setNewTypeName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddNewType()}
-              autoFocus
-            />
-            <Button className="w-full" onClick={handleAddNewType} disabled={addingType || !newTypeName.trim()}>
-              {addingType ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-              {addingType ? "Adding..." : "Add Type"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Add New Site Dialog */}
       <Dialog open={showAddSiteDialog} onOpenChange={setShowAddSiteDialog}>
