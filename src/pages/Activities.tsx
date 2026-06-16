@@ -276,14 +276,28 @@ export default function Activities() {
   useEffect(() => {
     if (!form.site_id || form.site_id === "__add_new_site__") {
       setSiteMilestones([]);
-      setNewMilestones([]);
       setForm(f => ({ ...f, site_flag: "" }));
       return;
     }
-    supabase.from("site_milestones").select("id, name, status").eq("site_id", form.site_id).order("start_date").then(({ data }) => {
-      setSiteMilestones((data || []).map((m: any) => ({ id: m.id, name: m.name, status: m.status })));
-    });
-    setNewMilestones([]);
+    supabase
+      .from("site_milestones")
+      .select("id, name, status, percent_complete, start_date, end_date, actual_start_date, actual_end_date, notes")
+      .eq("site_id", form.site_id)
+      .eq("is_active", true)
+      .order("start_date")
+      .then(({ data }) => {
+        setSiteMilestones((data || []).map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          status: m.status,
+          percent_complete: m.percent_complete ?? 0,
+          start_date: m.start_date,
+          end_date: m.end_date,
+          actual_start_date: m.actual_start_date,
+          actual_end_date: m.actual_end_date,
+          notes: m.notes,
+        })));
+      });
     supabase.from("project_sites").select("flag").eq("id", form.site_id).maybeSingle().then(({ data }) => {
       setForm(f => ({ ...f, site_flag: data?.flag || "green" }));
     });
