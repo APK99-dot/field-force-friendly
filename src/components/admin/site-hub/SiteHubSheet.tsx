@@ -110,7 +110,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
-          className="p-0 gap-0 max-w-none w-screen h-[100dvh] sm:h-[92vh] sm:w-[94vw] sm:max-w-5xl sm:rounded-2xl flex flex-col overflow-hidden border-0 sm:border"
+          className="p-0 gap-0 max-w-none w-screen h-[100dvh] sm:h-[92vh] sm:w-[94vw] sm:max-w-5xl sm:rounded-2xl flex flex-col overflow-hidden border-0 sm:border [&>button]:hidden"
         >
           {/* Hero header */}
           <div className="relative shrink-0 bg-gradient-primary text-primary-foreground px-4 sm:px-6 pt-5 pb-5 safe-top">
