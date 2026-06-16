@@ -120,6 +120,7 @@ const FLAG_CONFIG: Record<SiteFlag, { color: string; label: string }> = {
 const defaultForm = {
   activity_name: "",
   activity_type: "",
+  custom_activity_name: "",
   activity_date: format(new Date(), "yyyy-MM-dd"),
   start_time: "",
   end_time: "",
@@ -541,6 +542,7 @@ export default function Activities() {
     setForm({
       activity_name: a.activity_name,
       activity_type: a.activity_type,
+      custom_activity_name: a.activity_type?.trim().toLowerCase() === "other" ? a.activity_name : "",
       activity_date: a.activity_date,
       start_time: a.start_time ? format(parseISO(a.start_time), "HH:mm") : "",
       end_time: a.end_time ? format(parseISO(a.end_time), "HH:mm") : "",
@@ -563,6 +565,11 @@ export default function Activities() {
 
   const handleSave = async () => {
     if (!form.activity_type) return;
+    const isOther = form.activity_type.trim().toLowerCase() === "other";
+    if (isOther && !form.custom_activity_name.trim()) {
+      toast.error("Please enter a name for the 'Other' activity type.");
+      return;
+    }
     setSaving(true);
     try {
       // Upload audio if recorded
@@ -583,7 +590,7 @@ export default function Activities() {
       if (audioUrl) attachmentUrls.push(audioUrl);
 
       const payload: any = {
-        activity_name: form.activity_type,
+        activity_name: isOther ? form.custom_activity_name.trim() : form.activity_type,
         activity_type: form.activity_type,
         activity_date: form.activity_date,
         start_time: form.start_time ? `${form.activity_date}T${form.start_time}:00` : null,
@@ -995,6 +1002,17 @@ export default function Activities() {
                 </Select>
               </div>
             </div>
+            {form.activity_type.trim().toLowerCase() === "other" && (
+              <div>
+                <Label className="text-xs">Custom Activity Name *</Label>
+                <Input
+                  value={form.custom_activity_name}
+                  onChange={(e) => setForm({ ...form, custom_activity_name: e.target.value })}
+                  placeholder="Enter custom activity name"
+                  maxLength={100}
+                />
+              </div>
+            )}
             <div>
               <Label className="text-xs">Activity Date</Label>
               <Input type="date" value={form.activity_date} onChange={(e) => setForm({ ...form, activity_date: e.target.value })} />
@@ -1159,7 +1177,7 @@ export default function Activities() {
                 )}
               </CollapsibleContent>
             </Collapsible>
-            <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type || isFinalizing || isRecording}>
+            <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type || (form.activity_type.trim().toLowerCase() === "other" && !form.custom_activity_name.trim()) || isFinalizing || isRecording}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingId ? "Update Activity" : "Log Activity"}
             </Button>
