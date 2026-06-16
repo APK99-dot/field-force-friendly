@@ -1002,6 +1002,17 @@ export default function Activities() {
                 </Select>
               </div>
             </div>
+            {form.activity_type.trim().toLowerCase() === "other" && (
+              <div>
+                <Label className="text-xs">Custom Activity Name *</Label>
+                <Input
+                  value={form.custom_activity_name}
+                  onChange={(e) => setForm({ ...form, custom_activity_name: e.target.value })}
+                  placeholder="Enter custom activity name"
+                  maxLength={100}
+                />
+              </div>
+            )}
             <div>
               <Label className="text-xs">Activity Date</Label>
               <Input type="date" value={form.activity_date} onChange={(e) => setForm({ ...form, activity_date: e.target.value })} />
