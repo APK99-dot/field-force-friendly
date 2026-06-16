@@ -2,6 +2,23 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+export interface ActivityStatusEntry {
+  status: string;
+  at: string;
+  lat?: number | null;
+  lng?: number | null;
+  address?: string | null;
+}
+
+export interface ActivityPhotoEntry {
+  url: string;
+  at: string;
+  lat?: number | null;
+  lng?: number | null;
+  address?: string | null;
+}
+
+
 export interface Activity {
   id: string;
   user_id: string;
