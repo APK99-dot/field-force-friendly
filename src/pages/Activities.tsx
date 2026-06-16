@@ -55,11 +55,14 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentPosition } from "@/utils/nativePermissions";
-import { useActivities, type Activity as ActivityType } from "@/hooks/useActivities";
+import { useActivities, type Activity as ActivityType, type ActivityPhotoEntry, type ActivityStatusEntry } from "@/hooks/useActivities";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import ActivityReportGenerator from "@/components/activities/ActivityReportGenerator";
+import ActivityPhotoManager from "@/components/activities/ActivityPhotoManager";
+import ActivityDetailsDialog from "@/components/activities/ActivityDetailsDialog";
+import { PlayCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
