@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import {
   Loader2, Edit, Users, Download, Building2, Image as ImageIcon,
-  Target, Activity as ActivityIcon, FileText, X, ChevronDown,
+  Target, Activity as ActivityIcon, FileText, X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -42,12 +42,8 @@ const STATUSES: { value: string; label: string }[] = [
   { value: "dropped", label: "Dropped" },
 ];
 
-const STATUS_CHIP: Record<string, string> = {
-  planned: "bg-info/15 text-info border-info/30",
-  started: "bg-warning/15 text-warning border-warning/30",
-  completed: "bg-success/15 text-success border-success/30",
-  dropped: "bg-destructive/15 text-destructive border-destructive/30",
-};
+
+
 
 function initials(name: string) {
   return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
@@ -106,54 +102,57 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
     if (!o) { setStatus(null); onClose(); }
   };
 
+  const completedMs = milestones.filter((m) => m.status === "completed").length;
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
-          className="p-0 gap-0 max-w-none w-screen h-[100dvh] sm:h-[92vh] sm:w-[94vw] sm:max-w-5xl sm:rounded-2xl flex flex-col overflow-hidden border-0 sm:border [&>button]:hidden"
+          className="p-0 gap-0 max-w-none w-screen h-[100dvh] rounded-none flex flex-col overflow-hidden border-0 [&>button]:hidden"
         >
           {/* Hero header */}
-          <div className="relative shrink-0 bg-gradient-primary text-primary-foreground px-4 sm:px-6 pt-5 pb-5 safe-top">
+          <div className="relative shrink-0 bg-gradient-primary text-primary-foreground px-4 sm:px-8 pt-5 pb-5 safe-top">
             <button
               type="button"
               onClick={onClose}
-              className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-full p-1.5 bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors"
+              className="absolute right-3 top-3 sm:right-6 sm:top-5 rounded-full p-1.5 bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
-            <div className="flex items-start gap-3 pr-10">
-              <div className="h-12 w-12 rounded-xl bg-primary-foreground/15 flex items-center justify-center shrink-0">
-                <Building2 className="h-6 w-6" />
+            <div className="max-w-6xl mx-auto w-full">
+              <div className="flex items-start gap-3 pr-10">
+                <div className="h-12 w-12 rounded-xl bg-primary-foreground/15 flex items-center justify-center shrink-0">
+                  <Building2 className="h-6 w-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-xl sm:text-2xl font-bold truncate">{site?.site_name}</h2>
+                  <p className="text-xs sm:text-sm text-primary-foreground/70 mt-0.5">
+                    {site?.start_date ? format(new Date(site.start_date), "dd MMM yyyy") : "—"}
+                    {" – "}
+                    {site?.end_date ? format(new Date(site.end_date), "dd MMM yyyy") : "Ongoing"}
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <h2 className="text-xl sm:text-2xl font-bold truncate">{site?.site_name}</h2>
-                <p className="text-xs sm:text-sm text-primary-foreground/70 mt-0.5">
-                  {site?.start_date ? format(new Date(site.start_date), "dd MMM yyyy") : "—"}
-                  {" – "}
-                  {site?.end_date ? format(new Date(site.end_date), "dd MMM yyyy") : "Ongoing"}
-                </p>
-              </div>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-2 mt-4">
-              <Select value={currentStatus} onValueChange={handleStatusChange} disabled={savingStatus}>
-                <SelectTrigger className={`h-8 w-auto gap-1.5 rounded-full border text-xs font-semibold px-3 ${STATUS_CHIP[currentStatus] || ""} bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground`}>
-                  {savingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  <SelectValue />
-                  <ChevronDown className="h-3.5 w-3.5 opacity-70" />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-8 ml-auto"
-                onClick={() => site && onEdit(site)}
-              >
-                <Edit className="h-3.5 w-3.5 mr-1" /> Edit Site
-              </Button>
+              <div className="flex flex-wrap items-center gap-2 mt-4">
+                <Select value={currentStatus} onValueChange={handleStatusChange} disabled={savingStatus}>
+                  <SelectTrigger className="h-9 w-[150px] rounded-full text-xs font-semibold bg-primary-foreground/10 border-primary-foreground/25 text-primary-foreground">
+                    {savingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-9 ml-auto"
+                  onClick={() => site && onEdit(site)}
+                >
+                  <Edit className="h-3.5 w-3.5 mr-1" /> Edit Site
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -163,19 +162,21 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
             </div>
           ) : (
             <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
-              <div className="px-3 sm:px-6 pt-3 border-b">
-                <TabsList className="w-full justify-start overflow-x-auto bg-transparent p-0 h-auto gap-1">
+              <div className="px-3 sm:px-8 pt-3 border-b">
+                <TabsList className="w-full max-w-6xl mx-auto justify-start overflow-x-auto bg-transparent p-0 h-auto gap-1">
                   {[
                     ["overview", "Overview"],
+                    ["progress", "Progress"],
                     ["milestones", "Milestones"],
-                    ["gallery", "Gallery"],
                     ["activities", "Activities"],
-                    ["documents", "Docs"],
+                    ["gallery", "Gallery"],
+                    ["documents", "Documents"],
+                    ["team", "Team Members"],
                   ].map(([v, l]) => (
                     <TabsTrigger
                       key={v}
                       value={v}
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 pb-2.5"
+                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-3 pb-2.5 whitespace-nowrap"
                     >
                       {l}
                     </TabsTrigger>
@@ -183,85 +184,135 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                 </TabsList>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 safe-bottom">
-                <TabsContent value="overview" className="mt-0 space-y-5 max-w-3xl">
-                  {site?.description && (
-                    <div className="rounded-xl border bg-muted/30 p-3.5">
-                      <Label className="text-xs text-muted-foreground">Description</Label>
-                      <p className="text-sm mt-1">{site.description}</p>
+              <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-5 safe-bottom">
+                <div className="max-w-6xl mx-auto w-full">
+                  <TabsContent value="overview" className="mt-0 space-y-5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="rounded-xl border bg-card p-3.5 text-center shadow-card">
+                        <Target className="h-5 w-5 mx-auto text-info mb-1.5" />
+                        <p className="text-xl font-bold">{milestones.length}</p>
+                        <p className="text-[11px] text-muted-foreground">Milestones</p>
+                      </div>
+                      <div className="rounded-xl border bg-card p-3.5 text-center shadow-card">
+                        <ActivityIcon className="h-5 w-5 mx-auto text-warning mb-1.5" />
+                        <p className="text-xl font-bold">{activities.length}</p>
+                        <p className="text-[11px] text-muted-foreground">Activities</p>
+                      </div>
+                      <div className="rounded-xl border bg-card p-3.5 text-center shadow-card">
+                        <ImageIcon className="h-5 w-5 mx-auto text-success mb-1.5" />
+                        <p className="text-xl font-bold">{gallery.length}</p>
+                        <p className="text-[11px] text-muted-foreground">Photos</p>
+                      </div>
+                      <div className="rounded-xl border bg-card p-3.5 text-center shadow-card">
+                        <Users className="h-5 w-5 mx-auto text-primary mb-1.5" />
+                        <p className="text-xl font-bold">{assignedUsers.length}</p>
+                        <p className="text-[11px] text-muted-foreground">Team</p>
+                      </div>
                     </div>
-                  )}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-xl border bg-card p-3.5 text-center shadow-card">
-                      <Target className="h-5 w-5 mx-auto text-info mb-1.5" />
-                      <p className="text-xl font-bold">{milestones.length}</p>
-                      <p className="text-[11px] text-muted-foreground">Milestones</p>
+
+                    {site?.description && (
+                      <div className="rounded-xl border bg-muted/30 p-4">
+                        <Label className="text-xs text-muted-foreground">Description</Label>
+                        <p className="text-sm mt-1">{site.description}</p>
+                      </div>
+                    )}
+
+                    <div className="rounded-xl border bg-card p-4 shadow-card space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground font-medium">Overall progress</span>
+                        <span className="font-bold">{avgProgress}%</span>
+                      </div>
+                      <Progress value={avgProgress} className="h-2.5" />
                     </div>
-                    <div className="rounded-xl border bg-card p-3.5 text-center shadow-card">
-                      <ActivityIcon className="h-5 w-5 mx-auto text-warning mb-1.5" />
-                      <p className="text-xl font-bold">{activities.length}</p>
-                      <p className="text-[11px] text-muted-foreground">Activities</p>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2.5">
+                        <Users className="h-3.5 w-3.5" /> Assigned Users ({assignedUsers.length})
+                      </Label>
+                      {assignedUsers.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No users assigned</p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                          {assignedUsers.map((u) => (
+                            <div key={u.id} className="flex items-center gap-2.5 rounded-lg border bg-card p-2.5">
+                              <Avatar className="h-8 w-8"><AvatarFallback className="text-[11px] bg-primary/10 text-primary">{initials(u.full_name)}</AvatarFallback></Avatar>
+                              <span className="text-sm font-medium truncate">{u.full_name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className="rounded-xl border bg-card p-3.5 text-center shadow-card">
-                      <ImageIcon className="h-5 w-5 mx-auto text-success mb-1.5" />
-                      <p className="text-xl font-bold">{gallery.length}</p>
-                      <p className="text-[11px] text-muted-foreground">Photos</p>
+                  </TabsContent>
+
+                  <TabsContent value="progress" className="mt-0 space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="rounded-xl border bg-card p-4 shadow-card text-center">
+                        <p className="text-2xl font-bold">{avgProgress}%</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Average completion</p>
+                      </div>
+                      <div className="rounded-xl border bg-card p-4 shadow-card text-center">
+                        <p className="text-2xl font-bold">{completedMs}/{milestones.length}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Milestones completed</p>
+                      </div>
+                      <div className="rounded-xl border bg-card p-4 shadow-card text-center">
+                        <p className="text-2xl font-bold">{activities.length}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Activities logged</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="rounded-xl border bg-card p-4 shadow-card space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground font-medium">Overall progress</span>
-                      <span className="font-bold">{avgProgress}%</span>
+                    <div className="rounded-xl border bg-card p-4 shadow-card space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground font-medium">Overall progress</span>
+                        <span className="font-bold">{avgProgress}%</span>
+                      </div>
+                      <Progress value={avgProgress} className="h-3" />
                     </div>
-                    <Progress value={avgProgress} className="h-2.5" />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2.5">
-                      <Users className="h-3.5 w-3.5" /> Assigned Users ({assignedUsers.length})
-                    </Label>
-                    {assignedUsers.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No users assigned</p>
+                    <SiteMilestoneList milestones={milestones} />
+                  </TabsContent>
+
+                  <TabsContent value="milestones" className="mt-0">
+                    <SiteMilestoneList milestones={milestones} />
+                  </TabsContent>
+
+                  <TabsContent value="gallery" className="mt-0">
+                    <SiteGallery gallery={gallery} onActivityClick={openActivityById} />
+                  </TabsContent>
+
+                  <TabsContent value="activities" className="mt-0">
+                    <SiteActivityList activities={activities} onOpen={setSelectedActivity} />
+                  </TabsContent>
+
+                  <TabsContent value="documents" className="mt-0">
+                    {documents.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-8 text-center">No documents uploaded.</p>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        {documents.map((d, i) => (
+                          <button key={i} type="button" onClick={() => openDoc(d.stored)}
+                            className="flex items-center gap-2 text-sm text-primary hover:underline w-full text-left border rounded-lg px-3 py-2.5">
+                            <FileText className="h-4 w-4 shrink-0" />
+                            <span className="truncate flex-1">{d.name}</span>
+                            <Download className="h-4 w-4 shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="team" className="mt-0">
+                    {assignedUsers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-8 text-center">No users assigned.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                         {assignedUsers.map((u) => (
-                          <div key={u.id} className="flex items-center gap-2.5 rounded-lg border bg-card p-2.5">
-                            <Avatar className="h-8 w-8"><AvatarFallback className="text-[11px] bg-primary/10 text-primary">{initials(u.full_name)}</AvatarFallback></Avatar>
+                          <div key={u.id} className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-card">
+                            <Avatar className="h-10 w-10"><AvatarFallback className="text-xs bg-primary/10 text-primary">{initials(u.full_name)}</AvatarFallback></Avatar>
                             <span className="text-sm font-medium truncate">{u.full_name}</span>
                           </div>
                         ))}
                       </div>
                     )}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="milestones" className="mt-0 max-w-3xl">
-                  <SiteMilestoneList milestones={milestones} />
-                </TabsContent>
-
-                <TabsContent value="gallery" className="mt-0">
-                  <SiteGallery gallery={gallery} onActivityClick={openActivityById} />
-                </TabsContent>
-
-                <TabsContent value="activities" className="mt-0 max-w-3xl">
-                  <SiteActivityList activities={activities} onOpen={setSelectedActivity} />
-                </TabsContent>
-
-                <TabsContent value="documents" className="mt-0 max-w-3xl">
-                  {documents.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-8 text-center">No documents uploaded.</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {documents.map((d, i) => (
-                        <button key={i} type="button" onClick={() => openDoc(d.stored)}
-                          className="flex items-center gap-2 text-sm text-primary hover:underline w-full text-left border rounded-lg px-3 py-2.5">
-                          <FileText className="h-4 w-4 shrink-0" />
-                          <span className="truncate flex-1">{d.name}</span>
-                          <Download className="h-4 w-4 shrink-0" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
+                  </TabsContent>
+                </div>
               </div>
             </Tabs>
           )}
