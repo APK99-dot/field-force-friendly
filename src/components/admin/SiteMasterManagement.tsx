@@ -348,6 +348,11 @@ export default function SiteMasterManagement() {
                         {site.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <Button size="sm" variant="outline" onClick={() => setMilestoneSite(site)}>
+                        <Target className="h-3.5 w-3.5 mr-1" /> Milestones
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 );
               })}
