@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       activity_events: {
         Row: {
+          activity_code: string | null
           activity_date: string
           activity_name: string
           activity_type: string
@@ -49,6 +50,7 @@ export type Database = {
           visit_id: string | null
         }
         Insert: {
+          activity_code?: string | null
           activity_date?: string
           activity_name: string
           activity_type: string
@@ -82,6 +84,7 @@ export type Database = {
           visit_id?: string | null
         }
         Update: {
+          activity_code?: string | null
           activity_date?: string
           activity_name?: string
           activity_type?: string
