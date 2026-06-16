@@ -1177,7 +1177,7 @@ export default function Activities() {
                 )}
               </CollapsibleContent>
             </Collapsible>
-            <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type || isFinalizing || isRecording}>
+            <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type || (form.activity_type.trim().toLowerCase() === "other" && !form.custom_activity_name.trim()) || isFinalizing || isRecording}>>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingId ? "Update Activity" : "Log Activity"}
             </Button>
