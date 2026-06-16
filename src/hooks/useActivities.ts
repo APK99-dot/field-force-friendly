@@ -28,6 +28,8 @@ export interface Activity {
   status_change_lat: number | null;
   status_change_lng: number | null;
   attachment_urls: string[];
+  status_history: ActivityStatusEntry[];
+  photo_urls: ActivityPhotoEntry[];
   created_at: string;
   // joined
   user_full_name?: string;
