@@ -1128,9 +1128,55 @@ export default function Activities() {
                       <SelectItem value="half_day">Half Day</SelectItem>
                       <SelectItem value="full_day">Full Day</SelectItem>
                       <SelectItem value="multiple_days">Multiple Days</SelectItem>
+                      <SelectItem value="recurring">Recurring</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                {form.duration_type === "recurring" && (
+                  <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+                    <div>
+                      <Label className="text-xs">Repeat</Label>
+                      <Select value={form.recurrence_pattern} onValueChange={(v) => setForm(prev => ({ ...prev, recurrence_pattern: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="custom">Custom Interval</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {form.recurrence_pattern === "custom" && (
+                      <div>
+                        <Label className="text-xs">Every N days *</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={form.recurrence_interval}
+                          onChange={(e) => setForm({ ...form, recurrence_interval: Math.max(1, parseInt(e.target.value) || 1) })}
+                        />
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Start Date *</Label>
+                        <Input type="date" value={form.recurrence_start_date} onChange={(e) => setForm({ ...form, recurrence_start_date: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">End Date {form.recurrence_no_end ? "" : "*"}</Label>
+                        <Input type="date" value={form.recurrence_end_date} min={form.recurrence_start_date || undefined} disabled={form.recurrence_no_end} onChange={(e) => setForm({ ...form, recurrence_end_date: e.target.value })} />
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={form.recurrence_no_end}
+                        onChange={(e) => setForm({ ...form, recurrence_no_end: e.target.checked })}
+                      />
+                      No End Date (generate next 90 days)
+                    </label>
+                  </div>
+                )}
                 {form.duration_type === "half_day" && (
                   <div>
                     <Label className="text-xs">Half Day Period</Label>
