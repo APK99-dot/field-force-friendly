@@ -1564,7 +1564,13 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onStatusCha
                 )}
               </p>
             )}
+            {a.photo_urls && a.photo_urls.length > 0 && (
+              <p className="text-[10px] text-muted-foreground ml-6 mt-1">
+                📷 {a.photo_urls.length} photo{a.photo_urls.length > 1 ? "s" : ""}
+              </p>
+            )}
           </div>
+
           <div className="flex flex-col items-end gap-2 shrink-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild disabled={changingStatus}>
