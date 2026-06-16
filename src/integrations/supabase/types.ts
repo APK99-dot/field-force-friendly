@@ -2817,6 +2817,7 @@ export type Database = {
       }
       project_sites: {
         Row: {
+          attachment_urls: string[]
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -2828,9 +2829,11 @@ export type Database = {
           site_code: string | null
           site_name: string
           start_date: string
+          status: string
           updated_at: string
         }
         Insert: {
+          attachment_urls?: string[]
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -2842,9 +2845,11 @@ export type Database = {
           site_code?: string | null
           site_name: string
           start_date?: string
+          status?: string
           updated_at?: string
         }
         Update: {
+          attachment_urls?: string[]
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -2856,6 +2861,7 @@ export type Database = {
           site_code?: string | null
           site_name?: string
           start_date?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []
