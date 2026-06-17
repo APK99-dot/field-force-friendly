@@ -111,11 +111,11 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
           className="p-0 gap-0 max-w-none w-screen h-[100dvh] rounded-none flex flex-col overflow-hidden border-0 [&>button]:hidden"
         >
           {/* Hero header */}
-          <div className="relative shrink-0 bg-gradient-primary text-primary-foreground px-4 sm:px-8 pt-8 sm:pt-10 pb-6 sm:pb-8 safe-top">
+          <div className="relative shrink-0 bg-gradient-primary text-primary-foreground px-4 sm:px-8 safe-top-8 sm:safe-top-10 pb-6 sm:pb-8">
             <button
               type="button"
               onClick={onClose}
-              className="absolute right-3 top-5 sm:right-6 sm:top-8 rounded-full p-1.5 bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors"
+              className="absolute right-3 top-[calc(0.5rem+env(safe-area-inset-top,0px))] sm:right-6 sm:top-[calc(0.75rem+env(safe-area-inset-top,0px))] rounded-full p-1.5 bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
