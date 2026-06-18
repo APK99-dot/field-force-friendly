@@ -10,6 +10,7 @@ import {
   Receipt,
   FolderKanban,
   Handshake,
+  Database,
   LogOut,
   ChevronRight,
   Search,
