@@ -199,6 +199,11 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Attendance & Workforce Overview (permission-gated) */}
+        <motion.div variants={item}>
+          <WorkforceOverviewSection />
+        </motion.div>
       </motion.div>
     </div>
   );
