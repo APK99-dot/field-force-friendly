@@ -399,8 +399,8 @@ export default function Procurement() {
               <Button className="flex-1" onClick={handleSave} disabled={isSaving}><Save className="h-4 w-4 mr-2" />{isSaving ? "Saving..." : "Save"}</Button>
             </div>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirm */}
       <Sheet open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
