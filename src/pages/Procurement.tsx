@@ -288,12 +288,12 @@ export default function Procurement() {
       )}
 
       {/* Create/Edit Form */}
-      <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Edit Procurement" : "New Procurement"}</SheetTitle>
-          </SheetHeader>
-          <div className="space-y-4 mt-4">
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col">
+          <DialogHeader className="px-4 py-3 border-b shrink-0">
+            <DialogTitle>{editing ? "Edit Procurement" : "New Procurement"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 p-4 overflow-y-auto flex-1 max-w-3xl w-full mx-auto">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Date</Label>
