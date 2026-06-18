@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Plus, Search, Trash2, X, ShoppingCart, Save, CalendarDays, FileText, Truck } from "lucide-react";
@@ -287,12 +288,12 @@ export default function Procurement() {
       )}
 
       {/* Create/Edit Form */}
-      <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Edit Procurement" : "New Procurement"}</SheetTitle>
-          </SheetHeader>
-          <div className="space-y-4 mt-4">
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col">
+          <DialogHeader className="px-4 py-3 border-b shrink-0">
+            <DialogTitle>{editing ? "Edit Procurement" : "New Procurement"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 p-4 overflow-y-auto flex-1 max-w-3xl w-full mx-auto">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Date</Label>
@@ -398,8 +399,8 @@ export default function Procurement() {
               <Button className="flex-1" onClick={handleSave} disabled={isSaving}><Save className="h-4 w-4 mr-2" />{isSaving ? "Saving..." : "Save"}</Button>
             </div>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirm */}
       <Sheet open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
