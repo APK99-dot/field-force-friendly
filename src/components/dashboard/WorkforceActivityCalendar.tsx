@@ -52,71 +52,87 @@ export default function WorkforceActivityCalendar({ activities, anchorDate }: Pr
   }, [activities]);
 
   return (
-    <div>
-      <p className="mb-3 text-sm font-semibold">
-        Activity Calendar — {format(anchorDate, "MMMM yyyy")}
-      </p>
-      <div className="grid grid-cols-7 gap-1">
-        {weekdays.map((d) => (
-          <div
-            key={d}
-            className="text-center text-[10px] sm:text-xs font-medium text-muted-foreground py-1"
-          >
-            {d}
-          </div>
-        ))}
-        {days.map((day) => {
-          const key = format(day, "yyyy-MM-dd");
-          const entries = byDate.get(key) || [];
-          const inMonth = isSameMonth(day, anchorDate);
-          return (
-            <div
-              key={key}
-              className={cn(
-                "min-h-[88px] rounded-md border p-1 flex flex-col gap-1",
-                !inMonth && "bg-muted/30 opacity-60",
-                isToday(day) && "ring-1 ring-primary"
-              )}
-            >
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-primary" />
+          <p className="text-sm font-semibold">
+            Activity Calendar — {format(anchorDate, "MMMM yyyy")}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3 text-[10px] sm:text-xs">
+          {Object.entries(statusLabels).map(([k, label]) => (
+            <span key={k} className="inline-flex items-center gap-1 text-muted-foreground">
               <span
                 className={cn(
-                  "text-[10px] sm:text-xs font-medium",
-                  isToday(day) ? "text-primary" : "text-muted-foreground"
+                  "h-2.5 w-2.5 rounded-full",
+                  k === "planned" && "bg-info",
+                  k === "in_progress" && "bg-warning",
+                  k === "completed" && "bg-success"
+                )}
+              />
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="overflow-hidden rounded-xl border">
+        <div className="grid grid-cols-7 border-b bg-muted/40">
+          {weekdays.map((d) => (
+            <div
+              key={d}
+              className="py-1.5 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs"
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {days.map((day, idx) => {
+            const key = format(day, "yyyy-MM-dd");
+            const entries = byDate.get(key) || [];
+            const inMonth = isSameMonth(day, anchorDate);
+            return (
+              <div
+                key={key}
+                className={cn(
+                  "flex min-h-[88px] flex-col gap-1 border-b border-r p-1 transition-colors",
+                  idx % 7 === 6 && "border-r-0",
+                  !inMonth && "bg-muted/20 opacity-50",
+                  isToday(day) && "bg-primary/5"
                 )}
               >
-                {format(day, "d")}
-              </span>
-              <div className="flex flex-col gap-0.5 overflow-y-auto max-h-[120px]">
-                {entries.map((e) => (
-                  <div
-                    key={e.id}
-                    className={cn(
-                      "rounded px-1 py-0.5 text-[9px] sm:text-[10px] leading-tight",
-                      statusStyles[e.status] || "bg-muted text-muted-foreground"
-                    )}
-                    title={`${e.full_name} · ${e.site_name || "No site"} · ${
-                      statusLabels[e.status] || e.status
-                    }`}
-                  >
-                    <p className="truncate font-medium">{e.full_name}</p>
-                    <p className="truncate opacity-80">{e.site_name || "No site"}</p>
-                    <p className="truncate font-semibold">
-                      {statusLabels[e.status] || e.status}
-                    </p>
-                  </div>
-                ))}
+                <span
+                  className={cn(
+                    "inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold sm:text-xs",
+                    isToday(day)
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {format(day, "d")}
+                </span>
+                <div className="flex max-h-[120px] flex-col gap-0.5 overflow-y-auto">
+                  {entries.map((e) => (
+                    <div
+                      key={e.id}
+                      className={cn(
+                        "rounded-md px-1 py-0.5 text-[9px] leading-tight sm:text-[10px]",
+                        statusStyles[e.status] || "bg-muted text-muted-foreground"
+                      )}
+                      title={`${e.full_name} · ${e.site_name || "No site"} · ${
+                        statusLabels[e.status] || e.status
+                      }`}
+                    >
+                      <p className="truncate font-semibold">{e.full_name}</p>
+                      <p className="truncate opacity-80">{e.site_name || "No site"}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-3 flex flex-wrap gap-3 text-[10px] sm:text-xs">
-        {Object.entries(statusLabels).map(([k, label]) => (
-          <span key={k} className="inline-flex items-center gap-1">
-            <span className={cn("h-2.5 w-2.5 rounded-full", statusStyles[k])} />
-            {label}
-          </span>
-        ))}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
