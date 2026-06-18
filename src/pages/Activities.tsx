@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Suspense, lazy, useCallback } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO, isToday } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -214,6 +214,7 @@ export default function Activities() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [detailsActivity, setDetailsActivity] = useState<ActivityType | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [saving, setSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
@@ -414,6 +415,20 @@ export default function Activities() {
       });
     }
   }, [activeTab, effectiveUserId, dateStr, fetchGPSTrackingForDate]);
+
+  // Auto-open activity detail when navigated with ?id=...
+  useEffect(() => {
+    const id = searchParams.get("id");
+    if (!id || loading || activities.length === 0) return;
+    const found = activities.find((a) => a.id === id);
+    if (found) {
+      setDetailsActivity(found);
+      // Remove the id param so refreshing won't reopen it
+      const next = new URLSearchParams(searchParams);
+      next.delete("id");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, activities, loading, setSearchParams]);
 
   // Filter activities by selected date and optionally by user.
   // Prefer exact per-date rows; only fall back to legacy ranged rows when no dedicated row exists for that date.
