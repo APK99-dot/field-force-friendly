@@ -166,7 +166,7 @@ export default function WorkforceFilters({
         </PopoverContent>
       </Popover>
 
-      <Badge variant="outline" className="font-normal">
+      <Badge className="bg-primary/10 text-primary border border-primary/20 font-normal">
         {presetLabels[preset]}: {rangeLabel}
       </Badge>
 

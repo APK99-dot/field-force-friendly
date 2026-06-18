@@ -124,19 +124,19 @@ export default function WorkforceOverviewSection() {
   const rangeLabel = `${format(range.start, "MMM d")} – ${format(range.end, "MMM d, yyyy")}`;
 
   return (
-    <Card className="overflow-hidden border-0 shadow-card">
-      {/* Header banner */}
-      <div className="bg-gradient-to-r from-primary to-primary/80 px-4 py-4 sm:px-5 sm:py-5">
+    <Card className="overflow-hidden shadow-card">
+      <CardContent className="space-y-5 p-4 sm:p-5">
+        {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
-              <Users className="h-5 w-5 text-primary-foreground" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              <Users className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-base font-bold leading-tight text-primary-foreground sm:text-lg">
+              <h2 className="text-base font-bold leading-tight text-foreground sm:text-lg">
                 Attendance &amp; Workforce
               </h2>
-              <p className="text-xs text-primary-foreground/70">{rangeLabel}</p>
+              <p className="text-xs text-muted-foreground">{rangeLabel}</p>
             </div>
           </div>
           <WorkforceFilters
@@ -152,9 +152,7 @@ export default function WorkforceOverviewSection() {
             rangeLabel={rangeLabel}
           />
         </div>
-      </div>
 
-      <CardContent className="space-y-5 p-4 sm:p-5">
         {/* KPI grid */}
         <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
           <StatCard
