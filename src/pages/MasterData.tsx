@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Handshake, ListChecks } from "lucide-react";
+import { Handshake, ListChecks, FolderTree, Package, Building } from "lucide-react";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 
 const allMasterModules = [
@@ -21,6 +21,30 @@ const allMasterModules = [
     color: "bg-green-100 text-green-600",
     path: "/activity-types",
     module: "module_activities" as string | null,
+  },
+  {
+    title: "Category Master",
+    description: "Manage product categories and sub categories",
+    icon: FolderTree,
+    color: "bg-cyan-100 text-cyan-600",
+    path: "/master-data/categories",
+    module: null as string | null,
+  },
+  {
+    title: "Product Master",
+    description: "Manage products linked to categories",
+    icon: Package,
+    color: "bg-violet-100 text-violet-600",
+    path: "/master-data/products",
+    module: null as string | null,
+  },
+  {
+    title: "Entity Master",
+    description: "Manage billing entities used in Procurement",
+    icon: Building,
+    color: "bg-rose-100 text-rose-600",
+    path: "/master-data/entities",
+    module: null as string | null,
   },
 ];
 
