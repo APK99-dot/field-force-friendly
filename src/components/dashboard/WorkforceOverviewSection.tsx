@@ -8,7 +8,8 @@ import {
   format,
 } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users } from "lucide-react";
+import { Users, Clock, CalendarCheck, Activity, LogIn } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 import {
   useWorkforceUsers,
@@ -36,6 +37,42 @@ function resolveRange(preset: DatePreset, customStart: string, customEnd: string
   return { start, end };
 }
 
+interface StatCardProps {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  accent: string;
+}
+
+function StatCard({ icon: Icon, label, value, accent }: StatCardProps) {
+  return (
+    <div className="relative overflow-hidden rounded-xl border bg-card p-3 sm:p-4">
+      <div
+        className={cn(
+          "absolute -right-4 -top-4 h-16 w-16 rounded-full opacity-10",
+          accent
+        )}
+      />
+      <div className="flex items-center gap-2.5">
+        <div
+          className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white",
+            accent
+          )}
+        >
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {label}
+          </p>
+          <p className="text-lg font-bold leading-tight sm:text-xl">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function WorkforceOverviewSection() {
   const { hasWidgetPermission, isLoading: permsLoading } = useProfilePermissions();
   const canView = hasWidgetPermission("widget_admin_attendance_overview");
@@ -60,37 +97,101 @@ export default function WorkforceOverviewSection() {
     end: endStr,
   });
 
+  const attendanceRows = data?.attendanceRows || [];
+  const activityRows = data?.activityRows || [];
+
+  const stats = useMemo(() => {
+    const present = new Set(attendanceRows.map((r) => r.user_id)).size;
+    const totalHours = attendanceRows.reduce(
+      (sum, r) => sum + (r.active_hours || 0),
+      0
+    );
+    const checkedIn = attendanceRows.filter(
+      (r) => r.check_in_time && !r.check_out_time
+    ).length;
+    const completed = activityRows.filter((a) => a.status === "completed").length;
+    return {
+      present,
+      totalHours,
+      checkedIn,
+      activities: activityRows.length,
+      completed,
+    };
+  }, [attendanceRows, activityRows]);
+
   if (permsLoading || !canView) return null;
 
   const rangeLabel = `${format(range.start, "MMM d")} – ${format(range.end, "MMM d, yyyy")}`;
 
   return (
-    <Card className="shadow-card">
-      <CardContent className="p-4 space-y-4">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-primary" />
-          <p className="text-sm font-bold">Attendance &amp; Workforce Overview</p>
+    <Card className="overflow-hidden border-0 shadow-card">
+      {/* Header banner */}
+      <div className="bg-gradient-to-r from-primary to-primary/80 px-4 py-4 sm:px-5 sm:py-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+              <Users className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold leading-tight text-primary-foreground sm:text-lg">
+                Attendance &amp; Workforce
+              </h2>
+              <p className="text-xs text-primary-foreground/70">{rangeLabel}</p>
+            </div>
+          </div>
+          <WorkforceFilters
+            users={users}
+            preset={preset}
+            onPresetChange={setPreset}
+            customStart={customStart}
+            customEnd={customEnd}
+            onCustomStartChange={setCustomStart}
+            onCustomEndChange={setCustomEnd}
+            selectedUsers={selectedUsers}
+            onSelectedUsersChange={setSelectedUsers}
+            rangeLabel={rangeLabel}
+          />
+        </div>
+      </div>
+
+      <CardContent className="space-y-5 p-4 sm:p-5">
+        {/* KPI grid */}
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+          <StatCard
+            icon={Users}
+            label="Present"
+            value={String(stats.present)}
+            accent="bg-primary"
+          />
+          <StatCard
+            icon={Clock}
+            label="Active Hours"
+            value={`${stats.totalHours.toFixed(1)}h`}
+            accent="bg-info"
+          />
+          <StatCard
+            icon={LogIn}
+            label="Checked In"
+            value={String(stats.checkedIn)}
+            accent="bg-warning"
+          />
+          <StatCard
+            icon={Activity}
+            label="Activities"
+            value={String(stats.activities)}
+            accent="bg-success"
+          />
         </div>
 
-        <WorkforceFilters
-          users={users}
-          preset={preset}
-          onPresetChange={setPreset}
-          customStart={customStart}
-          customEnd={customEnd}
-          onCustomStartChange={setCustomStart}
-          onCustomEndChange={setCustomEnd}
-          selectedUsers={selectedUsers}
-          onSelectedUsersChange={setSelectedUsers}
-          rangeLabel={rangeLabel}
-        />
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <CalendarCheck className="h-4 w-4 text-primary" />
+            <p className="text-sm font-semibold">Attendance Log</p>
+          </div>
+          <WorkforceAttendanceTable rows={attendanceRows} isLoading={isLoading} />
+        </div>
 
-        <WorkforceAttendanceTable rows={data?.attendanceRows || []} isLoading={isLoading} />
-
-        <WorkforceActivityCalendar
-          activities={data?.activityRows || []}
-          anchorDate={range.start}
-        />
+        <WorkforceActivityCalendar activities={activityRows} anchorDate={range.start} />
       </CardContent>
     </Card>
   );
