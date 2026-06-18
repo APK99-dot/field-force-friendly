@@ -33,6 +33,7 @@ const InstallApp = lazy(() => import("./pages/InstallApp"));
 const Profile = lazy(() => import("./pages/Profile"));
 const MyTeam = lazy(() => import("./pages/MyTeam"));
 const Vendors = lazy(() => import("./pages/Vendors"));
+const MasterData = lazy(() => import("./pages/MasterData"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
