@@ -34,6 +34,8 @@ const statusLabels: Record<string, string> = {
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function WorkforceActivityCalendar({ activities, anchorDate }: Props) {
+  const navigate = useNavigate();
+
   const days = useMemo(() => {
     const monthStart = startOfMonth(anchorDate);
     const monthEnd = endOfMonth(anchorDate);
