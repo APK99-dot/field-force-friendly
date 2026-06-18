@@ -21,6 +21,7 @@ import {
   Receipt,
   ClipboardList,
   ListChecks,
+  Database,
   X,
   Search,
   Settings,
