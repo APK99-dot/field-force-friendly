@@ -10,6 +10,7 @@ import {
   Receipt,
   FolderKanban,
   Handshake,
+  Database,
   LogOut,
   ChevronRight,
   Search,
@@ -32,7 +33,7 @@ const allNavigationItems = [
   { icon: Navigation2, label: "GPS Track", href: "/gps-tracking", color: "from-purple-500 to-purple-600", module: "module_gps_tracking" },
   { icon: FolderKanban, label: "Projects", href: "/projects", color: "from-indigo-500 to-indigo-600", module: null },
   { icon: Receipt, label: "Expenses", href: "/expenses", color: "from-orange-500 to-orange-600", module: "module_expenses" },
-  { icon: Handshake, label: "Vendors", href: "/vendors", color: "from-amber-500 to-amber-600", module: null },
+  { icon: Database, label: "Master Data", href: "/master-data", color: "from-amber-500 to-amber-600", module: null },
 ];
 
 const accountItems = [
