@@ -34,6 +34,10 @@ const Profile = lazy(() => import("./pages/Profile"));
 const MyTeam = lazy(() => import("./pages/MyTeam"));
 const Vendors = lazy(() => import("./pages/Vendors"));
 const MasterData = lazy(() => import("./pages/MasterData"));
+const CategoryMaster = lazy(() => import("./pages/master/CategoryMaster"));
+const ProductMaster = lazy(() => import("./pages/master/ProductMaster"));
+const EntityMaster = lazy(() => import("./pages/master/EntityMaster"));
+const Procurement = lazy(() => import("./pages/Procurement"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -92,6 +96,10 @@ const App = () => (
             <Route path="/my-team" element={<Suspense fallback={<PageFallback />}><MyTeam /></Suspense>} />
             <Route path="/vendors" element={<Suspense fallback={<PageFallback />}><Vendors /></Suspense>} />
             <Route path="/master-data" element={<Suspense fallback={<PageFallback />}><MasterData /></Suspense>} />
+            <Route path="/master-data/categories" element={<Suspense fallback={<PageFallback />}><CategoryMaster /></Suspense>} />
+            <Route path="/master-data/products" element={<Suspense fallback={<PageFallback />}><ProductMaster /></Suspense>} />
+            <Route path="/master-data/entities" element={<Suspense fallback={<PageFallback />}><EntityMaster /></Suspense>} />
+            <Route path="/procurement" element={<Suspense fallback={<PageFallback />}><Procurement /></Suspense>} />
           </Route>
           <Route path="/install" element={<Suspense fallback={<PageFallback />}><InstallApp /></Suspense>} />
           <Route path="*" element={<Suspense fallback={<PageFallback />}><NotFound /></Suspense>} />
