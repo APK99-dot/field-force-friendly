@@ -21,6 +21,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import WorkforceOverviewSection from "@/components/dashboard/WorkforceOverviewSection";
 
 const container = {
   hidden: { opacity: 0 },
@@ -197,6 +198,11 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+        </motion.div>
+
+        {/* Attendance & Workforce Overview (permission-gated) */}
+        <motion.div variants={item}>
+          <WorkforceOverviewSection />
         </motion.div>
       </motion.div>
     </div>
