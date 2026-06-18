@@ -118,10 +118,12 @@ export default function WorkforceActivityCalendar({ activities, anchorDate }: Pr
                 </span>
                 <div className="flex max-h-[120px] flex-col gap-0.5 overflow-y-auto">
                   {entries.map((e) => (
-                    <div
+                    <button
                       key={e.id}
+                      type="button"
+                      onClick={() => navigate(`/activities?id=${e.id}`)}
                       className={cn(
-                        "rounded-md px-1 py-0.5 text-[9px] leading-tight sm:text-[10px]",
+                        "text-left rounded-md px-1 py-0.5 text-[9px] leading-tight sm:text-[10px] cursor-pointer transition-opacity hover:opacity-80 active:opacity-60",
                         statusStyles[e.status] || "bg-muted text-muted-foreground"
                       )}
                       title={`${e.full_name} · ${e.site_name || "No site"} · ${
@@ -130,7 +132,7 @@ export default function WorkforceActivityCalendar({ activities, anchorDate }: Pr
                     >
                       <p className="truncate font-semibold">{e.full_name}</p>
                       <p className="truncate opacity-80">{e.site_name || "No site"}</p>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
