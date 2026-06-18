@@ -9,6 +9,7 @@ import {
   isSameMonth,
   isToday,
 } from "date-fns";
+import { CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { WorkforceActivityRow } from "@/hooks/useWorkforceOverview";
 
