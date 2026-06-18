@@ -1119,6 +1119,116 @@ export type Database = {
         }
         Relationships: []
       }
+      master_categories: {
+        Row: {
+          category_name: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          sub_category_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          category_name: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          sub_category_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category_name?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          sub_category_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      master_entities: {
+        Row: {
+          address: string | null
+          contact_number: string | null
+          contact_person: string | null
+          created_at: string
+          created_by: string | null
+          entity_code: string | null
+          entity_name: string
+          gst_number: string | null
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          contact_number?: string | null
+          contact_person?: string | null
+          created_at?: string
+          created_by?: string | null
+          entity_code?: string | null
+          entity_name: string
+          gst_number?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          contact_number?: string | null
+          contact_person?: string | null
+          created_at?: string
+          created_by?: string | null
+          entity_code?: string | null
+          entity_name?: string
+          gst_number?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      master_products: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          product_name: string
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          product_name: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          product_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "master_products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "master_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monthly_leave_accrual: {
         Row: {
           allocated: number
@@ -2586,6 +2696,124 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      procurement_items: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          procurement_id: string
+          product_id: string | null
+          qty: number
+          rate: number
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          procurement_id: string
+          product_id?: string | null
+          qty?: number
+          rate?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          procurement_id?: string
+          product_id?: string | null
+          qty?: number
+          rate?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_items_procurement_id_fkey"
+            columns: ["procurement_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "master_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      procurement_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          entity_id: string | null
+          grn_number: string | null
+          grn_status: string | null
+          id: string
+          order_date: string
+          po_number: string | null
+          site_id: string | null
+          status: string
+          total_amount: number
+          updated_at: string
+          vendor_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          entity_id?: string | null
+          grn_number?: string | null
+          grn_status?: string | null
+          id?: string
+          order_date?: string
+          po_number?: string | null
+          site_id?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          vendor_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          entity_id?: string | null
+          grn_number?: string | null
+          grn_status?: string | null
+          id?: string
+          order_date?: string
+          po_number?: string | null
+          site_id?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_orders_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "master_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_orders_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "project_sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_orders_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
             referencedColumns: ["id"]
           },
         ]
