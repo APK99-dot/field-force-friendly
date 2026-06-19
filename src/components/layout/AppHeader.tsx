@@ -23,6 +23,7 @@ import {
   ListChecks,
   Database,
   ShoppingCart,
+  Truck,
   X,
   Search,
   Settings,
