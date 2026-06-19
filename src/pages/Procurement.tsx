@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { toast } from "sonner";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
-import { Plus, Search, Trash2, X, ShoppingCart, Save, CalendarDays, FileText, Truck } from "lucide-react";
+import { Plus, Search, Trash2, X, ShoppingCart, Save, CalendarDays, FileText } from "lucide-react";
 import {
   PROC_STATUSES, USER_FORM_STATUSES, UOM_OPTIONS, PAYMENT_TERMS,
   statusColor, fmtAmt, type ProcStatus,
