@@ -265,7 +265,7 @@ export default function Procurement() {
                 <Input type="date" value={form.order_date} onChange={(e) => setForm((p) => ({ ...p, order_date: e.target.value }))} className="h-9" />
               </div>
               <div>
-                <Label className="text-xs flex items-center gap-1"><FileText className="h-3 w-3" />PO Number</Label>
+                <Label className="text-xs">PO Number</Label>
                 <Input value={form.po_number} onChange={(e) => setForm((p) => ({ ...p, po_number: e.target.value }))} placeholder="PO-0001" className="h-9" />
               </div>
             </div>
