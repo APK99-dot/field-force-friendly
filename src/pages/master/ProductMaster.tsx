@@ -44,7 +44,7 @@ export default function ProductMaster() {
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ product_name: "", category_id: "", is_active: true });
+  const [formData, setFormData] = useState({ product_name: "", category_id: "", default_uom: "", is_active: true });
 
   useEffect(() => { fetchAll(); }, []);
 
