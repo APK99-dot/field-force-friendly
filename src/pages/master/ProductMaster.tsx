@@ -25,6 +25,7 @@ interface ProductRow {
   id: string;
   product_name: string;
   category_id: string | null;
+  default_uom: string | null;
   is_active: boolean;
 }
 
