@@ -51,7 +51,7 @@ export default function ProductMaster() {
   const fetchAll = async () => {
     setIsLoading(true);
     const [{ data: prods }, { data: cats }] = await Promise.all([
-      supabase.from("master_products").select("id, product_name, category_id, is_active").order("product_name"),
+      supabase.from("master_products").select("id, product_name, category_id, default_uom, is_active").order("product_name"),
       supabase.from("master_categories").select("id, category_name, sub_category_name, is_active").order("category_name"),
     ]);
     setRows((prods || []) as ProductRow[]);
