@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Truck, CalendarDays } from "lucide-react";
 import { GRN_STATUSES, statusColor } from "@/lib/procurement";
+import GRNDetail from "@/components/procurement/GRNDetail";
 
 interface GrnRow {
   id: string;
@@ -16,7 +17,7 @@ interface GrnRow {
   received_by: string | null;
   remarks: string | null;
   po_id: string;
-  po?: { po_number: string | null; vendor_id: string | null } | null;
+  po?: { po_number: string | null; vendor_id: string | null; site_id: string | null } | null;
 }
 
 export default function GRN() {
@@ -25,6 +26,8 @@ export default function GRN() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [selected, setSelected] = useState<GrnRow | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -33,7 +36,7 @@ export default function GRN() {
     const [g, v] = await Promise.all([
       supabase
         .from("procurement_grns")
-        .select("id, grn_number, receipt_date, status, received_by, remarks, po_id, po:procurement_orders(po_number, vendor_id)")
+        .select("id, grn_number, receipt_date, status, received_by, remarks, po_id, po:procurement_orders(po_number, vendor_id, site_id)")
         .order("created_at", { ascending: false }),
       supabase.from("vendors").select("id, name"),
     ]);
@@ -89,7 +92,7 @@ export default function GRN() {
       ) : (
         <div className="space-y-2">
           {filtered.map((r) => (
-            <Card key={r.id}>
+            <Card key={r.id} role="button" tabIndex={0} onClick={() => { setSelected(r); setDetailOpen(true); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(r); setDetailOpen(true); } }} className="cursor-pointer hover:border-primary/50 transition-colors">
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -107,6 +110,13 @@ export default function GRN() {
           ))}
         </div>
       )}
+
+      <GRNDetail
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        grn={selected}
+        vendorName={selected?.po?.vendor_id ? (vendors[selected.po.vendor_id] || "") : ""}
+      />
     </motion.div>
   );
 }
