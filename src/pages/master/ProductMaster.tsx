@@ -78,7 +78,7 @@ export default function ProductMaster() {
     if (!name) { toast.error("Product name is required"); return; }
     setIsSaving(true);
     try {
-      const payload = { product_name: name, category_id: formData.category_id || null, is_active: formData.is_active };
+      const payload = { product_name: name, category_id: formData.category_id || null, default_uom: formData.default_uom || null, is_active: formData.is_active };
       if (editing) {
         const { error } = await supabase.from("master_products").update(payload).eq("id", editing.id);
         if (error) throw error;
