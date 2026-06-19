@@ -155,6 +155,7 @@ export default function ProductMaster() {
                     <TableHead>Product Name</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Sub Category</TableHead>
+                    <TableHead>Default UOM</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
