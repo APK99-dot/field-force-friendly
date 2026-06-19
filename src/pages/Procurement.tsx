@@ -102,7 +102,7 @@ export default function Procurement() {
 
   const vName = (id: string | null) => vendors.find((v) => v.id === id)?.name || "—";
   const sName = (id: string | null) => sites.find((s) => s.id === id)?.site_name || "—";
-  const eName = (id: string | null) => entities.find((e) => e.id === id)?.entity_name || "—";
+  
   const pName = (id: string | null) => products.find((p) => p.id === id)?.product_name || "—";
 
   const lineTotal = useMemo(
