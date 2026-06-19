@@ -38,6 +38,7 @@ const CategoryMaster = lazy(() => import("./pages/master/CategoryMaster"));
 const ProductMaster = lazy(() => import("./pages/master/ProductMaster"));
 
 const Procurement = lazy(() => import("./pages/Procurement"));
+const GRN = lazy(() => import("./pages/GRN"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
