@@ -38,14 +38,6 @@ const allMasterModules = [
     path: "/master-data/products",
     module: null as string | null,
   },
-  {
-    title: "Entity Master",
-    description: "Manage billing entities used in Procurement",
-    icon: Building,
-    color: "bg-rose-100 text-rose-600",
-    path: "/master-data/entities",
-    module: null as string | null,
-  },
 ];
 
 const container = {
