@@ -222,6 +222,15 @@ export default function ProductMaster() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Default Unit of Measurement</Label>
+              <Select value={formData.default_uom} onValueChange={(val) => setFormData({ ...formData, default_uom: val })}>
+                <SelectTrigger><SelectValue placeholder="Select UOM" /></SelectTrigger>
+                <SelectContent>
+                  {UOM_OPTIONS.map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-center justify-between">
               <div><Label>Active</Label><p className="text-xs text-muted-foreground">Inactive items are hidden from selection</p></div>
               <Switch checked={formData.is_active} onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })} />
