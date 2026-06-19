@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Truck, CalendarDays } from "lucide-react";
 import { GRN_STATUSES, statusColor } from "@/lib/procurement";
+import GRNDetail from "@/components/procurement/GRNDetail";
 
 interface GrnRow {
   id: string;
@@ -16,7 +17,7 @@ interface GrnRow {
   received_by: string | null;
   remarks: string | null;
   po_id: string;
-  po?: { po_number: string | null; vendor_id: string | null } | null;
+  po?: { po_number: string | null; vendor_id: string | null; site_id: string | null } | null;
 }
 
 export default function GRN() {
