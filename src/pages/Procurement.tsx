@@ -258,14 +258,14 @@ export default function Procurement() {
           <DialogHeader className="px-4 py-3 border-b shrink-0">
             <DialogTitle>{editing ? "Edit Procurement" : "New Procurement"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 p-4 overflow-y-auto flex-1 max-w-3xl w-full mx-auto">
+          <div className="space-y-4 p-4 overflow-y-auto flex-1 w-full">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Date</Label>
                 <Input type="date" value={form.order_date} onChange={(e) => setForm((p) => ({ ...p, order_date: e.target.value }))} className="h-9" />
               </div>
               <div>
-                <Label className="text-xs flex items-center gap-1"><FileText className="h-3 w-3" />PO Number</Label>
+                <Label className="text-xs">PO Number</Label>
                 <Input value={form.po_number} onChange={(e) => setForm((p) => ({ ...p, po_number: e.target.value }))} placeholder="PO-0001" className="h-9" />
               </div>
             </div>
