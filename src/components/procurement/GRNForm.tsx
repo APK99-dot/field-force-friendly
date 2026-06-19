@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Save, Truck } from "lucide-react";
-import { GRN_STATUSES, receiptDrivenStatus, fmtAmt } from "@/lib/procurement";
+import { GRN_STATUSES, receiptDrivenStatus } from "@/lib/procurement";
 
 export interface POItem {
   id: string;
