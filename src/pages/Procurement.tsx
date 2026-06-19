@@ -21,7 +21,6 @@ type ProcStatus = (typeof STATUSES)[number];
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
-interface Entity { id: string; entity_name: string }
 interface Product { id: string; product_name: string }
 
 interface LineItem { id?: string; product_id: string; rate: string; qty: string }
@@ -33,7 +32,6 @@ interface ProcOrder {
   vendor_id: string | null;
   po_number: string | null;
   site_id: string | null;
-  entity_id: string | null;
   status: string;
   grn_number: string | null;
   grn_status: string | null;
@@ -46,7 +44,6 @@ const emptyForm = {
   vendor_id: "",
   po_number: "",
   site_id: "",
-  entity_id: "",
   status: "Draft" as ProcStatus,
   grn_number: "",
   grn_status: "",
@@ -74,7 +71,6 @@ export default function Procurement() {
   const [orders, setOrders] = useState<ProcOrder[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [entities, setEntities] = useState<Entity[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -91,17 +87,15 @@ export default function Procurement() {
 
   const fetchAll = async () => {
     setIsLoading(true);
-    const [ord, ven, sit, ent, prod] = await Promise.all([
+    const [ord, ven, sit, prod] = await Promise.all([
       supabase.from("procurement_orders").select("*, procurement_items(*)").order("order_date", { ascending: false }),
       supabase.from("vendors").select("id, name").order("name"),
       supabase.from("project_sites").select("id, site_name").is("deleted_at", null).order("site_name"),
-      supabase.from("master_entities").select("id, entity_name").eq("is_active", true).order("entity_name"),
       supabase.from("master_products").select("id, product_name").eq("is_active", true).order("product_name"),
     ]);
     setOrders((ord.data || []) as ProcOrder[]);
     setVendors((ven.data || []) as Vendor[]);
     setSites((sit.data || []) as Site[]);
-    setEntities((ent.data || []) as Entity[]);
     setProducts((prod.data || []) as Product[]);
     setIsLoading(false);
   };
@@ -130,7 +124,6 @@ export default function Procurement() {
       vendor_id: o.vendor_id || "",
       po_number: o.po_number || "",
       site_id: o.site_id || "",
-      entity_id: o.entity_id || "",
       status: (o.status as ProcStatus) || "Draft",
       grn_number: o.grn_number || "",
       grn_status: o.grn_status || "",
@@ -158,7 +151,6 @@ export default function Procurement() {
         vendor_id: form.vendor_id || null,
         po_number: form.po_number.trim() || null,
         site_id: form.site_id || null,
-        entity_id: form.entity_id || null,
         status: form.status,
         grn_number: form.grn_number.trim() || null,
         grn_status: form.grn_status.trim() || null,
@@ -266,7 +258,7 @@ export default function Procurement() {
                       <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColor(o.status)}`}>{o.status}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground flex items-center gap-1"><CalendarDays className="h-3 w-3" />{o.order_date} · {vName(o.vendor_id)}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">Site: {sName(o.site_id)} · {eName(o.entity_id)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">Site: {sName(o.site_id)}</p>
                     {o.grn_number && (
                       <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1"><Truck className="h-3 w-3" />GRN: {o.grn_number}{o.grn_status ? ` (${o.grn_status})` : ""}</p>
                     )}
@@ -313,21 +305,12 @@ export default function Procurement() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Site</Label>
-                <Select value={form.site_id} onValueChange={(v) => setForm((p) => ({ ...p, site_id: v }))}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Select site" /></SelectTrigger>
-                  <SelectContent>{sites.map((s) => (<SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>))}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">Entity</Label>
-                <Select value={form.entity_id} onValueChange={(v) => setForm((p) => ({ ...p, entity_id: v }))}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Select entity" /></SelectTrigger>
-                  <SelectContent>{entities.map((e) => (<SelectItem key={e.id} value={e.id}>{e.entity_name}</SelectItem>))}</SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label className="text-xs">Site</Label>
+              <Select value={form.site_id} onValueChange={(v) => setForm((p) => ({ ...p, site_id: v }))}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select site" /></SelectTrigger>
+                <SelectContent>{sites.map((s) => (<SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>))}</SelectContent>
+              </Select>
             </div>
 
             <div>
