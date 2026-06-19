@@ -110,6 +110,13 @@ export default function GRN() {
           ))}
         </div>
       )}
+
+      <GRNDetail
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        grn={selected}
+        vendorName={selected?.po?.vendor_id ? (vendors[selected.po.vendor_id] || "") : ""}
+      />
     </motion.div>
   );
 }
