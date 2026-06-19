@@ -1,77 +1,77 @@
-# Procurement & Master Data Expansion
+# Procurement Module Redesign
 
-Adds a new top-level **Procurement** module and three new master-data screens (Category, Product, Entity) grouped under the existing **Master Data** section. All data is stored in new dedicated tables with row-level security and admin-gated UI, following the existing Vendor / Activity Type Master patterns.
+A full redesign of the Procurement module to enforce a correct purchase lifecycle: clean PO creation, button-driven approvals, a separate GRN (goods receipt) flow with partial receipts, invoice entry, and a 3-way match before closing.
 
-## 1. Master Data additions
+## Status lifecycle
 
-The Master Data page (`/master-data`) gets three new cards:
+```text
+Draft → Submitted → Approved → PO Sent → Partially Received → Fully Received → Invoice Pending → Closed
+                       │
+                       └→ Rejected  (admins/managers only)
+```
 
-- **Category Master** → `/master-data/categories`
-  - Fields: Category Name, Sub Category Name, Status (Active/Inactive)
-- **Product Master** → `/master-data/products`
-  - Fields: Product Name, Category, Sub Category, Status
-  - Category & Sub Category are chosen from Category Master entries
-- **Entity Master** → `/master-data/entities`
-  - Fields: Entity Name, Entity Code, Address, GST Number, Contact Person, Contact Number, Status
+- Users can only set **Draft** or **Submitted** on the PO form.
+- All forward transitions and Reject are **buttons** on the PO detail screen, visible only to admins/managers.
+- GRN receipts auto-drive the PO into Partially/Fully Received.
 
-Each screen mirrors the existing Activity Type Master layout: a table with Add/Edit/Delete dialogs, status toggle badge, and search. Vendor Master and Activity Type Master cards stay as they are.
+## 1. PO Form (Create / Edit)
 
-## 2. Procurement module (top-level navigation)
+- **Remove** GRN Number and GRN Status fields entirely (GRN never created at PO stage).
+- Keep: Date, Vendor, PO Number, Site, Status (limited to Draft / Submitted).
+- **Add** Expected Delivery Date (date).
+- **Add** Payment Terms dropdown: Immediate, Net 15, Net 30, Net 60, Against Delivery.
+- Line items get a **UOM** dropdown (Nos, Kg, Ton, Bags, Sqft, Rmt, Set), pre-filled from the product's default UOM but editable. Amount stays auto-calculated as Rate × Qty (already works).
 
-New nav item **Procurement** (alongside Activities, Expenses, etc.) at `/procurement`, gated by a new permission module.
+## 2. Master Data
 
-Each procurement order (Purchase Order) has:
+- Add a **Default UOM** field to Product Master (form + list) so line items can pre-fill it.
 
-- Date
-- Vendor (from Vendor Master)
-- PO Number
-- Site (from Projects/Sites)
-- Entity (from Entity Master)
-- Status: Draft, Submitted, Approved, PO Issued, Partially Received, Received, Closed, Rejected, Cancelled
-- GRN Number + GRN Status (simple fields on the order)
+## 3. PO Detail Screen
 
-Plus multiple **product line items**, each with:
+Replace the current "tap card → edit" behavior with a detail view that shows:
+- PO header, line items, totals, current status badge with a visual stepper.
+- **Action buttons** (role-gated): Submit, Approve, Reject, Mark PO Sent, Close. Editing only allowed while Draft/Submitted.
+- **Receive Goods (Create GRN)** button — enabled once status is Approved or PO Sent or Partially Received.
+- A GRN list and an Invoices list for that PO.
+- **3-Way Match** panel comparing PO qty / total received qty / invoiced amount, flagging rate mismatches.
 
-- Product (from Product Master)
-- Rate
-- Qty
-- Amount (auto-calculated = Rate × Qty; order shows a grand total)
+## 4. GRN Flow (top-level nav item + PO detail)
 
-UI: a list of procurement orders (card list with PO number, vendor, site, status badge, total) and a create/edit form (full-screen dialog/sheet) where line items can be added/removed dynamically, similar to the Vendor multi-entry pattern.
+- New **GRN** entry in the main navigation showing all receipts, plus GRN creation from the PO detail.
+- GRN form: PO reference (auto-linked), Date of Receipt, Received By, per-item Ordered Qty vs Received Qty, Remarks, GRN Status (Pending / Partially Received / Fully Received / Rejected).
+- **GRN Number auto-generated** (GRN-0001) at creation only.
+- **Partial receipts**: if total received < ordered, PO → Partially Received and another GRN can be raised for the balance; when fully received, PO → Fully Received and is eligible for Invoice Pending.
 
-## 3. Navigation & permissions
+## 5. Invoice Entry (separate, per PO)
 
-- `AppHeader.tsx` and `More.tsx`: add **Procurement** to `allNavigationItems` (icon `ShoppingCart`, gated by `module_procurement`).
-- `MasterData.tsx`: add the three new master cards (admin/module gated).
-- Add a `module_procurement` row to `permission_definitions` plus object permissions so Security & Access can grant access; default to System Administrators (consistent with current admin-only gating via `isAdmin` / `hasModuleAccess`).
+- Dedicated invoice form per PO (multiple invoices allowed): Invoice Number, Invoice Date, Invoice Amount, optional per-item invoiced rate.
+- Feeds the 3-way match. Moving PO to Invoice Pending / Closed happens via buttons after goods received.
+
+## 6. 3-Way Match
+
+- Summary screen on the PO detail matching PO quantity, GRN received quantity, and invoice amount.
+- Visual flag whenever PO rate ≠ invoice rate, or qty/amount totals don't reconcile. Close button warns on mismatch.
+
+---
 
 ## Technical details
 
-### New database tables (migration)
-All in `public`, with `created_at`/`updated_at` + update trigger, GRANTs to `authenticated` and `service_role`, RLS enabled.
+### Database (migration)
+- `procurement_orders`: drop usage of `grn_number`/`grn_status` (leave columns, stop writing); add `expected_delivery_date date`, `payment_terms text`. Status values updated to the new lifecycle set.
+- `procurement_items`: add `uom text`.
+- `master_products`: add `default_uom text`.
+- New table `procurement_grns` (po_id FK, grn_number unique, receipt_date, received_by, status, remarks, created_by, timestamps). GRN number via a sequence + trigger (`GRN-0001`), mirroring the existing `set_activity_code` pattern.
+- New table `procurement_grn_items` (grn_id FK, procurement_item_id FK, product_id, ordered_qty, received_qty).
+- New table `procurement_invoices` (po_id FK, invoice_number, invoice_date, invoice_amount, created_by, timestamps); optional `procurement_invoice_items` for per-item rate matching.
+- All new public tables get GRANT (authenticated + service_role) then RLS enabled with policies mirroring the existing procurement tables, plus `updated_at` triggers.
+- A `profile_object_permissions` row already exists for `module_procurement`; add a `module_grn` permission row (or reuse `module_procurement`) so the new nav item shows for admins.
 
-- `master_categories` — `category_name text`, `sub_category_name text`, `is_active boolean default true`, `created_by uuid`
-- `master_products` — `product_name text`, `category_id uuid references master_categories`, `is_active boolean`, `created_by uuid`
-  - (Category + Sub Category both come from the chosen `master_categories` row, which already pairs them.)
-- `master_entities` — `entity_name text`, `entity_code text`, `address text`, `gst_number text`, `contact_person text`, `contact_number text`, `is_active boolean`, `created_by uuid`
-- `procurement_orders` — `order_date date`, `vendor_id uuid references vendors`, `po_number text`, `site_id uuid references project_sites`, `entity_id uuid references master_entities`, `status text default 'Draft'`, `grn_number text`, `grn_status text`, `total_amount numeric default 0`, `created_by uuid`
-- `procurement_items` — `procurement_id uuid references procurement_orders on delete cascade`, `product_id uuid references master_products`, `rate numeric`, `qty numeric`, `amount numeric`
+### Frontend
+- Rewrite `src/pages/Procurement.tsx` into a list + detail flow; extract a `ProcurementDetail` view, `GRNForm`, `InvoiceForm`, and a `ThreeWayMatch` component (avoid inline sub-components per project convention).
+- New `src/pages/GRN.tsx` for the top-level GRN list; add route in `src/App.tsx` and nav entry in `AppHeader`/navigation config.
+- Role gating uses `useUserProfile` (`isAdmin`) plus the existing permission hook for managers.
+- Update `src/pages/master/ProductMaster.tsx` for the Default UOM field.
+- Status transition helper centralizing allowed next-states and who can trigger them.
 
-RLS policies: authenticated users can read; create/edit/delete limited to admins (using existing `has_role(auth.uid(),'admin')`) consistent with current master-data screens. Adjustable later via Security & Access.
-
-### New files
-- `src/pages/master/CategoryMaster.tsx`
-- `src/pages/master/ProductMaster.tsx`
-- `src/pages/master/EntityMaster.tsx`
-- `src/pages/Procurement.tsx` (list + create/edit form with line items)
-- Optional shared hook(s) for fetching masters via TanStack Query.
-
-### Edited files
-- `src/App.tsx` — add lazy routes for the four new pages.
-- `src/pages/MasterData.tsx` — add Category, Product, Entity cards.
-- `src/components/layout/AppHeader.tsx` and `src/pages/More.tsx` — add Procurement nav item.
-
-### Seed
-- Insert `module_procurement` permission definition + object permission rows.
-
-No changes to the existing (empty) `products` / `product_categories` tables — new dedicated tables avoid conflicts with `orders`/`order_items`.
+### Out of scope
+- No changes to unrelated modules. Entity remains removed.

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Save, Search, Package } from "lucide-react";
+import { UOM_OPTIONS } from "@/lib/procurement";
 
 interface CategoryRow {
   id: string;
@@ -24,6 +25,7 @@ interface ProductRow {
   id: string;
   product_name: string;
   category_id: string | null;
+  default_uom: string | null;
   is_active: boolean;
 }
 
@@ -42,14 +44,14 @@ export default function ProductMaster() {
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ product_name: "", category_id: "", is_active: true });
+  const [formData, setFormData] = useState({ product_name: "", category_id: "", default_uom: "", is_active: true });
 
   useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
     setIsLoading(true);
     const [{ data: prods }, { data: cats }] = await Promise.all([
-      supabase.from("master_products").select("id, product_name, category_id, is_active").order("product_name"),
+      supabase.from("master_products").select("id, product_name, category_id, default_uom, is_active").order("product_name"),
       supabase.from("master_categories").select("id, category_name, sub_category_name, is_active").order("category_name"),
     ]);
     setRows((prods || []) as ProductRow[]);
@@ -61,13 +63,13 @@ export default function ProductMaster() {
 
   const openAdd = () => {
     setEditing(null);
-    setFormData({ product_name: "", category_id: "", is_active: true });
+    setFormData({ product_name: "", category_id: "", default_uom: "", is_active: true });
     setIsDialogOpen(true);
   };
 
   const openEdit = (r: ProductRow) => {
     setEditing(r);
-    setFormData({ product_name: r.product_name, category_id: r.category_id || "", is_active: r.is_active });
+    setFormData({ product_name: r.product_name, category_id: r.category_id || "", default_uom: r.default_uom || "", is_active: r.is_active });
     setIsDialogOpen(true);
   };
 
@@ -76,7 +78,7 @@ export default function ProductMaster() {
     if (!name) { toast.error("Product name is required"); return; }
     setIsSaving(true);
     try {
-      const payload = { product_name: name, category_id: formData.category_id || null, is_active: formData.is_active };
+      const payload = { product_name: name, category_id: formData.category_id || null, default_uom: formData.default_uom || null, is_active: formData.is_active };
       if (editing) {
         const { error } = await supabase.from("master_products").update(payload).eq("id", editing.id);
         if (error) throw error;
@@ -153,6 +155,7 @@ export default function ProductMaster() {
                     <TableHead>Product Name</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Sub Category</TableHead>
+                    <TableHead>Default UOM</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -165,6 +168,7 @@ export default function ProductMaster() {
                         <TableCell className="font-medium">{r.product_name}</TableCell>
                         <TableCell>{c?.category_name || "—"}</TableCell>
                         <TableCell>{c?.sub_category_name || "—"}</TableCell>
+                        <TableCell>{r.default_uom || "—"}</TableCell>
                         <TableCell className="text-center">
                           <Badge
                             className={r.is_active ? "bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] cursor-pointer" : "bg-destructive/20 text-destructive cursor-pointer"}
@@ -215,6 +219,15 @@ export default function ProductMaster() {
                   {categories.filter((c) => c.is_active || c.id === formData.category_id).map((c) => (
                     <SelectItem key={c.id} value={c.id}>{categoryLabel(c)}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Default Unit of Measurement</Label>
+              <Select value={formData.default_uom} onValueChange={(val) => setFormData({ ...formData, default_uom: val })}>
+                <SelectTrigger><SelectValue placeholder="Select UOM" /></SelectTrigger>
+                <SelectContent>
+                  {UOM_OPTIONS.map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>

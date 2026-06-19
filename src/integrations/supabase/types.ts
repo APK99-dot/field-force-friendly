@@ -1196,6 +1196,7 @@ export type Database = {
           category_id: string | null
           created_at: string
           created_by: string | null
+          default_uom: string | null
           id: string
           is_active: boolean
           product_name: string
@@ -1205,6 +1206,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           created_by?: string | null
+          default_uom?: string | null
           id?: string
           is_active?: boolean
           product_name: string
@@ -1214,6 +1216,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           created_by?: string | null
+          default_uom?: string | null
           id?: string
           is_active?: boolean
           product_name?: string
@@ -2700,6 +2703,187 @@ export type Database = {
           },
         ]
       }
+      procurement_grn_items: {
+        Row: {
+          created_at: string
+          grn_id: string
+          id: string
+          ordered_qty: number
+          procurement_item_id: string | null
+          product_id: string | null
+          received_qty: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          grn_id: string
+          id?: string
+          ordered_qty?: number
+          procurement_item_id?: string | null
+          product_id?: string | null
+          received_qty?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          grn_id?: string
+          id?: string
+          ordered_qty?: number
+          procurement_item_id?: string | null
+          product_id?: string | null
+          received_qty?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_grn_items_grn_id_fkey"
+            columns: ["grn_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_grns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_grn_items_procurement_item_id_fkey"
+            columns: ["procurement_item_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      procurement_grns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          grn_number: string | null
+          id: string
+          po_id: string
+          receipt_date: string
+          received_by: string | null
+          remarks: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          grn_number?: string | null
+          id?: string
+          po_id: string
+          receipt_date?: string
+          received_by?: string | null
+          remarks?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          grn_number?: string | null
+          id?: string
+          po_id?: string
+          receipt_date?: string
+          received_by?: string | null
+          remarks?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_grns_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      procurement_invoice_items: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          invoiced_qty: number
+          invoiced_rate: number
+          procurement_item_id: string | null
+          product_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          invoiced_qty?: number
+          invoiced_rate?: number
+          procurement_item_id?: string | null
+          product_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          invoiced_qty?: number
+          invoiced_rate?: number
+          procurement_item_id?: string | null
+          product_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_invoice_items_procurement_item_id_fkey"
+            columns: ["procurement_item_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      procurement_invoices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_amount: number
+          invoice_date: string
+          invoice_number: string | null
+          po_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_amount?: number
+          invoice_date?: string
+          invoice_number?: string | null
+          po_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_amount?: number
+          invoice_date?: string
+          invoice_number?: string | null
+          po_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_invoices_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       procurement_items: {
         Row: {
           amount: number
@@ -2709,6 +2893,7 @@ export type Database = {
           product_id: string | null
           qty: number
           rate: number
+          uom: string | null
           updated_at: string
         }
         Insert: {
@@ -2719,6 +2904,7 @@ export type Database = {
           product_id?: string | null
           qty?: number
           rate?: number
+          uom?: string | null
           updated_at?: string
         }
         Update: {
@@ -2729,6 +2915,7 @@ export type Database = {
           product_id?: string | null
           qty?: number
           rate?: number
+          uom?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2753,10 +2940,12 @@ export type Database = {
           created_at: string
           created_by: string | null
           entity_id: string | null
+          expected_delivery_date: string | null
           grn_number: string | null
           grn_status: string | null
           id: string
           order_date: string
+          payment_terms: string | null
           po_number: string | null
           site_id: string | null
           status: string
@@ -2768,10 +2957,12 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           entity_id?: string | null
+          expected_delivery_date?: string | null
           grn_number?: string | null
           grn_status?: string | null
           id?: string
           order_date?: string
+          payment_terms?: string | null
           po_number?: string | null
           site_id?: string | null
           status?: string
@@ -2783,10 +2974,12 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           entity_id?: string | null
+          expected_delivery_date?: string | null
           grn_number?: string | null
           grn_status?: string | null
           id?: string
           order_date?: string
+          payment_terms?: string | null
           po_number?: string | null
           site_id?: string | null
           status?: string
