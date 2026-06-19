@@ -36,7 +36,7 @@ export default function GRN() {
     const [g, v] = await Promise.all([
       supabase
         .from("procurement_grns")
-        .select("id, grn_number, receipt_date, status, received_by, remarks, po_id, po:procurement_orders(po_number, vendor_id)")
+        .select("id, grn_number, receipt_date, status, received_by, remarks, po_id, po:procurement_orders(po_number, vendor_id, site_id)")
         .order("created_at", { ascending: false }),
       supabase.from("vendors").select("id, name"),
     ]);
