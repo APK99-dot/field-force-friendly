@@ -26,6 +26,8 @@ export default function GRN() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [selected, setSelected] = useState<GrnRow | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
 
