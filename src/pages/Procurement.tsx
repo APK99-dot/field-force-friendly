@@ -258,7 +258,7 @@ export default function Procurement() {
           <DialogHeader className="px-4 py-3 border-b shrink-0">
             <DialogTitle>{editing ? "Edit Procurement" : "New Procurement"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 p-4 overflow-y-auto flex-1 max-w-3xl w-full mx-auto">
+          <div className="space-y-4 p-4 overflow-y-auto flex-1 w-full">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Date</Label>
