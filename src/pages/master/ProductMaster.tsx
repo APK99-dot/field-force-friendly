@@ -63,7 +63,7 @@ export default function ProductMaster() {
 
   const openAdd = () => {
     setEditing(null);
-    setFormData({ product_name: "", category_id: "", is_active: true });
+    setFormData({ product_name: "", category_id: "", default_uom: "", is_active: true });
     setIsDialogOpen(true);
   };
 
