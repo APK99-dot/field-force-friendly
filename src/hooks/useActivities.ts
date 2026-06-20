@@ -39,6 +39,7 @@ export interface Activity {
   project_id: string | null;
   site_id: string | null;
   milestone_id: string | null;
+  grn_po_id: string | null;
   location_lat: number | null;
   location_lng: number | null;
   location_address: string | null;
