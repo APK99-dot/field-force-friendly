@@ -63,6 +63,8 @@ import ActivityReportGenerator from "@/components/activities/ActivityReportGener
 import ActivityPhotoManager from "@/components/activities/ActivityPhotoManager";
 import ActivityDetailsDialog from "@/components/activities/ActivityDetailsDialog";
 import { milestoneStatusLabel } from "@/components/admin/SiteMilestonesDialog";
+import OpenGRNPicker from "@/components/procurement/OpenGRNPicker";
+import ReceiveGoodsDialog from "@/components/procurement/ReceiveGoodsDialog";
 
 interface MilestoneOption {
   id: string;
