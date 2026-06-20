@@ -10,13 +10,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Save, ListChecks } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Edit, Trash2, Save, ListChecks, Sparkles, Loader2 } from "lucide-react";
 
 interface ActivityTypeRow {
   id: string;
   name: string;
   is_active: boolean;
   sort_order: number;
+  details: string | null;
 }
 
 const container = {
@@ -32,7 +34,8 @@ export default function ActivityTypeMaster() {
   const [editing, setEditing] = useState<ActivityTypeRow | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: "", is_active: true, sort_order: 100 });
+  const [isElaborating, setIsElaborating] = useState(false);
+  const [formData, setFormData] = useState({ name: "", is_active: true, sort_order: 100, details: "" });
 
   useEffect(() => { fetchTypes(); }, []);
 
@@ -40,7 +43,7 @@ export default function ActivityTypeMaster() {
     setIsLoading(true);
     const { data, error } = await supabase
       .from("activity_types_master")
-      .select("id, name, is_active, sort_order")
+      .select("id, name, is_active, sort_order, details")
       .order("sort_order")
       .order("name");
     if (!error) setTypes((data || []) as ActivityTypeRow[]);
@@ -49,14 +52,35 @@ export default function ActivityTypeMaster() {
 
   const openAdd = () => {
     setEditing(null);
-    setFormData({ name: "", is_active: true, sort_order: 100 });
+    setFormData({ name: "", is_active: true, sort_order: 100, details: "" });
     setIsDialogOpen(true);
   };
 
   const openEdit = (t: ActivityTypeRow) => {
     setEditing(t);
-    setFormData({ name: t.name, is_active: t.is_active, sort_order: t.sort_order });
+    setFormData({ name: t.name, is_active: t.is_active, sort_order: t.sort_order, details: t.details || "" });
     setIsDialogOpen(true);
+  };
+
+  const handleElaborate = async () => {
+    const trimmedName = formData.name.trim();
+    if (!trimmedName) { toast.error("Enter the activity type name first"); return; }
+    setIsElaborating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("elaborate-activity-details", {
+        body: { name: trimmedName, draft: formData.details },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      if (data?.details) {
+        setFormData((prev) => ({ ...prev, details: data.details }));
+        toast.success("Details generated");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate details");
+    } finally {
+      setIsElaborating(false);
+    }
   };
 
   const handleSave = async () => {
@@ -71,7 +95,7 @@ export default function ActivityTypeMaster() {
       if (editing) {
         const { error } = await supabase
           .from("activity_types_master")
-          .update({ name: trimmed, is_active: formData.is_active, sort_order: formData.sort_order })
+          .update({ name: trimmed, is_active: formData.is_active, sort_order: formData.sort_order, details: formData.details.trim() || null })
           .eq("id", editing.id);
         if (error) throw error;
         toast.success("Activity type updated");
@@ -79,7 +103,7 @@ export default function ActivityTypeMaster() {
         const { data: { user } } = await supabase.auth.getUser();
         const { error } = await supabase
           .from("activity_types_master")
-          .insert({ name: trimmed, is_active: formData.is_active, sort_order: formData.sort_order, created_by: user?.id });
+          .insert({ name: trimmed, is_active: formData.is_active, sort_order: formData.sort_order, details: formData.details.trim() || null, created_by: user?.id });
         if (error) throw error;
         toast.success("Activity type created");
       }
@@ -191,6 +215,28 @@ export default function ActivityTypeMaster() {
             <div>
               <Label>Name *</Label>
               <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g., Quality Check" autoFocus />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <Label>Activity Details</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleElaborate}
+                  disabled={isElaborating || !formData.name.trim()}
+                >
+                  {isElaborating ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                  {isElaborating ? "Generating..." : "Elaborate with AI"}
+                </Button>
+              </div>
+              <Textarea
+                value={formData.details}
+                onChange={(e) => setFormData({ ...formData, details: e.target.value })}
+                placeholder="Describe this activity, or type a few words and let AI elaborate"
+                rows={4}
+              />
+              <p className="text-xs text-muted-foreground mt-1">AI uses the name and any text you've entered to generate details</p>
             </div>
             <div>
               <Label>Sort Order</Label>
