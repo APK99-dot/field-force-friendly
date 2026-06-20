@@ -26,6 +26,7 @@ export type Database = {
           duration_type: string | null
           end_time: string | null
           from_date: string | null
+          grn_po_id: string | null
           half_day_type: string | null
           id: string
           location_address: string | null
@@ -60,6 +61,7 @@ export type Database = {
           duration_type?: string | null
           end_time?: string | null
           from_date?: string | null
+          grn_po_id?: string | null
           half_day_type?: string | null
           id?: string
           location_address?: string | null
@@ -94,6 +96,7 @@ export type Database = {
           duration_type?: string | null
           end_time?: string | null
           from_date?: string | null
+          grn_po_id?: string | null
           half_day_type?: string | null
           id?: string
           location_address?: string | null
@@ -118,6 +121,13 @@ export type Database = {
           visit_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "activity_events_grn_po_id_fkey"
+            columns: ["grn_po_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "activity_events_milestone_id_fkey"
             columns: ["milestone_id"]
