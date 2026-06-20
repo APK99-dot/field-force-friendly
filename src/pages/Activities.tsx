@@ -204,7 +204,7 @@ const defaultForm = {
 };
 
 export default function Activities() {
-  const { activities, loading, users, projects, sites, fetchActivities, fetchDropdowns, createActivity, updateActivity, deleteActivity, fetchAttendanceForDate, fetchGPSTrackingForDate } = useActivities();
+  const { activities, loading, users, projects, sites, fetchActivities, fetchDropdowns, createActivity, updateActivity, deleteActivity, fetchAttendanceForDate, checkInForDate, fetchGPSTrackingForDate } = useActivities();
   const { isAdmin, role } = useUserProfile();
   const navigate = useNavigate();
   const isManagerOrAdmin = isAdmin || role === "sales_manager";
