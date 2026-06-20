@@ -1396,6 +1396,8 @@ export default function Activities() {
           setDetailsActivity({ ...detailsActivity, photo_urls: photos });
           fetchActivities();
         }}
+        onEdit={handleOpenEdit}
+        onDelete={handleDelete}
       />
 
       {/* Receive Goods (GRN) Dialog */}
