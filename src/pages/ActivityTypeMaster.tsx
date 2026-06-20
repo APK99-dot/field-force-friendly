@@ -10,13 +10,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Save, ListChecks } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Edit, Trash2, Save, ListChecks, Sparkles, Loader2 } from "lucide-react";
 
 interface ActivityTypeRow {
   id: string;
   name: string;
   is_active: boolean;
   sort_order: number;
+  details: string | null;
 }
 
 const container = {
