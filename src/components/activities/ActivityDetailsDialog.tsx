@@ -1,7 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Activity, MapPin, Clock, CheckCircle2, PlayCircle, CircleDot } from "lucide-react";
+import { Activity, MapPin, Clock, CheckCircle2, PlayCircle, CircleDot, Pencil, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import ActivityPhotoManager from "@/components/activities/ActivityPhotoManager";
 import type { Activity as ActivityType, ActivityPhotoEntry } from "@/hooks/useActivities";
