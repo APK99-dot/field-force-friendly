@@ -324,6 +324,7 @@ export function useActivities() {
     updateActivity,
     deleteActivity,
     fetchAttendanceForDate,
+    checkInForDate,
     fetchGPSTrackingForDate,
   };
 }
