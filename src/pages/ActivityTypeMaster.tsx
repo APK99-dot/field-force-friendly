@@ -43,7 +43,7 @@ export default function ActivityTypeMaster() {
     setIsLoading(true);
     const { data, error } = await supabase
       .from("activity_types_master")
-      .select("id, name, is_active, sort_order")
+      .select("id, name, is_active, sort_order, details")
       .order("sort_order")
       .order("name");
     if (!error) setTypes((data || []) as ActivityTypeRow[]);
@@ -52,14 +52,35 @@ export default function ActivityTypeMaster() {
 
   const openAdd = () => {
     setEditing(null);
-    setFormData({ name: "", is_active: true, sort_order: 100 });
+    setFormData({ name: "", is_active: true, sort_order: 100, details: "" });
     setIsDialogOpen(true);
   };
 
   const openEdit = (t: ActivityTypeRow) => {
     setEditing(t);
-    setFormData({ name: t.name, is_active: t.is_active, sort_order: t.sort_order });
+    setFormData({ name: t.name, is_active: t.is_active, sort_order: t.sort_order, details: t.details || "" });
     setIsDialogOpen(true);
+  };
+
+  const handleElaborate = async () => {
+    const trimmedName = formData.name.trim();
+    if (!trimmedName) { toast.error("Enter the activity type name first"); return; }
+    setIsElaborating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("elaborate-activity-details", {
+        body: { name: trimmedName, draft: formData.details },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      if (data?.details) {
+        setFormData((prev) => ({ ...prev, details: data.details }));
+        toast.success("Details generated");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate details");
+    } finally {
+      setIsElaborating(false);
+    }
   };
 
   const handleSave = async () => {
