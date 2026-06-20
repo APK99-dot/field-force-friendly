@@ -217,6 +217,8 @@ export default function Activities() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [detailsActivity, setDetailsActivity] = useState<ActivityType | null>(null);
+  const [formAttendance, setFormAttendance] = useState<{ check_in_time: string | null; check_out_time: string | null } | null>(null);
+  const [checkingIn, setCheckingIn] = useState(false);
   const [receivePoId, setReceivePoId] = useState<string>("");
   const [searchParams, setSearchParams] = useSearchParams();
   const [saving, setSaving] = useState(false);
