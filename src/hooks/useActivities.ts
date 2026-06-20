@@ -216,6 +216,7 @@ export function useActivities() {
         project_id: activity.project_id || null,
         site_id: activity.site_id || null,
         milestone_id: (activity as any).milestone_id || null,
+        grn_po_id: (activity as any).grn_po_id || null,
         location_lat: activity.location_lat || null,
         location_lng: activity.location_lng || null,
         location_address: activity.location_address || null,
