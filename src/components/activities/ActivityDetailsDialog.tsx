@@ -31,9 +31,11 @@ interface ActivityDetailsDialogProps {
   onClose: () => void;
   onSavePhotos?: (photos: ActivityPhotoEntry[]) => Promise<void> | void;
   attendance?: { check_in_time: string | null; check_out_time: string | null } | null;
+  onEdit?: (activity: ActivityType) => void;
+  onDelete?: (id: string) => void;
 }
 
-export default function ActivityDetailsDialog({ activity, open, onClose, onSavePhotos, attendance }: ActivityDetailsDialogProps) {
+export default function ActivityDetailsDialog({ activity, open, onClose, onSavePhotos, attendance, onEdit, onDelete }: ActivityDetailsDialogProps) {
   if (!activity) return null;
 
   const history = [...(activity.status_history || [])].sort(
