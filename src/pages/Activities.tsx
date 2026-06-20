@@ -1090,6 +1090,13 @@ export default function Activities() {
                 />
               </div>
             )}
+            {form.activity_type.trim().toLowerCase().includes("grn") && (
+              <OpenGRNPicker
+                siteId={form.site_id && form.site_id !== "__add_new_site__" ? form.site_id : ""}
+                value={form.grn_po_id}
+                onChange={(poId) => setForm({ ...form, grn_po_id: poId })}
+              />
+            )}
             <div>
               <Label className="text-xs">Activity Date</Label>
               <Input type="date" value={form.activity_date} onChange={(e) => setForm({ ...form, activity_date: e.target.value })} />
