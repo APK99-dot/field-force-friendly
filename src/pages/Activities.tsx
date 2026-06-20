@@ -1574,7 +1574,7 @@ function GPSTrackView({
 }
 
 // ---- Activity Card Component ----
-function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onStatusChanged, updateActivity, getStatusUpdateTargetId, selectedDateStr }: { a: ActivityType; isAdmin: boolean; onEdit: (a: ActivityType) => void; onDelete: (id: string) => void; onOpenDetails: (a: ActivityType) => void; onStatusChanged: () => void; updateActivity: (id: string, updates: Partial<ActivityType>) => Promise<void>; getStatusUpdateTargetId: (activity: ActivityType, targetDate: string) => Promise<string>; selectedDateStr: string }) {
+function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onReceiveGoods, onStatusChanged, updateActivity, getStatusUpdateTargetId, selectedDateStr }: { a: ActivityType; isAdmin: boolean; onEdit: (a: ActivityType) => void; onDelete: (id: string) => void; onOpenDetails: (a: ActivityType) => void; onReceiveGoods: (poId: string) => void; onStatusChanged: () => void; updateActivity: (id: string, updates: Partial<ActivityType>) => Promise<void>; getStatusUpdateTargetId: (activity: ActivityType, targetDate: string) => Promise<string>; selectedDateStr: string }) {
   const [changingStatus, setChangingStatus] = useState(false);
 
   const handleStatusChange = async (newStatus: string) => {
