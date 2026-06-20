@@ -63,6 +63,8 @@ import ActivityReportGenerator from "@/components/activities/ActivityReportGener
 import ActivityPhotoManager from "@/components/activities/ActivityPhotoManager";
 import ActivityDetailsDialog from "@/components/activities/ActivityDetailsDialog";
 import { milestoneStatusLabel } from "@/components/admin/SiteMilestonesDialog";
+import OpenGRNPicker from "@/components/procurement/OpenGRNPicker";
+import ReceiveGoodsDialog from "@/components/procurement/ReceiveGoodsDialog";
 
 interface MilestoneOption {
   id: string;
@@ -192,6 +194,7 @@ const defaultForm = {
   description: "",
   site_id: "",
   milestone_id: "",
+  grn_po_id: "",
   site_flag: "" as string,
   site_status: "" as string,
   location_address: "",
@@ -214,6 +217,7 @@ export default function Activities() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [detailsActivity, setDetailsActivity] = useState<ActivityType | null>(null);
+  const [receivePoId, setReceivePoId] = useState<string>("");
   const [searchParams, setSearchParams] = useSearchParams();
   const [saving, setSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
@@ -648,6 +652,7 @@ export default function Activities() {
       description: a.description || "",
       site_id: a.site_id || "",
       milestone_id: a.milestone_id || "",
+      grn_po_id: (a as any).grn_po_id || "",
       site_flag: "",
       site_status: "",
       location_address: a.location_address || "",
@@ -662,8 +667,13 @@ export default function Activities() {
   const handleSave = async () => {
     if (!form.activity_type) return;
     const isOther = form.activity_type.trim().toLowerCase() === "other";
+    const isGrnType = form.activity_type.trim().toLowerCase().includes("grn");
     if (isOther && !form.custom_activity_name.trim()) {
       toast.error("Please enter a name for the 'Other' activity type.");
+      return;
+    }
+    if (isGrnType && !form.grn_po_id) {
+      toast.error("Please select an open purchase order (GRN) to receive against.");
       return;
     }
     setSaving(true);
@@ -700,6 +710,7 @@ export default function Activities() {
         description: form.description || null,
         site_id: form.site_id || null,
         milestone_id: form.milestone_id || null,
+        grn_po_id: isGrnType ? (form.grn_po_id || null) : null,
         location_address: form.location_address || null,
         total_hours: form.total_hours || 0,
         photo_urls: form.photos || [],
@@ -911,6 +922,7 @@ export default function Activities() {
                   onEdit={handleOpenEdit}
                   onDelete={handleDelete}
                   onOpenDetails={setDetailsActivity}
+                  onReceiveGoods={(poId) => setReceivePoId(poId)}
                   onStatusChanged={() => fetchActivities()}
                   updateActivity={updateActivity}
                   getStatusUpdateTargetId={getStatusUpdateTargetId}
@@ -1079,6 +1091,13 @@ export default function Activities() {
                   maxLength={100}
                 />
               </div>
+            )}
+            {form.activity_type.trim().toLowerCase().includes("grn") && (
+              <OpenGRNPicker
+                siteId={form.site_id && form.site_id !== "__add_new_site__" ? form.site_id : ""}
+                value={form.grn_po_id}
+                onChange={(poId) => setForm({ ...form, grn_po_id: poId })}
+              />
             )}
             <div>
               <Label className="text-xs">Activity Date</Label>
@@ -1336,6 +1355,17 @@ export default function Activities() {
           fetchActivities();
         }}
       />
+
+      {/* Receive Goods (GRN) Dialog */}
+      {receivePoId && (
+        <ReceiveGoodsDialog
+          open={!!receivePoId}
+          onOpenChange={(o) => { if (!o) setReceivePoId(""); }}
+          poId={receivePoId}
+          currentUserId={currentUserId}
+          onSaved={() => { setReceivePoId(""); fetchActivities(); }}
+        />
+      )}
     </motion.div>
 
   );
@@ -1555,7 +1585,7 @@ function GPSTrackView({
 }
 
 // ---- Activity Card Component ----
-function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onStatusChanged, updateActivity, getStatusUpdateTargetId, selectedDateStr }: { a: ActivityType; isAdmin: boolean; onEdit: (a: ActivityType) => void; onDelete: (id: string) => void; onOpenDetails: (a: ActivityType) => void; onStatusChanged: () => void; updateActivity: (id: string, updates: Partial<ActivityType>) => Promise<void>; getStatusUpdateTargetId: (activity: ActivityType, targetDate: string) => Promise<string>; selectedDateStr: string }) {
+function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onReceiveGoods, onStatusChanged, updateActivity, getStatusUpdateTargetId, selectedDateStr }: { a: ActivityType; isAdmin: boolean; onEdit: (a: ActivityType) => void; onDelete: (id: string) => void; onOpenDetails: (a: ActivityType) => void; onReceiveGoods: (poId: string) => void; onStatusChanged: () => void; updateActivity: (id: string, updates: Partial<ActivityType>) => Promise<void>; getStatusUpdateTargetId: (activity: ActivityType, targetDate: string) => Promise<string>; selectedDateStr: string }) {
   const [changingStatus, setChangingStatus] = useState(false);
 
   const handleStatusChange = async (newStatus: string) => {
@@ -1694,6 +1724,12 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onStatusCha
             <Badge variant="outline" className={statusColors[a.status] || ""}>
               {statusLabels[a.status] || a.status}
             </Badge>
+            {a.activity_type?.trim().toLowerCase().includes("grn") && (a as any).grn_po_id && (
+              <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => onReceiveGoods((a as any).grn_po_id)}>
+                <Route className="h-3.5 w-3.5" />
+                Receive Goods
+              </Button>
+            )}
             {a.status === "planned" && (
               <Button size="sm" className="h-8 gap-1.5" onClick={() => handleStatusChange("in_progress")} disabled={changingStatus}>
                 {changingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5" />}

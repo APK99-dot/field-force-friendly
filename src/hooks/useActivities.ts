@@ -39,6 +39,7 @@ export interface Activity {
   project_id: string | null;
   site_id: string | null;
   milestone_id: string | null;
+  grn_po_id: string | null;
   location_lat: number | null;
   location_lng: number | null;
   location_address: string | null;
@@ -215,6 +216,7 @@ export function useActivities() {
         project_id: activity.project_id || null,
         site_id: activity.site_id || null,
         milestone_id: (activity as any).milestone_id || null,
+        grn_po_id: (activity as any).grn_po_id || null,
         location_lat: activity.location_lat || null,
         location_lng: activity.location_lng || null,
         location_address: activity.location_address || null,
@@ -244,7 +246,7 @@ export function useActivities() {
       'activity_name', 'activity_type', 'activity_date', 'start_time', 'end_time',
       'duration_type', 'total_hours', 'total_days', 'from_date', 'to_date',
       'description', 'remarks', 'status',
-      'project_id', 'site_id', 'milestone_id', 'location_address',
+      'project_id', 'site_id', 'milestone_id', 'grn_po_id', 'location_address',
       'status_changed_at', 'status_change_lat', 'status_change_lng',
       'location_lat', 'location_lng', 'attachment_urls',
       'status_history', 'photo_urls',
