@@ -922,6 +922,7 @@ export default function Activities() {
                   onEdit={handleOpenEdit}
                   onDelete={handleDelete}
                   onOpenDetails={setDetailsActivity}
+                  onReceiveGoods={(poId) => setReceivePoId(poId)}
                   onStatusChanged={() => fetchActivities()}
                   updateActivity={updateActivity}
                   getStatusUpdateTargetId={getStatusUpdateTargetId}
