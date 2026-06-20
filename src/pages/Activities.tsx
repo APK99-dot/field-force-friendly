@@ -217,6 +217,7 @@ export default function Activities() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [detailsActivity, setDetailsActivity] = useState<ActivityType | null>(null);
+  const [receivePoId, setReceivePoId] = useState<string>("");
   const [searchParams, setSearchParams] = useSearchParams();
   const [saving, setSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
