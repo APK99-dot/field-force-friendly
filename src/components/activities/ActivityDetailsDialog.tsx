@@ -196,6 +196,34 @@ export default function ActivityDetailsDialog({ activity, open, onClose, onSaveP
               onChange={canAddPhotos ? (photos) => onSavePhotos?.(photos) : undefined}
             />
           </div>
+
+          {(onEdit || onDelete) && (
+            <>
+              <Separator />
+              <div className="flex items-center gap-2">
+                {onEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => { onEdit(activity); onClose(); }}
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => { onDelete(activity.id); onClose(); }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
