@@ -246,7 +246,7 @@ export function useActivities() {
       'activity_name', 'activity_type', 'activity_date', 'start_time', 'end_time',
       'duration_type', 'total_hours', 'total_days', 'from_date', 'to_date',
       'description', 'remarks', 'status',
-      'project_id', 'site_id', 'milestone_id', 'location_address',
+      'project_id', 'site_id', 'milestone_id', 'grn_po_id', 'location_address',
       'status_changed_at', 'status_change_lat', 'status_change_lng',
       'location_lat', 'location_lng', 'attachment_urls',
       'status_history', 'photo_urls',
