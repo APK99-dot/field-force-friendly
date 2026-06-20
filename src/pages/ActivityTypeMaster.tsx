@@ -95,7 +95,7 @@ export default function ActivityTypeMaster() {
       if (editing) {
         const { error } = await supabase
           .from("activity_types_master")
-          .update({ name: trimmed, is_active: formData.is_active, sort_order: formData.sort_order })
+          .update({ name: trimmed, is_active: formData.is_active, sort_order: formData.sort_order, details: formData.details.trim() || null })
           .eq("id", editing.id);
         if (error) throw error;
         toast.success("Activity type updated");
@@ -103,7 +103,7 @@ export default function ActivityTypeMaster() {
         const { data: { user } } = await supabase.auth.getUser();
         const { error } = await supabase
           .from("activity_types_master")
-          .insert({ name: trimmed, is_active: formData.is_active, sort_order: formData.sort_order, created_by: user?.id });
+          .insert({ name: trimmed, is_active: formData.is_active, sort_order: formData.sort_order, details: formData.details.trim() || null, created_by: user?.id });
         if (error) throw error;
         toast.success("Activity type created");
       }
