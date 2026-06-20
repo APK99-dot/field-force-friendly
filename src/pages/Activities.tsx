@@ -1355,6 +1355,17 @@ export default function Activities() {
           fetchActivities();
         }}
       />
+
+      {/* Receive Goods (GRN) Dialog */}
+      {receivePoId && (
+        <ReceiveGoodsDialog
+          open={!!receivePoId}
+          onOpenChange={(o) => { if (!o) setReceivePoId(""); }}
+          poId={receivePoId}
+          currentUserId={currentUserId}
+          onSaved={() => { setReceivePoId(""); fetchActivities(); }}
+        />
+      )}
     </motion.div>
 
   );
