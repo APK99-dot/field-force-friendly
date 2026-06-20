@@ -34,7 +34,8 @@ export default function ActivityTypeMaster() {
   const [editing, setEditing] = useState<ActivityTypeRow | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: "", is_active: true, sort_order: 100 });
+  const [isElaborating, setIsElaborating] = useState(false);
+  const [formData, setFormData] = useState({ name: "", is_active: true, sort_order: 100, details: "" });
 
   useEffect(() => { fetchTypes(); }, []);
 
