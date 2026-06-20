@@ -217,6 +217,28 @@ export default function ActivityTypeMaster() {
               <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g., Quality Check" autoFocus />
             </div>
             <div>
+              <div className="flex items-center justify-between mb-1">
+                <Label>Activity Details</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleElaborate}
+                  disabled={isElaborating || !formData.name.trim()}
+                >
+                  {isElaborating ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                  {isElaborating ? "Generating..." : "Elaborate with AI"}
+                </Button>
+              </div>
+              <Textarea
+                value={formData.details}
+                onChange={(e) => setFormData({ ...formData, details: e.target.value })}
+                placeholder="Describe this activity, or type a few words and let AI elaborate"
+                rows={4}
+              />
+              <p className="text-xs text-muted-foreground mt-1">AI uses the name and any text you've entered to generate details</p>
+            </div>
+            <div>
               <Label>Sort Order</Label>
               <Input type="number" value={formData.sort_order} onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })} />
               <p className="text-xs text-muted-foreground mt-1">Lower numbers appear first in the dropdown</p>
