@@ -968,6 +968,31 @@ export default function Activities() {
             <DialogTitle>{editingId ? "Edit Activity" : "Log New Activity"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 mt-2">
+            {/* Check-in for the record's date */}
+            {!editingId && (
+              <div className="rounded-lg border p-3 flex items-center justify-between gap-3">
+                {formAttendance?.check_in_time ? (
+                  <p className="text-xs text-success flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Checked in at {format(parseISO(formAttendance.check_in_time), "h:mm a")}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" /> Not checked in yet
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={formAttendance?.check_in_time ? "outline" : "default"}
+                  disabled={checkingIn || !!formAttendance?.check_in_time}
+                  onClick={handleCheckIn}
+                >
+                  {checkingIn ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogIn className="h-3.5 w-3.5" />}
+                  <span className="ml-1.5">{formAttendance?.check_in_time ? "Checked in" : "Check in"}</span>
+                </Button>
+              </div>
+            )}
             {/* Activity Owner - only for managers/admins */}
             {isManagerOrAdmin && !editingId && (
               <div>
