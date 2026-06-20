@@ -192,6 +192,7 @@ const defaultForm = {
   description: "",
   site_id: "",
   milestone_id: "",
+  grn_po_id: "",
   site_flag: "" as string,
   site_status: "" as string,
   location_address: "",
