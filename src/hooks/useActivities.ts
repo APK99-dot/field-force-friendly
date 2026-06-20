@@ -171,6 +171,43 @@ export function useActivities() {
     return data;
   }, []);
 
+  const checkInForDate = useCallback(async (userId: string, date: string) => {
+    let location: { lat: number; lng: number } | null = null;
+    try {
+      location = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => reject(),
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      });
+    } catch {
+      location = null;
+    }
+
+    const now = new Date().toISOString();
+    const { data: existing } = await supabase
+      .from("attendance")
+      .select("id, check_in_time")
+      .eq("user_id", userId)
+      .eq("date", date)
+      .maybeSingle();
+
+    if (existing?.check_in_time) {
+      return { check_in_time: existing.check_in_time, check_out_time: null };
+    }
+
+    const payload: any = { check_in_time: now, check_in_location: location, status: "present" };
+    if (existing) {
+      const { error } = await supabase.from("attendance").update(payload).eq("id", existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("attendance").insert({ user_id: userId, date, ...payload });
+      if (error) throw error;
+    }
+    return { check_in_time: now, check_out_time: null };
+  }, []);
+
   const fetchGPSTrackingForDate = useCallback(async (userId: string, date: string) => {
     const [pointsRes, stopsRes] = await Promise.all([
       supabase
@@ -287,6 +324,7 @@ export function useActivities() {
     updateActivity,
     deleteActivity,
     fetchAttendanceForDate,
+    checkInForDate,
     fetchGPSTrackingForDate,
   };
 }

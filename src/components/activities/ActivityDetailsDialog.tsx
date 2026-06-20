@@ -1,7 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Activity, MapPin, Clock, CheckCircle2, PlayCircle, CircleDot } from "lucide-react";
+import { Activity, MapPin, Clock, CheckCircle2, PlayCircle, CircleDot, Pencil, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import ActivityPhotoManager from "@/components/activities/ActivityPhotoManager";
 import type { Activity as ActivityType, ActivityPhotoEntry } from "@/hooks/useActivities";
@@ -30,9 +31,11 @@ interface ActivityDetailsDialogProps {
   onClose: () => void;
   onSavePhotos?: (photos: ActivityPhotoEntry[]) => Promise<void> | void;
   attendance?: { check_in_time: string | null; check_out_time: string | null } | null;
+  onEdit?: (activity: ActivityType) => void;
+  onDelete?: (id: string) => void;
 }
 
-export default function ActivityDetailsDialog({ activity, open, onClose, onSavePhotos, attendance }: ActivityDetailsDialogProps) {
+export default function ActivityDetailsDialog({ activity, open, onClose, onSavePhotos, attendance, onEdit, onDelete }: ActivityDetailsDialogProps) {
   if (!activity) return null;
 
   const history = [...(activity.status_history || [])].sort(
@@ -193,6 +196,34 @@ export default function ActivityDetailsDialog({ activity, open, onClose, onSaveP
               onChange={canAddPhotos ? (photos) => onSavePhotos?.(photos) : undefined}
             />
           </div>
+
+          {(onEdit || onDelete) && (
+            <>
+              <Separator />
+              <div className="flex items-center gap-2">
+                {onEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => { onEdit(activity); onClose(); }}
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => { onDelete(activity.id); onClose(); }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
