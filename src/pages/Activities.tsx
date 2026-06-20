@@ -610,7 +610,22 @@ export default function Activities() {
   const handleOpenCreate = () => {
     setForm({ ...defaultForm, activity_date: dateStr, owner_user_id: currentUserId });
     setEditingId(null);
+    setFormAttendance(null);
     setShowForm(true);
+    fetchAttendanceForDate(currentUserId, dateStr).then(setFormAttendance).catch(() => {});
+  };
+
+  const handleCheckIn = async () => {
+    setCheckingIn(true);
+    try {
+      const result = await checkInForDate(currentUserId, dateStr);
+      setFormAttendance(result);
+      toast.success("Checked in successfully");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to check in");
+    } finally {
+      setCheckingIn(false);
+    }
   };
 
   const handleAddNewSite = async () => {
