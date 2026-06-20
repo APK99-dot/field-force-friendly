@@ -702,6 +702,7 @@ export default function Activities() {
         description: form.description || null,
         site_id: form.site_id || null,
         milestone_id: form.milestone_id || null,
+        grn_po_id: isGrnType ? (form.grn_po_id || null) : null,
         location_address: form.location_address || null,
         total_hours: form.total_hours || 0,
         photo_urls: form.photos || [],
