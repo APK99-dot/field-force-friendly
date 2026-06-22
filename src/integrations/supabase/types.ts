@@ -2950,9 +2950,11 @@ export type Database = {
       }
       procurement_orders: {
         Row: {
+          bill_to: string | null
           created_at: string
           created_by: string | null
           entity_id: string | null
+          estimated_budget: number | null
           expected_delivery_date: string | null
           grn_number: string | null
           grn_status: string | null
@@ -2960,6 +2962,7 @@ export type Database = {
           order_date: string
           payment_terms: string | null
           po_number: string | null
+          ship_to: string | null
           site_id: string | null
           status: string
           total_amount: number
@@ -2967,9 +2970,11 @@ export type Database = {
           vendor_id: string | null
         }
         Insert: {
+          bill_to?: string | null
           created_at?: string
           created_by?: string | null
           entity_id?: string | null
+          estimated_budget?: number | null
           expected_delivery_date?: string | null
           grn_number?: string | null
           grn_status?: string | null
@@ -2977,6 +2982,7 @@ export type Database = {
           order_date?: string
           payment_terms?: string | null
           po_number?: string | null
+          ship_to?: string | null
           site_id?: string | null
           status?: string
           total_amount?: number
@@ -2984,9 +2990,11 @@ export type Database = {
           vendor_id?: string | null
         }
         Update: {
+          bill_to?: string | null
           created_at?: string
           created_by?: string | null
           entity_id?: string | null
+          estimated_budget?: number | null
           expected_delivery_date?: string | null
           grn_number?: string | null
           grn_status?: string | null
@@ -2994,6 +3002,7 @@ export type Database = {
           order_date?: string
           payment_terms?: string | null
           po_number?: string | null
+          ship_to?: string | null
           site_id?: string | null
           status?: string
           total_amount?: number
