@@ -280,16 +280,19 @@ export default function Procurement() {
             </div>
 
             <div>
-              <Label className="text-xs">Vendor</Label>
-              <Select value={form.vendor_id} onValueChange={(v) => setForm((p) => ({ ...p, vendor_id: v }))}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Select vendor" /></SelectTrigger>
-                <SelectContent>{vendors.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>))}</SelectContent>
-              </Select>
-            </div>
-
-            <div>
               <Label className="text-xs">Site</Label>
-              <Select value={form.site_id} onValueChange={(v) => setForm((p) => ({ ...p, site_id: v }))}>
+              <Select
+                value={form.site_id}
+                onValueChange={(v) =>
+                  setForm((p) => {
+                    const sn = sites.find((s) => s.id === v)?.site_name || "";
+                    // Auto-fill Ship To from site if empty or matched a previous site name
+                    const prevSiteName = sites.find((s) => s.id === p.site_id)?.site_name || "";
+                    const shouldFill = !p.ship_to.trim() || p.ship_to.trim() === prevSiteName;
+                    return { ...p, site_id: v, ship_to: shouldFill ? sn : p.ship_to };
+                  })
+                }
+              >
                 <SelectTrigger className="h-9"><SelectValue placeholder="Select site" /></SelectTrigger>
                 <SelectContent>{sites.map((s) => (<SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>))}</SelectContent>
               </Select>
@@ -310,13 +313,40 @@ export default function Procurement() {
             </div>
 
             <div>
+              <Label className="text-xs">Estimated Budget (₹)</Label>
+              <Input type="number" inputMode="decimal" value={form.estimated_budget} onChange={(e) => setForm((p) => ({ ...p, estimated_budget: e.target.value }))} placeholder="0" className="h-9" />
+            </div>
+
+            <div>
+              <Label className="text-xs">Vendor</Label>
+              <Select value={form.vendor_id} onValueChange={(v) => setForm((p) => ({ ...p, vendor_id: v }))}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select vendor" /></SelectTrigger>
+                <SelectContent>{vendors.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>))}</SelectContent>
+              </Select>
+            </div>
+
+            {form.vendor_id && (
+              <>
+                <div>
+                  <Label className="text-xs">Bill To</Label>
+                  <Textarea value={form.bill_to} onChange={(e) => setForm((p) => ({ ...p, bill_to: e.target.value }))} placeholder="Billing address (where invoice should be sent)" className="min-h-[60px]" />
+                </div>
+                <div>
+                  <Label className="text-xs">Ship To</Label>
+                  <Textarea value={form.ship_to} onChange={(e) => setForm((p) => ({ ...p, ship_to: e.target.value }))} placeholder="Delivery address (auto-filled from site, editable)" className="min-h-[60px]" />
+                </div>
+              </>
+            )}
+
+            <div>
               <Label className="text-xs">Status</Label>
               <Select value={form.status} onValueChange={(v) => setForm((p) => ({ ...p, status: v as ProcStatus }))}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>{USER_FORM_STATUSES.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}</SelectContent>
               </Select>
-              <p className="text-[10px] text-muted-foreground mt-1">Approval and further status changes are done from the PO detail screen.</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Status changes are done from the PO detail screen using the lifecycle buttons.</p>
             </div>
+
 
             {/* Line items */}
             <div className="border-t pt-3">
