@@ -104,6 +104,9 @@ export default function Procurement() {
       status: (USER_FORM_STATUSES.includes(o.status as ProcStatus) ? o.status : "Draft") as ProcStatus,
       expected_delivery_date: o.expected_delivery_date || "",
       payment_terms: o.payment_terms || "",
+      estimated_budget: o.estimated_budget != null ? String(o.estimated_budget) : "",
+      bill_to: o.bill_to || "",
+      ship_to: o.ship_to || "",
     });
     const items = (o.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id || "", rate: String(it.rate ?? ""), qty: String(it.qty ?? ""), uom: it.uom || "",
