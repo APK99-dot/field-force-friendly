@@ -99,11 +99,16 @@ export default function ProcurementDetail({
   const invoiceTotal = useMemo(() => invoices.reduce((s, i) => s + Number(i.invoice_amount || 0), 0), [invoices]);
 
   const transitions = allowedTransitions(order.status).filter((t) => !t.approver || canApprove);
-  const editable = order.status === "Draft" || order.status === "Submitted";
+  const editable = order.status === "Draft";
   const canReceive =
-    canApprove && ["Approved", "PO Sent", "Partially Received"].includes(order.status);
+    canApprove && ["PO Issued", "PO Finalised", "Goods Received"].includes(order.status);
   const canInvoice =
-    canApprove && ["Partially Received", "Fully Received", "Invoice Pending"].includes(order.status);
+    canApprove && ["Goods Received", "Invoice Received"].includes(order.status);
+
+  const estBudget = order.estimated_budget;
+  const poValue = order.total_amount || 0;
+  const variance = estBudget != null ? estBudget - poValue : null;
+  const overBudget = estBudget != null && poValue > estBudget;
 
   const applyTransition = async (to: ProcStatus) => {
     setBusy(true);
