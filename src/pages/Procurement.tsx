@@ -32,6 +32,9 @@ const emptyForm = {
   status: "Draft" as ProcStatus,
   expected_delivery_date: "",
   payment_terms: "",
+  estimated_budget: "",
+  bill_to: "",
+  ship_to: "",
 };
 
 export default function Procurement() {
