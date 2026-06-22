@@ -138,6 +138,9 @@ export default function Procurement() {
         status: form.status,
         expected_delivery_date: form.expected_delivery_date || null,
         payment_terms: form.payment_terms || null,
+        estimated_budget: form.estimated_budget ? parseFloat(form.estimated_budget) : null,
+        bill_to: form.bill_to.trim() || null,
+        ship_to: form.ship_to.trim() || null,
         total_amount: lineTotal,
       };
 
