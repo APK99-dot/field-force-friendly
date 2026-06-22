@@ -23,6 +23,9 @@ export interface DetailOrder {
   payment_terms: string | null;
   expected_delivery_date: string | null;
   total_amount: number;
+  estimated_budget: number | null;
+  bill_to: string | null;
+  ship_to: string | null;
   created_by: string | null;
   procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null }[];
 }
@@ -96,11 +99,16 @@ export default function ProcurementDetail({
   const invoiceTotal = useMemo(() => invoices.reduce((s, i) => s + Number(i.invoice_amount || 0), 0), [invoices]);
 
   const transitions = allowedTransitions(order.status).filter((t) => !t.approver || canApprove);
-  const editable = order.status === "Draft" || order.status === "Submitted";
+  const editable = order.status === "Draft";
   const canReceive =
-    canApprove && ["Approved", "PO Sent", "Partially Received"].includes(order.status);
+    canApprove && ["PO Issued", "PO Finalised", "Goods Received"].includes(order.status);
   const canInvoice =
-    canApprove && ["Partially Received", "Fully Received", "Invoice Pending"].includes(order.status);
+    canApprove && ["Goods Received", "Invoice Received"].includes(order.status);
+
+  const estBudget = order.estimated_budget;
+  const poValue = order.total_amount || 0;
+  const variance = estBudget != null ? estBudget - poValue : null;
+  const overBudget = estBudget != null && poValue > estBudget;
 
   const applyTransition = async (to: ProcStatus) => {
     setBusy(true);
@@ -144,8 +152,35 @@ export default function ProcurementDetail({
               <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
               {order.expected_delivery_date && <div className="text-muted-foreground">Expected Delivery: {order.expected_delivery_date}</div>}
               {order.payment_terms && <div className="text-muted-foreground">Payment Terms: {order.payment_terms}</div>}
+              {order.bill_to && <div className="text-muted-foreground">Bill To: <span className="whitespace-pre-wrap">{order.bill_to}</span></div>}
+              {order.ship_to && <div className="text-muted-foreground">Ship To: <span className="whitespace-pre-wrap">{order.ship_to}</span></div>}
             </CardContent>
           </Card>
+
+          {/* Budget vs Actual */}
+          {estBudget != null && (
+            <Card className={overBudget ? "border-destructive/50" : "border-emerald-500/50"}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  Budget vs Actual {overBudget ? "⚠️" : "✅"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5 text-sm">
+                <div className="flex items-center justify-between"><span className="text-muted-foreground">Estimated Budget</span><span className="font-medium">{fmtAmt(estBudget)}</span></div>
+                <div className="flex items-center justify-between"><span className="text-muted-foreground">PO Value</span><span className="font-medium">{fmtAmt(poValue)}</span></div>
+                <div className="flex items-center justify-between border-t pt-1.5">
+                  <span className="text-muted-foreground">Variance</span>
+                  <span className={`font-semibold ${overBudget ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>
+                    {fmtAmt(variance ?? 0)}
+                  </span>
+                </div>
+                <p className={`text-xs ${overBudget ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>
+                  {overBudget ? "⚠️ PO exceeds the estimated budget." : "✅ Within estimated budget."}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
 
           {/* Line items */}
           <Card>
