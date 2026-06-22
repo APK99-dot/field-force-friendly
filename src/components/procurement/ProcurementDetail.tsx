@@ -23,6 +23,9 @@ export interface DetailOrder {
   payment_terms: string | null;
   expected_delivery_date: string | null;
   total_amount: number;
+  estimated_budget: number | null;
+  bill_to: string | null;
+  ship_to: string | null;
   created_by: string | null;
   procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null }[];
 }
