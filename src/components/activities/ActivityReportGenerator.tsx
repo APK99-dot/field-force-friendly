@@ -270,14 +270,16 @@ export default function ActivityReportGenerator({ isAdmin, filtersOpen, onFilter
         <h3 className="text-sm font-semibold flex items-center gap-1">
           <Download className="h-4 w-4" /> Generate Report
         </h3>
-        <Button
-          variant={showFilters ? 'secondary' : 'outline'}
-          size="sm"
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          {showFilters ? <X className="h-4 w-4 mr-1" /> : <Filter className="h-4 w-4 mr-1" />}
-          {showFilters ? 'Close' : 'Filters'}
-        </Button>
+        {!isExternallyControlled && (
+          <Button
+            variant={showFilters ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            {showFilters ? <X className="h-4 w-4 mr-1" /> : <Filter className="h-4 w-4 mr-1" />}
+            {showFilters ? 'Close' : 'Filters'}
+          </Button>
+        )}
       </div>
 
       {showFilters && (
