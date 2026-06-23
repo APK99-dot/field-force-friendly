@@ -528,16 +528,25 @@ export default function Activities() {
     return targetId || activity.id;
   }, [activities, createActivity]);
 
+  const dayActivityTypes = useMemo(() => {
+    return Array.from(new Set(dayActivities.map((a) => a.activity_type).filter(Boolean))).sort();
+  }, [dayActivities]);
+
+  const activeFilterCount = (filterStatus !== "all" ? 1 : 0) + (filterType !== "all" ? 1 : 0);
+
   const filteredActivities = useMemo(() => {
-    if (!searchQuery) return dayActivities;
     const q = searchQuery.toLowerCase();
-    return dayActivities.filter(
-      (a) =>
+    return dayActivities.filter((a) => {
+      if (filterStatus !== "all" && a.status !== filterStatus) return false;
+      if (filterType !== "all" && a.activity_type !== filterType) return false;
+      if (!q) return true;
+      return (
         a.activity_name.toLowerCase().includes(q) ||
         a.activity_type.toLowerCase().includes(q) ||
         (a.user_full_name || "").toLowerCase().includes(q)
-    );
-  }, [dayActivities, searchQuery]);
+      );
+    });
+  }, [dayActivities, searchQuery, filterStatus, filterType]);
 
   // Sort by start_time for timeline
   const timelineSorted = useMemo(() => {
