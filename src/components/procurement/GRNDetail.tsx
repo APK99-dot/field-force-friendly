@@ -64,6 +64,14 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props
       setUoms(umap);
       setSiteName((site.data as any)?.site_name || "—");
       setLoading(false);
+
+      const paths = (grn.photos || []) as string[];
+      if (paths.length) {
+        const urls = await Promise.all(paths.map((p) => resolveGrnPhotoUrl(p)));
+        if (active) setPhotoUrls(urls.filter(Boolean));
+      } else {
+        setPhotoUrls([]);
+      }
     })();
     return () => { active = false; };
   }, [open, grn]);
