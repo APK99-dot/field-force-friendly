@@ -97,15 +97,11 @@ export default function Procurement() {
     setEditing(o);
     setForm({
       order_date: o.order_date,
-      vendor_id: o.vendor_id || "",
-      po_number: o.po_number || "",
+      vendor_ids: o.vendor_ids && o.vendor_ids.length ? o.vendor_ids : (o.vendor_id ? [o.vendor_id] : []),
       site_id: o.site_id || "",
       status: (USER_FORM_STATUSES.includes(o.status as ProcStatus) ? o.status : "Requisition") as ProcStatus,
-      expected_delivery_date: o.expected_delivery_date || "",
-      payment_terms: o.payment_terms || "",
       estimated_budget: o.estimated_budget != null ? String(o.estimated_budget) : "",
-      bill_to: o.bill_to || "",
-      ship_to: o.ship_to || "",
+      requisition_notes: o.requisition_notes || "",
     });
     const items = (o.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id || "", rate: String(it.rate ?? ""), qty: String(it.qty ?? ""), uom: it.uom || "",
