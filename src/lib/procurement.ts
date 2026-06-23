@@ -37,8 +37,8 @@ export type GrnStatus = (typeof GRN_STATUSES)[number];
 
 // The ordered lifecycle
 export const STATUS_FLOW: ProcStatus[] = [
-  "Draft",
-  "Vendor Identified",
+  "Requisition",
+  "Requisition Approved",
   "Quote Awaited",
   "Quote Received",
   "PO Issued",
