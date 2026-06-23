@@ -896,13 +896,6 @@ export default function Activities() {
         </div>
       </motion.div>
 
-      {/* Activity Report Generator - visible to admins and managers with subordinates */}
-      {(isAdmin || hasSubordinates) && (
-        <motion.div variants={item} className="px-4">
-          <ActivityReportGenerator isAdmin={!!isAdmin} filtersOpen={reportFiltersOpen} onFiltersOpenChange={setReportFiltersOpen} />
-        </motion.div>
-      )}
-
       {/* Search + Filters + New Button */}
       <motion.div variants={item} className="px-4 space-y-3">
         <div className="flex items-center gap-2">
@@ -926,6 +919,13 @@ export default function Activities() {
           </Button>
         </div>
       </motion.div>
+
+      {/* Activity Report Generator - visible to admins and managers with subordinates */}
+      {(isAdmin || hasSubordinates) && (
+        <motion.div variants={item} className="px-4">
+          <ActivityReportGenerator isAdmin={!!isAdmin} filtersOpen={reportFiltersOpen} onFiltersOpenChange={setReportFiltersOpen} />
+        </motion.div>
+      )}
 
 
       {/* Content based on active tab */}
