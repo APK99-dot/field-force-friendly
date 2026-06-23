@@ -24,6 +24,7 @@ interface Props {
     received_by: string | null;
     remarks: string | null;
     po_id: string;
+    photos?: string[] | null;
     po?: { po_number: string | null; vendor_id: string | null; site_id?: string | null } | null;
   } | null;
   vendorName: string;
