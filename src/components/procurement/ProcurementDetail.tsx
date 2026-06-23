@@ -99,7 +99,7 @@ export default function ProcurementDetail({
   const invoiceTotal = useMemo(() => invoices.reduce((s, i) => s + Number(i.invoice_amount || 0), 0), [invoices]);
 
   const transitions = allowedTransitions(order.status).filter((t) => !t.approver || canApprove);
-  const editable = order.status === "Draft";
+  const editable = order.status === "Requisition";
   const canReceive =
     canApprove && ["PO Issued", "PO Finalised", "Goods Received"].includes(order.status);
   const canInvoice =

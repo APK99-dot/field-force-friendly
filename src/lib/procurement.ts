@@ -1,8 +1,8 @@
 // Shared constants and helpers for the Procurement module
 
 export const PROC_STATUSES = [
-  "Draft",
-  "Vendor Identified",
+  "Requisition",
+  "Requisition Approved",
   "Quote Awaited",
   "Quote Received",
   "PO Issued",
@@ -15,7 +15,7 @@ export const PROC_STATUSES = [
 export type ProcStatus = (typeof PROC_STATUSES)[number];
 
 // Statuses a user is allowed to set directly on the PO form (creation only)
-export const USER_FORM_STATUSES: ProcStatus[] = ["Draft"];
+export const USER_FORM_STATUSES: ProcStatus[] = ["Requisition"];
 
 export const UOM_OPTIONS = ["Nos", "Kg", "Ton", "Bags", "Sqft", "Rmt", "Set"] as const;
 
@@ -37,8 +37,8 @@ export type GrnStatus = (typeof GRN_STATUSES)[number];
 
 // The ordered lifecycle
 export const STATUS_FLOW: ProcStatus[] = [
-  "Draft",
-  "Vendor Identified",
+  "Requisition",
+  "Requisition Approved",
   "Quote Awaited",
   "Quote Received",
   "PO Issued",
@@ -60,9 +60,9 @@ export interface Transition {
 // Allowed button-driven transitions from a given status
 export function allowedTransitions(status: string): Transition[] {
   switch (status) {
-    case "Draft":
-      return [{ to: "Vendor Identified", label: "Mark Vendor Identified", approver: false }];
-    case "Vendor Identified":
+    case "Requisition":
+      return [{ to: "Requisition Approved", label: "Approve Requisition", approver: true }];
+    case "Requisition Approved":
       return [{ to: "Quote Awaited", label: "Mark Quote Awaited", approver: false }];
     case "Quote Awaited":
       return [{ to: "Quote Received", label: "Mark Quote Received", approver: false }];
@@ -85,8 +85,8 @@ export function allowedTransitions(status: string): Transition[] {
 
 export function statusColor(status: string) {
   switch (status) {
-    case "Draft": return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
-    case "Vendor Identified": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+    case "Requisition": return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+    case "Requisition Approved": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
     case "Quote Awaited": return "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400";
     case "Quote Received": return "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400";
     case "PO Issued": return "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400";
