@@ -17,6 +17,7 @@ export interface DetailOrder {
   id: string;
   order_date: string;
   vendor_id: string | null;
+  vendor_ids: string[] | null;
   po_number: string | null;
   site_id: string | null;
   status: string;
@@ -26,6 +27,7 @@ export interface DetailOrder {
   estimated_budget: number | null;
   bill_to: string | null;
   ship_to: string | null;
+  requisition_notes: string | null;
   created_by: string | null;
   procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null }[];
 }
