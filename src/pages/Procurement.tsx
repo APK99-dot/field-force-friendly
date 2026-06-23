@@ -338,50 +338,37 @@ export default function Procurement() {
                 <Label className="text-sm font-semibold">Product Line Items</Label>
                 <Button type="button" variant="ghost" size="sm" className="h-7 text-xs gap-1 text-primary" onClick={addLine}><Plus className="h-3 w-3" />Add Item</Button>
               </div>
+              <p className="text-[11px] text-muted-foreground mb-2">Enter material, unit and quantity. Rates are added after the requisition is approved.</p>
               <div className="space-y-3">
-                {lines.map((l, i) => {
-                  const amt = (parseFloat(l.rate) || 0) * (parseFloat(l.qty) || 0);
-                  return (
-                    <div key={i} className="rounded-lg border p-2.5 space-y-2 bg-muted/30">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1">
-                          <Select value={l.product_id} onValueChange={(v) => onProductChange(i, v)}>
-                            <SelectTrigger className="h-9"><SelectValue placeholder="Select product" /></SelectTrigger>
-                            <SelectContent>{products.map((p) => (<SelectItem key={p.id} value={p.id}>{p.product_name}</SelectItem>))}</SelectContent>
-                          </Select>
-                        </div>
-                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeLine(i)}><X className="h-3.5 w-3.5" /></Button>
+                {lines.map((l, i) => (
+                  <div key={i} className="rounded-lg border p-2.5 space-y-2 bg-muted/30">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <Select value={l.product_id} onValueChange={(v) => onProductChange(i, v)}>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="Select material" /></SelectTrigger>
+                          <SelectContent>{products.map((p) => (<SelectItem key={p.id} value={p.id}>{p.product_name}</SelectItem>))}</SelectContent>
+                        </Select>
                       </div>
-                      <div className="grid grid-cols-4 gap-2">
-                        <div>
-                          <Label className="text-[10px] text-muted-foreground">UOM</Label>
-                          <Select value={l.uom} onValueChange={(v) => updateLine(i, { uom: v })}>
-                            <SelectTrigger className="h-8"><SelectValue placeholder="UOM" /></SelectTrigger>
-                            <SelectContent>{UOM_OPTIONS.map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}</SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-[10px] text-muted-foreground">Rate</Label>
-                          <Input type="number" inputMode="decimal" value={l.rate} onChange={(e) => updateLine(i, { rate: e.target.value })} placeholder="0" className="h-8" />
-                        </div>
-                        <div>
-                          <Label className="text-[10px] text-muted-foreground">Qty</Label>
-                          <Input type="number" inputMode="decimal" value={l.qty} onChange={(e) => updateLine(i, { qty: e.target.value })} placeholder="0" className="h-8" />
-                        </div>
-                        <div>
-                          <Label className="text-[10px] text-muted-foreground">Amount</Label>
-                          <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
-                        </div>
+                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeLine(i)}><X className="h-3.5 w-3.5" /></Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">UOM</Label>
+                        <Select value={l.uom} onValueChange={(v) => updateLine(i, { uom: v })}>
+                          <SelectTrigger className="h-8"><SelectValue placeholder="UOM" /></SelectTrigger>
+                          <SelectContent>{UOM_OPTIONS.map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}</SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Qty</Label>
+                        <Input type="number" inputMode="decimal" value={l.qty} onChange={(e) => updateLine(i, { qty: e.target.value })} placeholder="0" className="h-8" />
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-              <div className="flex items-center justify-between mt-3 pt-2 border-t">
-                <span className="text-sm font-semibold">Grand Total</span>
-                <span className="text-base font-bold text-primary">{fmtAmt(lineTotal)}</span>
+                  </div>
+                ))}
               </div>
             </div>
+
 
             <div className="flex gap-2 pt-2 pb-6">
               <Button variant="outline" className="flex-1" onClick={() => setIsFormOpen(false)}>Cancel</Button>
