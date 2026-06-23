@@ -15,7 +15,7 @@ export const PROC_STATUSES = [
 export type ProcStatus = (typeof PROC_STATUSES)[number];
 
 // Statuses a user is allowed to set directly on the PO form (creation only)
-export const USER_FORM_STATUSES: ProcStatus[] = ["Draft"];
+export const USER_FORM_STATUSES: ProcStatus[] = ["Requisition"];
 
 export const UOM_OPTIONS = ["Nos", "Kg", "Ton", "Bags", "Sqft", "Rmt", "Set"] as const;
 
