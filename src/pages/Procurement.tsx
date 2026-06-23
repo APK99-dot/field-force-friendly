@@ -127,15 +127,12 @@ export default function Procurement() {
     try {
       const orderPayload = {
         order_date: form.order_date,
-        vendor_id: form.vendor_id || null,
-        po_number: form.po_number.trim() || null,
+        vendor_id: form.vendor_ids[0] || null,
+        vendor_ids: form.vendor_ids.length ? form.vendor_ids : null,
         site_id: form.site_id || null,
         status: form.status,
-        expected_delivery_date: form.expected_delivery_date || null,
-        payment_terms: form.payment_terms || null,
         estimated_budget: form.estimated_budget ? parseFloat(form.estimated_budget) : null,
-        bill_to: form.bill_to.trim() || null,
-        ship_to: form.ship_to.trim() || null,
+        requisition_notes: form.requisition_notes.trim() || null,
         total_amount: lineTotal,
       };
 
