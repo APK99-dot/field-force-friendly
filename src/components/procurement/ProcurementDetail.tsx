@@ -365,6 +365,79 @@ export default function ProcurementDetail({
             onSaved={() => { fetchSub(); onChanged(); }}
           />
         )}
+
+        {/* Post-approval PO details + rates */}
+        <Dialog open={poEditOpen} onOpenChange={setPoEditOpen}>
+          <DialogContent className="max-w-lg w-[95vw] max-h-[90vh] overflow-y-auto">
+            <DialogHeader><DialogTitle>Edit PO Details</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              {order.po_number && (
+                <div className="text-xs text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>
+              )}
+              <div>
+                <Label className="text-xs">Bill To</Label>
+                <Textarea value={poForm.bill_to} onChange={(e) => setPoForm((p) => ({ ...p, bill_to: e.target.value }))} placeholder="Billing address (e.g. HQ / office)" className="min-h-[56px]" />
+              </div>
+              <div>
+                <Label className="text-xs">Ship To</Label>
+                <Textarea value={poForm.ship_to} onChange={(e) => setPoForm((p) => ({ ...p, ship_to: e.target.value }))} placeholder="Delivery address" className="min-h-[56px]" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Expected Delivery Date</Label>
+                  <Input type="date" value={poForm.expected_delivery_date} onChange={(e) => setPoForm((p) => ({ ...p, expected_delivery_date: e.target.value }))} className="h-9" />
+                </div>
+                <div>
+                  <Label className="text-xs">Payment Terms</Label>
+                  <Select value={poForm.payment_terms} onValueChange={(v) => setPoForm((p) => ({ ...p, payment_terms: v }))}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select terms" /></SelectTrigger>
+                    <SelectContent>{PAYMENT_TERMS.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="border-t pt-3">
+                <Label className="text-sm font-semibold">Rates</Label>
+                <div className="space-y-2 mt-2">
+                  {rateLines.map((l, i) => {
+                    const amt = (parseFloat(l.rate) || 0) * (l.qty || 0);
+                    return (
+                      <div key={l.id} className="rounded-lg border p-2.5 bg-muted/30">
+                        <div className="text-sm font-medium mb-1">{productName(l.product_id)}</div>
+                        <div className="grid grid-cols-3 gap-2 items-end">
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Qty</Label>
+                            <div className="h-8 flex items-center text-sm">{l.qty} {l.uom || ""}</div>
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Rate</Label>
+                            <Input
+                              type="number" inputMode="decimal" value={l.rate} placeholder="0" className="h-8"
+                              onChange={(e) => setRateLines((prev) => prev.map((x, idx) => idx === i ? { ...x, rate: e.target.value } : x))}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Amount</Label>
+                            <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between mt-3 pt-2 border-t">
+                  <span className="text-sm font-semibold">Grand Total</span>
+                  <span className="text-base font-bold text-primary">{fmtAmt(poEditTotal)}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1" onClick={() => setPoEditOpen(false)}>Cancel</Button>
+                <Button className="flex-1" onClick={savePoDetails} disabled={poSaving}><Save className="h-4 w-4 mr-2" />{poSaving ? "Saving..." : "Save"}</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
