@@ -260,48 +260,64 @@ export default function Procurement() {
             <DialogTitle>{editing ? "Edit Procurement" : "New Procurement"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 p-4 overflow-y-auto flex-1 w-full">
+            <div className="rounded-md bg-muted/40 border px-3 py-2 text-[11px] text-muted-foreground">
+              This is a <strong>Requisition</strong>. Once approved by an admin, PO Number, Bill/Ship To, delivery date, payment terms and rates become available on the PO detail screen.
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Date</Label>
                 <Input type="date" value={form.order_date} onChange={(e) => setForm((p) => ({ ...p, order_date: e.target.value }))} className="h-9" />
               </div>
               <div>
-                <Label className="text-xs">PO Number</Label>
-                <Input value={form.po_number} onChange={(e) => setForm((p) => ({ ...p, po_number: e.target.value }))} placeholder="PO-0001" className="h-9" />
+                <Label className="text-xs">Requested By</Label>
+                <Input value={profile?.full_name || profile?.username || ""} readOnly disabled className="h-9 bg-muted/50" />
               </div>
             </div>
 
             <div>
               <Label className="text-xs">Site</Label>
-              <Select
-                value={form.site_id}
-                onValueChange={(v) =>
-                  setForm((p) => {
-                    const sn = sites.find((s) => s.id === v)?.site_name || "";
-                    // Auto-fill Ship To from site if empty or matched a previous site name
-                    const prevSiteName = sites.find((s) => s.id === p.site_id)?.site_name || "";
-                    const shouldFill = !p.ship_to.trim() || p.ship_to.trim() === prevSiteName;
-                    return { ...p, site_id: v, ship_to: shouldFill ? sn : p.ship_to };
-                  })
-                }
-              >
+              <Select value={form.site_id} onValueChange={(v) => setForm((p) => ({ ...p, site_id: v }))}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="Select site" /></SelectTrigger>
                 <SelectContent>{sites.map((s) => (<SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>))}</SelectContent>
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Expected Delivery Date</Label>
-                <Input type="date" value={form.expected_delivery_date} onChange={(e) => setForm((p) => ({ ...p, expected_delivery_date: e.target.value }))} className="h-9" />
-              </div>
-              <div>
-                <Label className="text-xs">Payment Terms</Label>
-                <Select value={form.payment_terms} onValueChange={(v) => setForm((p) => ({ ...p, payment_terms: v }))}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Select terms" /></SelectTrigger>
-                  <SelectContent>{PAYMENT_TERMS.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}</SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label className="text-xs">Vendor(s)</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" className="h-9 w-full justify-between font-normal">
+                    <span className="truncate text-left">
+                      {form.vendor_ids.length === 0
+                        ? <span className="text-muted-foreground">Select vendors</span>
+                        : form.vendor_ids.map((id) => vName(id)).join(", ")}
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-2 max-h-64 overflow-y-auto" align="start">
+                  {vendors.length === 0 ? (
+                    <p className="text-xs text-muted-foreground p-2">No vendors found.</p>
+                  ) : vendors.map((v) => {
+                    const checked = form.vendor_ids.includes(v.id);
+                    return (
+                      <label key={v.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted cursor-pointer text-sm">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(c) =>
+                            setForm((p) => ({
+                              ...p,
+                              vendor_ids: c ? [...p.vendor_ids, v.id] : p.vendor_ids.filter((id) => id !== v.id),
+                            }))
+                          }
+                        />
+                        <span>{v.name}</span>
+                      </label>
+                    );
+                  })}
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>
@@ -310,34 +326,10 @@ export default function Procurement() {
             </div>
 
             <div>
-              <Label className="text-xs">Vendor</Label>
-              <Select value={form.vendor_id} onValueChange={(v) => setForm((p) => ({ ...p, vendor_id: v }))}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Select vendor" /></SelectTrigger>
-                <SelectContent>{vendors.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>))}</SelectContent>
-              </Select>
+              <Label className="text-xs">Notes / Reason for Requisition</Label>
+              <Textarea value={form.requisition_notes} onChange={(e) => setForm((p) => ({ ...p, requisition_notes: e.target.value }))} placeholder="Why is this material needed?" className="min-h-[70px]" />
             </div>
 
-            {form.vendor_id && (
-              <>
-                <div>
-                  <Label className="text-xs">Bill To</Label>
-                  <Textarea value={form.bill_to} onChange={(e) => setForm((p) => ({ ...p, bill_to: e.target.value }))} placeholder="Billing address (where invoice should be sent)" className="min-h-[60px]" />
-                </div>
-                <div>
-                  <Label className="text-xs">Ship To</Label>
-                  <Textarea value={form.ship_to} onChange={(e) => setForm((p) => ({ ...p, ship_to: e.target.value }))} placeholder="Delivery address (auto-filled from site, editable)" className="min-h-[60px]" />
-                </div>
-              </>
-            )}
-
-            <div>
-              <Label className="text-xs">Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm((p) => ({ ...p, status: v as ProcStatus }))}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>{USER_FORM_STATUSES.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}</SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground mt-1">Status changes are done from the PO detail screen using the lifecycle buttons.</p>
-            </div>
 
 
             {/* Line items */}
