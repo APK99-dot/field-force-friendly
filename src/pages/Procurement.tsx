@@ -17,7 +17,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 import { Plus, Search, Trash2, X, ShoppingCart, Save, CalendarDays, ChevronDown } from "lucide-react";
 import {
-  PROC_STATUSES, USER_FORM_STATUSES, UOM_OPTIONS, PAYMENT_TERMS,
+  PROC_STATUSES, USER_FORM_STATUSES, UOM_OPTIONS,
   statusColor, fmtAmt, type ProcStatus,
 } from "@/lib/procurement";
 import ProcurementDetail, { type DetailOrder } from "@/components/procurement/ProcurementDetail";
