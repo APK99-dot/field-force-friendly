@@ -37,10 +37,15 @@ interface TeamMember {
 
 interface Props {
   isAdmin: boolean;
+  filtersOpen?: boolean;
+  onFiltersOpenChange?: (open: boolean) => void;
 }
 
-export default function ActivityReportGenerator({ isAdmin }: Props) {
-  const [showFilters, setShowFilters] = useState(false);
+export default function ActivityReportGenerator({ isAdmin, filtersOpen, onFiltersOpenChange }: Props) {
+  const [internalShowFilters, setInternalShowFilters] = useState(false);
+  const showFilters = filtersOpen ?? internalShowFilters;
+  const setShowFilters = onFiltersOpenChange || setInternalShowFilters;
+  const isExternallyControlled = onFiltersOpenChange !== undefined;
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -265,14 +270,16 @@ export default function ActivityReportGenerator({ isAdmin }: Props) {
         <h3 className="text-sm font-semibold flex items-center gap-1">
           <Download className="h-4 w-4" /> Generate Report
         </h3>
-        <Button
-          variant={showFilters ? 'secondary' : 'outline'}
-          size="sm"
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          {showFilters ? <X className="h-4 w-4 mr-1" /> : <Filter className="h-4 w-4 mr-1" />}
-          {showFilters ? 'Close' : 'Filters'}
-        </Button>
+        {!isExternallyControlled && (
+          <Button
+            variant={showFilters ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            {showFilters ? <X className="h-4 w-4 mr-1" /> : <Filter className="h-4 w-4 mr-1" />}
+            {showFilters ? 'Close' : 'Filters'}
+          </Button>
+        )}
       </div>
 
       {showFilters && (
