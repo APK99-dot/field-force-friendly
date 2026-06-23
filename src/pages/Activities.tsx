@@ -899,7 +899,7 @@ export default function Activities() {
       {/* Activity Report Generator - visible to admins and managers with subordinates */}
       {(isAdmin || hasSubordinates) && (
         <motion.div variants={item} className="px-4">
-          <ActivityReportGenerator isAdmin={!!isAdmin} />
+          <ActivityReportGenerator isAdmin={!!isAdmin} filtersOpen={reportFiltersOpen} onFiltersOpenChange={setReportFiltersOpen} />
         </motion.div>
       )}
 
@@ -910,58 +910,17 @@ export default function Activities() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search..." className="pl-9 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
-          <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="shrink-0 px-2.5 sm:px-3 relative">
-                <Filter className="h-4 w-4 sm:mr-1.5" />
-                <span className="hidden sm:inline">Filters</span>
-                {activeFilterCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">Filters</p>
-                {activeFilterCount > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => { setFilterStatus("all"); setFilterType("all"); }}
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Status</Label>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    {statusOptions.map((s) => (
-                      <SelectItem key={s} value={s}>{statusLabels[s] || s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Activity Type</Label>
-                <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    {dayActivityTypes.map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </PopoverContent>
-          </Popover>
+          {(isAdmin || hasSubordinates) && (
+            <Button
+              variant={reportFiltersOpen ? "secondary" : "outline"}
+              size="sm"
+              className="shrink-0 px-2.5 sm:px-3"
+              onClick={() => setReportFiltersOpen((open) => !open)}
+            >
+              <Filter className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Filters</span>
+            </Button>
+          )}
           <Button className="gradient-hero text-primary-foreground shrink-0 px-2.5 sm:px-3" onClick={handleOpenCreate}>
             <Plus className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">New</span>
           </Button>
