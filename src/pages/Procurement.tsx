@@ -102,7 +102,7 @@ export default function Procurement() {
       vendor_id: o.vendor_id || "",
       po_number: o.po_number || "",
       site_id: o.site_id || "",
-      status: (USER_FORM_STATUSES.includes(o.status as ProcStatus) ? o.status : "Draft") as ProcStatus,
+      status: (USER_FORM_STATUSES.includes(o.status as ProcStatus) ? o.status : "Requisition") as ProcStatus,
       expected_delivery_date: o.expected_delivery_date || "",
       payment_terms: o.payment_terms || "",
       estimated_budget: o.estimated_budget != null ? String(o.estimated_budget) : "",
