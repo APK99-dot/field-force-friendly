@@ -2770,6 +2770,7 @@ export type Database = {
           created_by: string | null
           grn_number: string | null
           id: string
+          photos: Json
           po_id: string
           receipt_date: string
           received_by: string | null
@@ -2782,6 +2783,7 @@ export type Database = {
           created_by?: string | null
           grn_number?: string | null
           id?: string
+          photos?: Json
           po_id: string
           receipt_date?: string
           received_by?: string | null
@@ -2794,6 +2796,7 @@ export type Database = {
           created_by?: string | null
           grn_number?: string | null
           id?: string
+          photos?: Json
           po_id?: string
           receipt_date?: string
           received_by?: string | null

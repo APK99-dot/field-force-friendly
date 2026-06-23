@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Save, Truck } from "lucide-react";
+import { Save, Truck, Camera, X } from "lucide-react";
 import { GRN_STATUSES, receiptDrivenStatus } from "@/lib/procurement";
+import { uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
+
+const MAX_PHOTOS = 5;
 
 export interface POItem {
   id: string;
@@ -40,6 +43,37 @@ export default function GRNForm({
   const [status, setStatus] = useState<string>("Fully Received");
   const [recv, setRecv] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [photos, setPhotos] = useState<{ path: string; preview: string }[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const remaining = MAX_PHOTOS - photos.length;
+    if (remaining <= 0) {
+      toast.error(`Maximum ${MAX_PHOTOS} photos allowed`);
+      return;
+    }
+    const list = Array.from(files).slice(0, remaining);
+    setUploadingPhoto(true);
+    try {
+      for (const file of list) {
+        const path = await uploadGrnPhoto(file);
+        setPhotos((p) => [...p, { path, preview: URL.createObjectURL(file) }]);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to upload photo");
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removePhoto = async (idx: number) => {
+    const photo = photos[idx];
+    setPhotos((p) => p.filter((_, i) => i !== idx));
+    if (photo) await removeGrnPhoto(photo.path);
+  };
 
   const balance = (it: POItem) => Math.max(0, it.qty - (alreadyReceived[it.id] || 0));
 
@@ -68,6 +102,7 @@ export default function GRNForm({
           received_by: receivedBy.trim() || null,
           remarks: remarks.trim() || null,
           status,
+          photos: photos.map((p) => p.path),
           created_by: createdBy,
         })
         .select("id")
@@ -173,6 +208,47 @@ export default function GRNForm({
           <div>
             <Label className="text-xs">Remarks</Label>
             <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Notes about this receipt..." rows={2} />
+          </div>
+
+          <div>
+            <Label className="text-sm font-semibold">Goods Photos</Label>
+            <p className="text-[11px] text-muted-foreground mb-2">Proof of delivery — up to {MAX_PHOTOS} photos.</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/*"
+              capture="environment"
+              multiple
+              className="hidden"
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Camera className="h-4 w-4 mr-2" />
+              {uploadingPhoto ? "Uploading..." : "📷 Capture / Upload Photos"}
+            </Button>
+            {photos.length > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
+                {photos.map((p, idx) => (
+                  <div key={p.path} className="relative aspect-square rounded-lg overflow-hidden border">
+                    <img src={p.preview} alt={`Goods photo ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(idx)}
+                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5"
+                      aria-label="Remove photo"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2 pt-2 pb-6">

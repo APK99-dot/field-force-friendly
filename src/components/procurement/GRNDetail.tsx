@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Truck } from "lucide-react";
 import { statusColor } from "@/lib/procurement";
+import { resolveGrnPhotoUrl } from "@/utils/grnPhotos";
 
 interface GrnItemRow {
   id: string;
@@ -23,6 +24,7 @@ interface Props {
     received_by: string | null;
     remarks: string | null;
     po_id: string;
+    photos?: string[] | null;
     po?: { po_number: string | null; vendor_id: string | null; site_id?: string | null } | null;
   } | null;
   vendorName: string;
@@ -34,6 +36,7 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props
   const [uoms, setUoms] = useState<Record<string, string>>({});
   const [siteName, setSiteName] = useState<string>("—");
   const [loading, setLoading] = useState(false);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open || !grn) return;
@@ -61,6 +64,14 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props
       setUoms(umap);
       setSiteName((site.data as any)?.site_name || "—");
       setLoading(false);
+
+      const paths = (grn.photos || []) as string[];
+      if (paths.length) {
+        const urls = await Promise.all(paths.map((p) => resolveGrnPhotoUrl(p)));
+        if (active) setPhotoUrls(urls.filter(Boolean));
+      } else {
+        setPhotoUrls([]);
+      }
     })();
     return () => { active = false; };
   }, [open, grn]);
@@ -119,6 +130,25 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props
             <div>
               <div className="text-[10px] text-muted-foreground">Remarks</div>
               <p className="text-sm">{grn.remarks}</p>
+            </div>
+          )}
+
+          {photoUrls.length > 0 && (
+            <div>
+              <div className="text-sm font-semibold mb-2">Goods Photos — Proof of Delivery</div>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {photoUrls.map((url, idx) => (
+                  <a
+                    key={idx}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block aspect-square rounded-lg overflow-hidden border"
+                  >
+                    <img src={url} alt={`Goods photo ${idx + 1}`} className="w-full h-full object-cover" />
+                  </a>
+                ))}
+              </div>
             </div>
           )}
         </div>
