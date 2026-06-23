@@ -37,10 +37,15 @@ interface TeamMember {
 
 interface Props {
   isAdmin: boolean;
+  filtersOpen?: boolean;
+  onFiltersOpenChange?: (open: boolean) => void;
 }
 
-export default function ActivityReportGenerator({ isAdmin }: Props) {
-  const [showFilters, setShowFilters] = useState(false);
+export default function ActivityReportGenerator({ isAdmin, filtersOpen, onFiltersOpenChange }: Props) {
+  const [internalShowFilters, setInternalShowFilters] = useState(false);
+  const showFilters = filtersOpen ?? internalShowFilters;
+  const setShowFilters = onFiltersOpenChange || setInternalShowFilters;
+  const isExternallyControlled = onFiltersOpenChange !== undefined;
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [activityTypes, setActivityTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
