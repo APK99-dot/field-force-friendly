@@ -36,6 +36,7 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props
   const [uoms, setUoms] = useState<Record<string, string>>({});
   const [siteName, setSiteName] = useState<string>("—");
   const [loading, setLoading] = useState(false);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open || !grn) return;
