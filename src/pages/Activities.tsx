@@ -35,6 +35,7 @@ import {
   AlertCircle,
   Plus,
   Search,
+  Filter,
   Trash2,
   Edit,
   Loader2,
@@ -212,6 +213,9 @@ export default function Activities() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState<"timeline" | "gps" | "activity">("activity");
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -525,16 +529,25 @@ export default function Activities() {
     return targetId || activity.id;
   }, [activities, createActivity]);
 
+  const dayActivityTypes = useMemo(() => {
+    return Array.from(new Set(dayActivities.map((a) => a.activity_type).filter(Boolean))).sort();
+  }, [dayActivities]);
+
+  const activeFilterCount = (filterStatus !== "all" ? 1 : 0) + (filterType !== "all" ? 1 : 0);
+
   const filteredActivities = useMemo(() => {
-    if (!searchQuery) return dayActivities;
     const q = searchQuery.toLowerCase();
-    return dayActivities.filter(
-      (a) =>
+    return dayActivities.filter((a) => {
+      if (filterStatus !== "all" && a.status !== filterStatus) return false;
+      if (filterType !== "all" && a.activity_type !== filterType) return false;
+      if (!q) return true;
+      return (
         a.activity_name.toLowerCase().includes(q) ||
         a.activity_type.toLowerCase().includes(q) ||
         (a.user_full_name || "").toLowerCase().includes(q)
-    );
-  }, [dayActivities, searchQuery]);
+      );
+    });
+  }, [dayActivities, searchQuery, filterStatus, filterType]);
 
   // Sort by start_time for timeline
   const timelineSorted = useMemo(() => {
@@ -901,18 +914,71 @@ export default function Activities() {
         </motion.div>
       )}
 
-      {/* Search + New Button */}
+      {/* Search + Filters + New Button */}
       <motion.div variants={item} className="px-4 space-y-3">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search activities..." className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            <Input placeholder="Search..." className="pl-9 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
-          <Button className="gradient-hero text-primary-foreground" onClick={handleOpenCreate}>
-            <Plus className="h-4 w-4 mr-1" /> New
+          <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="shrink-0 px-2.5 sm:px-3 relative">
+                <Filter className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">Filters</p>
+                {activeFilterCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => { setFilterStatus("all"); setFilterType("all"); }}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {statusOptions.map((s) => (
+                      <SelectItem key={s} value={s}>{statusLabels[s] || s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Activity Type</Label>
+                <Select value={filterType} onValueChange={setFilterType}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {dayActivityTypes.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Button className="gradient-hero text-primary-foreground shrink-0 px-2.5 sm:px-3" onClick={handleOpenCreate}>
+            <Plus className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">New</span>
           </Button>
         </div>
       </motion.div>
+
 
       {/* Content based on active tab */}
       <motion.div variants={item} className="px-4 pb-24 pt-3 space-y-3">
