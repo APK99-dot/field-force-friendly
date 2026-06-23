@@ -10,10 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
-import { Plus, Search, Trash2, X, ShoppingCart, Save, CalendarDays, FileText } from "lucide-react";
+import { Plus, Search, Trash2, X, ShoppingCart, Save, CalendarDays, ChevronDown } from "lucide-react";
 import {
   PROC_STATUSES, USER_FORM_STATUSES, UOM_OPTIONS, PAYMENT_TERMS,
   statusColor, fmtAmt, type ProcStatus,
