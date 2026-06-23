@@ -60,9 +60,9 @@ export interface Transition {
 // Allowed button-driven transitions from a given status
 export function allowedTransitions(status: string): Transition[] {
   switch (status) {
-    case "Draft":
-      return [{ to: "Vendor Identified", label: "Mark Vendor Identified", approver: false }];
-    case "Vendor Identified":
+    case "Requisition":
+      return [{ to: "Requisition Approved", label: "Approve Requisition", approver: true }];
+    case "Requisition Approved":
       return [{ to: "Quote Awaited", label: "Mark Quote Awaited", approver: false }];
     case "Quote Awaited":
       return [{ to: "Quote Received", label: "Mark Quote Received", approver: false }];
