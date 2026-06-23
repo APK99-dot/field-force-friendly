@@ -208,14 +208,29 @@ export default function ProcurementDetail({
           {/* Header info */}
           <Card>
             <CardContent className="p-3 space-y-1.5 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" />{order.order_date} · {vendorName(order.vendor_id)}</div>
+              <div className="flex items-center gap-2 text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" />{order.order_date}</div>
+              <div className="text-muted-foreground">
+                Vendor: {(order.vendor_ids && order.vendor_ids.length
+                  ? order.vendor_ids.map((id) => vendorName(id)).join(", ")
+                  : vendorName(order.vendor_id))}
+              </div>
               <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
+              {order.po_number && <div className="text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}
               {order.expected_delivery_date && <div className="text-muted-foreground">Expected Delivery: {order.expected_delivery_date}</div>}
               {order.payment_terms && <div className="text-muted-foreground">Payment Terms: {order.payment_terms}</div>}
               {order.bill_to && <div className="text-muted-foreground">Bill To: <span className="whitespace-pre-wrap">{order.bill_to}</span></div>}
               {order.ship_to && <div className="text-muted-foreground">Ship To: <span className="whitespace-pre-wrap">{order.ship_to}</span></div>}
+              {order.requisition_notes && <div className="text-muted-foreground">Reason: <span className="whitespace-pre-wrap">{order.requisition_notes}</span></div>}
+              {poUnlocked && (
+                <div className="pt-1">
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={openPoEdit}>
+                    <Pencil className="h-3.5 w-3.5" />Edit PO Details &amp; Rates
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
+
 
           {/* Budget vs Actual */}
           {estBudget != null && (
