@@ -30,7 +30,7 @@ const emptyForm = {
   vendor_id: "",
   po_number: "",
   site_id: "",
-  status: "Draft" as ProcStatus,
+  status: "Requisition" as ProcStatus,
   expected_delivery_date: "",
   payment_terms: "",
   estimated_budget: "",
