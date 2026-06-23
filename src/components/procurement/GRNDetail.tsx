@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Truck } from "lucide-react";
 import { statusColor } from "@/lib/procurement";
+import { resolveGrnPhotoUrl } from "@/utils/grnPhotos";
 
 interface GrnItemRow {
   id: string;
