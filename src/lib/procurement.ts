@@ -1,8 +1,8 @@
 // Shared constants and helpers for the Procurement module
 
 export const PROC_STATUSES = [
-  "Draft",
-  "Vendor Identified",
+  "Requisition",
+  "Requisition Approved",
   "Quote Awaited",
   "Quote Received",
   "PO Issued",
