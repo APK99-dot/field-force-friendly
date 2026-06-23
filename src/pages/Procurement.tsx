@@ -29,15 +29,11 @@ interface LineItem { id?: string; product_id: string; rate: string; qty: string;
 
 const emptyForm = {
   order_date: new Date().toISOString().slice(0, 10),
-  vendor_id: "",
-  po_number: "",
+  vendor_ids: [] as string[],
   site_id: "",
   status: "Requisition" as ProcStatus,
-  expected_delivery_date: "",
-  payment_terms: "",
   estimated_budget: "",
-  bill_to: "",
-  ship_to: "",
+  requisition_notes: "",
 };
 
 export default function Procurement() {
