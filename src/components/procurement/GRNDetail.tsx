@@ -132,6 +132,25 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props
               <p className="text-sm">{grn.remarks}</p>
             </div>
           )}
+
+          {photoUrls.length > 0 && (
+            <div>
+              <div className="text-sm font-semibold mb-2">Goods Photos — Proof of Delivery</div>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {photoUrls.map((url, idx) => (
+                  <a
+                    key={idx}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block aspect-square rounded-lg overflow-hidden border"
+                  >
+                    <img src={url} alt={`Goods photo ${idx + 1}`} className="w-full h-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
