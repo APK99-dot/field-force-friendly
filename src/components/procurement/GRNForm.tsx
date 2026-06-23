@@ -102,6 +102,7 @@ export default function GRNForm({
           received_by: receivedBy.trim() || null,
           remarks: remarks.trim() || null,
           status,
+          photos: photos.map((p) => p.path),
           created_by: createdBy,
         })
         .select("id")
