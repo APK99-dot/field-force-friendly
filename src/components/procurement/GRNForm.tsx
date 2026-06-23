@@ -43,6 +43,37 @@ export default function GRNForm({
   const [status, setStatus] = useState<string>("Fully Received");
   const [recv, setRecv] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [photos, setPhotos] = useState<{ path: string; preview: string }[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const remaining = MAX_PHOTOS - photos.length;
+    if (remaining <= 0) {
+      toast.error(`Maximum ${MAX_PHOTOS} photos allowed`);
+      return;
+    }
+    const list = Array.from(files).slice(0, remaining);
+    setUploadingPhoto(true);
+    try {
+      for (const file of list) {
+        const path = await uploadGrnPhoto(file);
+        setPhotos((p) => [...p, { path, preview: URL.createObjectURL(file) }]);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to upload photo");
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removePhoto = async (idx: number) => {
+    const photo = photos[idx];
+    setPhotos((p) => p.filter((_, i) => i !== idx));
+    if (photo) await removeGrnPhoto(photo.path);
+  };
 
   const balance = (it: POItem) => Math.max(0, it.qty - (alreadyReceived[it.id] || 0));
 
