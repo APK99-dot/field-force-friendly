@@ -66,6 +66,58 @@ export default function ProcurementDetail({
   const [invOpen, setInvOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  // Post-approval PO details editing
+  const [poEditOpen, setPoEditOpen] = useState(false);
+  const [poForm, setPoForm] = useState({ bill_to: "", ship_to: "", expected_delivery_date: "", payment_terms: "" });
+  const [rateLines, setRateLines] = useState<{ id: string; product_id: string | null; uom: string | null; qty: number; rate: string }[]>([]);
+  const [poSaving, setPoSaving] = useState(false);
+
+  const openPoEdit = () => {
+    setPoForm({
+      bill_to: order.bill_to || "",
+      ship_to: order.ship_to || "",
+      expected_delivery_date: order.expected_delivery_date || "",
+      payment_terms: order.payment_terms || "",
+    });
+    setRateLines((order.procurement_items || []).map((it) => ({
+      id: it.id, product_id: it.product_id, uom: it.uom, qty: it.qty, rate: String(it.rate ?? ""),
+    })));
+    setPoEditOpen(true);
+  };
+
+  const poEditTotal = useMemo(
+    () => rateLines.reduce((s, l) => s + (parseFloat(l.rate) || 0) * (l.qty || 0), 0),
+    [rateLines]
+  );
+
+  const savePoDetails = async () => {
+    setPoSaving(true);
+    try {
+      const { error: oErr } = await supabase.from("procurement_orders").update({
+        bill_to: poForm.bill_to.trim() || null,
+        ship_to: poForm.ship_to.trim() || null,
+        expected_delivery_date: poForm.expected_delivery_date || null,
+        payment_terms: poForm.payment_terms || null,
+        total_amount: poEditTotal,
+      }).eq("id", order.id);
+      if (oErr) throw oErr;
+      for (const l of rateLines) {
+        const rate = parseFloat(l.rate) || 0;
+        const { error: iErr } = await supabase.from("procurement_items")
+          .update({ rate, amount: rate * (l.qty || 0) }).eq("id", l.id);
+        if (iErr) throw iErr;
+      }
+      toast.success("PO details updated");
+      setPoEditOpen(false);
+      onChanged();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update PO details");
+    } finally {
+      setPoSaving(false);
+    }
+  };
+
+
   const items: POItem[] = useMemo(
     () => (order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, rate: it.rate, qty: it.qty, uom: it.uom,
