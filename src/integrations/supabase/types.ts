@@ -2962,12 +2962,14 @@ export type Database = {
           order_date: string
           payment_terms: string | null
           po_number: string | null
+          requisition_notes: string | null
           ship_to: string | null
           site_id: string | null
           status: string
           total_amount: number
           updated_at: string
           vendor_id: string | null
+          vendor_ids: string[] | null
         }
         Insert: {
           bill_to?: string | null
@@ -2982,12 +2984,14 @@ export type Database = {
           order_date?: string
           payment_terms?: string | null
           po_number?: string | null
+          requisition_notes?: string | null
           ship_to?: string | null
           site_id?: string | null
           status?: string
           total_amount?: number
           updated_at?: string
           vendor_id?: string | null
+          vendor_ids?: string[] | null
         }
         Update: {
           bill_to?: string | null
@@ -3002,12 +3006,14 @@ export type Database = {
           order_date?: string
           payment_terms?: string | null
           po_number?: string | null
+          requisition_notes?: string | null
           ship_to?: string | null
           site_id?: string | null
           status?: string
           total_amount?: number
           updated_at?: string
           vendor_id?: string | null
+          vendor_ids?: string[] | null
         }
         Relationships: [
           {
