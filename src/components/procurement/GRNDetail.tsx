@@ -32,6 +32,7 @@ interface Props {
 }
 
 export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props) {
+  const navigate = useNavigate();
   const [items, setItems] = useState<GrnItemRow[]>([]);
   const [products, setProducts] = useState<Record<string, string>>({});
   const [uoms, setUoms] = useState<Record<string, string>>({});
