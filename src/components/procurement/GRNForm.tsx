@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Save, Truck, Camera, X } from "lucide-react";
+import { Save, Truck, Camera, ImageIcon, X } from "lucide-react";
 import { GRN_STATUSES, receiptDrivenStatus } from "@/lib/procurement";
 import { uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
 
@@ -45,7 +45,8 @@ export default function GRNForm({
   const [saving, setSaving] = useState(false);
   const [photos, setPhotos] = useState<{ path: string; preview: string }[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -65,7 +66,8 @@ export default function GRNForm({
       toast.error(err.message || "Failed to upload photo");
     } finally {
       setUploadingPhoto(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
+      if (galleryInputRef.current) galleryInputRef.current.value = "";
     }
   };
 
@@ -214,24 +216,41 @@ export default function GRNForm({
             <Label className="text-sm font-semibold">Goods Photos</Label>
             <p className="text-[11px] text-muted-foreground mb-2">Proof of delivery — up to {MAX_PHOTOS} photos.</p>
             <input
-              ref={fileInputRef}
+              ref={cameraInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/*"
+              accept="image/*"
               capture="environment"
+              className="hidden"
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
               multiple
               className="hidden"
               onChange={(e) => handleFiles(e.target.files)}
             />
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Camera className="h-4 w-4 mr-2" />
-              {uploadingPhoto ? "Uploading..." : "📷 Capture / Upload Photos"}
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
+                onClick={() => cameraInputRef.current?.click()}
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                {uploadingPhoto ? "Uploading..." : "📷 Take Photo"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
+                onClick={() => galleryInputRef.current?.click()}
+              >
+                <ImageIcon className="h-4 w-4 mr-2" />
+                🖼️ Upload from Gallery
+              </Button>
+            </div>
             {photos.length > 0 && (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
                 {photos.map((p, idx) => (
