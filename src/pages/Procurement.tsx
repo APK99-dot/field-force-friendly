@@ -58,7 +58,21 @@ export default function Procurement() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailOrder | null>(null);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
   useEffect(() => { fetchAll(); }, []);
+
+  // Open detail when navigated with ?po=<id>
+  useEffect(() => {
+    const poId = searchParams.get("po");
+    if (poId && orders.length) {
+      const found = orders.find((o) => o.id === poId);
+      if (found) {
+        setDetail(found);
+        setSearchParams((prev) => { prev.delete("po"); return prev; }, { replace: true });
+      }
+    }
+  }, [searchParams, orders]);
 
   const fetchAll = async () => {
     setIsLoading(true);
