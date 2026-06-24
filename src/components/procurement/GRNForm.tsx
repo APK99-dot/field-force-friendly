@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Save, Camera, ImageIcon, X, ArrowLeft } from "lucide-react";
-import { receiptDrivenStatus } from "@/lib/procurement";
+import { receiptDrivenStatus, GRN_STATUSES, GrnStatus } from "@/lib/procurement";
 import { uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
 import { cn } from "@/lib/utils";
 
 const MAX_PHOTOS = 20;
-const STATUS_CHIPS = ["Partially Received", "Fully Received"] as const;
 
 export interface POItem {
   id: string;
@@ -42,7 +41,8 @@ export default function GRNForm({
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
   const [receivedBy, setReceivedBy] = useState("");
   const [remarks, setRemarks] = useState("");
-  const [status, setStatus] = useState<string>("Fully Received");
+  const [status, setStatus] = useState<GrnStatus>("Pending");
+  const [statusManuallySet, setStatusManuallySet] = useState(false);
   const [recv, setRecv] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [photos, setPhotos] = useState<{ path: string; preview: string }[]>([]);
@@ -91,6 +91,23 @@ export default function GRNForm({
   const progressPct = totals.ordered > 0
     ? Math.min(100, Math.round((totals.cumulative / totals.ordered) * 100))
     : 0;
+
+  useEffect(() => {
+    if (statusManuallySet) return;
+    const { thisReceipt, ordered, cumulative } = totals;
+    if (thisReceipt === 0) {
+      setStatus("Pending");
+    } else if (cumulative >= ordered && ordered > 0) {
+      setStatus("Fully Received");
+    } else {
+      setStatus("Partially Received");
+    }
+  }, [totals, statusManuallySet]);
+
+  const handleStatusSelect = (s: GrnStatus) => {
+    setStatusManuallySet(true);
+    setStatus(s);
+  };
 
   const handleSave = async () => {
     const rows = items
@@ -246,13 +263,13 @@ export default function GRNForm({
             <div>
               <Label className="text-sm font-semibold">GRN Status</Label>
               <div className="mt-2 flex flex-wrap gap-2">
-                {STATUS_CHIPS.map((s) => {
+                {GRN_STATUSES.map((s) => {
                   const active = status === s;
                   return (
                     <button
                       key={s}
                       type="button"
-                      onClick={() => setStatus(s)}
+                      onClick={() => handleStatusSelect(s)}
                       className={cn(
                         "rounded-full px-4 py-1.5 text-sm font-medium border transition-colors",
                         active
