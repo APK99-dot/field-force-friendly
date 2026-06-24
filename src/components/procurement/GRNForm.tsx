@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Save, Truck, Camera, X } from "lucide-react";
+import { Save, Truck, Camera, ImageIcon, X } from "lucide-react";
 import { GRN_STATUSES, receiptDrivenStatus } from "@/lib/procurement";
 import { uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
 
