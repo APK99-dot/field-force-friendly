@@ -118,6 +118,7 @@ export default function GRN() {
         onOpenChange={setDetailOpen}
         grn={selected}
         vendorName={selected?.po?.vendor_id ? (vendors[selected.po.vendor_id] || "") : ""}
+        onSaved={fetchAll}
       />
     </motion.div>
   );
