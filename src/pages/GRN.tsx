@@ -5,8 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Truck, CalendarDays } from "lucide-react";
-import { GRN_STATUSES, statusColor } from "@/lib/procurement";
+import { Search, Truck, CalendarDays, ChevronRight } from "lucide-react";
+import { GRN_STATUSES, grnStatusColor } from "@/lib/procurement";
 import GRNDetail from "@/components/procurement/GRNDetail";
 
 interface GrnRow {
@@ -99,12 +99,13 @@ export default function GRN() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h3 className="font-semibold text-sm">{r.grn_number}</h3>
-                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColor(r.status)}`}>{r.status}</Badge>
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${grnStatusColor(r.status)}`}>{r.status}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground flex items-center gap-1"><CalendarDays className="h-3 w-3" />{r.receipt_date} · PO {r.po?.po_number || "—"}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">Vendor: {r.po?.vendor_id ? (vendors[r.po.vendor_id] || "—") : "—"}{r.received_by ? ` · By ${r.received_by}` : ""}</p>
                     {r.remarks && <p className="text-xs text-muted-foreground mt-0.5 truncate">{r.remarks}</p>}
                   </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0 self-center" />
                 </div>
               </CardContent>
             </Card>
@@ -117,6 +118,7 @@ export default function GRN() {
         onOpenChange={setDetailOpen}
         grn={selected}
         vendorName={selected?.po?.vendor_id ? (vendors[selected.po.vendor_id] || "") : ""}
+        onSaved={fetchAll}
       />
     </motion.div>
   );

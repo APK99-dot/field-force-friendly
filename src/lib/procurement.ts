@@ -101,6 +101,17 @@ export function statusColor(status: string) {
   }
 }
 
+// GRN-specific status colors
+export function grnStatusColor(status: string) {
+  switch (status) {
+    case "Pending": return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+    case "Partially Received": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
+    case "Fully Received": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+    case "Rejected": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+    default: return "bg-gray-100 text-gray-600";
+  }
+}
+
 export const fmtAmt = (n: number) =>
   `₹${(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
