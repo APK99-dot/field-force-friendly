@@ -26,9 +26,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Navigation2,
-  Sparkles,
+  ClipboardCheck,
   Clock,
   Users,
+
   MapPin,
   Activity,
   CheckCircle2,
@@ -871,7 +872,7 @@ export default function Activities() {
             className="flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl text-xs font-medium bg-white/10 text-white/70 hover:bg-white/20 transition-all"
             onClick={handleOpenCreate}
           >
-            <Sparkles className="h-4 w-4" />Activity
+            <ClipboardCheck className="h-4 w-4" />Activity
           </button>
         </div>
       </motion.div>
