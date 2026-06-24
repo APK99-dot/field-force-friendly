@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Save, Camera, ImageIcon, X, ArrowLeft } from "lucide-react";
-import { receiptDrivenStatus } from "@/lib/procurement";
+import { receiptDrivenStatus, GRN_STATUSES, GrnStatus } from "@/lib/procurement";
 import { uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
 import { cn } from "@/lib/utils";
 
 const MAX_PHOTOS = 20;
-const STATUS_CHIPS = ["Partially Received", "Fully Received"] as const;
 
 export interface POItem {
   id: string;
