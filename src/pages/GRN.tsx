@@ -5,8 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Truck, CalendarDays } from "lucide-react";
-import { GRN_STATUSES, statusColor } from "@/lib/procurement";
+import { Search, Truck, CalendarDays, ChevronRight } from "lucide-react";
+import { GRN_STATUSES, grnStatusColor } from "@/lib/procurement";
 import GRNDetail from "@/components/procurement/GRNDetail";
 
 interface GrnRow {
