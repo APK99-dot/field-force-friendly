@@ -1,17 +1,19 @@
 import { useState, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { Save, Truck, Camera, ImageIcon, X } from "lucide-react";
-import { GRN_STATUSES, receiptDrivenStatus } from "@/lib/procurement";
+import { Save, Camera, ImageIcon, X, ArrowLeft } from "lucide-react";
+import { receiptDrivenStatus } from "@/lib/procurement";
 import { uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
+import { cn } from "@/lib/utils";
 
-const MAX_PHOTOS = 5;
+const MAX_PHOTOS = 20;
+const STATUS_CHIPS = ["Partially Received", "Fully Received"] as const;
 
 export interface POItem {
   id: string;
@@ -86,6 +88,10 @@ export default function GRNForm({
     return { ordered, priorReceived, thisReceipt, cumulative: priorReceived + thisReceipt };
   }, [items, alreadyReceived, recv]);
 
+  const progressPct = totals.ordered > 0
+    ? Math.min(100, Math.round((totals.cumulative / totals.ordered) * 100))
+    : 0;
+
   const handleSave = async () => {
     const rows = items
       .map((it) => ({ it, received: parseFloat(recv[it.id]) || 0 }))
@@ -144,135 +150,195 @@ export default function GRNForm({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col">
-        <DialogHeader className="px-4 py-3 border-b shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <Truck className="h-4 w-4" />Goods Receipt — {poNumber}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 p-4 overflow-y-auto flex-1 max-w-3xl w-full mx-auto">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Date of Receipt</Label>
-              <Input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} className="h-9" />
-            </div>
-            <div>
-              <Label className="text-xs">Received By</Label>
-              <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="Name" className="h-9" />
-            </div>
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b shrink-0">
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="rounded-md p-1.5 hover:bg-muted transition-colors"
+            aria-label="Back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-semibold text-base">Goods Receipt</span>
+            <span className="text-muted-foreground">—</span>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-sm font-semibold hover:bg-primary/20 transition-colors"
+            >
+              {poNumber}
+            </button>
           </div>
+        </div>
 
-          <div>
-            <Label className="text-sm font-semibold">Items — Ordered vs Received</Label>
-            <div className="space-y-2 mt-2">
-              {items.map((it) => {
-                const bal = balance(it);
-                return (
-                  <div key={it.id} className="rounded-lg border p-2.5 bg-muted/30">
-                    <div className="text-sm font-medium mb-1.5">{productName(it.product_id)}</div>
-                    <div className="grid grid-cols-3 gap-2 items-end">
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">Ordered ({it.uom || "—"})</Label>
-                        <div className="h-8 flex items-center text-sm">{it.qty}</div>
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">Balance</Label>
-                        <div className="h-8 flex items-center text-sm">{bal}</div>
-                      </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">Receiving Now</Label>
-                        <Input
-                          type="number" inputMode="decimal" className="h-8"
-                          value={recv[it.id] || ""}
-                          onChange={(e) => setRecv((p) => ({ ...p, [it.id]: e.target.value }))}
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">GRN Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>{GRN_STATUSES.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}</SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end text-xs text-muted-foreground">
-              Cumulative received: {totals.cumulative} / {totals.ordered}
-            </div>
-          </div>
-
-          <div>
-            <Label className="text-xs">Remarks</Label>
-            <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Notes about this receipt..." rows={2} />
-          </div>
-
-          <div>
-            <Label className="text-sm font-semibold">Goods Photos</Label>
-            <p className="text-[11px] text-muted-foreground mb-2">Proof of delivery — up to {MAX_PHOTOS} photos.</p>
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => handleFiles(e.target.files)}
-            />
-            <input
-              ref={galleryInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => handleFiles(e.target.files)}
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
-                onClick={() => cameraInputRef.current?.click()}
-              >
-                <Camera className="h-4 w-4 mr-2" />
-                {uploadingPhoto ? "Uploading..." : "📷 Take Photo"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
-                onClick={() => galleryInputRef.current?.click()}
-              >
-                <ImageIcon className="h-4 w-4 mr-2" />
-                🖼️ Upload from Gallery
-              </Button>
-            </div>
-            {photos.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
-                {photos.map((p, idx) => (
-                  <div key={p.path} className="relative aspect-square rounded-lg overflow-hidden border">
-                    <img src={p.preview} alt={`Goods photo ${idx + 1}`} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removePhoto(idx)}
-                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5"
-                      aria-label="Remove photo"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
+        {/* Scrollable content */}
+        <div className="overflow-y-auto flex-1">
+          <div className="space-y-5 p-4 pb-8 max-w-[800px] w-full mx-auto">
+            {/* Top card: Date / Received By */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-lg border bg-muted/40 p-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Date of Receipt</Label>
+                <Input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} className="h-9 bg-background" />
               </div>
-            )}
-          </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Received By</Label>
+                <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="Name" className="h-9 bg-background" />
+              </div>
+            </div>
 
-          <div className="flex gap-2 pt-2 pb-6">
+            {/* Items table */}
+            <div>
+              <Label className="text-sm font-semibold">Items — Ordered vs Received</Label>
+              <div className="mt-2 rounded-lg border overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[640px]">
+                    <thead>
+                      <tr className="bg-muted/60 text-xs text-muted-foreground">
+                        <th className="text-left font-medium px-3 py-2">Material</th>
+                        <th className="text-center font-medium px-3 py-2">UOM</th>
+                        <th className="text-center font-medium px-3 py-2">Ordered</th>
+                        <th className="text-center font-medium px-3 py-2">Prev. Received</th>
+                        <th className="text-center font-medium px-3 py-2">Balance</th>
+                        <th className="text-center font-medium px-3 py-2 bg-primary/10 text-primary">Receiving Now</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((it) => {
+                        const bal = balance(it);
+                        const prev = alreadyReceived[it.id] || 0;
+                        return (
+                          <tr key={it.id} className="border-t">
+                            <td className="px-3 py-2 font-medium">{productName(it.product_id)}</td>
+                            <td className="px-3 py-2 text-center text-muted-foreground">{it.uom || "—"}</td>
+                            <td className="px-3 py-2 text-center">{it.qty}</td>
+                            <td className="px-3 py-2 text-center">{prev}</td>
+                            <td className="px-3 py-2 text-center font-medium">{bal}</td>
+                            <td className="px-3 py-2 bg-primary/5">
+                              <Input
+                                type="number" inputMode="decimal"
+                                className="h-9 w-24 mx-auto text-center bg-background border-primary/40 focus-visible:ring-primary"
+                                value={recv[it.id] || ""}
+                                onChange={(e) => setRecv((p) => ({ ...p, [it.id]: e.target.value }))}
+                                placeholder="0"
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Progress */}
+              <div className="mt-3 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Cumulative received</span>
+                  <span className="font-semibold">{totals.cumulative} / {totals.ordered}</span>
+                </div>
+                <Progress value={progressPct} className="h-2.5" />
+              </div>
+            </div>
+
+            {/* Status chips */}
+            <div>
+              <Label className="text-sm font-semibold">GRN Status</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {STATUS_CHIPS.map((s) => {
+                  const active = status === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setStatus(s)}
+                      className={cn(
+                        "rounded-full px-4 py-1.5 text-sm font-medium border transition-colors",
+                        active
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-foreground border-input hover:bg-muted"
+                      )}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Remarks */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Remarks</Label>
+              <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Notes about this receipt..." rows={2} />
+            </div>
+
+            {/* Photos */}
+            <div>
+              <Label className="text-sm font-semibold">Goods Photos</Label>
+              <p className="text-[11px] text-muted-foreground mb-2">Proof of delivery — up to {MAX_PHOTOS} photos.</p>
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
+              />
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  {uploadingPhoto ? "Uploading..." : "Take Photo"}
+                </Button>
+                <Button
+                  type="button"
+                  disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <ImageIcon className="h-4 w-4 mr-2" />
+                  Upload from Gallery
+                </Button>
+              </div>
+              {photos.length > 0 && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
+                  {photos.map((p, idx) => (
+                    <div key={p.path} className="relative aspect-square rounded-lg overflow-hidden border">
+                      <img src={p.preview} alt={`Goods photo ${idx + 1}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(idx)}
+                        className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5"
+                        aria-label="Remove photo"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Fixed footer */}
+        <div className="shrink-0 border-t bg-background p-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+          <div className="flex gap-3 max-w-[800px] mx-auto">
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button className="flex-1" onClick={handleSave} disabled={saving}>
+            <Button className="flex-1 bg-foreground text-background hover:bg-foreground/90" onClick={handleSave} disabled={saving}>
               <Save className="h-4 w-4 mr-2" />{saving ? "Saving..." : "Save GRN"}
             </Button>
           </div>
