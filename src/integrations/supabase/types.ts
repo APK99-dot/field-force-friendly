@@ -2814,6 +2814,44 @@ export type Database = {
           },
         ]
       }
+      procurement_invoice_attachments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          invoice_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          invoice_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          invoice_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_invoice_attachments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       procurement_invoice_items: {
         Row: {
           created_at: string
@@ -2855,6 +2893,47 @@ export type Database = {
             columns: ["procurement_item_id"]
             isOneToOne: false
             referencedRelation: "procurement_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      procurement_invoice_payments: {
+        Row: {
+          amount: number
+          bank_name: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_id: string
+          payment_date: string | null
+          reference_number: string | null
+        }
+        Insert: {
+          amount?: number
+          bank_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id: string
+          payment_date?: string | null
+          reference_number?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id?: string
+          payment_date?: string | null
+          reference_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_invoices"
             referencedColumns: ["id"]
           },
         ]
