@@ -41,7 +41,8 @@ export default function GRNForm({
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
   const [receivedBy, setReceivedBy] = useState("");
   const [remarks, setRemarks] = useState("");
-  const [status, setStatus] = useState<string>("Fully Received");
+  const [status, setStatus] = useState<GrnStatus>("Pending");
+  const [statusManuallySet, setStatusManuallySet] = useState(false);
   const [recv, setRecv] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [photos, setPhotos] = useState<{ path: string; preview: string }[]>([]);
