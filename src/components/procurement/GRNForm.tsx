@@ -216,24 +216,41 @@ export default function GRNForm({
             <Label className="text-sm font-semibold">Goods Photos</Label>
             <p className="text-[11px] text-muted-foreground mb-2">Proof of delivery — up to {MAX_PHOTOS} photos.</p>
             <input
-              ref={fileInputRef}
+              ref={cameraInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/*"
+              accept="image/*"
               capture="environment"
+              className="hidden"
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
               multiple
               className="hidden"
               onChange={(e) => handleFiles(e.target.files)}
             />
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Camera className="h-4 w-4 mr-2" />
-              {uploadingPhoto ? "Uploading..." : "📷 Capture / Upload Photos"}
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
+                onClick={() => cameraInputRef.current?.click()}
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                {uploadingPhoto ? "Uploading..." : "📷 Take Photo"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
+                onClick={() => galleryInputRef.current?.click()}
+              >
+                <ImageIcon className="h-4 w-4 mr-2" />
+                🖼️ Upload from Gallery
+              </Button>
+            </div>
             {photos.length > 0 && (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
                 {photos.map((p, idx) => (
