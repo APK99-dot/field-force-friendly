@@ -263,13 +263,13 @@ export default function GRNForm({
             <div>
               <Label className="text-sm font-semibold">GRN Status</Label>
               <div className="mt-2 flex flex-wrap gap-2">
-                {STATUS_CHIPS.map((s) => {
+                {GRN_STATUSES.map((s) => {
                   const active = status === s;
                   return (
                     <button
                       key={s}
                       type="button"
-                      onClick={() => setStatus(s)}
+                      onClick={() => handleStatusSelect(s)}
                       className={cn(
                         "rounded-full px-4 py-1.5 text-sm font-medium border transition-colors",
                         active
