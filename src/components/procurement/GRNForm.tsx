@@ -92,6 +92,23 @@ export default function GRNForm({
     ? Math.min(100, Math.round((totals.cumulative / totals.ordered) * 100))
     : 0;
 
+  useEffect(() => {
+    if (statusManuallySet) return;
+    const { thisReceipt, ordered, cumulative } = totals;
+    if (thisReceipt === 0) {
+      setStatus("Pending");
+    } else if (cumulative >= ordered && ordered > 0) {
+      setStatus("Fully Received");
+    } else {
+      setStatus("Partially Received");
+    }
+  }, [totals, statusManuallySet]);
+
+  const handleStatusSelect = (s: GrnStatus) => {
+    setStatusManuallySet(true);
+    setStatus(s);
+  };
+
   const handleSave = async () => {
     const rows = items
       .map((it) => ({ it, received: parseFloat(recv[it.id]) || 0 }))
