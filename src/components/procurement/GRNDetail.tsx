@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Truck } from "lucide-react";
-import { statusColor } from "@/lib/procurement";
-import { resolveGrnPhotoUrl } from "@/utils/grnPhotos";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Truck, Download, X, Pencil, Camera, ImageIcon, Save } from "lucide-react";
+import { grnStatusColor } from "@/lib/procurement";
+import { resolveGrnPhotoUrl, uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
+
+const MAX_PHOTOS = 20;
 
 interface GrnItemRow {
   id: string;
@@ -29,20 +35,34 @@ interface Props {
     po?: { po_number: string | null; vendor_id: string | null; site_id?: string | null } | null;
   } | null;
   vendorName: string;
+  onSaved?: () => void;
 }
 
-export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props) {
+export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved }: Props) {
   const navigate = useNavigate();
   const [items, setItems] = useState<GrnItemRow[]>([]);
   const [products, setProducts] = useState<Record<string, string>>({});
   const [uoms, setUoms] = useState<Record<string, string>>({});
   const [siteName, setSiteName] = useState<string>("—");
   const [loading, setLoading] = useState(false);
+  // photoPaths stays in sync with stored paths; photoUrls are resolved signed URLs
+  const [photoPaths, setPhotoPaths] = useState<string[]>([]);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [viewerIdx, setViewerIdx] = useState<number | null>(null);
+
+  // edit mode
+  const [editing, setEditing] = useState(false);
+  const [editRemarks, setEditRemarks] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open || !grn) return;
     let active = true;
+    setEditing(false);
+    setEditRemarks(grn.remarks || "");
     (async () => {
       setLoading(true);
       const [gi, pr, items, site] = await Promise.all([
@@ -68,9 +88,10 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props
       setLoading(false);
 
       const paths = (grn.photos || []) as string[];
+      setPhotoPaths(paths);
       if (paths.length) {
         const urls = await Promise.all(paths.map((p) => resolveGrnPhotoUrl(p)));
-        if (active) setPhotoUrls(urls.filter(Boolean));
+        if (active) setPhotoUrls(urls);
       } else {
         setPhotoUrls([]);
       }
@@ -78,16 +99,100 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props
     return () => { active = false; };
   }, [open, grn]);
 
+  const downloadPhoto = async (url: string, idx: number) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = `${grn?.grn_number || "grn"}-photo-${idx + 1}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objUrl);
+    } catch {
+      window.open(url, "_blank");
+    }
+  };
+
+  const handleAddPhotos = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const remaining = MAX_PHOTOS - photoPaths.length;
+    if (remaining <= 0) {
+      toast.error(`Maximum ${MAX_PHOTOS} photos allowed`);
+      return;
+    }
+    const list = Array.from(files).slice(0, remaining);
+    setUploading(true);
+    try {
+      for (const file of list) {
+        const path = await uploadGrnPhoto(file);
+        const url = await resolveGrnPhotoUrl(path);
+        setPhotoPaths((p) => [...p, path]);
+        setPhotoUrls((u) => [...u, url]);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to upload photo");
+    } finally {
+      setUploading(false);
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
+      if (galleryInputRef.current) galleryInputRef.current.value = "";
+    }
+  };
+
+  const handleRemovePhoto = async (idx: number) => {
+    const path = photoPaths[idx];
+    setPhotoPaths((p) => p.filter((_, i) => i !== idx));
+    setPhotoUrls((u) => u.filter((_, i) => i !== idx));
+    if (path) await removeGrnPhoto(path);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!grn) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("procurement_grns")
+        .update({ remarks: editRemarks.trim() || null, photos: photoPaths })
+        .eq("id", grn.id);
+      if (error) throw error;
+      toast.success("Goods Receipt updated");
+      setEditing(false);
+      onSaved?.();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update GRN");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!grn) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col">
         <DialogHeader className="px-4 py-3 border-b shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <Truck className="h-4 w-4" />{grn.grn_number || "Goods Receipt"}
-            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColor(grn.status)}`}>{grn.status}</Badge>
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Truck className="h-4 w-4" />{grn.grn_number || "Goods Receipt"}
+              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${grnStatusColor(grn.status)}`}>{grn.status}</Badge>
+            </DialogTitle>
+            {!editing ? (
+              <Button variant="outline" size="sm" className="h-8" onClick={() => setEditing(true)}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" />Edit
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" className="h-8" onClick={() => { setEditing(false); setEditRemarks(grn.remarks || ""); }}>
+                  Cancel
+                </Button>
+                <Button size="sm" className="h-8" onClick={handleSaveEdit} disabled={saving}>
+                  <Save className="h-3.5 w-3.5 mr-1.5" />{saving ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            )}
+          </div>
         </DialogHeader>
         <div className="space-y-4 p-4 overflow-y-auto flex-1 max-w-3xl w-full mx-auto">
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border p-3 bg-muted/30 text-sm">
@@ -120,7 +225,8 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props
               <div className="space-y-2">
                 {items.map((it) => {
                   const uom = it.product_id ? uoms[it.product_id] : "";
-                  const short = it.received_qty < it.ordered_qty;
+                  const bal = Math.max(0, it.ordered_qty - it.received_qty);
+                  const short = bal > 0;
                   return (
                     <div key={it.id} className="rounded-lg border p-2.5">
                       <div className="text-sm font-medium mb-1.5">{it.product_id ? (products[it.product_id] || "—") : "—"}</div>
@@ -129,9 +235,12 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props
                         <div><div className="text-[10px] text-muted-foreground">Received</div>{it.received_qty}</div>
                         <div>
                           <div className="text-[10px] text-muted-foreground">Balance</div>
-                          <span className={short ? "text-amber-600 font-medium" : ""}>{Math.max(0, it.ordered_qty - it.received_qty)}</span>
+                          <span className={short ? "text-amber-600 font-medium" : ""}>{bal}</span>
                         </div>
                       </div>
+                      {short && (
+                        <p className="text-[11px] text-amber-600 mt-1.5">⚠️ {bal} {uom || "units"} still pending delivery</p>
+                      )}
                     </div>
                   );
                 })}
@@ -139,32 +248,113 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props
             )}
           </div>
 
-          {grn.remarks && (
-            <div>
-              <div className="text-[10px] text-muted-foreground">Remarks</div>
-              <p className="text-sm">{grn.remarks}</p>
-            </div>
-          )}
+          <div>
+            <Label className="text-[10px] text-muted-foreground">Remarks</Label>
+            {editing ? (
+              <Textarea
+                value={editRemarks}
+                onChange={(e) => setEditRemarks(e.target.value)}
+                placeholder="Notes about this receipt..."
+                rows={2}
+                className="mt-1"
+              />
+            ) : (
+              <p className="text-sm">{grn.remarks || "—"}</p>
+            )}
+          </div>
 
-          {photoUrls.length > 0 && (
-            <div>
-              <div className="text-sm font-semibold mb-2">Goods Photos — Proof of Delivery</div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-semibold">Goods Photos — Proof of Delivery</div>
+            </div>
+            {editing && (
+              <>
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => handleAddPhotos(e.target.files)}
+                />
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleAddPhotos(e.target.files)}
+                />
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <Button
+                    type="button"
+                    disabled={uploading || photoPaths.length >= MAX_PHOTOS}
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Camera className="h-4 w-4 mr-2" />{uploading ? "Uploading..." : "Take Photo"}
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={uploading || photoPaths.length >= MAX_PHOTOS}
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <ImageIcon className="h-4 w-4 mr-2" />Upload from Gallery
+                  </Button>
+                </div>
+              </>
+            )}
+            {photoUrls.length > 0 ? (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {photoUrls.map((url, idx) => (
-                  <a
-                    key={idx}
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block aspect-square rounded-lg overflow-hidden border"
-                  >
-                    <img src={url} alt={`Goods photo ${idx + 1}`} className="w-full h-full object-cover" />
-                  </a>
+                  <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border">
+                    <button
+                      type="button"
+                      onClick={() => setViewerIdx(idx)}
+                      className="block w-full h-full"
+                    >
+                      <img src={url} alt={`Goods photo ${idx + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                    {editing && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePhoto(idx)}
+                        className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5"
+                        aria-label="Remove photo"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-muted-foreground">No photos.</p>
+            )}
+          </div>
         </div>
+
+        {/* Full-screen photo viewer */}
+        {viewerIdx !== null && photoUrls[viewerIdx] && (
+          <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+            <div className="flex items-center justify-end gap-2 p-3" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => downloadPhoto(photoUrls[viewerIdx], viewerIdx)}
+              >
+                <Download className="h-4 w-4 mr-1.5" />Download
+              </Button>
+              <Button variant="secondary" size="icon" className="h-9 w-9" onClick={() => setViewerIdx(null)} aria-label="Close">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+              <img src={photoUrls[viewerIdx]} alt={`Goods photo ${viewerIdx + 1}`} className="max-w-full max-h-full object-contain" />
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
