@@ -19,6 +19,7 @@ import AttendancePolicyConfig from "@/components/attendance/AttendancePolicyConf
 import AttendanceReportGenerator from "@/components/attendance/AttendanceReportGenerator";
 import WorkingDaysConfig from "@/components/attendance/WorkingDaysConfig";
 import RejectionReasonDialog from "@/components/RejectionReasonDialog";
+import { ExpandableText } from "@/components/ui/expandable-text";
 
 interface LeaveApplication {
   id: string;
@@ -469,7 +470,7 @@ export default function AttendanceManagement() {
                       <TableCell>{app.leave_types?.name || "Unknown"}</TableCell>
                       <TableCell>{format(new Date(app.from_date), "MMM dd, yyyy")}</TableCell>
                       <TableCell>{format(new Date(app.to_date), "MMM dd, yyyy")}</TableCell>
-                      <TableCell><div className="max-w-xs truncate">{app.reason}</div></TableCell>
+                      <TableCell><ExpandableText text={app.reason} title="Leave Reason" /></TableCell>
                       <TableCell>{app.applied_date ? format(new Date(app.applied_date), "MMM dd, yyyy") : "--"}</TableCell>
                       <TableCell>{getStatusBadge(app.status)}</TableCell>
                       <TableCell>
@@ -551,7 +552,7 @@ export default function AttendanceManagement() {
                           <div>Out: {formatTime(req.requested_check_out_time)}</div>
                         </div>
                       </TableCell>
-                      <TableCell><div className="max-w-xs truncate">{req.reason}</div></TableCell>
+                      <TableCell><ExpandableText text={req.reason} title="Regularization Reason" /></TableCell>
                       <TableCell>{format(new Date(req.created_at), "MMM dd, yyyy")}</TableCell>
                       <TableCell>
                       {(isAdmin || subordinateIds.includes(req.user_id)) && (

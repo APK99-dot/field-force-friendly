@@ -14,6 +14,7 @@ import { downloadCSV } from '@/utils/fileDownloader';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import { downloadXLSX as downloadXLSXNative, downloadPDF as downloadPDFNative } from '@/utils/nativeDownload';
+import { ExpandableText } from '@/components/ui/expandable-text';
 
 interface ReportExpense {
   id: string;
@@ -401,7 +402,7 @@ export default function ExpenseReportGenerator({ isAdmin }: Props) {
                             <TableCell className="font-medium">{r.user_name}</TableCell>
                             <TableCell>{format(new Date(r.expense_date), 'dd MMM yyyy')}</TableCell>
                             <TableCell>{r.category}</TableCell>
-                            <TableCell className="max-w-[200px] truncate">{r.description || '-'}</TableCell>
+                            <TableCell><ExpandableText text={r.description} title="Expense Description" className="max-w-[200px]" /></TableCell>
                             <TableCell className="text-right">₹{r.amount.toFixed(2)}</TableCell>
                             <TableCell>{statusBadge(r.status)}</TableCell>
                           </TableRow>
