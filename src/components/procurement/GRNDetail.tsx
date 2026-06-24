@@ -91,7 +91,18 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName }: Props
         </DialogHeader>
         <div className="space-y-4 p-4 overflow-y-auto flex-1 max-w-3xl w-full mx-auto">
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border p-3 bg-muted/30 text-sm">
-            <div><div className="text-[10px] text-muted-foreground">PO Number</div>{grn.po?.po_number || "—"}</div>
+            <div>
+              <div className="text-[10px] text-muted-foreground">PO Number</div>
+              {grn.po?.po_number ? (
+                <button
+                  type="button"
+                  className="text-primary font-medium underline underline-offset-2 hover:opacity-80"
+                  onClick={() => { onOpenChange(false); navigate(`/procurement?po=${grn.po_id}`); }}
+                >
+                  {grn.po.po_number}
+                </button>
+              ) : "—"}
+            </div>
             <div><div className="text-[10px] text-muted-foreground">Receipt Date</div>{grn.receipt_date}</div>
             <div><div className="text-[10px] text-muted-foreground">Vendor</div>{vendorName || "—"}</div>
             <div><div className="text-[10px] text-muted-foreground">Site</div>{siteName}</div>
