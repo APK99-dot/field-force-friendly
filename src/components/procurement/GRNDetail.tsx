@@ -171,29 +171,35 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col">
+      <DialogContent className="max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col [&>button]:hidden">
         <DialogHeader className="px-4 py-3 border-b shrink-0">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-3">
             <DialogTitle className="flex items-center gap-2">
               <Truck className="h-4 w-4" />{grn.grn_number || "Goods Receipt"}
               <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${grnStatusColor(grn.status)}`}>{grn.status}</Badge>
             </DialogTitle>
-            {!editing ? (
-              <Button variant="outline" size="sm" className="h-8" onClick={() => setEditing(true)}>
-                <Pencil className="h-3.5 w-3.5 mr-1.5" />Edit
+            <div className="flex items-center gap-2">
+              {!editing ? (
+                <Button variant="outline" size="sm" className="h-8" onClick={() => setEditing(true)}>
+                  <Pencil className="h-3.5 w-3.5 mr-1.5" />Edit
+                </Button>
+              ) : (
+                <>
+                  <Button variant="ghost" size="sm" className="h-8" onClick={() => { setEditing(false); setEditRemarks(grn.remarks || ""); }}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" className="h-8" onClick={handleSaveEdit} disabled={saving}>
+                    <Save className="h-3.5 w-3.5 mr-1.5" />{saving ? "Saving..." : "Save"}
+                  </Button>
+                </>
+              )}
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenChange(false)} aria-label="Close">
+                <X className="h-4 w-4" />
               </Button>
-            ) : (
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" className="h-8" onClick={() => { setEditing(false); setEditRemarks(grn.remarks || ""); }}>
-                  Cancel
-                </Button>
-                <Button size="sm" className="h-8" onClick={handleSaveEdit} disabled={saving}>
-                  <Save className="h-3.5 w-3.5 mr-1.5" />{saving ? "Saving..." : "Save"}
-                </Button>
-              </div>
-            )}
+            </div>
           </div>
         </DialogHeader>
+
         <div className="space-y-4 p-4 overflow-y-auto flex-1 max-w-3xl w-full mx-auto">
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border p-3 bg-muted/30 text-sm">
             <div>
