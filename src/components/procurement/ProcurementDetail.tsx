@@ -361,6 +361,7 @@ export default function ProcurementDetail({
           <InvoiceForm
             open={invOpen} onOpenChange={setInvOpen}
             poId={order.id} poNumber={order.po_number || "(No PO #)"}
+            vendorNameStr={vendorName(order.vendor_id)}
             items={items} productName={productName} createdBy={currentUserId}
             onSaved={() => { fetchSub(); onChanged(); }}
           />
