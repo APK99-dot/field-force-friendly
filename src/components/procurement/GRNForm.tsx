@@ -45,7 +45,8 @@ export default function GRNForm({
   const [saving, setSaving] = useState(false);
   const [photos, setPhotos] = useState<{ path: string; preview: string }[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
