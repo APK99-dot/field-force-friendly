@@ -95,16 +95,17 @@ export default function GRN() {
           {filtered.map((r) => (
             <Card key={r.id} role="button" tabIndex={0} onClick={() => { setSelected(r); setDetailOpen(true); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(r); setDetailOpen(true); } }} className="cursor-pointer hover:border-primary/50 transition-colors">
               <CardContent className="p-3">
-                <div className="flex items-start justify-between gap-2">
+                <div class="" className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h3 className="font-semibold text-sm">{r.grn_number}</h3>
-                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColor(r.status)}`}>{r.status}</Badge>
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${grnStatusColor(r.status)}`}>{r.status}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground flex items-center gap-1"><CalendarDays className="h-3 w-3" />{r.receipt_date} · PO {r.po?.po_number || "—"}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">Vendor: {r.po?.vendor_id ? (vendors[r.po.vendor_id] || "—") : "—"}{r.received_by ? ` · By ${r.received_by}` : ""}</p>
                     {r.remarks && <p className="text-xs text-muted-foreground mt-0.5 truncate">{r.remarks}</p>}
                   </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0 self-center" />
                 </div>
               </CardContent>
             </Card>
