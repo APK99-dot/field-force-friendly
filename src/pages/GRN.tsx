@@ -95,7 +95,7 @@ export default function GRN() {
           {filtered.map((r) => (
             <Card key={r.id} role="button" tabIndex={0} onClick={() => { setSelected(r); setDetailOpen(true); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(r); setDetailOpen(true); } }} className="cursor-pointer hover:border-primary/50 transition-colors">
               <CardContent className="p-3">
-                <div class="" className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h3 className="font-semibold text-sm">{r.grn_number}</h3>
