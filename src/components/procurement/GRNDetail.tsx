@@ -105,6 +105,30 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved
       } else {
         setPhotoUrls([]);
       }
+
+      // load existing feedback
+      const { data: fb } = await supabase
+        .from("procurement_vendor_feedback")
+        .select("*")
+        .eq("grn_id", grn.id)
+        .maybeSingle();
+      if (active) {
+        if (fb) {
+          setFbExistingId(fb.id);
+          setFbDelivery(fb.delivery_timeliness);
+          setFbQuality(fb.material_quality);
+          setFbQuantity(fb.quantity_accuracy);
+          setFbOverall(fb.overall_experience);
+          setFbComments(fb.comments || "");
+        } else {
+          setFbExistingId(null);
+          setFbDelivery(0);
+          setFbQuality(0);
+          setFbQuantity(0);
+          setFbOverall(0);
+          setFbComments("");
+        }
+      }
     })();
     return () => { active = false; };
   }, [open, grn]);
