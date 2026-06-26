@@ -243,7 +243,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                   </TabsContent>
 
                   <TabsContent value="milestones" className="mt-0">
-                    <SiteMilestoneList milestones={milestones} activities={activities} />
+                    <SiteMilestoneList milestones={milestones} activities={activities} siteId={site?.id ?? null} onChanged={reload} />
                   </TabsContent>
 
 
