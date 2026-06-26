@@ -26,6 +26,7 @@ import {
 import {
   Plus, Search, Phone, Mail, MapPin, Edit, Trash2, Filter, User, Briefcase, StickyNote, X,
 } from "lucide-react";
+import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
 
 const CATEGORIES = [
   "Civil", "Electrical", "Plumbing", "Painting", "Carpentry",
