@@ -66,6 +66,15 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
   const [status, setStatus] = useState<string | null>(null);
   const [savingStatus, setSavingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [msForm, setMsForm] = useState({
+    name: "",
+    start_date: new Date().toISOString().split("T")[0],
+    end_date: "",
+    notes: "",
+    percent_complete: 0,
+  });
+  const [savingMilestone, setSavingMilestone] = useState(false);
 
   const currentStatus = status ?? site?.status ?? "planned";
 
