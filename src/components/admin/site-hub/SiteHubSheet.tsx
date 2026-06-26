@@ -58,7 +58,7 @@ interface Props {
 }
 
 export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChanged }: Props) {
-  const { loading, milestones, activities, assignedUsers, gallery, documents, attendanceByActivity } = useSiteHub(open ? site?.id ?? null : null);
+  const { loading, milestones, activities, assignedUsers, gallery, documents, attendanceByActivity, reload } = useSiteHub(open ? site?.id ?? null : null);
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [savingStatus, setSavingStatus] = useState(false);
@@ -243,7 +243,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                   </TabsContent>
 
                   <TabsContent value="milestones" className="mt-0">
-                    <SiteMilestoneList milestones={milestones} activities={activities} />
+                    <SiteMilestoneList milestones={milestones} activities={activities} siteId={site?.id ?? null} onChanged={reload} />
                   </TabsContent>
 
 

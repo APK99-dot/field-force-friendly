@@ -6,6 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
+import { updateMilestoneProgress } from "@/utils/milestoneProgress";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -196,6 +199,7 @@ const defaultForm = {
   description: "",
   site_id: "",
   milestone_id: "",
+  milestone_progress: 0,
   grn_po_id: "",
   site_flag: "" as string,
   site_status: "" as string,
@@ -342,7 +346,7 @@ export default function Activities() {
       .eq("is_active", true)
       .order("start_date")
       .then(({ data }) => {
-        setSiteMilestones((data || []).map((m: any) => ({
+        const mapped = (data || []).map((m: any) => ({
           id: m.id,
           name: m.name,
           status: m.status,
@@ -352,7 +356,12 @@ export default function Activities() {
           actual_start_date: m.actual_start_date,
           actual_end_date: m.actual_end_date,
           notes: m.notes,
-        })));
+        }));
+        setSiteMilestones(mapped);
+        setForm((f) => {
+          const sel = mapped.find((m) => m.id === f.milestone_id);
+          return sel ? { ...f, milestone_progress: sel.percent_complete } : f;
+        });
       });
     supabase.from("project_sites").select("flag, status").eq("id", form.site_id).maybeSingle().then(({ data }) => {
       setForm(f => ({ ...f, site_flag: data?.flag || "green", site_status: data?.status || "planned" }));
@@ -672,6 +681,7 @@ export default function Activities() {
       description: a.description || "",
       site_id: a.site_id || "",
       milestone_id: a.milestone_id || "",
+      milestone_progress: 0,
       grn_po_id: (a as any).grn_po_id || "",
       site_flag: "",
       site_status: "",
@@ -776,6 +786,17 @@ export default function Activities() {
       // Update site flag if changed
       if (form.site_id && form.site_flag) {
         await supabase.from("project_sites").update({ flag: form.site_flag }).eq("id", form.site_id);
+      }
+      // Sync milestone progress (single source of truth)
+      if (form.milestone_id) {
+        const sel = siteMilestones.find((m) => m.id === form.milestone_id);
+        if (sel && form.milestone_progress !== sel.percent_complete) {
+          try {
+            await updateMilestoneProgress(form.milestone_id, form.milestone_progress, sel.status);
+          } catch (e) {
+            console.error("Failed to update milestone progress", e);
+          }
+        }
       }
       clearRecording();
       setShowForm(false);
@@ -1063,7 +1084,11 @@ export default function Activities() {
                 ) : (
                   <Select
                     value={form.milestone_id || "__none__"}
-                    onValueChange={(v) => setForm({ ...form, milestone_id: v === "__none__" ? "" : v })}
+                    onValueChange={(v) => {
+                      const id = v === "__none__" ? "" : v;
+                      const sel = siteMilestones.find((m) => m.id === id);
+                      setForm({ ...form, milestone_id: id, milestone_progress: sel ? sel.percent_complete : 0 });
+                    }}
                   >
                     <SelectTrigger><SelectValue placeholder="Select milestone (optional)" /></SelectTrigger>
                     <SelectContent>
@@ -1078,7 +1103,7 @@ export default function Activities() {
                   const sel = siteMilestones.find((m) => m.id === form.milestone_id);
                   if (!sel) return null;
                   return (
-                    <div className="mt-2 border rounded-lg p-2.5 bg-muted/30 space-y-1 text-xs">
+                    <div className="mt-2 border rounded-lg p-2.5 bg-muted/30 space-y-2 text-xs">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-[10px]">{milestoneStatusLabel(sel.status)}</Badge>
                         <span className="text-muted-foreground">{sel.percent_complete}% complete</span>
@@ -1092,6 +1117,20 @@ export default function Activities() {
                         </div>
                       )}
                       {sel.notes && <p className="text-muted-foreground italic">{sel.notes}</p>}
+                      <div className="border-t pt-2 space-y-1.5">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Update milestone progress</span>
+                          <span className="font-semibold text-foreground tabular-nums">{form.milestone_progress}%</span>
+                        </div>
+                        <Progress value={form.milestone_progress} className="h-1.5" />
+                        <Slider
+                          value={[form.milestone_progress]}
+                          min={0}
+                          max={100}
+                          step={1}
+                          onValueChange={(v) => setForm({ ...form, milestone_progress: v[0] })}
+                        />
+                      </div>
                     </div>
                   );
                 })()}
