@@ -74,8 +74,12 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
     name: "",
     start_date: new Date().toISOString().split("T")[0],
     end_date: "",
+    actual_start_date: "",
+    actual_end_date: "",
     notes: "",
     percent_complete: 0,
+    status: "not_started",
+    is_active: true,
   });
   const [savingMilestone, setSavingMilestone] = useState(false);
 
