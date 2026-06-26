@@ -539,16 +539,3 @@ export default function Vendors() {
   );
 }
 
-function DetailRow({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
-  return (
-    <div className="flex items-start gap-3">
-      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div>
-        <p className="text-[11px] text-muted-foreground">{label}</p>
-        <p className="text-sm">{value}</p>
-      </div>
-    </div>
-  );
-}
