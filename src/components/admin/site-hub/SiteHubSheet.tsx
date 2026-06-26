@@ -25,6 +25,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { getSiteAttachmentUrl } from "@/utils/siteAttachments";
 import { useSiteHub } from "@/hooks/useSiteHub";
+import { MILESTONE_STATUSES } from "@/components/admin/SiteMilestonesDialog";
 import SiteGallery from "@/components/admin/site-hub/SiteGallery";
 import SiteMilestoneList from "@/components/admin/site-hub/SiteMilestoneList";
 import SiteActivityList from "@/components/admin/site-hub/SiteActivityList";
