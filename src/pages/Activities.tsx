@@ -689,6 +689,7 @@ export default function Activities() {
       location_address: a.location_address || "",
       total_hours: a.total_hours || 0,
       owner_user_id: a.user_id,
+      assigned_user_ids: Array.isArray((a as any).assigned_user_ids) ? (a as any).assigned_user_ids : [],
       photos: a.photo_urls || [],
     });
     setEditingId(a.id);
