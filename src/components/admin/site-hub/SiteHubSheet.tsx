@@ -111,6 +111,43 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
     if (a) setSelectedActivity(a);
   };
 
+  const handleSaveMilestone = async () => {
+    if (!site) return;
+    if (!msForm.name.trim()) { toast.error("Milestone name is required"); return; }
+    if (!msForm.start_date) { toast.error("Planned Start Date is required"); return; }
+    if (!msForm.end_date) { toast.error("Planned End Date is required"); return; }
+    if (msForm.end_date < msForm.start_date) { toast.error("Planned End cannot be before Planned Start"); return; }
+    const pct = Math.min(100, Math.max(0, Number(msForm.percent_complete) || 0));
+    setSavingMilestone(true);
+    try {
+      const { error } = await supabase.from("site_milestones").insert({
+        site_id: site.id,
+        name: msForm.name.trim(),
+        start_date: msForm.start_date,
+        end_date: msForm.end_date,
+        notes: msForm.notes.trim() || null,
+        percent_complete: pct,
+        status: pct >= 100 ? "completed" : pct > 0 ? "in_progress" : "not_started",
+        is_active: true,
+      });
+      if (error) throw error;
+      toast.success("Milestone added");
+      setShowAddMilestone(false);
+      setMsForm({
+        name: "",
+        start_date: new Date().toISOString().split("T")[0],
+        end_date: "",
+        notes: "",
+        percent_complete: 0,
+      });
+      reload();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add milestone");
+    } finally {
+      setSavingMilestone(false);
+    }
+  };
+
   const handleOpenChange = (o: boolean) => {
     if (!o) { setStatus(null); setActiveTab("overview"); onClose(); }
   };
