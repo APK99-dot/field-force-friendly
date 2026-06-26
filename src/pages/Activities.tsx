@@ -196,6 +196,7 @@ const defaultForm = {
   description: "",
   site_id: "",
   milestone_id: "",
+  milestone_progress: 0,
   grn_po_id: "",
   site_flag: "" as string,
   site_status: "" as string,
