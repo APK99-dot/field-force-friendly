@@ -62,6 +62,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [savingStatus, setSavingStatus] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
 
   const currentStatus = status ?? site?.status ?? "planned";
 
