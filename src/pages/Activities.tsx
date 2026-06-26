@@ -206,6 +206,7 @@ const defaultForm = {
   location_address: "",
   total_hours: 0,
   owner_user_id: "",
+  assigned_user_ids: [] as string[],
   photos: [] as ActivityPhotoEntry[],
 };
 
