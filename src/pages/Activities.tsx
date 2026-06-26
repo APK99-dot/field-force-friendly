@@ -343,7 +343,7 @@ export default function Activities() {
       .eq("is_active", true)
       .order("start_date")
       .then(({ data }) => {
-        setSiteMilestones((data || []).map((m: any) => ({
+        const mapped = (data || []).map((m: any) => ({
           id: m.id,
           name: m.name,
           status: m.status,
@@ -353,7 +353,12 @@ export default function Activities() {
           actual_start_date: m.actual_start_date,
           actual_end_date: m.actual_end_date,
           notes: m.notes,
-        })));
+        }));
+        setSiteMilestones(mapped);
+        setForm((f) => {
+          const sel = mapped.find((m) => m.id === f.milestone_id);
+          return sel ? { ...f, milestone_progress: sel.percent_complete } : f;
+        });
       });
     supabase.from("project_sites").select("flag, status").eq("id", form.site_id).maybeSingle().then(({ data }) => {
       setForm(f => ({ ...f, site_flag: data?.flag || "green", site_status: data?.status || "planned" }));
