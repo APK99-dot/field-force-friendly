@@ -130,7 +130,7 @@ export default function AttendanceReport() {
     <ReportShell
       title="Attendance Report"
       description="Check-in/out times, total hours and status per employee."
-      loading={loading}
+      loading={loading || scope.loading}
       downloading={downloading}
       generated={generated}
       recordCount={rows.length}

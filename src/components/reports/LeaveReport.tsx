@@ -157,7 +157,7 @@ export default function LeaveReport() {
     <ReportShell
       title="Leave Report"
       description="Leave applications with type, duration and approval status."
-      loading={loading}
+      loading={loading || scope.loading}
       downloading={downloading}
       generated={generated}
       recordCount={rows.length}

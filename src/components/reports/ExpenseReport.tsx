@@ -146,7 +146,7 @@ export default function ExpenseReport() {
     <ReportShell
       title="Expense Report"
       description="Employee expenses by category with approval status."
-      loading={loading}
+      loading={loading || scope.loading}
       downloading={downloading}
       generated={generated}
       recordCount={rows.length}

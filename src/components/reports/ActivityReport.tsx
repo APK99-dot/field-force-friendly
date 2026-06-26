@@ -181,7 +181,7 @@ export default function ActivityReport() {
     <ReportShell
       title="Activity Report"
       description="Site activities, milestones, hours logged and status."
-      loading={loading}
+      loading={loading || scope.loading}
       downloading={downloading}
       generated={generated}
       recordCount={rows.length}
