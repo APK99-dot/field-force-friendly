@@ -59,6 +59,15 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
+  // vendor feedback
+  const [fbDelivery, setFbDelivery] = useState(0);
+  const [fbQuality, setFbQuality] = useState(0);
+  const [fbQuantity, setFbQuantity] = useState(0);
+  const [fbOverall, setFbOverall] = useState(0);
+  const [fbComments, setFbComments] = useState("");
+  const [fbExistingId, setFbExistingId] = useState<string | null>(null);
+  const [fbSaving, setFbSaving] = useState(false);
+
   useEffect(() => {
     if (!open || !grn) return;
     let active = true;
