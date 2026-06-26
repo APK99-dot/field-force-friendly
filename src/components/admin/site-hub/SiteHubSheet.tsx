@@ -124,6 +124,9 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
     if (!msForm.start_date) { toast.error("Planned Start Date is required"); return; }
     if (!msForm.end_date) { toast.error("Planned End Date is required"); return; }
     if (msForm.end_date < msForm.start_date) { toast.error("Planned End cannot be before Planned Start"); return; }
+    if (msForm.actual_start_date && msForm.actual_end_date && msForm.actual_end_date < msForm.actual_start_date) {
+      toast.error("Actual End cannot be before Actual Start"); return;
+    }
     const pct = Math.min(100, Math.max(0, Number(msForm.percent_complete) || 0));
     setSavingMilestone(true);
     try {
@@ -132,10 +135,12 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
         name: msForm.name.trim(),
         start_date: msForm.start_date,
         end_date: msForm.end_date,
+        actual_start_date: msForm.actual_start_date || null,
+        actual_end_date: msForm.actual_end_date || null,
         notes: msForm.notes.trim() || null,
         percent_complete: pct,
-        status: pct >= 100 ? "completed" : pct > 0 ? "in_progress" : "not_started",
-        is_active: true,
+        status: msForm.status || (pct >= 100 ? "completed" : pct > 0 ? "in_progress" : "not_started"),
+        is_active: msForm.is_active,
       });
       if (error) throw error;
       toast.success("Milestone added");
