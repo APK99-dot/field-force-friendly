@@ -313,18 +313,18 @@ export default function GRNForm({
               <div className="grid grid-cols-2 gap-3">
                 <Button
                   type="button"
+                  variant="outline"
                   disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
                   onClick={() => cameraInputRef.current?.click()}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Camera className="h-4 w-4 mr-2" />
                   {uploadingPhoto ? "Uploading..." : "Take Photo"}
                 </Button>
                 <Button
                   type="button"
+                  variant="outline"
                   disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
                   onClick={() => galleryInputRef.current?.click()}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
                   <ImageIcon className="h-4 w-4 mr-2" />
                   Upload from Gallery

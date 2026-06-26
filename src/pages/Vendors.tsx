@@ -26,6 +26,7 @@ import {
 import {
   Plus, Search, Phone, Mail, MapPin, Edit, Trash2, Filter, User, Briefcase, StickyNote, X,
 } from "lucide-react";
+import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
 
 const CATEGORIES = [
   "Civil", "Electrical", "Plumbing", "Painting", "Carpentry",
@@ -178,6 +179,47 @@ export default function Vendors() {
       })) as Vendor[];
     },
   });
+
+  const { data: feedback = [] } = useQuery({
+    queryKey: ["vendor-feedback"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("procurement_vendor_feedback")
+        .select("*, po:procurement_orders(po_number)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const ratingsByVendor = useMemo(() => {
+    const map: Record<string, {
+      avg: number;
+      count: number;
+      delivery: number;
+      quality: number;
+      quantity: number;
+      overall: number;
+      history: any[];
+    }> = {};
+    const grouped: Record<string, any[]> = {};
+    for (const f of feedback as any[]) {
+      (grouped[f.vendor_id] ||= []).push(f);
+    }
+    for (const [vid, list] of Object.entries(grouped)) {
+      const n = list.length;
+      const sum = (k: string) => list.reduce((a, f) => a + (f[k] || 0), 0);
+      const delivery = sum("delivery_timeliness") / n;
+      const quality = sum("material_quality") / n;
+      const quantity = sum("quantity_accuracy") / n;
+      const overall = sum("overall_experience") / n;
+      const avg = (delivery + quality + quantity + overall) / 4;
+      map[vid] = { avg, count: n, delivery, quality, quantity, overall, history: list };
+    }
+    return map;
+  }, [feedback]);
+
+
 
   const filtered = useMemo(() => {
     let list = vendors;
@@ -371,9 +413,18 @@ export default function Vendors() {
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h3 className="font-semibold text-sm truncate">{v.name}</h3>
                       <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColor(v.status)}`}>{v.status}</Badge>
+                      {(() => {
+                        const r = ratingsByVendor[v.id];
+                        const flag = getVendorRatingFlag(r ? r.avg : null);
+                        return (
+                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${flag.className}`}>
+                            {flag.emoji} {flag.label}{r ? ` ${r.avg.toFixed(1)}` : ""}
+                          </Badge>
+                        );
+                      })()}
                     </div>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Phone className="h-3 w-3" /> {v.phone[0] || "—"}
@@ -546,6 +597,67 @@ export default function Vendors() {
                   {detailVendor.services && <DetailRow icon={Briefcase} label="Services" value={detailVendor.services} />}
                   {detailVendor.notes && <DetailRow icon={StickyNote} label="Notes" value={detailVendor.notes} />}
                 </div>
+
+                {/* Ratings */}
+                {(() => {
+                  const r = ratingsByVendor[detailVendor.id];
+                  const flag = getVendorRatingFlag(r ? r.avg : null);
+                  return (
+                    <div className="space-y-3 pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold">Vendor Rating</p>
+                        <Badge variant="outline" className={`text-[10px] ${flag.className}`}>{flag.emoji} {flag.label}</Badge>
+                      </div>
+                      {r ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <StarRating value={Math.round(r.avg)} readOnly size={18} />
+                            <span className="text-sm font-medium">{r.avg.toFixed(1)}</span>
+                            <span className="text-[11px] text-muted-foreground">({r.count} review{r.count > 1 ? "s" : ""})</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {[
+                              { label: "Delivery Timeliness", v: r.delivery },
+                              { label: "Material Quality", v: r.quality },
+                              { label: "Quantity Accuracy", v: r.quantity },
+                              { label: "Overall Experience", v: r.overall },
+                            ].map((c) => (
+                              <div key={c.label} className="flex items-center justify-between">
+                                <span className="text-xs text-muted-foreground">{c.label}</span>
+                                <div className="flex items-center gap-1.5">
+                                  <StarRating value={Math.round(c.v)} readOnly size={14} />
+                                  <span className="text-xs w-7 text-right">{c.v.toFixed(1)}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium">Feedback History</p>
+                            {r.history.map((f: any) => {
+                              const fb = (f.delivery_timeliness + f.material_quality + f.quantity_accuracy + f.overall_experience) / 4;
+                              return (
+                                <div key={f.id} className="rounded-lg border p-2 text-xs space-y-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="font-medium">{f.po?.po_number || "—"}</span>
+                                    <span className="text-muted-foreground">{new Date(f.created_at).toLocaleDateString()}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <StarRating value={Math.round(fb)} readOnly size={12} />
+                                    <span>{fb.toFixed(1)}</span>
+                                  </div>
+                                  {f.comments && <p className="text-muted-foreground">{f.comments}</p>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">No ratings yet.</p>
+                      )}
+                    </div>
+                  );
+                })()}
+
 
                 {isAdmin && (
                   <div className="flex gap-2 pt-4 border-t">

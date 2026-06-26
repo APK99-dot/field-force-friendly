@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Truck, Download, X, Pencil, Camera, ImageIcon, Save } from "lucide-react";
+import { Truck, Download, X, Pencil, Camera, ImageIcon, Save, Star } from "lucide-react";
 import { grnStatusColor } from "@/lib/procurement";
 import { resolveGrnPhotoUrl, uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
+import { StarRating } from "./VendorRating";
 
 const MAX_PHOTOS = 20;
 
@@ -58,6 +59,15 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
+  // vendor feedback
+  const [fbDelivery, setFbDelivery] = useState(0);
+  const [fbQuality, setFbQuality] = useState(0);
+  const [fbQuantity, setFbQuantity] = useState(0);
+  const [fbOverall, setFbOverall] = useState(0);
+  const [fbComments, setFbComments] = useState("");
+  const [fbExistingId, setFbExistingId] = useState<string | null>(null);
+  const [fbSaving, setFbSaving] = useState(false);
+
   useEffect(() => {
     if (!open || !grn) return;
     let active = true;
@@ -94,6 +104,30 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved
         if (active) setPhotoUrls(urls);
       } else {
         setPhotoUrls([]);
+      }
+
+      // load existing feedback
+      const { data: fb } = await supabase
+        .from("procurement_vendor_feedback")
+        .select("*")
+        .eq("grn_id", grn.id)
+        .maybeSingle();
+      if (active) {
+        if (fb) {
+          setFbExistingId(fb.id);
+          setFbDelivery(fb.delivery_timeliness);
+          setFbQuality(fb.material_quality);
+          setFbQuantity(fb.quantity_accuracy);
+          setFbOverall(fb.overall_experience);
+          setFbComments(fb.comments || "");
+        } else {
+          setFbExistingId(null);
+          setFbDelivery(0);
+          setFbQuality(0);
+          setFbQuantity(0);
+          setFbOverall(0);
+          setFbComments("");
+        }
       }
     })();
     return () => { active = false; };
@@ -166,6 +200,45 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved
       setSaving(false);
     }
   };
+
+  const handleSubmitFeedback = async () => {
+    if (!grn) return;
+    if (!grn.po?.vendor_id) {
+      toast.error("No vendor linked to this receipt");
+      return;
+    }
+    if (!fbDelivery || !fbQuality || !fbQuantity || !fbOverall) {
+      toast.error("Please rate all four categories");
+      return;
+    }
+    setFbSaving(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const payload = {
+        grn_id: grn.id,
+        vendor_id: grn.po.vendor_id,
+        po_id: grn.po_id,
+        delivery_timeliness: fbDelivery,
+        material_quality: fbQuality,
+        quantity_accuracy: fbQuantity,
+        overall_experience: fbOverall,
+        comments: fbComments.trim() || null,
+        created_by: auth.user?.id ?? null,
+      };
+      const { error } = await supabase
+        .from("procurement_vendor_feedback")
+        .upsert(payload, { onConflict: "grn_id" });
+      if (error) throw error;
+      toast.success("Feedback submitted");
+      setFbExistingId((prev) => prev || "saved");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit feedback");
+    } finally {
+      setFbSaving(false);
+    }
+  };
+
+
 
   if (!grn) return null;
 
@@ -294,17 +367,17 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <Button
                     type="button"
+                    variant="outline"
                     disabled={uploading || photoPaths.length >= MAX_PHOTOS}
                     onClick={() => cameraInputRef.current?.click()}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     <Camera className="h-4 w-4 mr-2" />{uploading ? "Uploading..." : "Take Photo"}
                   </Button>
                   <Button
                     type="button"
+                    variant="outline"
                     disabled={uploading || photoPaths.length >= MAX_PHOTOS}
                     onClick={() => galleryInputRef.current?.click()}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
                     <ImageIcon className="h-4 w-4 mr-2" />Upload from Gallery
                   </Button>
@@ -338,6 +411,35 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved
             ) : (
               <p className="text-sm text-muted-foreground">No photos.</p>
             )}
+          </div>
+
+          {/* Vendor Feedback */}
+          <div className="rounded-lg border p-3 space-y-3">
+            <div className="flex items-center gap-2">
+              <Star className="h-4 w-4 text-amber-400" />
+              <div className="text-sm font-semibold">Rate this Delivery</div>
+              <span className="text-[11px] text-muted-foreground">(optional)</span>
+            </div>
+            {[
+              { label: "Delivery Timeliness", value: fbDelivery, set: setFbDelivery },
+              { label: "Material Quality", value: fbQuality, set: setFbQuality },
+              { label: "Quantity Accuracy", value: fbQuantity, set: setFbQuantity },
+              { label: "Overall Experience", value: fbOverall, set: setFbOverall },
+            ].map((row) => (
+              <div key={row.label} className="flex items-center justify-between gap-2">
+                <span className="text-sm">{row.label}</span>
+                <StarRating value={row.value} onChange={row.set} />
+              </div>
+            ))}
+            <Textarea
+              value={fbComments}
+              onChange={(e) => setFbComments(e.target.value)}
+              placeholder="Additional comments (optional)..."
+              rows={2}
+            />
+            <Button onClick={handleSubmitFeedback} disabled={fbSaving} className="w-full">
+              {fbSaving ? "Submitting..." : fbExistingId ? "Update Feedback" : "Submit Feedback"}
+            </Button>
           </div>
         </div>
 
