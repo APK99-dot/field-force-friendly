@@ -19,6 +19,7 @@ import {
   User,
   HelpCircle,
   FileText,
+  FileBarChart,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
@@ -36,6 +37,7 @@ const allNavigationItems = [
   { icon: Receipt, label: "Expenses", href: "/expenses", color: "from-orange-500 to-orange-600", module: "module_expenses" },
   { icon: ShoppingCart, label: "Procurement", href: "/procurement", color: "from-rose-500 to-rose-600", module: "module_procurement" },
   { icon: Database, label: "Master Data", href: "/master-data", color: "from-amber-500 to-amber-600", module: null },
+  { icon: FileBarChart, label: "Reports", href: "/reports", color: "from-teal-500 to-teal-600", module: null },
 ];
 
 const accountItems = [
