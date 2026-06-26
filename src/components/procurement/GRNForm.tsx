@@ -380,8 +380,40 @@ export default function GRNForm({
                 </div>
               )}
             </div>
+
+            {/* Vendor Feedback (optional) */}
+            {vendorId && (
+              <div className="rounded-lg border p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Star className="h-4 w-4 text-amber-400" />
+                  <div className="text-sm font-semibold">Rate this Delivery</div>
+                  <span className="text-[11px] text-muted-foreground">(optional)</span>
+                </div>
+                {[
+                  { label: "Delivery Timeliness", value: fbDelivery, set: setFbDelivery },
+                  { label: "Material Quality", value: fbQuality, set: setFbQuality },
+                  { label: "Quantity Accuracy", value: fbQuantity, set: setFbQuantity },
+                  { label: "Overall Experience", value: fbOverall, set: setFbOverall },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center justify-between gap-2">
+                    <span className="text-sm">{row.label}</span>
+                    <StarRating value={row.value} onChange={row.set} />
+                  </div>
+                ))}
+                <Textarea
+                  value={fbComments}
+                  onChange={(e) => setFbComments(e.target.value)}
+                  placeholder="Additional comments (optional)..."
+                  rows={2}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  You can skip this now and rate later from the receipt's detail screen.
+                </p>
+              </div>
+            )}
           </div>
         </div>
+
 
         {/* Fixed footer */}
         <div className="shrink-0 border-t bg-background p-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
