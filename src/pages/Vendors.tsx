@@ -180,6 +180,47 @@ export default function Vendors() {
     },
   });
 
+  const { data: feedback = [] } = useQuery({
+    queryKey: ["vendor-feedback"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("procurement_vendor_feedback")
+        .select("*, po:procurement_orders(po_number)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const ratingsByVendor = useMemo(() => {
+    const map: Record<string, {
+      avg: number;
+      count: number;
+      delivery: number;
+      quality: number;
+      quantity: number;
+      overall: number;
+      history: any[];
+    }> = {};
+    const grouped: Record<string, any[]> = {};
+    for (const f of feedback as any[]) {
+      (grouped[f.vendor_id] ||= []).push(f);
+    }
+    for (const [vid, list] of Object.entries(grouped)) {
+      const n = list.length;
+      const sum = (k: string) => list.reduce((a, f) => a + (f[k] || 0), 0);
+      const delivery = sum("delivery_timeliness") / n;
+      const quality = sum("material_quality") / n;
+      const quantity = sum("quantity_accuracy") / n;
+      const overall = sum("overall_experience") / n;
+      const avg = (delivery + quality + quantity + overall) / 4;
+      map[vid] = { avg, count: n, delivery, quality, quantity, overall, history: list };
+    }
+    return map;
+  }, [feedback]);
+
+
+
   const filtered = useMemo(() => {
     let list = vendors;
     if (search.trim()) {
