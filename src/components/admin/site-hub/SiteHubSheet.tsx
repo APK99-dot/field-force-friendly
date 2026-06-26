@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -27,7 +28,6 @@ import SiteMilestoneList from "@/components/admin/site-hub/SiteMilestoneList";
 import SiteActivityList from "@/components/admin/site-hub/SiteActivityList";
 import ActivityDetailsDialog from "@/components/activities/ActivityDetailsDialog";
 import type { Activity } from "@/hooks/useActivities";
-import type { HubSite } from "./SiteHubSheet";
 
 export interface HubSite {
   id: string;
