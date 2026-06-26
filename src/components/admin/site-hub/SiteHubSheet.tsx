@@ -3,18 +3,23 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
   Loader2, Edit, Users, Download, Building2, Image as ImageIcon,
-  Target, Activity as ActivityIcon, FileText, X,
+  Target, Activity as ActivityIcon, FileText, X, Plus,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -63,6 +68,15 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
   const [status, setStatus] = useState<string | null>(null);
   const [savingStatus, setSavingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [msForm, setMsForm] = useState({
+    name: "",
+    start_date: new Date().toISOString().split("T")[0],
+    end_date: "",
+    notes: "",
+    percent_complete: 0,
+  });
+  const [savingMilestone, setSavingMilestone] = useState(false);
 
   const currentStatus = status ?? site?.status ?? "planned";
 
@@ -97,6 +111,43 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
   const openActivityById = (id: string) => {
     const a = activities.find((x) => x.id === id);
     if (a) setSelectedActivity(a);
+  };
+
+  const handleSaveMilestone = async () => {
+    if (!site) return;
+    if (!msForm.name.trim()) { toast.error("Milestone name is required"); return; }
+    if (!msForm.start_date) { toast.error("Planned Start Date is required"); return; }
+    if (!msForm.end_date) { toast.error("Planned End Date is required"); return; }
+    if (msForm.end_date < msForm.start_date) { toast.error("Planned End cannot be before Planned Start"); return; }
+    const pct = Math.min(100, Math.max(0, Number(msForm.percent_complete) || 0));
+    setSavingMilestone(true);
+    try {
+      const { error } = await supabase.from("site_milestones").insert({
+        site_id: site.id,
+        name: msForm.name.trim(),
+        start_date: msForm.start_date,
+        end_date: msForm.end_date,
+        notes: msForm.notes.trim() || null,
+        percent_complete: pct,
+        status: pct >= 100 ? "completed" : pct > 0 ? "in_progress" : "not_started",
+        is_active: true,
+      });
+      if (error) throw error;
+      toast.success("Milestone added");
+      setShowAddMilestone(false);
+      setMsForm({
+        name: "",
+        start_date: new Date().toISOString().split("T")[0],
+        end_date: "",
+        notes: "",
+        percent_complete: 0,
+      });
+      reload();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add milestone");
+    } finally {
+      setSavingMilestone(false);
+    }
   };
 
   const handleOpenChange = (o: boolean) => {
@@ -153,6 +204,15 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                 >
                   <Edit className="h-3.5 w-3.5 mr-1" /> Edit Site
                 </Button>
+                {activeTab === "milestones" && site && (
+                  <Button
+                    size="sm"
+                    className="h-9"
+                    onClick={() => setShowAddMilestone(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Milestone
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -244,7 +304,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                   </TabsContent>
 
                   <TabsContent value="milestones" className="mt-0">
-                    <SiteMilestoneList milestones={milestones} activities={activities} siteId={site?.id ?? null} onChanged={reload} />
+                    <SiteMilestoneList milestones={milestones} activities={activities} onChanged={reload} />
                   </TabsContent>
 
 
@@ -277,6 +337,56 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
               </div>
             </Tabs>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAddMilestone} onOpenChange={setShowAddMilestone}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" /> Add Milestone
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Milestone Name *</Label>
+              <Input value={msForm.name} onChange={(e) => setMsForm({ ...msForm, name: e.target.value })} placeholder="e.g. Foundation Complete" autoFocus />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Planned Start *</Label>
+                <Input type="date" value={msForm.start_date} onChange={(e) => setMsForm({ ...msForm, start_date: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs">Planned End *</Label>
+                <Input type="date" value={msForm.end_date} min={msForm.start_date || undefined} onChange={(e) => setMsForm({ ...msForm, end_date: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Description</Label>
+              <Textarea value={msForm.notes} onChange={(e) => setMsForm({ ...msForm, notes: e.target.value })} placeholder="Optional description..." rows={2} />
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1.5">
+                <Label className="text-xs">Initial Progress</Label>
+                <span className="font-semibold tabular-nums">{msForm.percent_complete}%</span>
+              </div>
+              <Slider
+                value={[msForm.percent_complete]}
+                min={0}
+                max={100}
+                step={1}
+                onValueChange={(v) => setMsForm({ ...msForm, percent_complete: v[0] })}
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => setShowAddMilestone(false)} disabled={savingMilestone}>Cancel</Button>
+              <Button className="flex-1" onClick={handleSaveMilestone} disabled={savingMilestone}>
+                {savingMilestone ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Save
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
