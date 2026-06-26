@@ -413,9 +413,18 @@ export default function Vendors() {
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h3 className="font-semibold text-sm truncate">{v.name}</h3>
                       <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColor(v.status)}`}>{v.status}</Badge>
+                      {(() => {
+                        const r = ratingsByVendor[v.id];
+                        const flag = getVendorRatingFlag(r ? r.avg : null);
+                        return (
+                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${flag.className}`}>
+                            {flag.emoji} {flag.label}{r ? ` ${r.avg.toFixed(1)}` : ""}
+                          </Badge>
+                        );
+                      })()}
                     </div>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Phone className="h-3 w-3" /> {v.phone[0] || "—"}
