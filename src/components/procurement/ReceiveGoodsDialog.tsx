@@ -67,6 +67,7 @@ export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUs
       onOpenChange={onOpenChange}
       poId={poId}
       poNumber={poNumber}
+      vendorId={vendorId}
       items={items}
       alreadyReceived={received}
       productName={productName}
