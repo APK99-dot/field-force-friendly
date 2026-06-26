@@ -201,6 +201,45 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved
     }
   };
 
+  const handleSubmitFeedback = async () => {
+    if (!grn) return;
+    if (!grn.po?.vendor_id) {
+      toast.error("No vendor linked to this receipt");
+      return;
+    }
+    if (!fbDelivery || !fbQuality || !fbQuantity || !fbOverall) {
+      toast.error("Please rate all four categories");
+      return;
+    }
+    setFbSaving(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const payload = {
+        grn_id: grn.id,
+        vendor_id: grn.po.vendor_id,
+        po_id: grn.po_id,
+        delivery_timeliness: fbDelivery,
+        material_quality: fbQuality,
+        quantity_accuracy: fbQuantity,
+        overall_experience: fbOverall,
+        comments: fbComments.trim() || null,
+        created_by: auth.user?.id ?? null,
+      };
+      const { error } = await supabase
+        .from("procurement_vendor_feedback")
+        .upsert(payload, { onConflict: "grn_id" });
+      if (error) throw error;
+      toast.success("Feedback submitted");
+      setFbExistingId((prev) => prev || "saved");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit feedback");
+    } finally {
+      setFbSaving(false);
+    }
+  };
+
+
+
   if (!grn) return null;
 
   return (
