@@ -157,12 +157,12 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
             </div>
           </div>
 
-          {loading ? (
+          {loading && milestones.length === 0 && activities.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
               <div className="px-3 sm:px-8 pt-3 border-b">
                 <TabsList className="w-full max-w-6xl mx-auto justify-start overflow-x-auto bg-transparent p-0 h-auto gap-1">
                   {[
