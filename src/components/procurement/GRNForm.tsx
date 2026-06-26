@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { Save, Camera, ImageIcon, X, ArrowLeft } from "lucide-react";
+import { Save, Camera, ImageIcon, X, ArrowLeft, Star } from "lucide-react";
 import { receiptDrivenStatus, GRN_STATUSES, GrnStatus } from "@/lib/procurement";
 import { uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
+import { StarRating } from "./VendorRating";
 import { cn } from "@/lib/utils";
 
 const MAX_PHOTOS = 20;
