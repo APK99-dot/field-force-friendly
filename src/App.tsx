@@ -40,8 +40,7 @@ const ProductMaster = lazy(() => import("./pages/master/ProductMaster"));
 
 const Procurement = lazy(() => import("./pages/Procurement"));
 const GRN = lazy(() => import("./pages/GRN"));
-const Reports = lazy(() => import("./pages/Reports"));
-const ReportView = lazy(() => import("./pages/ReportView"));
+const Analytics = lazy(() => import("./pages/Analytics"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -106,8 +105,9 @@ const App = () => (
             
             <Route path="/procurement" element={<Suspense fallback={<PageFallback />}><Procurement /></Suspense>} />
             <Route path="/grn" element={<Suspense fallback={<PageFallback />}><GRN /></Suspense>} />
-            <Route path="/reports" element={<Suspense fallback={<PageFallback />}><Reports /></Suspense>} />
-            <Route path="/reports/:type" element={<Suspense fallback={<PageFallback />}><ReportView /></Suspense>} />
+            <Route path="/reports" element={<Suspense fallback={<PageFallback />}><Analytics /></Suspense>} />
+            <Route path="/reports/:type" element={<Navigate to="/reports" replace />} />
+            <Route path="/analytics" element={<Navigate to="/reports" replace />} />
           </Route>
           <Route path="/install" element={<Suspense fallback={<PageFallback />}><InstallApp /></Suspense>} />
           <Route path="*" element={<Suspense fallback={<PageFallback />}><NotFound /></Suspense>} />

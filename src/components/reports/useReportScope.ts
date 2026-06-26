@@ -59,7 +59,7 @@ export function useReportScope(): ReportScope {
   });
 
   return {
-    userIds: data?.userIds ?? [],
+    userIds: data ? data.userIds : [],
     users: data?.users ?? [],
     isAdmin,
     loading: profileLoading || isLoading,
