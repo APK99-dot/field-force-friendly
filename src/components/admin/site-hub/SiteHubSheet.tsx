@@ -362,7 +362,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
               <Target className="h-5 w-5" /> Add Milestone
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-3 overflow-y-auto max-h-[70vh] pr-1">
             <div>
               <Label className="text-xs">Milestone Name *</Label>
               <Input value={msForm.name} onChange={(e) => setMsForm({ ...msForm, name: e.target.value })} placeholder="e.g. Foundation Complete" autoFocus />
@@ -377,23 +377,39 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                 <Input type="date" value={msForm.end_date} min={msForm.start_date || undefined} onChange={(e) => setMsForm({ ...msForm, end_date: e.target.value })} />
               </div>
             </div>
-            <div>
-              <Label className="text-xs">Description</Label>
-              <Textarea value={msForm.notes} onChange={(e) => setMsForm({ ...msForm, notes: e.target.value })} placeholder="Optional description..." rows={2} />
-            </div>
-            <div>
-              <div className="flex justify-between text-xs mb-1.5">
-                <Label className="text-xs">Initial Progress</Label>
-                <span className="font-semibold tabular-nums">{msForm.percent_complete}%</span>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Actual Start</Label>
+                <Input type="date" value={msForm.actual_start_date} onChange={(e) => setMsForm({ ...msForm, actual_start_date: e.target.value })} />
               </div>
-              <Slider
-                value={[msForm.percent_complete]}
-                min={0}
-                max={100}
-                step={1}
-                onValueChange={(v) => setMsForm({ ...msForm, percent_complete: v[0] })}
-              />
+              <div>
+                <Label className="text-xs">Actual End</Label>
+                <Input type="date" value={msForm.actual_end_date} min={msForm.actual_start_date || undefined} onChange={(e) => setMsForm({ ...msForm, actual_end_date: e.target.value })} />
+              </div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">% Completion</Label>
+                <Input type="number" min={0} max={100} value={msForm.percent_complete} onChange={(e) => setMsForm({ ...msForm, percent_complete: Number(e.target.value) })} />
+              </div>
+              <div>
+                <Label className="text-xs">Status</Label>
+                <Select value={msForm.status} onValueChange={(v) => setMsForm({ ...msForm, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MILESTONE_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Notes</Label>
+              <Textarea value={msForm.notes} onChange={(e) => setMsForm({ ...msForm, notes: e.target.value })} placeholder="Optional notes..." rows={2} />
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={msForm.is_active} onChange={(e) => setMsForm({ ...msForm, is_active: e.target.checked })} />
+              Active (available for selection in Activities)
+            </label>
             <div className="flex gap-2 pt-1">
               <Button variant="outline" className="flex-1" onClick={() => setShowAddMilestone(false)} disabled={savingMilestone}>Cancel</Button>
               <Button className="flex-1" onClick={handleSaveMilestone} disabled={savingMilestone}>
