@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Truck, Download, X, Pencil, Camera, ImageIcon, Save } from "lucide-react";
+import { Truck, Download, X, Pencil, Camera, ImageIcon, Save, Star } from "lucide-react";
 import { grnStatusColor } from "@/lib/procurement";
 import { resolveGrnPhotoUrl, uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
+import { StarRating } from "./VendorRating";
 
 const MAX_PHOTOS = 20;
 
