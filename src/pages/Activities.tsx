@@ -1070,7 +1070,11 @@ export default function Activities() {
                 ) : (
                   <Select
                     value={form.milestone_id || "__none__"}
-                    onValueChange={(v) => setForm({ ...form, milestone_id: v === "__none__" ? "" : v })}
+                    onValueChange={(v) => {
+                      const id = v === "__none__" ? "" : v;
+                      const sel = siteMilestones.find((m) => m.id === id);
+                      setForm({ ...form, milestone_id: id, milestone_progress: sel ? sel.percent_complete : 0 });
+                    }}
                   >
                     <SelectTrigger><SelectValue placeholder="Select milestone (optional)" /></SelectTrigger>
                     <SelectContent>
@@ -1085,7 +1089,7 @@ export default function Activities() {
                   const sel = siteMilestones.find((m) => m.id === form.milestone_id);
                   if (!sel) return null;
                   return (
-                    <div className="mt-2 border rounded-lg p-2.5 bg-muted/30 space-y-1 text-xs">
+                    <div className="mt-2 border rounded-lg p-2.5 bg-muted/30 space-y-2 text-xs">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-[10px]">{milestoneStatusLabel(sel.status)}</Badge>
                         <span className="text-muted-foreground">{sel.percent_complete}% complete</span>
@@ -1099,6 +1103,20 @@ export default function Activities() {
                         </div>
                       )}
                       {sel.notes && <p className="text-muted-foreground italic">{sel.notes}</p>}
+                      <div className="border-t pt-2 space-y-1.5">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Update milestone progress</span>
+                          <span className="font-semibold text-foreground tabular-nums">{form.milestone_progress}%</span>
+                        </div>
+                        <Progress value={form.milestone_progress} className="h-1.5" />
+                        <Slider
+                          value={[form.milestone_progress]}
+                          min={0}
+                          max={100}
+                          step={1}
+                          onValueChange={(v) => setForm({ ...form, milestone_progress: v[0] })}
+                        />
+                      </div>
                     </div>
                   );
                 })()}
