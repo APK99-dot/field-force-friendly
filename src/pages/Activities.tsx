@@ -746,6 +746,7 @@ export default function Activities() {
         location_address: form.location_address || null,
         total_hours: form.total_hours || 0,
         photo_urls: form.photos || [],
+        ...(isManagerOrAdmin ? { assigned_user_ids: form.assigned_user_ids || [] } : {}),
         ...(attachmentUrls.length > 0 ? { attachment_urls: attachmentUrls } : {}),
       };
       if (editingId) {
