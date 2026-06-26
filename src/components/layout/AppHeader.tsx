@@ -27,6 +27,7 @@ import {
   X,
   Search,
   Settings,
+  FileBarChart,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NavLink } from "@/components/NavLink";
