@@ -22,10 +22,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Plus, Search, Phone, Mail, MapPin, Edit, Trash2, Filter, User, Briefcase, StickyNote, X,
+  Plus, Search, Phone, Mail, Edit, Trash2, Filter, User, X,
 } from "lucide-react";
 import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
 
