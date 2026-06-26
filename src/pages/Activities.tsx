@@ -1122,7 +1122,6 @@ export default function Activities() {
                           <span className="text-muted-foreground">Update milestone progress</span>
                           <span className="font-semibold text-foreground tabular-nums">{form.milestone_progress}%</span>
                         </div>
-                        <Progress value={form.milestone_progress} className="h-1.5" />
                         <Slider
                           value={[form.milestone_progress]}
                           min={0}
