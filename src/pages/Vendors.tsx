@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -21,10 +22,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Plus, Search, Phone, Mail, MapPin, Edit, Trash2, Filter, User, Briefcase, StickyNote, X,
+  Plus, Search, Phone, Mail, Edit, Trash2, Filter, User, X,
 } from "lucide-react";
 import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
 
@@ -153,13 +151,14 @@ export default function Vendors() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { profile, isAdmin } = useUserProfile();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
-  const [detailVendor, setDetailVendor] = useState<Vendor | null>(null);
   const [deleteVendor, setDeleteVendor] = useState<Vendor | null>(null);
   const [form, setForm] = useState<VendorForm>(emptyForm);
 
@@ -287,7 +286,6 @@ export default function Vendors() {
       queryClient.invalidateQueries({ queryKey: ["vendors"] });
       toast({ title: "Vendor deleted" });
       setDeleteVendor(null);
-      if (detailVendor) setDetailVendor(null);
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err?.message, variant: "destructive" });
@@ -321,6 +319,18 @@ export default function Vendors() {
     setEditingVendor(null);
     setForm(emptyForm);
   }, []);
+
+  // Open edit form when navigated from the vendor detail page (?edit=<id>)
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (editId && vendors.length > 0) {
+      const v = vendors.find((x) => x.id === editId);
+      if (v) openEdit(v);
+      searchParams.delete("edit");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, vendors, openEdit, setSearchParams]);
+
 
   const handleSubmit = () => {
     if (!form.name.trim()) {
@@ -409,7 +419,7 @@ export default function Vendors() {
       ) : (
         <div className="space-y-2">
           {filtered.map((v) => (
-            <Card key={v.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDetailVendor(v)}>
+            <Card key={v.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/vendors/${v.id}`)}>
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -515,165 +525,7 @@ export default function Vendors() {
         </DialogContent>
       </Dialog>
 
-      {/* Detail Sheet */}
-      <Sheet open={!!detailVendor} onOpenChange={(open) => !open && setDetailVendor(null)}>
-        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-          {detailVendor && (
-            <>
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  {detailVendor.name}
-                  <Badge variant="outline" className={`text-xs ${statusColor(detailVendor.status)}`}>{detailVendor.status}</Badge>
-                </SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 space-y-4">
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  {detailVendor.phone[0] && (
-                    <a href={`tel:${detailVendor.phone[0]}`} className="flex-1">
-                      <Button variant="outline" className="w-full gap-2 text-emerald-600">
-                        <Phone className="h-4 w-4" /> Call
-                      </Button>
-                    </a>
-                  )}
-                  {detailVendor.email[0] && (
-                    <a href={`mailto:${detailVendor.email[0]}`} className="flex-1">
-                      <Button variant="outline" className="w-full gap-2 text-blue-600">
-                        <Mail className="h-4 w-4" /> Email
-                      </Button>
-                    </a>
-                  )}
-                </div>
 
-                {/* Details */}
-                <div className="space-y-3">
-                  {/* Phones */}
-                  {detailVendor.phone.length > 0 && (
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-muted-foreground">Phone</p>
-                        {detailVendor.phone.map((p, i) => (
-                          <a key={i} href={`tel:${p}`} className="text-sm block text-primary hover:underline">{p}</a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Contact Persons */}
-                  {detailVendor.contact_person.filter(Boolean).length > 0 && (
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-muted-foreground">Contact Person</p>
-                        {detailVendor.contact_person.filter(Boolean).map((c, i) => (
-                          <p key={i} className="text-sm">{c}</p>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Emails */}
-                  {detailVendor.email.filter(Boolean).length > 0 && (
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-muted-foreground">Email</p>
-                        {detailVendor.email.filter(Boolean).map((e, i) => (
-                          <a key={i} href={`mailto:${e}`} className="text-sm block text-primary hover:underline">{e}</a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {detailVendor.address && <DetailRow icon={MapPin} label="Address" value={detailVendor.address} />}
-                  {detailVendor.category && <DetailRow icon={Filter} label="Category" value={detailVendor.category} />}
-                  {detailVendor.services && <DetailRow icon={Briefcase} label="Services" value={detailVendor.services} />}
-                  {detailVendor.notes && <DetailRow icon={StickyNote} label="Notes" value={detailVendor.notes} />}
-                </div>
-
-                {/* Ratings */}
-                {(() => {
-                  const r = ratingsByVendor[detailVendor.id];
-                  const flag = getVendorRatingFlag(r ? r.avg : null);
-                  return (
-                    <div className="space-y-3 pt-4 border-t">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold">Vendor Rating</p>
-                        <Badge variant="outline" className={`text-[10px] ${flag.className}`}>{flag.emoji} {flag.label}</Badge>
-                      </div>
-                      {r ? (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <StarRating value={Math.round(r.avg)} readOnly size={18} />
-                            <span className="text-sm font-medium">{r.avg.toFixed(1)}</span>
-                            <span className="text-[11px] text-muted-foreground">({r.count} review{r.count > 1 ? "s" : ""})</span>
-                          </div>
-                          <div className="space-y-1.5">
-                            {[
-                              { label: "Delivery Timeliness", v: r.delivery },
-                              { label: "Material Quality", v: r.quality },
-                              { label: "Quantity Accuracy", v: r.quantity },
-                              { label: "Overall Experience", v: r.overall },
-                            ].map((c) => (
-                              <div key={c.label} className="flex items-center justify-between">
-                                <span className="text-xs text-muted-foreground">{c.label}</span>
-                                <div className="flex items-center gap-1.5">
-                                  <StarRating value={Math.round(c.v)} readOnly size={14} />
-                                  <span className="text-xs w-7 text-right">{c.v.toFixed(1)}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="space-y-2">
-                            <p className="text-xs font-medium">Feedback History</p>
-                            {r.history.map((f: any) => {
-                              const fb = (f.delivery_timeliness + f.material_quality + f.quantity_accuracy + f.overall_experience) / 4;
-                              return (
-                                <div key={f.id} className="rounded-lg border p-2 text-xs space-y-1">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="font-medium">{f.po?.po_number || "—"}</span>
-                                    <span className="text-muted-foreground">{new Date(f.created_at).toLocaleDateString()}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <StarRating value={Math.round(fb)} readOnly size={12} />
-                                    <span>{fb.toFixed(1)}</span>
-                                  </div>
-                                  {f.comments && <p className="text-muted-foreground">{f.comments}</p>}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">No ratings yet.</p>
-                      )}
-                    </div>
-                  );
-                })()}
-
-
-                {isAdmin && (
-                  <div className="flex gap-2 pt-4 border-t">
-                    <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => { openEdit(detailVendor); setDetailVendor(null); }}>
-                      <Edit className="h-3.5 w-3.5" /> Edit
-                    </Button>
-                    <Button variant="destructive" size="sm" className="flex-1 gap-1.5" onClick={() => setDeleteVendor(detailVendor)}>
-                      <Trash2 className="h-3.5 w-3.5" /> Delete
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteVendor} onOpenChange={(open) => !open && setDeleteVendor(null)}>
@@ -699,16 +551,3 @@ export default function Vendors() {
   );
 }
 
-function DetailRow({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
-  return (
-    <div className="flex items-start gap-3">
-      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div>
-        <p className="text-[11px] text-muted-foreground">{label}</p>
-        <p className="text-sm">{value}</p>
-      </div>
-    </div>
-  );
-}
