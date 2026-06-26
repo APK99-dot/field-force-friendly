@@ -673,6 +673,7 @@ export default function Activities() {
       description: a.description || "",
       site_id: a.site_id || "",
       milestone_id: a.milestone_id || "",
+      milestone_progress: 0,
       grn_po_id: (a as any).grn_po_id || "",
       site_flag: "",
       site_status: "",
