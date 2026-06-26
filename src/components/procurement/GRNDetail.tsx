@@ -412,6 +412,35 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved
               <p className="text-sm text-muted-foreground">No photos.</p>
             )}
           </div>
+
+          {/* Vendor Feedback */}
+          <div className="rounded-lg border p-3 space-y-3">
+            <div className="flex items-center gap-2">
+              <Star className="h-4 w-4 text-amber-400" />
+              <div className="text-sm font-semibold">Rate this Delivery</div>
+              <span className="text-[11px] text-muted-foreground">(optional)</span>
+            </div>
+            {[
+              { label: "Delivery Timeliness", value: fbDelivery, set: setFbDelivery },
+              { label: "Material Quality", value: fbQuality, set: setFbQuality },
+              { label: "Quantity Accuracy", value: fbQuantity, set: setFbQuantity },
+              { label: "Overall Experience", value: fbOverall, set: setFbOverall },
+            ].map((row) => (
+              <div key={row.label} className="flex items-center justify-between gap-2">
+                <span className="text-sm">{row.label}</span>
+                <StarRating value={row.value} onChange={row.set} />
+              </div>
+            ))}
+            <Textarea
+              value={fbComments}
+              onChange={(e) => setFbComments(e.target.value)}
+              placeholder="Additional comments (optional)..."
+              rows={2}
+            />
+            <Button onClick={handleSubmitFeedback} disabled={fbSaving} className="w-full">
+              {fbSaving ? "Submitting..." : fbExistingId ? "Update Feedback" : "Submit Feedback"}
+            </Button>
+          </div>
         </div>
 
         {/* Full-screen photo viewer */}
