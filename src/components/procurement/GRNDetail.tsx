@@ -230,6 +230,7 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved
         .upsert(payload, { onConflict: "grn_id" });
       if (error) throw error;
       toast.success("Feedback submitted");
+      queryClient.invalidateQueries({ queryKey: ["vendor-feedback"] });
       setFbExistingId((prev) => prev || "saved");
     } catch (err: any) {
       toast.error(err.message || "Failed to submit feedback");
