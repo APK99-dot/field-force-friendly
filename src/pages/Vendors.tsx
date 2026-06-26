@@ -151,13 +151,14 @@ export default function Vendors() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { profile, isAdmin } = useUserProfile();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
-  const [detailVendor, setDetailVendor] = useState<Vendor | null>(null);
   const [deleteVendor, setDeleteVendor] = useState<Vendor | null>(null);
   const [form, setForm] = useState<VendorForm>(emptyForm);
 
