@@ -100,7 +100,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
   };
 
   const handleOpenChange = (o: boolean) => {
-    if (!o) { setStatus(null); onClose(); }
+    if (!o) { setStatus(null); setActiveTab("overview"); onClose(); }
   };
 
   
