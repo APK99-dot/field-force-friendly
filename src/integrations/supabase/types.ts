@@ -3124,6 +3124,66 @@ export type Database = {
           },
         ]
       }
+      procurement_vendor_feedback: {
+        Row: {
+          comments: string | null
+          created_at: string
+          created_by: string | null
+          delivery_timeliness: number
+          grn_id: string
+          id: string
+          material_quality: number
+          overall_experience: number
+          po_id: string | null
+          quantity_accuracy: number
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivery_timeliness: number
+          grn_id: string
+          id?: string
+          material_quality: number
+          overall_experience: number
+          po_id?: string | null
+          quantity_accuracy: number
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivery_timeliness?: number
+          grn_id?: string
+          id?: string
+          material_quality?: number
+          overall_experience?: number
+          po_id?: string | null
+          quantity_accuracy?: number
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_vendor_feedback_grn_id_fkey"
+            columns: ["grn_id"]
+            isOneToOne: true
+            referencedRelation: "procurement_grns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_vendor_feedback_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_categories: {
         Row: {
           created_at: string
