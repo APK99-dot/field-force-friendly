@@ -598,6 +598,67 @@ export default function Vendors() {
                   {detailVendor.notes && <DetailRow icon={StickyNote} label="Notes" value={detailVendor.notes} />}
                 </div>
 
+                {/* Ratings */}
+                {(() => {
+                  const r = ratingsByVendor[detailVendor.id];
+                  const flag = getVendorRatingFlag(r ? r.avg : null);
+                  return (
+                    <div className="space-y-3 pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold">Vendor Rating</p>
+                        <Badge variant="outline" className={`text-[10px] ${flag.className}`}>{flag.emoji} {flag.label}</Badge>
+                      </div>
+                      {r ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <StarRating value={Math.round(r.avg)} readOnly size={18} />
+                            <span className="text-sm font-medium">{r.avg.toFixed(1)}</span>
+                            <span className="text-[11px] text-muted-foreground">({r.count} review{r.count > 1 ? "s" : ""})</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {[
+                              { label: "Delivery Timeliness", v: r.delivery },
+                              { label: "Material Quality", v: r.quality },
+                              { label: "Quantity Accuracy", v: r.quantity },
+                              { label: "Overall Experience", v: r.overall },
+                            ].map((c) => (
+                              <div key={c.label} className="flex items-center justify-between">
+                                <span className="text-xs text-muted-foreground">{c.label}</span>
+                                <div className="flex items-center gap-1.5">
+                                  <StarRating value={Math.round(c.v)} readOnly size={14} />
+                                  <span className="text-xs w-7 text-right">{c.v.toFixed(1)}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium">Feedback History</p>
+                            {r.history.map((f: any) => {
+                              const fb = (f.delivery_timeliness + f.material_quality + f.quantity_accuracy + f.overall_experience) / 4;
+                              return (
+                                <div key={f.id} className="rounded-lg border p-2 text-xs space-y-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="font-medium">{f.po?.po_number || "—"}</span>
+                                    <span className="text-muted-foreground">{new Date(f.created_at).toLocaleDateString()}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <StarRating value={Math.round(fb)} readOnly size={12} />
+                                    <span>{fb.toFixed(1)}</span>
+                                  </div>
+                                  {f.comments && <p className="text-muted-foreground">{f.comments}</p>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">No ratings yet.</p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+
                 {isAdmin && (
                   <div className="flex gap-2 pt-4 border-t">
                     <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => { openEdit(detailVendor); setDetailVendor(null); }}>
