@@ -787,6 +787,17 @@ export default function Activities() {
       if (form.site_id && form.site_flag) {
         await supabase.from("project_sites").update({ flag: form.site_flag }).eq("id", form.site_id);
       }
+      // Sync milestone progress (single source of truth)
+      if (form.milestone_id) {
+        const sel = siteMilestones.find((m) => m.id === form.milestone_id);
+        if (sel && form.milestone_progress !== sel.percent_complete) {
+          try {
+            await updateMilestoneProgress(form.milestone_id, form.milestone_progress, sel.status);
+          } catch (e) {
+            console.error("Failed to update milestone progress", e);
+          }
+        }
+      }
       clearRecording();
       setShowForm(false);
       fetchActivities();
