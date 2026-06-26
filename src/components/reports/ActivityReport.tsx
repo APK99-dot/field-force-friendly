@@ -89,7 +89,7 @@ export default function ActivityReport() {
         .lte("activity_date", to)
         .order("activity_date", { ascending: false });
       if (employee !== "all") q = q.eq("user_id", employee);
-      else if (scope.userIds) q = q.in("user_id", scope.userIds.length ? scope.userIds : ["__none__"]);
+      else if (scope.userIds) q = q.in("user_id", scope.userIds.length ? scope.userIds : ["00000000-0000-0000-0000-000000000000"]);
       if (site !== "all") q = q.eq("site_id", site);
       if (milestone !== "all") q = q.eq("milestone_id", milestone);
       if (actType !== "all") q = q.eq("activity_type", actType);

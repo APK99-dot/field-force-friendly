@@ -59,7 +59,7 @@ export default function AttendanceReport() {
         .lte("date", to)
         .order("date", { ascending: true });
       if (employee !== "all") q = q.eq("user_id", employee);
-      else if (scope.userIds) q = q.in("user_id", scope.userIds.length ? scope.userIds : ["__none__"]);
+      else if (scope.userIds) q = q.in("user_id", scope.userIds.length ? scope.userIds : ["00000000-0000-0000-0000-000000000000"]);
       if (status !== "all") q = q.eq("status", status);
       const { data, error } = await q;
       if (error) throw error;

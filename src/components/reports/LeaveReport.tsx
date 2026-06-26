@@ -67,7 +67,7 @@ export default function LeaveReport() {
         .lte("from_date", to)
         .order("from_date", { ascending: false });
       if (employee !== "all") q = q.eq("user_id", employee);
-      else if (scope.userIds) q = q.in("user_id", scope.userIds.length ? scope.userIds : ["__none__"]);
+      else if (scope.userIds) q = q.in("user_id", scope.userIds.length ? scope.userIds : ["00000000-0000-0000-0000-000000000000"]);
       if (leaveType !== "all") q = q.eq("leave_type_id", leaveType);
       if (status !== "all") q = q.eq("status", status);
       const { data, error } = await q;
