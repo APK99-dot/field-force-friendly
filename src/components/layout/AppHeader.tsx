@@ -58,6 +58,7 @@ const allNavigationItems = [
   { icon: ShoppingCart, label: "Procurement", href: "/procurement", color: "from-rose-500 to-rose-600", module: "module_procurement" },
   { icon: Truck, label: "Goods Receipt", href: "/grn", color: "from-pink-500 to-pink-600", module: "module_procurement" },
   { icon: Database, label: "Master Data", href: "/master-data", color: "from-amber-500 to-amber-600", module: null as string | null },
+  { icon: FileBarChart, label: "Reports", href: "/reports", color: "from-teal-500 to-teal-600", module: null as string | null },
 ];
 
 const adminItems = [
