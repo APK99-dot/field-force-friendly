@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { Save, Camera, ImageIcon, X, ArrowLeft } from "lucide-react";
+import { Save, Camera, ImageIcon, X, ArrowLeft, Star } from "lucide-react";
 import { receiptDrivenStatus, GRN_STATUSES, GrnStatus } from "@/lib/procurement";
 import { uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
+import { StarRating } from "./VendorRating";
 import { cn } from "@/lib/utils";
 
 const MAX_PHOTOS = 20;
@@ -27,6 +29,7 @@ interface Props {
   onOpenChange: (o: boolean) => void;
   poId: string;
   poNumber: string;
+  vendorId?: string | null;
   items: POItem[];
   /** already-received qty keyed by procurement_item_id */
   alreadyReceived: Record<string, number>;
@@ -36,8 +39,9 @@ interface Props {
 }
 
 export default function GRNForm({
-  open, onOpenChange, poId, poNumber, items, alreadyReceived, productName, createdBy, onSaved,
+  open, onOpenChange, poId, poNumber, vendorId, items, alreadyReceived, productName, createdBy, onSaved,
 }: Props) {
+  const queryClient = useQueryClient();
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
   const [receivedBy, setReceivedBy] = useState("");
   const [remarks, setRemarks] = useState("");
@@ -47,6 +51,12 @@ export default function GRNForm({
   const [saving, setSaving] = useState(false);
   const [photos, setPhotos] = useState<{ path: string; preview: string }[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // vendor feedback (optional)
+  const [fbDelivery, setFbDelivery] = useState(0);
+  const [fbQuality, setFbQuality] = useState(0);
+  const [fbQuantity, setFbQuantity] = useState(0);
+  const [fbOverall, setFbOverall] = useState(0);
+  const [fbComments, setFbComments] = useState("");
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -151,6 +161,28 @@ export default function GRNForm({
         const next = receiptDrivenStatus(totals.ordered, totals.cumulative, "");
         if (next) {
           await supabase.from("procurement_orders").update({ status: next }).eq("id", poId);
+        }
+      }
+
+      // Optional vendor feedback — save together with the GRN
+      const anyRating = fbDelivery || fbQuality || fbQuantity || fbOverall;
+      if (anyRating && vendorId) {
+        if (!fbDelivery || !fbQuality || !fbQuantity || !fbOverall) {
+          toast.warning("Skipped rating — please rate all four categories");
+        } else {
+          const { error: fe } = await supabase.from("procurement_vendor_feedback").insert({
+            grn_id: grn.id,
+            vendor_id: vendorId,
+            po_id: poId,
+            delivery_timeliness: fbDelivery,
+            material_quality: fbQuality,
+            quantity_accuracy: fbQuantity,
+            overall_experience: fbOverall,
+            comments: fbComments.trim() || null,
+            created_by: createdBy ?? null,
+          });
+          if (fe) toast.error("GRN saved, but feedback failed: " + fe.message);
+          else queryClient.invalidateQueries({ queryKey: ["vendor-feedback"] });
         }
       }
 
@@ -348,8 +380,40 @@ export default function GRNForm({
                 </div>
               )}
             </div>
+
+            {/* Vendor Feedback (optional) */}
+            {vendorId && (
+              <div className="rounded-lg border p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Star className="h-4 w-4 text-amber-400" />
+                  <div className="text-sm font-semibold">Rate this Delivery</div>
+                  <span className="text-[11px] text-muted-foreground">(optional)</span>
+                </div>
+                {[
+                  { label: "Delivery Timeliness", value: fbDelivery, set: setFbDelivery },
+                  { label: "Material Quality", value: fbQuality, set: setFbQuality },
+                  { label: "Quantity Accuracy", value: fbQuantity, set: setFbQuantity },
+                  { label: "Overall Experience", value: fbOverall, set: setFbOverall },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center justify-between gap-2">
+                    <span className="text-sm">{row.label}</span>
+                    <StarRating value={row.value} onChange={row.set} />
+                  </div>
+                ))}
+                <Textarea
+                  value={fbComments}
+                  onChange={(e) => setFbComments(e.target.value)}
+                  placeholder="Additional comments (optional)..."
+                  rows={2}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  You can skip this now and rate later from the receipt's detail screen.
+                </p>
+              </div>
+            )}
           </div>
         </div>
+
 
         {/* Fixed footer */}
         <div className="shrink-0 border-t bg-background p-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>

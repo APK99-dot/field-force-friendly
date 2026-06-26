@@ -13,6 +13,7 @@ interface Props {
 /** Loads a PO (items, products, already-received) and opens the GRN form to receive goods. */
 export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUserId, onSaved }: Props) {
   const [poNumber, setPoNumber] = useState("");
+  const [vendorId, setVendorId] = useState<string | null>(null);
   const [items, setItems] = useState<POItem[]>([]);
   const [received, setReceived] = useState<Record<string, number>>({});
   const [products, setProducts] = useState<Record<string, string>>({});
@@ -22,13 +23,14 @@ export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUs
     setReady(false);
     const { data: po } = await supabase
       .from("procurement_orders")
-      .select("po_number, procurement_items(id, product_id, rate, qty, uom)")
+      .select("po_number, vendor_id, procurement_items(id, product_id, rate, qty, uom)")
       .eq("id", poId)
       .single();
     const its: POItem[] = ((po as any)?.procurement_items || []).map((it: any) => ({
       id: it.id, product_id: it.product_id, rate: Number(it.rate || 0), qty: Number(it.qty || 0), uom: it.uom,
     }));
     setPoNumber((po as any)?.po_number || "(No PO #)");
+    setVendorId((po as any)?.vendor_id || null);
     setItems(its);
 
     const productIds = [...new Set(its.filter((i) => i.product_id).map((i) => i.product_id as string))];
@@ -65,6 +67,7 @@ export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUs
       onOpenChange={onOpenChange}
       poId={poId}
       poNumber={poNumber}
+      vendorId={vendorId}
       items={items}
       alreadyReceived={received}
       productName={productName}

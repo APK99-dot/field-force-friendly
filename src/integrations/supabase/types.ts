@@ -3176,6 +3176,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "procurement_vendor_feedback_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_orders"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "procurement_vendor_feedback_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false

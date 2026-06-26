@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ interface Props {
 
 export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved }: Props) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [items, setItems] = useState<GrnItemRow[]>([]);
   const [products, setProducts] = useState<Record<string, string>>({});
   const [uoms, setUoms] = useState<Record<string, string>>({});
@@ -230,6 +232,7 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved
         .upsert(payload, { onConflict: "grn_id" });
       if (error) throw error;
       toast.success("Feedback submitted");
+      queryClient.invalidateQueries({ queryKey: ["vendor-feedback"] });
       setFbExistingId((prev) => prev || "saved");
     } catch (err: any) {
       toast.error(err.message || "Failed to submit feedback");
