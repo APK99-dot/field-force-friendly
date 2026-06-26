@@ -286,7 +286,6 @@ export default function Vendors() {
       queryClient.invalidateQueries({ queryKey: ["vendors"] });
       toast({ title: "Vendor deleted" });
       setDeleteVendor(null);
-      if (detailVendor) setDetailVendor(null);
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err?.message, variant: "destructive" });
