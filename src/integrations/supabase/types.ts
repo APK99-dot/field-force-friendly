@@ -20,6 +20,7 @@ export type Database = {
           activity_date: string
           activity_name: string
           activity_type: string
+          assigned_user_ids: Json
           attachment_urls: Json | null
           created_at: string
           description: string | null
@@ -55,6 +56,7 @@ export type Database = {
           activity_date?: string
           activity_name: string
           activity_type: string
+          assigned_user_ids?: Json
           attachment_urls?: Json | null
           created_at?: string
           description?: string | null
@@ -90,6 +92,7 @@ export type Database = {
           activity_date?: string
           activity_name?: string
           activity_type?: string
+          assigned_user_ids?: Json
           attachment_urls?: Json | null
           created_at?: string
           description?: string | null
