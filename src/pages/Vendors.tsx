@@ -320,6 +320,18 @@ export default function Vendors() {
     setForm(emptyForm);
   }, []);
 
+  // Open edit form when navigated from the vendor detail page (?edit=<id>)
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (editId && vendors.length > 0) {
+      const v = vendors.find((x) => x.id === editId);
+      if (v) openEdit(v);
+      searchParams.delete("edit");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, vendors, openEdit, setSearchParams]);
+
+
   const handleSubmit = () => {
     if (!form.name.trim()) {
       toast({ title: "Name is required", variant: "destructive" });
