@@ -164,6 +164,28 @@ export default function GRNForm({
         }
       }
 
+      // Optional vendor feedback — save together with the GRN
+      const anyRating = fbDelivery || fbQuality || fbQuantity || fbOverall;
+      if (anyRating && vendorId) {
+        if (!fbDelivery || !fbQuality || !fbQuantity || !fbOverall) {
+          toast.warning("Skipped rating — please rate all four categories");
+        } else {
+          const { error: fe } = await supabase.from("procurement_vendor_feedback").insert({
+            grn_id: grn.id,
+            vendor_id: vendorId,
+            po_id: poId,
+            delivery_timeliness: fbDelivery,
+            material_quality: fbQuality,
+            quantity_accuracy: fbQuantity,
+            overall_experience: fbOverall,
+            comments: fbComments.trim() || null,
+            created_by: createdBy ?? null,
+          });
+          if (fe) toast.error("GRN saved, but feedback failed: " + fe.message);
+          else queryClient.invalidateQueries({ queryKey: ["vendor-feedback"] });
+        }
+      }
+
       toast.success("Goods Receipt recorded");
       onOpenChange(false);
       onSaved();
