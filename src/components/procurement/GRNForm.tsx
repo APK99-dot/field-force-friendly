@@ -29,6 +29,7 @@ interface Props {
   onOpenChange: (o: boolean) => void;
   poId: string;
   poNumber: string;
+  vendorId?: string | null;
   items: POItem[];
   /** already-received qty keyed by procurement_item_id */
   alreadyReceived: Record<string, number>;
@@ -38,8 +39,9 @@ interface Props {
 }
 
 export default function GRNForm({
-  open, onOpenChange, poId, poNumber, items, alreadyReceived, productName, createdBy, onSaved,
+  open, onOpenChange, poId, poNumber, vendorId, items, alreadyReceived, productName, createdBy, onSaved,
 }: Props) {
+  const queryClient = useQueryClient();
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
   const [receivedBy, setReceivedBy] = useState("");
   const [remarks, setRemarks] = useState("");
@@ -49,6 +51,12 @@ export default function GRNForm({
   const [saving, setSaving] = useState(false);
   const [photos, setPhotos] = useState<{ path: string; preview: string }[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // vendor feedback (optional)
+  const [fbDelivery, setFbDelivery] = useState(0);
+  const [fbQuality, setFbQuality] = useState(0);
+  const [fbQuantity, setFbQuantity] = useState(0);
+  const [fbOverall, setFbOverall] = useState(0);
+  const [fbComments, setFbComments] = useState("");
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
