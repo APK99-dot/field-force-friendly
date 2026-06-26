@@ -197,19 +197,20 @@ export default function SiteMilestoneList({ milestones, activities = [], siteId,
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-4 shadow-card space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground font-medium">Overall progress</span>
-          <span className="font-bold">{avgProgress}%</span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 rounded-xl border bg-card p-4 shadow-card space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground font-medium">Overall progress</span>
+            <span className="font-bold">{avgProgress}%</span>
+          </div>
+          <Progress value={avgProgress} className="h-3" />
         </div>
-        <Progress value={avgProgress} className="h-3" />
+        {siteId && (
+          <Button onClick={openCreate} className="shrink-0">
+            <Plus className="h-4 w-4 mr-1" /> Add Milestone
+          </Button>
+        )}
       </div>
-
-      {siteId && (
-        <Button onClick={openCreate} className="w-full sm:w-auto">
-          <Plus className="h-4 w-4 mr-1" /> Add Milestone
-        </Button>
-      )}
 
       {milestones.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">No milestones added yet.</p>
