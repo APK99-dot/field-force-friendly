@@ -407,7 +407,7 @@ export default function Vendors() {
       ) : (
         <div className="space-y-2">
           {filtered.map((v) => (
-            <Card key={v.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDetailVendor(v)}>
+            <Card key={v.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/vendors/${v.id}`)}>
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
