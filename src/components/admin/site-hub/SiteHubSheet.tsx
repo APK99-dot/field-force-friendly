@@ -202,6 +202,15 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                 >
                   <Edit className="h-3.5 w-3.5 mr-1" /> Edit Site
                 </Button>
+                {activeTab === "milestones" && site && (
+                  <Button
+                    size="sm"
+                    className="h-9"
+                    onClick={() => setShowAddMilestone(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Milestone
+                  </Button>
+                )}
               </div>
             </div>
           </div>
