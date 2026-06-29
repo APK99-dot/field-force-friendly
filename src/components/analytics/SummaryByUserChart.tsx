@@ -41,6 +41,32 @@ const PALETTE = [
 
 type ChartMode = "pie" | "bar" | "hide";
 
+function ShareTooltip({
+  active,
+  payload,
+  total,
+  formatValue,
+}: {
+  active?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload?: any[];
+  total: number;
+  formatValue: (v: number) => string;
+}) {
+  if (!active || !payload || !payload.length) return null;
+  const item = payload[0];
+  const name = item?.payload?.name ?? item?.name;
+  const value = Number(item?.value ?? 0);
+  const share = total > 0 ? ((value / total) * 100).toFixed(1) : "0.0";
+  return (
+    <div className="rounded-lg border bg-background px-3 py-2 text-xs shadow-md">
+      <p className="font-semibold">{name}</p>
+      <p className="text-muted-foreground">Activities: {formatValue(value)}</p>
+      <p className="text-muted-foreground">Share: {share}%</p>
+    </div>
+  );
+}
+
 interface Props {
   title: string;
   description: string;
