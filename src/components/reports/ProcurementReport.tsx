@@ -84,6 +84,7 @@ export default function ProcurementReport() {
       if (site !== "all") q = q.eq("site_id", site);
       if (vendor !== "all") q = q.eq("vendor_id", vendor);
       if (status !== "all") q = q.eq("status", status);
+      if (procurementPendingOnly) q = q.neq("status", "Closed");
       const { data, error } = await q;
       if (error) throw error;
       const orders = data || [];
