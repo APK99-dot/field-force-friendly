@@ -199,7 +199,7 @@ export default function AddressBook() {
                     <TableHead>Name</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>GST Number</TableHead>
-                    <TableHead className="text-center">Type</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
