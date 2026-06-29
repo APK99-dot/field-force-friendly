@@ -9,6 +9,7 @@ import { ReportChartCard } from "./ReportChartCard";
 import { startOfWeek } from "date-fns";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
+import { useReportContext, DateRangePill } from "@/components/analytics/ReportContext";
 import { generateReportPdf } from "./reportPdf";
 
 interface Row {
