@@ -57,39 +57,16 @@ export default function AddressBook() {
 
   const fetchRows = async () => {
     setIsLoading(true);
-    const [{ data: addrs }, { data: sites }] = await Promise.all([
-      supabase
-        .from("master_addresses")
-        .select("id, address_name, full_address, city, state, pincode, gst_number, contact_persons, contact_phones, is_active")
-        .order("address_name"),
-      supabase
-        .from("project_sites")
-        .select("id, site_name, site_code, description")
-        .is("deleted_at", null)
-        .eq("is_active", true)
-        .order("site_name"),
-    ]);
+    const { data: addrs } = await supabase
+      .from("master_addresses")
+      .select("id, address_name, full_address, city, state, pincode, gst_number, contact_persons, contact_phones, is_active")
+      .order("address_name");
     setRows(
       ((addrs || []) as any[]).map((r) => ({
         ...r,
         contact_persons: Array.isArray(r.contact_persons) ? r.contact_persons : [],
         contact_phones: Array.isArray(r.contact_phones) ? r.contact_phones : [],
         source: "manual" as const,
-      }))
-    );
-    setSiteRows(
-      ((sites || []) as any[]).map((s) => ({
-        id: `site:${s.id}`,
-        address_name: s.site_name,
-        full_address: s.description || s.site_name,
-        city: null,
-        state: null,
-        pincode: null,
-        gst_number: null,
-        contact_persons: [],
-        contact_phones: [],
-        is_active: true,
-        source: "site" as const,
       }))
     );
     setIsLoading(false);
