@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Save, Search, MapPin, X, Building2 } from "lucide-react";
+import { Plus, Edit, Trash2, Save, Search, MapPin, X } from "lucide-react";
 
 interface AddressRow {
   id: string;
