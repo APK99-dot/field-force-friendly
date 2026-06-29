@@ -167,6 +167,16 @@ export default function MilestoneReport() {
         </>
       }
       summary={<SummaryCards items={summary} />}
+      chart={
+        <ReportChartCard
+          title="Milestone Completion"
+          description="Completion percentage per milestone"
+          type="hbar"
+          data={chartData}
+          height={Math.max(260, chartData.length * 32)}
+          formatValue={(v) => `${v}%`}
+        />
+      }
       table={
         <Table>
           <TableHeader>
