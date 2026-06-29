@@ -216,6 +216,7 @@ export default function PaymentReport() {
     <ReportShell
       title="Payment Report"
       description="Invoices, amounts paid, balance due and references."
+      pill={<DateRangePill />}
       loading={loading}
       downloading={downloading}
       generated={generated}
