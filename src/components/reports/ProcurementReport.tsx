@@ -10,7 +10,6 @@ import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
 import { useReportContext, DateRangePill } from "@/components/analytics/ReportContext";
 import { generateReportPdf } from "./reportPdf";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 
