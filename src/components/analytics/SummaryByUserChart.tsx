@@ -138,6 +138,16 @@ export function SummaryByUserChart({
           </div>
         </div>
 
+        {selected && (
+          <div className="mt-3 flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Filtered by:</span>
+            <span className="font-medium">{selected}</span>
+            <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSelected(null)}>
+              Clear
+            </Button>
+          </div>
+        )}
+
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
           {mode !== "hide" && (
             <div className="h-[300px]">
@@ -151,19 +161,31 @@ export function SummaryByUserChart({
                       cx="50%"
                       cy="50%"
                       outerRadius={110}
+                      onClick={(d: any) => {
+                        const name = d?.name;
+                        if (!name || name === "Others") return;
+                        setSelected((prev) => (prev === name ? null : name));
+                      }}
                     >
-                      {chartData.map((_, i) => (
-                        <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                      {chartData.map((entry, i) => (
+                        <Cell
+                          key={i}
+                          fill={PALETTE[i % PALETTE.length]}
+                          cursor={entry.name === "Others" ? "default" : "pointer"}
+                          stroke={selected === entry.name ? "hsl(var(--foreground))" : undefined}
+                          strokeWidth={selected === entry.name ? 2 : undefined}
+                          opacity={selected && selected !== entry.name ? 0.4 : 1}
+                        />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: number) => formatValue(v)} />
+                    <Tooltip content={<ShareTooltip total={total} formatValue={formatValue} />} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                   </PieChart>
                 ) : (
                   <BarChart data={chartData}>
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} />
                     <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: number) => formatValue(v)} />
+                    <Tooltip content={<ShareTooltip total={total} formatValue={formatValue} />} />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                       {chartData.map((_, i) => (
                         <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
@@ -174,6 +196,7 @@ export function SummaryByUserChart({
               </ResponsiveContainer>
             </div>
           )}
+
 
           <div className={mode === "hide" ? "lg:col-span-2" : ""}>
             <h4 className="font-semibold text-sm mb-2">User Summary</h4>
