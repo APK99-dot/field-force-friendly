@@ -1,8 +1,7 @@
 import { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Download, Search, Loader2 } from "lucide-react";
+import { Download, Search, Loader2 } from "lucide-react";
 
 interface ReportShellProps {
   title: string;
