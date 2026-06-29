@@ -35,8 +35,7 @@ const d = (x: string | null) => (x ? format(new Date(x), "dd MMM yyyy") : "--");
 
 export default function MilestoneReport() {
   const scope = useReportScope();
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const { from, to, setFrom, setTo } = useReportContext();
   const [site, setSite] = useState("all");
   const [status, setStatus] = useState("all");
   const [sites, setSites] = useState<{ value: string; label: string }[]>([]);
