@@ -73,14 +73,21 @@ export default function ProcurementDetail({
 
   // Post-approval PO details editing
   const [poEditOpen, setPoEditOpen] = useState(false);
-  const [poForm, setPoForm] = useState({ bill_to: "", ship_to: "", expected_delivery_date: "", payment_terms: "" });
+  const [poForm, setPoForm] = useState({ bill_to_id: "", ship_to_id: "", expected_delivery_date: "", payment_terms: "" });
   const [rateLines, setRateLines] = useState<{ id: string; product_id: string | null; uom: string | null; qty: number; rate: string }[]>([]);
   const [poSaving, setPoSaving] = useState(false);
+  const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
+
+  useEffect(() => {
+    fetchAddressOptions().then(setAddressOptions).catch(() => {});
+  }, []);
+
+  const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
 
   const openPoEdit = () => {
     setPoForm({
-      bill_to: order.bill_to || "",
-      ship_to: order.ship_to || "",
+      bill_to_id: order.bill_to_address_id || "",
+      ship_to_id: order.ship_to_address_id || "",
       expected_delivery_date: order.expected_delivery_date || "",
       payment_terms: order.payment_terms || "",
     });
@@ -98,9 +105,15 @@ export default function ProcurementDetail({
   const savePoDetails = async () => {
     setPoSaving(true);
     try {
+      const billAddr = poForm.bill_to_id ? findAddr(poForm.bill_to_id) : null;
+      const shipAddr = poForm.ship_to_id ? findAddr(poForm.ship_to_id) : null;
       const { error: oErr } = await supabase.from("procurement_orders").update({
-        bill_to: poForm.bill_to.trim() || null,
-        ship_to: poForm.ship_to.trim() || null,
+        bill_to: billAddr ? formatAddressSnapshot(billAddr) : null,
+        ship_to: shipAddr ? formatAddressSnapshot(shipAddr) : null,
+        bill_to_address_id: poForm.bill_to_id || null,
+        ship_to_address_id: poForm.ship_to_id || null,
+        bill_to_gst: billAddr?.gst_number || null,
+        ship_to_gst: shipAddr?.gst_number || null,
         expected_delivery_date: poForm.expected_delivery_date || null,
         payment_terms: poForm.payment_terms || null,
         total_amount: poEditTotal,
@@ -121,6 +134,7 @@ export default function ProcurementDetail({
       setPoSaving(false);
     }
   };
+
 
 
   const items: POItem[] = useMemo(
