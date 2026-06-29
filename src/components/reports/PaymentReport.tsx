@@ -156,6 +156,17 @@ export default function PaymentReport() {
     ];
   }, [rows]);
 
+  const chartData = useMemo(() => {
+    const m = new Map<string, { name: string; Paid: number; Pending: number }>();
+    rows.forEach((r) => {
+      const e = m.get(r.vendor) || { name: r.vendor, Paid: 0, Pending: 0 };
+      e.Paid += r.paid;
+      e.Pending += r.balance;
+      m.set(r.vendor, e);
+    });
+    return Array.from(m.values());
+  }, [rows]);
+
   const download = async () => {
     setDownloading(true);
     try {
