@@ -41,8 +41,7 @@ const statusBadge = (s: string) => {
 
 export default function ExpenseReport() {
   const scope = useReportScope();
-  const [from, setFrom] = useState(format(new Date(), "yyyy-MM-01"));
-  const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const { from, to, setFrom, setTo } = useReportContext();
   const [employee, setEmployee] = useState("all");
   const [category, setCategory] = useState("all");
   const [status, setStatus] = useState("all");
