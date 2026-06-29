@@ -38,6 +38,14 @@ const allMasterModules = [
     path: "/master-data/products",
     module: null as string | null,
   },
+  {
+    title: "Address Book",
+    description: "Manage billing & delivery addresses for purchase orders",
+    icon: MapPin,
+    color: "bg-rose-100 text-rose-600",
+    path: "/master-data/addresses",
+    module: null as string | null,
+  },
 ];
 
 const container = {
