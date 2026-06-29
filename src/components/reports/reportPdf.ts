@@ -23,6 +23,8 @@ export interface GenerateReportPdfArgs {
   generatedBy: string;
   orientation?: "portrait" | "landscape";
   fileName: string;
+  /** Optional chart image (PNG data URL) rendered below the table/summary. */
+  chartImage?: { data: string; aspect: number };
 }
 
 interface CompanyInfo {
@@ -224,6 +226,25 @@ export async function generateReportPdf(args: GenerateReportPdfArgs): Promise<vo
       y += 5;
     });
   }
+
+  // ---- Optional chart image ----
+  if (args.chartImage) {
+    const imgW = usableW;
+    const imgH = imgW / (args.chartImage.aspect || 2);
+    if (y + imgH + 6 > pageH - 16) {
+      doc.addPage();
+      y = margin;
+    }
+    y += 6;
+    try {
+      doc.addImage(args.chartImage.data, "PNG", margin, y, imgW, imgH);
+      y += imgH;
+    } catch {
+      /* ignore */
+    }
+  }
+
+
 
   // ---- Footer on every page ----
   const pageCount = doc.getNumberOfPages();

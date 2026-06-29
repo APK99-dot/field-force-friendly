@@ -8,6 +8,7 @@ import { ReportShell, SummaryCards } from "./ReportShell";
 import { ReportChartCard } from "./ReportChartCard";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
+import { useReportContext, DateRangePill } from "@/components/analytics/ReportContext";
 import { generateReportPdf } from "./reportPdf";
 
 interface Row {
@@ -39,8 +40,7 @@ const statusBadge = (s: string) => {
 
 export default function ActivityReport() {
   const scope = useReportScope();
-  const [from, setFrom] = useState(format(new Date(), "yyyy-MM-01"));
-  const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const { from, to, setFrom, setTo } = useReportContext();
   const [employee, setEmployee] = useState("all");
   const [site, setSite] = useState("all");
   const [milestone, setMilestone] = useState("all");
@@ -188,6 +188,7 @@ export default function ActivityReport() {
     <ReportShell
       title="Activity Report"
       description="Site activities, milestones, hours logged and status."
+      pill={<DateRangePill />}
       loading={loading || scope.loading}
       downloading={downloading}
       generated={generated}

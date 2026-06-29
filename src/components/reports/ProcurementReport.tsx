@@ -8,7 +8,9 @@ import { ReportShell, SummaryCards } from "./ReportShell";
 import { ReportChartCard } from "./ReportChartCard";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
+import { useReportContext, DateRangePill } from "@/components/analytics/ReportContext";
 import { generateReportPdf } from "./reportPdf";
+import { X } from "lucide-react";
 
 interface Row {
   id: string;
@@ -44,8 +46,7 @@ const payBadge = (s: string) => {
 
 export default function ProcurementReport() {
   const scope = useReportScope();
-  const [from, setFrom] = useState(format(new Date(), "yyyy-MM-01"));
-  const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const { from, to, setFrom, setTo, procurementPendingOnly, setProcurementPendingOnly } = useReportContext();
   const [site, setSite] = useState("all");
   const [vendor, setVendor] = useState("all");
   const [status, setStatus] = useState("all");
@@ -70,6 +71,14 @@ export default function ProcurementReport() {
       .then(({ data }) => setVendors((data || []).map((v) => ({ value: v.id, label: v.name }))));
   }, []);
 
+  // Auto-run when navigated here from the "Pending Approvals" card.
+  useEffect(() => {
+    if (procurementPendingOnly && sites.length && vendors.length && !generated) {
+      generate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [procurementPendingOnly, sites, vendors]);
+
   const generate = async () => {
     setLoading(true);
     try {
@@ -82,6 +91,7 @@ export default function ProcurementReport() {
       if (site !== "all") q = q.eq("site_id", site);
       if (vendor !== "all") q = q.eq("vendor_id", vendor);
       if (status !== "all") q = q.eq("status", status);
+      if (procurementPendingOnly) q = q.neq("status", "Closed");
       const { data, error } = await q;
       if (error) throw error;
       const orders = data || [];
@@ -212,6 +222,23 @@ export default function ProcurementReport() {
     <ReportShell
       title="Procurement Report"
       description="Purchase orders, vendors, values and payment status."
+      pill={
+        <div className="flex flex-wrap items-center gap-2">
+          {procurementPendingOnly && (
+            <Badge variant="default" className="gap-1.5">
+              Pending Approval Only
+              <button
+                onClick={() => setProcurementPendingOnly(false)}
+                aria-label="Clear pending filter"
+                className="ml-0.5 rounded-full hover:bg-primary-foreground/20"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          <DateRangePill />
+        </div>
+      }
       loading={loading}
       downloading={downloading}
       generated={generated}

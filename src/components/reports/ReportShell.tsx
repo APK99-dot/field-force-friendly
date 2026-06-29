@@ -1,12 +1,12 @@
 import { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Download, Search, Loader2 } from "lucide-react";
+import { Download, Search, Loader2 } from "lucide-react";
 
 interface ReportShellProps {
   title: string;
   description?: string;
+  pill?: ReactNode;
   filters: ReactNode;
   summary?: ReactNode;
   chart?: ReactNode;
@@ -22,6 +22,7 @@ interface ReportShellProps {
 export function ReportShell({
   title,
   description,
+  pill,
   filters,
   summary,
   chart,
@@ -33,21 +34,16 @@ export function ReportShell({
   onGenerate,
   onDownload,
 }: ReportShellProps) {
-  const navigate = useNavigate();
-
   return (
-    <div className="p-4 space-y-4 max-w-6xl mx-auto pb-24">
-      <button
-        onClick={() => navigate("/reports")}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" /> All Reports
-      </button>
-
-      <div>
-        <h1 className="text-xl font-bold">{title}</h1>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-bold">{title}</h1>
+          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        </div>
+        {pill}
       </div>
+
 
       <Card className="shadow-card">
         <CardContent className="p-4 space-y-4">

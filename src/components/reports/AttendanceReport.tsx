@@ -9,6 +9,7 @@ import { ReportChartCard } from "./ReportChartCard";
 import { startOfWeek } from "date-fns";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
+import { useReportContext, DateRangePill } from "@/components/analytics/ReportContext";
 import { generateReportPdf } from "./reportPdf";
 
 interface Row {
@@ -42,8 +43,7 @@ const t = (d: string | null) => (d ? format(new Date(d), "HH:mm") : "--");
 
 export default function AttendanceReport() {
   const scope = useReportScope();
-  const [from, setFrom] = useState(format(new Date(), "yyyy-MM-01"));
-  const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const { from, to, setFrom, setTo } = useReportContext();
   const [employee, setEmployee] = useState("all");
   const [status, setStatus] = useState("all");
   const [rows, setRows] = useState<Row[]>([]);
@@ -144,6 +144,7 @@ export default function AttendanceReport() {
     <ReportShell
       title="Attendance Report"
       description="Check-in/out times, total hours and status per employee."
+      pill={<DateRangePill />}
       loading={loading || scope.loading}
       downloading={downloading}
       generated={generated}

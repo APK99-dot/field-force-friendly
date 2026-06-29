@@ -9,6 +9,7 @@ import { ReportShell, SummaryCards } from "./ReportShell";
 import { ReportChartCard } from "./ReportChartCard";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
+import { useReportContext, DateRangePill } from "@/components/analytics/ReportContext";
 import { generateReportPdf } from "./reportPdf";
 
 interface Row {
@@ -34,8 +35,7 @@ const d = (x: string | null) => (x ? format(new Date(x), "dd MMM yyyy") : "--");
 
 export default function MilestoneReport() {
   const scope = useReportScope();
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const { from, to, setFrom, setTo } = useReportContext();
   const [site, setSite] = useState("all");
   const [status, setStatus] = useState("all");
   const [sites, setSites] = useState<{ value: string; label: string }[]>([]);
@@ -161,6 +161,7 @@ export default function MilestoneReport() {
     <ReportShell
       title="Milestone Report"
       description="Planned vs actual dates, progress and delays by site."
+      pill={<DateRangePill />}
       loading={loading}
       downloading={downloading}
       generated={generated}
