@@ -194,6 +194,9 @@ export function OverviewTab() {
         formatValue={(v) => v.toLocaleString("en-IN")}
       />
 
+      <OverviewSummaries from={from} to={to} scope={scope} />
+
+
       {isFetching && (
         <p className="text-center text-xs text-muted-foreground">Updating…</p>
       )}
