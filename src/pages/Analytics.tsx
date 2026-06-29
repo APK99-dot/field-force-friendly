@@ -1,7 +1,8 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { BarChart3 } from "lucide-react";
 import { OverviewTab } from "@/components/analytics/OverviewTab";
+import { ReportProvider, useReportContext, ReportTabKey } from "@/components/analytics/ReportContext";
 
 const AttendanceReport = lazy(() => import("@/components/reports/AttendanceReport"));
 const ProcurementReport = lazy(() => import("@/components/reports/ProcurementReport"));
@@ -10,7 +11,7 @@ const MilestoneReport = lazy(() => import("@/components/reports/MilestoneReport"
 const ExpenseReport = lazy(() => import("@/components/reports/ExpenseReport"));
 const PaymentReport = lazy(() => import("@/components/reports/PaymentReport"));
 
-const TABS = [
+const TABS: { key: ReportTabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "attendance", label: "Attendance" },
   { key: "procurement", label: "Procurement" },
@@ -18,9 +19,7 @@ const TABS = [
   { key: "milestones", label: "Milestones" },
   { key: "expenses", label: "Expenses" },
   { key: "payments", label: "Payments" },
-] as const;
-
-type TabKey = (typeof TABS)[number]["key"];
+];
 
 function Fallback() {
   return (
@@ -30,8 +29,8 @@ function Fallback() {
   );
 }
 
-export default function Analytics() {
-  const [tab, setTab] = useState<TabKey>("overview");
+function AnalyticsInner() {
+  const { tab, setTab } = useReportContext();
 
   return (
     <div className="pb-24">
@@ -87,5 +86,13 @@ export default function Analytics() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function Analytics() {
+  return (
+    <ReportProvider>
+      <AnalyticsInner />
+    </ReportProvider>
   );
 }
