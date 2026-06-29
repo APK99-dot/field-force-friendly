@@ -43,8 +43,7 @@ const t = (d: string | null) => (d ? format(new Date(d), "HH:mm") : "--");
 
 export default function AttendanceReport() {
   const scope = useReportScope();
-  const [from, setFrom] = useState(format(new Date(), "yyyy-MM-01"));
-  const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const { from, to, setFrom, setTo } = useReportContext();
   const [employee, setEmployee] = useState("all");
   const [status, setStatus] = useState("all");
   const [rows, setRows] = useState<Row[]>([]);
