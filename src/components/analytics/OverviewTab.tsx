@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DateField } from "@/components/reports/ReportFilters";
 import { useReportScope } from "@/components/reports/useReportScope";
 import { SummaryByUserChart, UserDatum } from "./SummaryByUserChart";
-import { OverviewSummaries } from "./OverviewSummaries";
 import {
   Activity,
   CalendarCheck,
