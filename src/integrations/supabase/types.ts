@@ -1135,6 +1135,54 @@ export type Database = {
         }
         Relationships: []
       }
+      master_addresses: {
+        Row: {
+          address_name: string
+          city: string | null
+          contact_persons: Json
+          contact_phones: Json
+          created_at: string
+          created_by: string | null
+          full_address: string | null
+          gst_number: string | null
+          id: string
+          is_active: boolean
+          pincode: string | null
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_name: string
+          city?: string | null
+          contact_persons?: Json
+          contact_phones?: Json
+          created_at?: string
+          created_by?: string | null
+          full_address?: string | null
+          gst_number?: string | null
+          id?: string
+          is_active?: boolean
+          pincode?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_name?: string
+          city?: string | null
+          contact_persons?: Json
+          contact_phones?: Json
+          created_at?: string
+          created_by?: string | null
+          full_address?: string | null
+          gst_number?: string | null
+          id?: string
+          is_active?: boolean
+          pincode?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       master_categories: {
         Row: {
           category_name: string
@@ -3036,6 +3084,8 @@ export type Database = {
       procurement_orders: {
         Row: {
           bill_to: string | null
+          bill_to_address_id: string | null
+          bill_to_gst: string | null
           created_at: string
           created_by: string | null
           entity_id: string | null
@@ -3049,6 +3099,8 @@ export type Database = {
           po_number: string | null
           requisition_notes: string | null
           ship_to: string | null
+          ship_to_address_id: string | null
+          ship_to_gst: string | null
           site_id: string | null
           status: string
           total_amount: number
@@ -3058,6 +3110,8 @@ export type Database = {
         }
         Insert: {
           bill_to?: string | null
+          bill_to_address_id?: string | null
+          bill_to_gst?: string | null
           created_at?: string
           created_by?: string | null
           entity_id?: string | null
@@ -3071,6 +3125,8 @@ export type Database = {
           po_number?: string | null
           requisition_notes?: string | null
           ship_to?: string | null
+          ship_to_address_id?: string | null
+          ship_to_gst?: string | null
           site_id?: string | null
           status?: string
           total_amount?: number
@@ -3080,6 +3136,8 @@ export type Database = {
         }
         Update: {
           bill_to?: string | null
+          bill_to_address_id?: string | null
+          bill_to_gst?: string | null
           created_at?: string
           created_by?: string | null
           entity_id?: string | null
@@ -3093,6 +3151,8 @@ export type Database = {
           po_number?: string | null
           requisition_notes?: string | null
           ship_to?: string | null
+          ship_to_address_id?: string | null
+          ship_to_gst?: string | null
           site_id?: string | null
           status?: string
           total_amount?: number

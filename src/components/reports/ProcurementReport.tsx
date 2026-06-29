@@ -23,6 +23,8 @@ interface Row {
   status: string;
   paid: number;
   payment_status: string;
+  bill_gst: string;
+  ship_gst: string;
 }
 
 const STATUS = [
@@ -84,7 +86,7 @@ export default function ProcurementReport() {
     try {
       let q = supabase
         .from("procurement_orders")
-        .select("id, po_number, order_date, vendor_id, site_id, status, total_amount")
+        .select("id, po_number, order_date, vendor_id, site_id, status, total_amount, bill_to_gst, ship_to_gst")
         .gte("order_date", from)
         .lte("order_date", to)
         .order("order_date", { ascending: false });
@@ -147,6 +149,8 @@ export default function ProcurementReport() {
             status: o.status,
             paid,
             payment_status: ps,
+            bill_gst: (o as any).bill_to_gst || "",
+            ship_gst: (o as any).ship_to_gst || "",
           };
         })
       );
@@ -189,14 +193,16 @@ export default function ProcurementReport() {
           `Status: ${status === "all" ? "All" : status}`,
         ],
         columns: [
-          { header: "PO Number", width: 1.6 },
-          { header: "Date", width: 1.6 },
-          { header: "Vendor", width: 2.4 },
-          { header: "Site", width: 2 },
-          { header: "Items", width: 1, align: "right" },
-          { header: "PO Value", width: 1.8, align: "right" },
-          { header: "Status", width: 1.8 },
-          { header: "Payment", width: 1.4 },
+          { header: "PO Number", width: 1.5 },
+          { header: "Date", width: 1.4 },
+          { header: "Vendor", width: 2.2 },
+          { header: "Site", width: 1.8 },
+          { header: "Items", width: 0.8, align: "right" },
+          { header: "PO Value", width: 1.6, align: "right" },
+          { header: "Status", width: 1.6 },
+          { header: "Payment", width: 1.2 },
+          { header: "Bill GST", width: 1.6 },
+          { header: "Ship GST", width: 1.6 },
         ],
         rows: rows.map((r) => [
           r.po_number,
@@ -207,6 +213,8 @@ export default function ProcurementReport() {
           inr(r.po_value),
           r.status,
           r.payment_status,
+          r.bill_gst || "—",
+          r.ship_gst || "—",
         ]),
         summary,
       });

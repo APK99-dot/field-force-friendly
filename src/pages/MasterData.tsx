@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Handshake, ListChecks, FolderTree, Package } from "lucide-react";
+import { Handshake, ListChecks, FolderTree, Package, MapPin } from "lucide-react";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 
 const allMasterModules = [
@@ -36,6 +36,14 @@ const allMasterModules = [
     icon: Package,
     color: "bg-violet-100 text-violet-600",
     path: "/master-data/products",
+    module: null as string | null,
+  },
+  {
+    title: "Address Book",
+    description: "Manage billing & delivery addresses for purchase orders",
+    icon: MapPin,
+    color: "bg-rose-100 text-rose-600",
+    path: "/master-data/addresses",
     module: null as string | null,
   },
 ];

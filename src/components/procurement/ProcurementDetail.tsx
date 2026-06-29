@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { CalendarDays, Truck, FileText, Pencil, ChevronRight, Save } from "lucide-react";
@@ -16,6 +16,7 @@ import {
 import GRNForm, { type POItem } from "./GRNForm";
 import InvoiceForm from "./InvoiceForm";
 import ThreeWayMatch from "./ThreeWayMatch";
+import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 
 export interface DetailOrder {
   id: string;
@@ -31,6 +32,10 @@ export interface DetailOrder {
   estimated_budget: number | null;
   bill_to: string | null;
   ship_to: string | null;
+  bill_to_address_id?: string | null;
+  ship_to_address_id?: string | null;
+  bill_to_gst?: string | null;
+  ship_to_gst?: string | null;
   requisition_notes: string | null;
   created_by: string | null;
   procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null }[];
@@ -68,14 +73,21 @@ export default function ProcurementDetail({
 
   // Post-approval PO details editing
   const [poEditOpen, setPoEditOpen] = useState(false);
-  const [poForm, setPoForm] = useState({ bill_to: "", ship_to: "", expected_delivery_date: "", payment_terms: "" });
+  const [poForm, setPoForm] = useState({ bill_to_id: "", ship_to_id: "", expected_delivery_date: "", payment_terms: "" });
   const [rateLines, setRateLines] = useState<{ id: string; product_id: string | null; uom: string | null; qty: number; rate: string }[]>([]);
   const [poSaving, setPoSaving] = useState(false);
+  const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
+
+  useEffect(() => {
+    fetchAddressOptions().then(setAddressOptions).catch(() => {});
+  }, []);
+
+  const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
 
   const openPoEdit = () => {
     setPoForm({
-      bill_to: order.bill_to || "",
-      ship_to: order.ship_to || "",
+      bill_to_id: order.bill_to_address_id || "",
+      ship_to_id: order.ship_to_address_id || "",
       expected_delivery_date: order.expected_delivery_date || "",
       payment_terms: order.payment_terms || "",
     });
@@ -93,9 +105,15 @@ export default function ProcurementDetail({
   const savePoDetails = async () => {
     setPoSaving(true);
     try {
+      const billAddr = poForm.bill_to_id ? findAddr(poForm.bill_to_id) : null;
+      const shipAddr = poForm.ship_to_id ? findAddr(poForm.ship_to_id) : null;
       const { error: oErr } = await supabase.from("procurement_orders").update({
-        bill_to: poForm.bill_to.trim() || null,
-        ship_to: poForm.ship_to.trim() || null,
+        bill_to: billAddr ? formatAddressSnapshot(billAddr) : null,
+        ship_to: shipAddr ? formatAddressSnapshot(shipAddr) : null,
+        bill_to_address_id: poForm.bill_to_id || null,
+        ship_to_address_id: poForm.ship_to_id || null,
+        bill_to_gst: billAddr?.gst_number || null,
+        ship_to_gst: shipAddr?.gst_number || null,
         expected_delivery_date: poForm.expected_delivery_date || null,
         payment_terms: poForm.payment_terms || null,
         total_amount: poEditTotal,
@@ -116,6 +134,7 @@ export default function ProcurementDetail({
       setPoSaving(false);
     }
   };
+
 
 
   const items: POItem[] = useMemo(
@@ -218,8 +237,8 @@ export default function ProcurementDetail({
               {order.po_number && <div className="text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}
               {order.expected_delivery_date && <div className="text-muted-foreground">Expected Delivery: {order.expected_delivery_date}</div>}
               {order.payment_terms && <div className="text-muted-foreground">Payment Terms: {order.payment_terms}</div>}
-              {order.bill_to && <div className="text-muted-foreground">Bill To: <span className="whitespace-pre-wrap">{order.bill_to}</span></div>}
-              {order.ship_to && <div className="text-muted-foreground">Ship To: <span className="whitespace-pre-wrap">{order.ship_to}</span></div>}
+              {order.bill_to && <div className="text-muted-foreground">Bill To: <span className="whitespace-pre-wrap">{order.bill_to}</span>{order.bill_to_gst && <span className="block">GST: {order.bill_to_gst}</span>}</div>}
+              {order.ship_to && <div className="text-muted-foreground">Ship To: <span className="whitespace-pre-wrap">{order.ship_to}</span>{order.ship_to_gst && <span className="block">GST: {order.ship_to_gst}</span>}</div>}
               {order.requisition_notes && <div className="text-muted-foreground">Reason: <span className="whitespace-pre-wrap">{order.requisition_notes}</span></div>}
               {poUnlocked && (
                 <div className="pt-1">
@@ -377,11 +396,43 @@ export default function ProcurementDetail({
               )}
               <div>
                 <Label className="text-xs">Bill To</Label>
-                <Textarea value={poForm.bill_to} onChange={(e) => setPoForm((p) => ({ ...p, bill_to: e.target.value }))} placeholder="Billing address (e.g. HQ / office)" className="min-h-[56px]" />
+                <Select value={poForm.bill_to_id} onValueChange={(v) => setPoForm((p) => ({ ...p, bill_to_id: v }))}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select billing address" /></SelectTrigger>
+                  <SelectContent>
+                    {addressOptions.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}{a.source === "site" ? " (Site)" : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(() => {
+                  const a = poForm.bill_to_id ? findAddr(poForm.bill_to_id) : null;
+                  return a ? (
+                    <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
+                      {formatAddressSnapshot(a)}
+                      {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
+                    </div>
+                  ) : null;
+                })()}
               </div>
               <div>
                 <Label className="text-xs">Ship To</Label>
-                <Textarea value={poForm.ship_to} onChange={(e) => setPoForm((p) => ({ ...p, ship_to: e.target.value }))} placeholder="Delivery address" className="min-h-[56px]" />
+                <Select value={poForm.ship_to_id} onValueChange={(v) => setPoForm((p) => ({ ...p, ship_to_id: v }))}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select delivery address" /></SelectTrigger>
+                  <SelectContent>
+                    {addressOptions.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}{a.source === "site" ? " (Site)" : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(() => {
+                  const a = poForm.ship_to_id ? findAddr(poForm.ship_to_id) : null;
+                  return a ? (
+                    <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
+                      {formatAddressSnapshot(a)}
+                      {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
+                    </div>
+                  ) : null;
+                })()}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

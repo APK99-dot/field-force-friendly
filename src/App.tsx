@@ -37,6 +37,7 @@ const VendorDetail = lazy(() => import("./pages/VendorDetail"));
 const MasterData = lazy(() => import("./pages/MasterData"));
 const CategoryMaster = lazy(() => import("./pages/master/CategoryMaster"));
 const ProductMaster = lazy(() => import("./pages/master/ProductMaster"));
+const AddressBook = lazy(() => import("./pages/master/AddressBook"));
 
 const Procurement = lazy(() => import("./pages/Procurement"));
 const GRN = lazy(() => import("./pages/GRN"));
@@ -102,6 +103,7 @@ const App = () => (
             <Route path="/master-data" element={<Suspense fallback={<PageFallback />}><MasterData /></Suspense>} />
             <Route path="/master-data/categories" element={<Suspense fallback={<PageFallback />}><CategoryMaster /></Suspense>} />
             <Route path="/master-data/products" element={<Suspense fallback={<PageFallback />}><ProductMaster /></Suspense>} />
+            <Route path="/master-data/addresses" element={<Suspense fallback={<PageFallback />}><AddressBook /></Suspense>} />
             
             <Route path="/procurement" element={<Suspense fallback={<PageFallback />}><Procurement /></Suspense>} />
             <Route path="/grn" element={<Suspense fallback={<PageFallback />}><GRN /></Suspense>} />
