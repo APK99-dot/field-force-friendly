@@ -188,6 +188,7 @@ export default function ActivityReport() {
     <ReportShell
       title="Activity Report"
       description="Site activities, milestones, hours logged and status."
+      pill={<DateRangePill />}
       loading={loading || scope.loading}
       downloading={downloading}
       generated={generated}
