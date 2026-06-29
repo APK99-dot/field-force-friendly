@@ -1182,41 +1182,25 @@ export default function Activities() {
             </div>
             {isManagerOrAdmin && (
               <div>
-                <Label className="text-xs flex items-center gap-1.5 mb-1.5">
-                  <Users className="h-3.5 w-3.5 text-muted-foreground" /> Assign To
-                  {form.assigned_user_ids.length > 0 && (
-                    <span className="text-muted-foreground font-normal">({form.assigned_user_ids.length} selected)</span>
-                  )}
-                </Label>
-                <div className="max-h-36 overflow-y-auto rounded-lg border p-1.5 flex flex-wrap gap-1.5">
-                  {users.length === 0 ? (
-                    <span className="text-xs text-muted-foreground px-1 py-0.5">No team members available</span>
-                  ) : (
-                    users.map((u) => {
-                      const selected = form.assigned_user_ids.includes(u.id);
-                      return (
-                        <button
-                          key={u.id}
-                          type="button"
-                          onClick={() =>
-                            setForm({
-                              ...form,
-                              assigned_user_ids: selected
-                                ? form.assigned_user_ids.filter((id) => id !== u.id)
-                                : [...form.assigned_user_ids, u.id],
-                            })
-                          }
-                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition-colors ${
-                            selected ? "border-primary bg-primary/10 font-medium" : "border-border hover:bg-muted/50"
-                          }`}
-                        >
-                          {selected && <CheckCircle2 className="h-3 w-3 text-primary" />}
-                          {u.full_name || "Unknown"} {u.id === currentUserId ? "(You)" : ""}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
+                <MultiUserPicker
+                  label="Assign To"
+                  compact
+                  selectedUsers={users
+                    .filter((u) => form.assigned_user_ids.includes(u.id))
+                    .map((u) => ({ id: u.id, full_name: u.id === currentUserId ? `${u.full_name || "You"} (You)` : u.full_name || "Unknown" }))}
+                  onAdd={(u) =>
+                    setForm((prev: any) => ({
+                      ...prev,
+                      assigned_user_ids: prev.assigned_user_ids.includes(u.id) ? prev.assigned_user_ids : [...prev.assigned_user_ids, u.id],
+                    }))
+                  }
+                  onRemove={(id) =>
+                    setForm((prev: any) => ({
+                      ...prev,
+                      assigned_user_ids: prev.assigned_user_ids.filter((uid: string) => uid !== id),
+                    }))
+                  }
+                />
               </div>
             )}
             {form.activity_type.trim().toLowerCase() === "other" && (
