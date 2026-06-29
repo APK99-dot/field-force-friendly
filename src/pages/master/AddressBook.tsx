@@ -152,8 +152,7 @@ export default function AddressBook() {
     else toast.error(error.message || "Failed to update");
   };
 
-  const all = [...rows, ...siteRows];
-  const filtered = all.filter((r) => {
+  const filtered = rows.filter((r) => {
     const q = search.toLowerCase();
     return (
       r.address_name.toLowerCase().includes(q) ||
