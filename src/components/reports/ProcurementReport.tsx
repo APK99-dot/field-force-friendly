@@ -47,8 +47,7 @@ const payBadge = (s: string) => {
 
 export default function ProcurementReport() {
   const scope = useReportScope();
-  const [from, setFrom] = useState(format(new Date(), "yyyy-MM-01"));
-  const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const { from, to, setFrom, setTo, procurementPendingOnly, setProcurementPendingOnly } = useReportContext();
   const [site, setSite] = useState("all");
   const [vendor, setVendor] = useState("all");
   const [status, setStatus] = useState("all");
