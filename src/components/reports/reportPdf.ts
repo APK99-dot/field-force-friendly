@@ -23,6 +23,8 @@ export interface GenerateReportPdfArgs {
   generatedBy: string;
   orientation?: "portrait" | "landscape";
   fileName: string;
+  /** Optional chart image (PNG data URL) rendered below the table/summary. */
+  chartImage?: { data: string; aspect: number };
 }
 
 interface CompanyInfo {
