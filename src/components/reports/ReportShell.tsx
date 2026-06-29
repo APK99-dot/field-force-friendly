@@ -80,6 +80,7 @@ export function ReportShell({
       {generated && (
         <>
           {summary}
+          {chart}
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               Showing {recordCount} record{recordCount !== 1 ? "s" : ""}
