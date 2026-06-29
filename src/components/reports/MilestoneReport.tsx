@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportShell, SummaryCards } from "./ReportShell";
+import { ReportChartCard } from "./ReportChartCard";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
 import { generateReportPdf } from "./reportPdf";
@@ -105,6 +106,15 @@ export default function MilestoneReport() {
     ];
   }, [rows]);
 
+  const chartData = useMemo(
+    () =>
+      rows.map((r) => ({
+        name: r.name.length > 22 ? `${r.name.slice(0, 22)}…` : r.name,
+        value: r.percent_complete,
+      })),
+    [rows]
+  );
+
   const download = async () => {
     setDownloading(true);
     try {
@@ -166,6 +176,16 @@ export default function MilestoneReport() {
         </>
       }
       summary={<SummaryCards items={summary} />}
+      chart={
+        <ReportChartCard
+          title="Milestone Completion"
+          description="Completion percentage per milestone"
+          type="hbar"
+          data={chartData}
+          height={Math.max(260, chartData.length * 32)}
+          formatValue={(v) => `${v}%`}
+        />
+      }
       table={
         <Table>
           <TableHeader>

@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportShell, SummaryCards } from "./ReportShell";
+import { ReportChartCard } from "./ReportChartCard";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
 import { generateReportPdf } from "./reportPdf";
@@ -155,6 +156,17 @@ export default function PaymentReport() {
     ];
   }, [rows]);
 
+  const chartData = useMemo(() => {
+    const m = new Map<string, { name: string; Paid: number; Pending: number }>();
+    rows.forEach((r) => {
+      const e = m.get(r.vendor) || { name: r.vendor, Paid: 0, Pending: 0 };
+      e.Paid += r.paid;
+      e.Pending += r.balance;
+      m.set(r.vendor, e);
+    });
+    return Array.from(m.values());
+  }, [rows]);
+
   const download = async () => {
     setDownloading(true);
     try {
@@ -220,6 +232,19 @@ export default function PaymentReport() {
         </>
       }
       summary={<SummaryCards items={summary} />}
+      chart={
+        <ReportChartCard
+          title="Paid vs Pending by Vendor"
+          description="Payment status grouped by vendor"
+          type="groupedBar"
+          data={chartData}
+          series={[
+            { key: "Paid", label: "Paid", color: "hsl(160 64% 42%)" },
+            { key: "Pending", label: "Pending", color: "hsl(35 90% 55%)" },
+          ]}
+          formatValue={inr}
+        />
+      }
       table={
         <Table>
           <TableHeader>

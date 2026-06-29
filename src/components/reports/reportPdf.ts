@@ -38,10 +38,11 @@ async function getCompany(): Promise<CompanyInfo | null> {
   try {
     const { data } = await supabase
       .from("company_profile")
-      .select("company_name, logo_url, address")
-      .limit(1)
-      .maybeSingle();
-    cachedCompany = data ?? null;
+      .select("company_name, logo_url, address");
+    const rows = (data ?? []) as CompanyInfo[];
+    // Prefer the profile row that actually has a logo uploaded.
+    cachedCompany =
+      rows.find((r) => r.logo_url && r.logo_url.trim() !== "") ?? rows[0] ?? null;
   } catch {
     cachedCompany = null;
   }
@@ -85,30 +86,36 @@ export async function generateReportPdf(args: GenerateReportPdfArgs): Promise<vo
 
   // ---- Header ----
   let textX = margin;
+  let headerBottom = y + 11;
   if (company?.logo_url) {
     const img = await loadImageDataUrl(company.logo_url);
     if (img) {
-      const logoH = 14;
-      const logoW = Math.min(28, (img.w / img.h) * logoH);
+      const logoH = 21; // ~80px
+      const logoW = Math.min(24, (img.w / img.h) * logoH);
+      const fmt = img.data.startsWith("data:image/jpeg") || img.data.startsWith("data:image/jpg")
+        ? "JPEG"
+        : "PNG";
       try {
-        doc.addImage(img.data, "PNG", margin, y, logoW, logoH);
+        doc.addImage(img.data, fmt, margin, y, logoW, logoH);
+        headerBottom = Math.max(headerBottom, y + logoH);
       } catch {
         /* ignore unsupported format */
       }
-      textX = margin + logoW + 4;
+      textX = margin + logoW + 5;
     }
   }
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.setTextColor(20, 30, 60);
-  doc.text(companyName, textX, y + 6);
+  doc.text(companyName, textX, y + 7);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(110, 110, 110);
-  if (company?.address) doc.text(String(company.address).slice(0, 90), textX, y + 11);
+  if (company?.address) doc.text(String(company.address).slice(0, 90), textX, y + 12);
 
-  y += 18;
+  y = headerBottom + 4;
+
   doc.setDrawColor(200, 170, 80);
   doc.setLineWidth(0.6);
   doc.line(margin, y, pageW - margin, y);

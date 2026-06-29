@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DateField } from "@/components/reports/ReportFilters";
 import { useReportScope } from "@/components/reports/useReportScope";
 import { SummaryByUserChart, UserDatum } from "./SummaryByUserChart";
+import { OverviewSummaries } from "./OverviewSummaries";
 import {
   Activity,
   CalendarCheck,
@@ -193,6 +194,9 @@ export function OverviewTab() {
         valueLabel="Activities"
         formatValue={(v) => v.toLocaleString("en-IN")}
       />
+
+      <OverviewSummaries from={from} to={to} scope={scope} />
+
 
       {isFetching && (
         <p className="text-center text-xs text-muted-foreground">Updating…</p>

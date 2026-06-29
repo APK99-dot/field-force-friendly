@@ -5,6 +5,8 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportShell, SummaryCards } from "./ReportShell";
+import { ReportChartCard } from "./ReportChartCard";
+import { startOfWeek } from "date-fns";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
 import { generateReportPdf } from "./reportPdf";
@@ -88,6 +90,18 @@ export default function AttendanceReport() {
     ];
   }, [rows]);
 
+  const chartData = useMemo(() => {
+    const weeks = new Map<string, { name: string; Present: number; Absent: number }>();
+    rows.forEach((r) => {
+      const wk = format(startOfWeek(new Date(r.date), { weekStartsOn: 1 }), "dd MMM");
+      const e = weeks.get(wk) || { name: wk, Present: 0, Absent: 0 };
+      if (r.status === "present" || r.status === "late") e.Present += 1;
+      else if (r.status === "absent") e.Absent += 1;
+      weeks.set(wk, e);
+    });
+    return Array.from(weeks.values());
+  }, [rows]);
+
   const download = async () => {
     setDownloading(true);
     try {
@@ -151,6 +165,18 @@ export default function AttendanceReport() {
         </>
       }
       summary={<SummaryCards items={summary} />}
+      chart={
+        <ReportChartCard
+          title="Present vs Absent per Week"
+          description="Attendance distribution across the selected date range"
+          type="groupedBar"
+          data={chartData}
+          series={[
+            { key: "Present", label: "Present", color: "hsl(160 64% 42%)" },
+            { key: "Absent", label: "Absent", color: "hsl(0 75% 60%)" },
+          ]}
+        />
+      }
       table={
         <Table>
           <TableHeader>

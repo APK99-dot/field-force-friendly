@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportShell, SummaryCards } from "./ReportShell";
+import { ReportChartCard } from "./ReportChartCard";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
 import { generateReportPdf } from "./reportPdf";
@@ -158,6 +159,12 @@ export default function ProcurementReport() {
     ];
   }, [rows]);
 
+  const chartData = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => m.set(r.site, (m.get(r.site) || 0) + r.po_value));
+    return Array.from(m.entries()).map(([name, value]) => ({ name, value }));
+  }, [rows]);
+
   const download = async () => {
     setDownloading(true);
     try {
@@ -221,6 +228,15 @@ export default function ProcurementReport() {
         </>
       }
       summary={<SummaryCards items={summary} />}
+      chart={
+        <ReportChartCard
+          title="PO Value by Site"
+          description="Total purchase order value grouped by site"
+          type="bar"
+          data={chartData}
+          formatValue={inr}
+        />
+      }
       table={
         <Table>
           <TableHeader>
