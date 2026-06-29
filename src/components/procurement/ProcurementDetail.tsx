@@ -396,11 +396,43 @@ export default function ProcurementDetail({
               )}
               <div>
                 <Label className="text-xs">Bill To</Label>
-                <Textarea value={poForm.bill_to} onChange={(e) => setPoForm((p) => ({ ...p, bill_to: e.target.value }))} placeholder="Billing address (e.g. HQ / office)" className="min-h-[56px]" />
+                <Select value={poForm.bill_to_id} onValueChange={(v) => setPoForm((p) => ({ ...p, bill_to_id: v }))}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select billing address" /></SelectTrigger>
+                  <SelectContent>
+                    {addressOptions.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}{a.source === "site" ? " (Site)" : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(() => {
+                  const a = poForm.bill_to_id ? findAddr(poForm.bill_to_id) : null;
+                  return a ? (
+                    <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
+                      {formatAddressSnapshot(a)}
+                      {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
+                    </div>
+                  ) : null;
+                })()}
               </div>
               <div>
                 <Label className="text-xs">Ship To</Label>
-                <Textarea value={poForm.ship_to} onChange={(e) => setPoForm((p) => ({ ...p, ship_to: e.target.value }))} placeholder="Delivery address" className="min-h-[56px]" />
+                <Select value={poForm.ship_to_id} onValueChange={(v) => setPoForm((p) => ({ ...p, ship_to_id: v }))}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select delivery address" /></SelectTrigger>
+                  <SelectContent>
+                    {addressOptions.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}{a.source === "site" ? " (Site)" : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(() => {
+                  const a = poForm.ship_to_id ? findAddr(poForm.ship_to_id) : null;
+                  return a ? (
+                    <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
+                      {formatAddressSnapshot(a)}
+                      {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
+                    </div>
+                  ) : null;
+                })()}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
