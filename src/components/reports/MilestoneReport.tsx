@@ -106,6 +106,15 @@ export default function MilestoneReport() {
     ];
   }, [rows]);
 
+  const chartData = useMemo(
+    () =>
+      rows.map((r) => ({
+        name: r.name.length > 22 ? `${r.name.slice(0, 22)}…` : r.name,
+        value: r.percent_complete,
+      })),
+    [rows]
+  );
+
   const download = async () => {
     setDownloading(true);
     try {
