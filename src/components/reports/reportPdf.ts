@@ -38,10 +38,11 @@ async function getCompany(): Promise<CompanyInfo | null> {
   try {
     const { data } = await supabase
       .from("company_profile")
-      .select("company_name, logo_url, address")
-      .limit(1)
-      .maybeSingle();
-    cachedCompany = data ?? null;
+      .select("company_name, logo_url, address");
+    const rows = (data ?? []) as CompanyInfo[];
+    // Prefer the profile row that actually has a logo uploaded.
+    cachedCompany =
+      rows.find((r) => r.logo_url && r.logo_url.trim() !== "") ?? rows[0] ?? null;
   } catch {
     cachedCompany = null;
   }
