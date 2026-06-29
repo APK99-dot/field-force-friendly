@@ -213,33 +213,18 @@ export default function AddressBook() {
                       </TableCell>
                       <TableCell className="text-sm">{r.gst_number || "—"}</TableCell>
                       <TableCell className="text-center">
-                        {r.source === "site" ? (
-                          <Badge variant="outline" className="gap-1"><Building2 className="h-3 w-3" />Site</Badge>
-                        ) : (
-                          <Badge
-                            className={r.is_active ? "bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] cursor-pointer" : "bg-destructive/20 text-destructive cursor-pointer"}
-                            onClick={() => toggleActive(r)}
-                          >
-                            {r.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        )}
+                        <Badge
+                          className={r.is_active ? "bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] cursor-pointer" : "bg-destructive/20 text-destructive cursor-pointer"}
+                          onClick={() => toggleActive(r)}
+                        >
+                          {r.is_active ? "Active" : "Inactive"}
+                        </Badge>
                       </TableCell>
                       <TableCell>
-                        {r.source === "site" ? (
-                          <span className="text-xs text-muted-foreground">Manage in Sites</span>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => openEdit(r)}><Edit className="h-4 w-4" /></Button>
-                            {deleteConfirmId === r.id ? (
-                              <div className="flex gap-1">
-                                <Button variant="destructive" size="sm" onClick={() => handleDelete(r.id)}>Confirm</Button>
-                                <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
-                              </div>
-                            ) : (
-                              <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                            )}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => openEdit(r)}><Edit className="h-4 w-4" /></Button>
+                          <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
