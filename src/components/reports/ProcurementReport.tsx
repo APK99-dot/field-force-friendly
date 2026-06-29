@@ -222,6 +222,15 @@ export default function ProcurementReport() {
         </>
       }
       summary={<SummaryCards items={summary} />}
+      chart={
+        <ReportChartCard
+          title="PO Value by Site"
+          description="Total purchase order value grouped by site"
+          type="bar"
+          data={chartData}
+          formatValue={inr}
+        />
+      }
       table={
         <Table>
           <TableHeader>
