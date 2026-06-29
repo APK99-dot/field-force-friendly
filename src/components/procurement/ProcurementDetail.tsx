@@ -237,8 +237,8 @@ export default function ProcurementDetail({
               {order.po_number && <div className="text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}
               {order.expected_delivery_date && <div className="text-muted-foreground">Expected Delivery: {order.expected_delivery_date}</div>}
               {order.payment_terms && <div className="text-muted-foreground">Payment Terms: {order.payment_terms}</div>}
-              {order.bill_to && <div className="text-muted-foreground">Bill To: <span className="whitespace-pre-wrap">{order.bill_to}</span></div>}
-              {order.ship_to && <div className="text-muted-foreground">Ship To: <span className="whitespace-pre-wrap">{order.ship_to}</span></div>}
+              {order.bill_to && <div className="text-muted-foreground">Bill To: <span className="whitespace-pre-wrap">{order.bill_to}</span>{order.bill_to_gst && <span className="block">GST: {order.bill_to_gst}</span>}</div>}
+              {order.ship_to && <div className="text-muted-foreground">Ship To: <span className="whitespace-pre-wrap">{order.ship_to}</span>{order.ship_to_gst && <span className="block">GST: {order.ship_to_gst}</span>}</div>}
               {order.requisition_notes && <div className="text-muted-foreground">Reason: <span className="whitespace-pre-wrap">{order.requisition_notes}</span></div>}
               {poUnlocked && (
                 <div className="pt-1">
