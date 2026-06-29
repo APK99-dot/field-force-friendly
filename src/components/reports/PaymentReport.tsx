@@ -44,8 +44,7 @@ const payBadge = (s: string) => {
 
 export default function PaymentReport() {
   const scope = useReportScope();
-  const [from, setFrom] = useState(format(new Date(), "yyyy-MM-01"));
-  const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const { from, to, setFrom, setTo } = useReportContext();
   const [vendor, setVendor] = useState("all");
   const [site, setSite] = useState("all");
   const [payStatus, setPayStatus] = useState("all");
