@@ -262,9 +262,17 @@ export function OverviewTab() {
         })}
       </div>
 
-      {/* Cross-module summary chart */}
+      {/* 4 mini trend sparklines (avoids unit-mismatch on a single axis) */}
+      <OverviewTrends from={from} to={to} scope={scope} />
+
+      {/* Activity Summary by User */}
       <div ref={chartRef}>
-        <OverviewSummaryChart data={chartData} />
+        <SummaryByUserChart
+          title="Activity Summary by User"
+          description="Activities logged per user for the selected period"
+          data={userActivityData}
+          valueLabel="Activities"
+        />
       </div>
 
       {isFetching && (
