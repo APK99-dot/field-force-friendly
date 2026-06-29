@@ -16,6 +16,7 @@ import {
 import GRNForm, { type POItem } from "./GRNForm";
 import InvoiceForm from "./InvoiceForm";
 import ThreeWayMatch from "./ThreeWayMatch";
+import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 
 export interface DetailOrder {
   id: string;
@@ -31,6 +32,10 @@ export interface DetailOrder {
   estimated_budget: number | null;
   bill_to: string | null;
   ship_to: string | null;
+  bill_to_address_id?: string | null;
+  ship_to_address_id?: string | null;
+  bill_to_gst?: string | null;
+  ship_to_gst?: string | null;
   requisition_notes: string | null;
   created_by: string | null;
   procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null }[];
