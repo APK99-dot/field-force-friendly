@@ -223,6 +223,23 @@ export default function ProcurementReport() {
     <ReportShell
       title="Procurement Report"
       description="Purchase orders, vendors, values and payment status."
+      pill={
+        <div className="flex flex-wrap items-center gap-2">
+          {procurementPendingOnly && (
+            <Badge variant="default" className="gap-1.5">
+              Pending Approval Only
+              <button
+                onClick={() => setProcurementPendingOnly(false)}
+                aria-label="Clear pending filter"
+                className="ml-0.5 rounded-full hover:bg-primary-foreground/20"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          <DateRangePill />
+        </div>
+      }
       loading={loading}
       downloading={downloading}
       generated={generated}
