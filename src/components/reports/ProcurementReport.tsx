@@ -72,6 +72,14 @@ export default function ProcurementReport() {
       .then(({ data }) => setVendors((data || []).map((v) => ({ value: v.id, label: v.name }))));
   }, []);
 
+  // Auto-run when navigated here from the "Pending Approvals" card.
+  useEffect(() => {
+    if (procurementPendingOnly && sites.length && vendors.length && !generated) {
+      generate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [procurementPendingOnly, sites, vendors]);
+
   const generate = async () => {
     setLoading(true);
     try {
