@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ export default function GRNForm({
   open, onOpenChange, poId, poNumber, vendorId, items, alreadyReceived, productName, createdBy, onSaved,
 }: Props) {
   const queryClient = useQueryClient();
+  const { profile } = useUserProfile();
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
   const [receivedBy, setReceivedBy] = useState("");
   const [remarks, setRemarks] = useState("");
@@ -59,6 +61,12 @@ export default function GRNForm({
   const [fbComments, setFbComments] = useState("");
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (profile?.full_name) {
+      setReceivedBy(profile.full_name);
+    }
+  }, [profile?.full_name]);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
