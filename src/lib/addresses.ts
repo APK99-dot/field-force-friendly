@@ -17,7 +17,7 @@ export function formatAddressSnapshot(a: AddressOption): string {
   return [a.name, a.full_address || "", loc].filter(Boolean).join("\n");
 }
 
-/** Fetch active addresses from the Address Book plus active project sites. */
+/** Fetch active addresses from the Address Book. */
 export async function fetchAddressOptions(): Promise<AddressOption[]> {
   const { data: addrs } = await supabase
     .from("master_addresses")
