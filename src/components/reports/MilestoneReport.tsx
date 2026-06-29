@@ -9,6 +9,7 @@ import { ReportShell, SummaryCards } from "./ReportShell";
 import { ReportChartCard } from "./ReportChartCard";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
+import { useReportContext, DateRangePill } from "@/components/analytics/ReportContext";
 import { generateReportPdf } from "./reportPdf";
 
 interface Row {
