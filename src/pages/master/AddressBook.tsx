@@ -10,8 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Save, Search, MapPin, X, Building2 } from "lucide-react";
+import { Plus, Edit, Trash2, Save, Search, MapPin, X } from "lucide-react";
 
 interface AddressRow {
   id: string;
@@ -44,7 +45,7 @@ const emptyForm = {
 
 export default function AddressBook() {
   const [rows, setRows] = useState<AddressRow[]>([]);
-  const [siteRows, setSiteRows] = useState<AddressRow[]>([]);
+  
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -57,39 +58,16 @@ export default function AddressBook() {
 
   const fetchRows = async () => {
     setIsLoading(true);
-    const [{ data: addrs }, { data: sites }] = await Promise.all([
-      supabase
-        .from("master_addresses")
-        .select("id, address_name, full_address, city, state, pincode, gst_number, contact_persons, contact_phones, is_active")
-        .order("address_name"),
-      supabase
-        .from("project_sites")
-        .select("id, site_name, site_code, description")
-        .is("deleted_at", null)
-        .eq("is_active", true)
-        .order("site_name"),
-    ]);
+    const { data: addrs } = await supabase
+      .from("master_addresses")
+      .select("id, address_name, full_address, city, state, pincode, gst_number, contact_persons, contact_phones, is_active")
+      .order("address_name");
     setRows(
       ((addrs || []) as any[]).map((r) => ({
         ...r,
         contact_persons: Array.isArray(r.contact_persons) ? r.contact_persons : [],
         contact_phones: Array.isArray(r.contact_phones) ? r.contact_phones : [],
         source: "manual" as const,
-      }))
-    );
-    setSiteRows(
-      ((sites || []) as any[]).map((s) => ({
-        id: `site:${s.id}`,
-        address_name: s.site_name,
-        full_address: s.description || s.site_name,
-        city: null,
-        state: null,
-        pincode: null,
-        gst_number: null,
-        contact_persons: [],
-        contact_phones: [],
-        is_active: true,
-        source: "site" as const,
       }))
     );
     setIsLoading(false);
@@ -175,8 +153,7 @@ export default function AddressBook() {
     else toast.error(error.message || "Failed to update");
   };
 
-  const all = [...rows, ...siteRows];
-  const filtered = all.filter((r) => {
+  const filtered = rows.filter((r) => {
     const q = search.toLowerCase();
     return (
       r.address_name.toLowerCase().includes(q) ||
@@ -202,7 +179,7 @@ export default function AddressBook() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5" />Addresses</CardTitle>
-                <CardDescription>Project sites appear automatically as delivery addresses</CardDescription>
+                <CardDescription>Billing & delivery addresses for purchase orders</CardDescription>
               </div>
               <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />Add Address</Button>
             </div>
@@ -223,7 +200,7 @@ export default function AddressBook() {
                     <TableHead>Name</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>GST Number</TableHead>
-                    <TableHead className="text-center">Type</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -237,33 +214,18 @@ export default function AddressBook() {
                       </TableCell>
                       <TableCell className="text-sm">{r.gst_number || "—"}</TableCell>
                       <TableCell className="text-center">
-                        {r.source === "site" ? (
-                          <Badge variant="outline" className="gap-1"><Building2 className="h-3 w-3" />Site</Badge>
-                        ) : (
-                          <Badge
-                            className={r.is_active ? "bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] cursor-pointer" : "bg-destructive/20 text-destructive cursor-pointer"}
-                            onClick={() => toggleActive(r)}
-                          >
-                            {r.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        )}
+                        <Badge
+                          className={r.is_active ? "bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] cursor-pointer" : "bg-destructive/20 text-destructive cursor-pointer"}
+                          onClick={() => toggleActive(r)}
+                        >
+                          {r.is_active ? "Active" : "Inactive"}
+                        </Badge>
                       </TableCell>
                       <TableCell>
-                        {r.source === "site" ? (
-                          <span className="text-xs text-muted-foreground">Manage in Sites</span>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => openEdit(r)}><Edit className="h-4 w-4" /></Button>
-                            {deleteConfirmId === r.id ? (
-                              <div className="flex gap-1">
-                                <Button variant="destructive" size="sm" onClick={() => handleDelete(r.id)}>Confirm</Button>
-                                <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
-                              </div>
-                            ) : (
-                              <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                            )}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => openEdit(r)}><Edit className="h-4 w-4" /></Button>
+                          <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -341,6 +303,20 @@ export default function AddressBook() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete address?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently remove the address. This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
+
   );
 }
