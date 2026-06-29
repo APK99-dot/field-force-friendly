@@ -217,22 +217,32 @@ export function SummaryByUserChart({
                       </TableCell>
                     </TableRow>
                   ) : (
-                    ranked.map((d, i) => (
-                      <TableRow key={d.id}>
-                        <TableCell className="flex items-center gap-2 font-medium">
-                          <span
-                            className="h-2.5 w-2.5 rounded-full shrink-0"
-                            style={{ background: PALETTE[i % PALETTE.length] }}
-                          />
-                          {d.name}
-                        </TableCell>
-                        <TableCell className="text-right">{formatValue(d.value)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {total > 0 ? ((d.value / total) * 100).toFixed(1) : "0.0"}%
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    ranked
+                      .filter((d) => !selected || d.name === selected)
+                      .map((d) => {
+                        const i = ranked.findIndex((r) => r.id === d.id);
+                        return (
+                          <TableRow
+                            key={d.id}
+                            className={`cursor-pointer ${selected === d.name ? "bg-primary/10" : ""}`}
+                            onClick={() => setSelected((prev) => (prev === d.name ? null : d.name))}
+                          >
+                            <TableCell className="flex items-center gap-2 font-medium">
+                              <span
+                                className="h-2.5 w-2.5 rounded-full shrink-0"
+                                style={{ background: PALETTE[i % PALETTE.length] }}
+                              />
+                              {d.name}
+                            </TableCell>
+                            <TableCell className="text-right">{formatValue(d.value)}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              {total > 0 ? ((d.value / total) * 100).toFixed(1) : "0.0"}%
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                   )}
+
                   {ranked.length > 0 && (
                     <TableRow className="font-bold bg-muted/40">
                       <TableCell>Total</TableCell>
