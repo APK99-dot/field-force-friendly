@@ -94,6 +94,12 @@ export function OverviewTab() {
       expQ = inScope(expQ);
       const { data: exps } = await expQ;
 
+      const userActivityCounts = new Map<string, number>();
+      (acts || []).forEach((a) => {
+        if (!a.user_id) return;
+        userActivityCounts.set(a.user_id, (userActivityCounts.get(a.user_id) || 0) + 1);
+      });
+
       return {
         totalActivities: acts?.length || 0,
         presentDays: att?.length || 0,
@@ -101,6 +107,7 @@ export function OverviewTab() {
         poValue: (pos || []).reduce((s, p) => s + (Number(p.total_amount) || 0), 0),
         pendingApprovals: (pendingLeaves || 0) + (pendingExp || 0),
         totalExpenses: (exps || []).reduce((s, e) => s + (Number(e.amount) || 0), 0),
+        userActivityCounts: Array.from(userActivityCounts.entries()),
       };
     },
   });
