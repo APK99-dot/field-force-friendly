@@ -41,6 +41,32 @@ const PALETTE = [
 
 type ChartMode = "pie" | "bar" | "hide";
 
+function ShareTooltip({
+  active,
+  payload,
+  total,
+  formatValue,
+}: {
+  active?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload?: any[];
+  total: number;
+  formatValue: (v: number) => string;
+}) {
+  if (!active || !payload || !payload.length) return null;
+  const item = payload[0];
+  const name = item?.payload?.name ?? item?.name;
+  const value = Number(item?.value ?? 0);
+  const share = total > 0 ? ((value / total) * 100).toFixed(1) : "0.0";
+  return (
+    <div className="rounded-lg border bg-background px-3 py-2 text-xs shadow-md">
+      <p className="font-semibold">{name}</p>
+      <p className="text-muted-foreground">Activities: {formatValue(value)}</p>
+      <p className="text-muted-foreground">Share: {share}%</p>
+    </div>
+  );
+}
+
 interface Props {
   title: string;
   description: string;
@@ -58,6 +84,7 @@ export function SummaryByUserChart({
 }: Props) {
   const [rank, setRank] = useState<"top" | "bottom">("top");
   const [mode, setMode] = useState<ChartMode>("pie");
+  const [selected, setSelected] = useState<string | null>(null);
 
   const total = useMemo(() => data.reduce((s, d) => s + d.value, 0), [data]);
 
@@ -137,6 +164,16 @@ export function SummaryByUserChart({
           </div>
         </div>
 
+        {selected && (
+          <div className="mt-3 flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Filtered by:</span>
+            <span className="font-medium">{selected}</span>
+            <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSelected(null)}>
+              Clear
+            </Button>
+          </div>
+        )}
+
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
           {mode !== "hide" && (
             <div className="h-[300px]">
@@ -150,19 +187,31 @@ export function SummaryByUserChart({
                       cx="50%"
                       cy="50%"
                       outerRadius={110}
+                      onClick={(d: any) => {
+                        const name = d?.name;
+                        if (!name || name === "Others") return;
+                        setSelected((prev) => (prev === name ? null : name));
+                      }}
                     >
-                      {chartData.map((_, i) => (
-                        <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                      {chartData.map((entry, i) => (
+                        <Cell
+                          key={i}
+                          fill={PALETTE[i % PALETTE.length]}
+                          cursor={entry.name === "Others" ? "default" : "pointer"}
+                          stroke={selected === entry.name ? "hsl(var(--foreground))" : undefined}
+                          strokeWidth={selected === entry.name ? 2 : undefined}
+                          opacity={selected && selected !== entry.name ? 0.4 : 1}
+                        />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: number) => formatValue(v)} />
+                    <Tooltip content={<ShareTooltip total={total} formatValue={formatValue} />} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                   </PieChart>
                 ) : (
                   <BarChart data={chartData}>
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} />
                     <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: number) => formatValue(v)} />
+                    <Tooltip content={<ShareTooltip total={total} formatValue={formatValue} />} />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                       {chartData.map((_, i) => (
                         <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
@@ -173,6 +222,7 @@ export function SummaryByUserChart({
               </ResponsiveContainer>
             </div>
           )}
+
 
           <div className={mode === "hide" ? "lg:col-span-2" : ""}>
             <h4 className="font-semibold text-sm mb-2">User Summary</h4>
@@ -193,22 +243,32 @@ export function SummaryByUserChart({
                       </TableCell>
                     </TableRow>
                   ) : (
-                    ranked.map((d, i) => (
-                      <TableRow key={d.id}>
-                        <TableCell className="flex items-center gap-2 font-medium">
-                          <span
-                            className="h-2.5 w-2.5 rounded-full shrink-0"
-                            style={{ background: PALETTE[i % PALETTE.length] }}
-                          />
-                          {d.name}
-                        </TableCell>
-                        <TableCell className="text-right">{formatValue(d.value)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {total > 0 ? ((d.value / total) * 100).toFixed(1) : "0.0"}%
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    ranked
+                      .filter((d) => !selected || d.name === selected)
+                      .map((d) => {
+                        const i = ranked.findIndex((r) => r.id === d.id);
+                        return (
+                          <TableRow
+                            key={d.id}
+                            className={`cursor-pointer ${selected === d.name ? "bg-primary/10" : ""}`}
+                            onClick={() => setSelected((prev) => (prev === d.name ? null : d.name))}
+                          >
+                            <TableCell className="flex items-center gap-2 font-medium">
+                              <span
+                                className="h-2.5 w-2.5 rounded-full shrink-0"
+                                style={{ background: PALETTE[i % PALETTE.length] }}
+                              />
+                              {d.name}
+                            </TableCell>
+                            <TableCell className="text-right">{formatValue(d.value)}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              {total > 0 ? ((d.value / total) * 100).toFixed(1) : "0.0"}%
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                   )}
+
                   {ranked.length > 0 && (
                     <TableRow className="font-bold bg-muted/40">
                       <TableCell>Total</TableCell>
