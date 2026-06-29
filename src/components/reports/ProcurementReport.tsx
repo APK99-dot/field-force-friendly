@@ -159,6 +159,12 @@ export default function ProcurementReport() {
     ];
   }, [rows]);
 
+  const chartData = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => m.set(r.site, (m.get(r.site) || 0) + r.po_value));
+    return Array.from(m.entries()).map(([name, value]) => ({ name, value }));
+  }, [rows]);
+
   const download = async () => {
     setDownloading(true);
     try {
