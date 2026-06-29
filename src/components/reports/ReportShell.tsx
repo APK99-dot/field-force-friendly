@@ -9,6 +9,7 @@ interface ReportShellProps {
   description?: string;
   filters: ReactNode;
   summary?: ReactNode;
+  chart?: ReactNode;
   table: ReactNode;
   loading: boolean;
   downloading: boolean;
@@ -23,6 +24,7 @@ export function ReportShell({
   description,
   filters,
   summary,
+  chart,
   table,
   loading,
   downloading,
