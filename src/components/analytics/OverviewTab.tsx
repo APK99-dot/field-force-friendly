@@ -127,15 +127,15 @@ export function OverviewTab() {
     { label: "Total Expenses", value: fmtCompact(data?.totalExpenses ?? 0), icon: Receipt, onClick: undefined },
   ];
 
-  const chartData: OverviewMetric[] = useMemo(() => {
+  const userActivityData: UserDatum[] = useMemo(() => {
     if (!data) return [];
-    return [
-      { name: "Activities", value: data.totalActivities, display: data.totalActivities.toLocaleString("en-IN"), color: "hsl(262 70% 60%)" },
-      { name: "Present Days", value: data.presentDays, display: data.presentDays.toLocaleString("en-IN"), color: "hsl(160 64% 42%)" },
-      { name: "PO Value (₹K)", value: Math.round(data.poValue / 1000), display: inr(data.poValue), color: "hsl(35 90% 55%)" },
-      { name: "Expenses (₹K)", value: Math.round(data.totalExpenses / 1000), display: inr(data.totalExpenses), color: "hsl(0 75% 60%)" },
-    ];
-  }, [data]);
+    const nameMap = new Map(scope.users.map((u) => [u.id, u.full_name]));
+    return data.userActivityCounts.map(([id, value]) => ({
+      id,
+      name: nameMap.get(id) || "Unknown",
+      value,
+    }));
+  }, [data, scope.users]);
 
   const download = async () => {
     if (!data) return;
