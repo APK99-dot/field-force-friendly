@@ -168,6 +168,15 @@ export default function ExpenseReport() {
         </>
       }
       summary={<SummaryCards items={summary} />}
+      chart={
+        <ReportChartCard
+          title="Expenses by Category"
+          description="Total expense amount grouped by category"
+          type="pie"
+          data={chartData}
+          formatValue={inr}
+        />
+      }
       table={
         <Table>
           <TableHeader>
