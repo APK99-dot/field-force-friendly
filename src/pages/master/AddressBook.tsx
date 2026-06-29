@@ -44,7 +44,7 @@ const emptyForm = {
 
 export default function AddressBook() {
   const [rows, setRows] = useState<AddressRow[]>([]);
-  const [siteRows, setSiteRows] = useState<AddressRow[]>([]);
+  
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
