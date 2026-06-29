@@ -40,8 +40,7 @@ const statusBadge = (s: string) => {
 
 export default function ActivityReport() {
   const scope = useReportScope();
-  const [from, setFrom] = useState(format(new Date(), "yyyy-MM-01"));
-  const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const { from, to, setFrom, setTo } = useReportContext();
   const [employee, setEmployee] = useState("all");
   const [site, setSite] = useState("all");
   const [milestone, setMilestone] = useState("all");
