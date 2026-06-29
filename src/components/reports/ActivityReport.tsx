@@ -214,6 +214,14 @@ export default function ActivityReport() {
         </>
       }
       summary={<SummaryCards items={summary} />}
+      chart={
+        <ReportChartCard
+          title="Activities by Type"
+          description="Number of activities grouped by type"
+          type="bar"
+          data={chartData}
+        />
+      }
       table={
         <Table>
           <TableHeader>
