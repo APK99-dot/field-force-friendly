@@ -161,6 +161,7 @@ export default function MilestoneReport() {
     <ReportShell
       title="Milestone Report"
       description="Planned vs actual dates, progress and delays by site."
+      pill={<DateRangePill />}
       loading={loading}
       downloading={downloading}
       generated={generated}
