@@ -9,7 +9,8 @@ import { DateField } from "@/components/reports/ReportFilters";
 import { useReportScope } from "@/components/reports/useReportScope";
 import { generateReportPdf } from "@/components/reports/reportPdf";
 import { useReportContext } from "@/components/analytics/ReportContext";
-import { OverviewSummaryChart, OverviewMetric } from "./OverviewSummaryChart";
+import { OverviewTrends } from "./OverviewTrends";
+import { SummaryByUserChart, UserDatum } from "./SummaryByUserChart";
 import {
   Activity,
   CalendarCheck,
@@ -93,6 +94,12 @@ export function OverviewTab() {
       expQ = inScope(expQ);
       const { data: exps } = await expQ;
 
+      const userActivityCounts = new Map<string, number>();
+      (acts || []).forEach((a) => {
+        if (!a.user_id) return;
+        userActivityCounts.set(a.user_id, (userActivityCounts.get(a.user_id) || 0) + 1);
+      });
+
       return {
         totalActivities: acts?.length || 0,
         presentDays: att?.length || 0,
@@ -100,6 +107,7 @@ export function OverviewTab() {
         poValue: (pos || []).reduce((s, p) => s + (Number(p.total_amount) || 0), 0),
         pendingApprovals: (pendingLeaves || 0) + (pendingExp || 0),
         totalExpenses: (exps || []).reduce((s, e) => s + (Number(e.amount) || 0), 0),
+        userActivityCounts: Array.from(userActivityCounts.entries()),
       };
     },
   });
@@ -119,15 +127,15 @@ export function OverviewTab() {
     { label: "Total Expenses", value: fmtCompact(data?.totalExpenses ?? 0), icon: Receipt, onClick: undefined },
   ];
 
-  const chartData: OverviewMetric[] = useMemo(() => {
+  const userActivityData: UserDatum[] = useMemo(() => {
     if (!data) return [];
-    return [
-      { name: "Activities", value: data.totalActivities, display: data.totalActivities.toLocaleString("en-IN"), color: "hsl(262 70% 60%)" },
-      { name: "Present Days", value: data.presentDays, display: data.presentDays.toLocaleString("en-IN"), color: "hsl(160 64% 42%)" },
-      { name: "PO Value (₹K)", value: Math.round(data.poValue / 1000), display: inr(data.poValue), color: "hsl(35 90% 55%)" },
-      { name: "Expenses (₹K)", value: Math.round(data.totalExpenses / 1000), display: inr(data.totalExpenses), color: "hsl(0 75% 60%)" },
-    ];
-  }, [data]);
+    const nameMap = new Map(scope.users.map((u) => [u.id, u.full_name]));
+    return data.userActivityCounts.map(([id, value]) => ({
+      id,
+      name: nameMap.get(id) || "Unknown",
+      value,
+    }));
+  }, [data, scope.users]);
 
   const download = async () => {
     if (!data) return;
@@ -254,9 +262,17 @@ export function OverviewTab() {
         })}
       </div>
 
-      {/* Cross-module summary chart */}
+      {/* 4 mini trend sparklines (avoids unit-mismatch on a single axis) */}
+      <OverviewTrends from={from} to={to} scope={scope} />
+
+      {/* Activity Summary by User */}
       <div ref={chartRef}>
-        <OverviewSummaryChart data={chartData} />
+        <SummaryByUserChart
+          title="Activity Summary by User"
+          description="Activities logged per user for the selected period"
+          data={userActivityData}
+          valueLabel="Activities"
+        />
       </div>
 
       {isFetching && (
