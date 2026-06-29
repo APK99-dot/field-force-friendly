@@ -58,6 +58,7 @@ export function SummaryByUserChart({
 }: Props) {
   const [rank, setRank] = useState<"top" | "bottom">("top");
   const [mode, setMode] = useState<ChartMode>("pie");
+  const [selected, setSelected] = useState<string | null>(null);
 
   const total = useMemo(() => data.reduce((s, d) => s + d.value, 0), [data]);
 
