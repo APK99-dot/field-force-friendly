@@ -221,6 +221,19 @@ export default function PaymentReport() {
         </>
       }
       summary={<SummaryCards items={summary} />}
+      chart={
+        <ReportChartCard
+          title="Paid vs Pending by Vendor"
+          description="Payment status grouped by vendor"
+          type="groupedBar"
+          data={chartData}
+          series={[
+            { key: "Paid", label: "Paid", color: "hsl(160 64% 42%)" },
+            { key: "Pending", label: "Pending", color: "hsl(35 90% 55%)" },
+          ]}
+          formatValue={inr}
+        />
+      }
       table={
         <Table>
           <TableHeader>
