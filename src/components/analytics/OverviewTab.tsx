@@ -9,7 +9,8 @@ import { DateField } from "@/components/reports/ReportFilters";
 import { useReportScope } from "@/components/reports/useReportScope";
 import { generateReportPdf } from "@/components/reports/reportPdf";
 import { useReportContext } from "@/components/analytics/ReportContext";
-import { OverviewSummaryChart, OverviewMetric } from "./OverviewSummaryChart";
+import { OverviewTrends } from "./OverviewTrends";
+import { SummaryByUserChart, UserDatum } from "./SummaryByUserChart";
 import {
   Activity,
   CalendarCheck,
