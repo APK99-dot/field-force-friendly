@@ -7,6 +7,7 @@ import { ArrowLeft, Download, Search, Loader2 } from "lucide-react";
 interface ReportShellProps {
   title: string;
   description?: string;
+  pill?: ReactNode;
   filters: ReactNode;
   summary?: ReactNode;
   chart?: ReactNode;
