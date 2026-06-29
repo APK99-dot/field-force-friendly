@@ -90,6 +90,18 @@ export default function AttendanceReport() {
     ];
   }, [rows]);
 
+  const chartData = useMemo(() => {
+    const weeks = new Map<string, { name: string; Present: number; Absent: number }>();
+    rows.forEach((r) => {
+      const wk = format(startOfWeek(new Date(r.date), { weekStartsOn: 1 }), "dd MMM");
+      const e = weeks.get(wk) || { name: wk, Present: 0, Absent: 0 };
+      if (r.status === "present" || r.status === "late") e.Present += 1;
+      else if (r.status === "absent") e.Absent += 1;
+      weeks.set(wk, e);
+    });
+    return Array.from(weeks.values());
+  }, [rows]);
+
   const download = async () => {
     setDownloading(true);
     try {
