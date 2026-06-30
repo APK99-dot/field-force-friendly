@@ -86,7 +86,7 @@ export function statusColor(status: string) {
     case "Quote Awaited": return "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400";
     case "Quote Received": return "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400";
     case "PO Issued": return "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400";
-    case "PO Finalised": return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
+    
     case "Goods Received": return "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400";
     case "Invoice Received": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
     case "Paid": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
