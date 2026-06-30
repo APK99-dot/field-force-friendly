@@ -22,6 +22,7 @@ import {
   statusColor, fmtAmt, type ProcStatus,
 } from "@/lib/procurement";
 import ProcurementDetail, { type DetailOrder } from "@/components/procurement/ProcurementDetail";
+import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
@@ -35,6 +36,8 @@ const emptyForm = {
   status: "Requisition" as ProcStatus,
   estimated_budget: "",
   requisition_notes: "",
+  bill_to_id: "",
+  ship_to_id: "",
 };
 
 export default function Procurement() {
