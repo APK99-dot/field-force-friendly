@@ -7,7 +7,7 @@ import { Search, Truck, Check } from "lucide-react";
 import { statusColor, fmtAmt } from "@/lib/procurement";
 
 // Statuses that represent an "open" PO still awaiting goods receipt
-const OPEN_STATUSES = ["PO Issued", "PO Finalised", "Goods Received"];
+const OPEN_STATUSES = ["PO Issued", "Goods Received"];
 
 interface OpenPO {
   id: string;
