@@ -360,9 +360,44 @@ export default function Procurement() {
             </div>
 
             <div>
+              <Label className="text-xs">Bill To</Label>
+              <Select value={form.bill_to_id} onValueChange={(v) => setForm((p) => ({ ...p, bill_to_id: v }))}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select billing address" /></SelectTrigger>
+                <SelectContent>{addressOptions.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}</SelectContent>
+              </Select>
+              {(() => {
+                const a = form.bill_to_id ? findAddr(form.bill_to_id) : null;
+                return a ? (
+                  <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
+                    {formatAddressSnapshot(a)}
+                    {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
+                  </div>
+                ) : null;
+              })()}
+            </div>
+
+            <div>
+              <Label className="text-xs">Ship To</Label>
+              <Select value={form.ship_to_id} onValueChange={(v) => setForm((p) => ({ ...p, ship_to_id: v }))}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select delivery address" /></SelectTrigger>
+                <SelectContent>{addressOptions.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}</SelectContent>
+              </Select>
+              {(() => {
+                const a = form.ship_to_id ? findAddr(form.ship_to_id) : null;
+                return a ? (
+                  <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
+                    {formatAddressSnapshot(a)}
+                    {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
+                  </div>
+                ) : null;
+              })()}
+            </div>
+
+            <div>
               <Label className="text-xs">Notes / Reason for Requisition</Label>
               <Textarea value={form.requisition_notes} onChange={(e) => setForm((p) => ({ ...p, requisition_notes: e.target.value }))} placeholder="Why is this material needed?" className="min-h-[70px]" />
             </div>
+
 
 
 
