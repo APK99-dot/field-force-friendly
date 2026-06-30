@@ -125,6 +125,8 @@ export default function Procurement() {
       status: (USER_FORM_STATUSES.includes(o.status as ProcStatus) ? o.status : "Requisition") as ProcStatus,
       estimated_budget: o.estimated_budget != null ? String(o.estimated_budget) : "",
       requisition_notes: o.requisition_notes || "",
+      bill_to_id: o.bill_to_address_id || "",
+      ship_to_id: o.ship_to_address_id || "",
     });
     const items = (o.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id || "", rate: String(it.rate ?? ""), qty: String(it.qty ?? ""), uom: it.uom || "",
