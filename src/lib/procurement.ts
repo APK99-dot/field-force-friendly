@@ -41,7 +41,6 @@ export const STATUS_FLOW: ProcStatus[] = [
   "Quote Awaited",
   "Quote Received",
   "PO Issued",
-  "PO Finalised",
   "Goods Received",
   "Invoice Received",
   "Paid",
