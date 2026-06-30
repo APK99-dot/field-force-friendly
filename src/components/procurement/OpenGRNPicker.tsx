@@ -134,11 +134,14 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-sm font-medium">{p.po_number || "(No PO #)"}</span>
+                  <span className="text-sm font-medium">{p.po_number || (p.source_type === "internal_transfer" ? "(No TRF #)" : "(No PO #)")}</span>
+                  {p.source_type === "internal_transfer" && <Badge variant="outline" className="text-[10px] bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Transfer</Badge>}
                   <Badge variant="outline" className={`text-[10px] ${statusColor(p.status)}`}>{p.status}</Badge>
                 </div>
                 <div className="text-[11px] text-muted-foreground truncate">
-                  {p.order_date}{p.vendor_name ? ` · ${p.vendor_name}` : ""} · {fmtAmt(p.total_amount)}
+                  {p.source_type === "internal_transfer"
+                    ? `${p.order_date}${p.transfer_from_name ? ` · From ${p.transfer_from_name}` : ""}`
+                    : `${p.order_date}${p.vendor_name ? ` · ${p.vendor_name}` : ""} · ${fmtAmt(p.total_amount)}`}
                 </div>
               </div>
             </button>
