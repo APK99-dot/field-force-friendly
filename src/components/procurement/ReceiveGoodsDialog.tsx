@@ -14,6 +14,8 @@ interface Props {
 export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUserId, onSaved }: Props) {
   const [poNumber, setPoNumber] = useState("");
   const [vendorId, setVendorId] = useState<string | null>(null);
+  const [sourceType, setSourceType] = useState<string | null>(null);
+  const [transferFromName, setTransferFromName] = useState<string>("");
   const [items, setItems] = useState<POItem[]>([]);
   const [received, setReceived] = useState<Record<string, number>>({});
   const [products, setProducts] = useState<Record<string, string>>({});
@@ -23,7 +25,7 @@ export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUs
     setReady(false);
     const { data: po } = await supabase
       .from("procurement_orders")
-      .select("po_number, vendor_id, procurement_items(id, product_id, rate, qty, uom)")
+      .select("po_number, vendor_id, source_type, transfer_from_site_id, procurement_items(id, product_id, rate, qty, uom)")
       .eq("id", poId)
       .single();
     const its: POItem[] = ((po as any)?.procurement_items || []).map((it: any) => ({
@@ -31,6 +33,14 @@ export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUs
     }));
     setPoNumber((po as any)?.po_number || "(No PO #)");
     setVendorId((po as any)?.vendor_id || null);
+    setSourceType((po as any)?.source_type || null);
+    const fromId = (po as any)?.transfer_from_site_id || null;
+    if (fromId) {
+      const { data: site } = await supabase.from("project_sites").select("site_name").eq("id", fromId).single();
+      setTransferFromName((site as any)?.site_name || "");
+    } else {
+      setTransferFromName("");
+    }
     setItems(its);
 
     const productIds = [...new Set(its.filter((i) => i.product_id).map((i) => i.product_id as string))];
@@ -67,7 +77,9 @@ export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUs
       onOpenChange={onOpenChange}
       poId={poId}
       poNumber={poNumber}
-      vendorId={vendorId}
+      vendorId={sourceType === "internal_transfer" ? null : vendorId}
+      sourceType={sourceType}
+      transferFromSiteName={sourceType === "internal_transfer" ? transferFromName : undefined}
       items={items}
       alreadyReceived={received}
       productName={productName}

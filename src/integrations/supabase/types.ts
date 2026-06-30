@@ -3102,8 +3102,10 @@ export type Database = {
           ship_to_address_id: string | null
           ship_to_gst: string | null
           site_id: string | null
+          source_type: string
           status: string
           total_amount: number
+          transfer_from_site_id: string | null
           updated_at: string
           vendor_id: string | null
           vendor_ids: string[] | null
@@ -3128,8 +3130,10 @@ export type Database = {
           ship_to_address_id?: string | null
           ship_to_gst?: string | null
           site_id?: string | null
+          source_type?: string
           status?: string
           total_amount?: number
+          transfer_from_site_id?: string | null
           updated_at?: string
           vendor_id?: string | null
           vendor_ids?: string[] | null
@@ -3154,8 +3158,10 @@ export type Database = {
           ship_to_address_id?: string | null
           ship_to_gst?: string | null
           site_id?: string | null
+          source_type?: string
           status?: string
           total_amount?: number
+          transfer_from_site_id?: string | null
           updated_at?: string
           vendor_id?: string | null
           vendor_ids?: string[] | null

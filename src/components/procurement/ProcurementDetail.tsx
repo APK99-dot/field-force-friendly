@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { CalendarDays, Truck, FileText, Pencil, ChevronRight, Save } from "lucide-react";
 import {
-  STATUS_FLOW, allowedTransitions, statusColor, fmtAmt, PAYMENT_TERMS, type ProcStatus,
+  STATUS_FLOW, allowedTransitions, statusColor, fmtAmt, PAYMENT_TERMS, statusFlowFor, type ProcStatus,
 } from "@/lib/procurement";
 import GRNForm, { type POItem } from "./GRNForm";
 import InvoiceForm from "./InvoiceForm";
@@ -20,11 +20,13 @@ import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "
 
 export interface DetailOrder {
   id: string;
+  source_type?: string | null;
   order_date: string;
   vendor_id: string | null;
   vendor_ids: string[] | null;
   po_number: string | null;
   site_id: string | null;
+  transfer_from_site_id?: string | null;
   status: string;
   payment_terms: string | null;
   expected_delivery_date: string | null;
@@ -164,16 +166,18 @@ export default function ProcurementDetail({
 
   const invoiceTotal = useMemo(() => invoices.reduce((s, i) => s + Number(i.invoice_amount || 0), 0), [invoices]);
 
-  const transitions = allowedTransitions(order.status).filter((t) => !t.approver || canApprove);
+  const isTransfer = order.source_type === "internal_transfer";
+  const transitions = allowedTransitions(order.status, order.source_type).filter((t) => !t.approver || canApprove);
   const editable = order.status === "Requisition";
-  // After approval, admins can fill the remaining PO details (until goods are received)
-  const poUnlocked = canApprove && ["Requisition Approved", "Quote Awaited", "Quote Received", "PO Issued"].includes(order.status);
-  const canReceive =
-    canApprove && ["PO Issued", "Goods Received"].includes(order.status);
+  // After approval, admins can fill the remaining PO details (until goods are received) — vendor flow only
+  const poUnlocked = !isTransfer && canApprove && ["Requisition Approved", "Quote Awaited", "Quote Received", "PO Issued"].includes(order.status);
+  const canReceive = isTransfer
+    ? canApprove && ["Requisition Approved", "Goods Received"].includes(order.status)
+    : canApprove && ["PO Issued", "Goods Received"].includes(order.status);
   const canInvoice =
-    canApprove && ["Goods Received", "Invoice Received"].includes(order.status);
+    !isTransfer && canApprove && ["Goods Received", "Invoice Received"].includes(order.status);
 
-  const estBudget = order.estimated_budget;
+  const estBudget = isTransfer ? null : order.estimated_budget;
   const poValue = order.total_amount || 0;
   const variance = estBudget != null ? estBudget - poValue : null;
   const overBudget = estBudget != null && poValue > estBudget;
@@ -188,14 +192,16 @@ export default function ProcurementDetail({
     onOpenChange(false);
   };
 
-  const stepIndex = STATUS_FLOW.indexOf(order.status as ProcStatus);
+  const stepFlow = statusFlowFor(order.source_type);
+  const stepIndex = stepFlow.indexOf(order.status as ProcStatus);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col">
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2 flex-wrap">
-            {order.po_number || "(No PO #)"}
+            {order.po_number || (isTransfer ? "(No TRF #)" : "(No PO #)")}
+            <Badge variant="outline" className={`text-[10px] ${isTransfer ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"}`}>{isTransfer ? "Internal Transfer" : "Vendor PO"}</Badge>
             <Badge variant="outline" className={`text-[10px] ${statusColor(order.status)}`}>{order.status}</Badge>
           </DialogTitle>
         </DialogHeader>
@@ -204,10 +210,10 @@ export default function ProcurementDetail({
           {/* Stepper */}
           {order.status !== "Rejected" && (
             <div className="flex items-center gap-1 overflow-x-auto pb-1">
-              {STATUS_FLOW.map((s, i) => (
+              {stepFlow.map((s, i) => (
                 <div key={s} className="flex items-center shrink-0">
                   <span className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
-                  {i < STATUS_FLOW.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                  {i < stepFlow.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
                 </div>
               ))}
             </div>
@@ -217,40 +223,53 @@ export default function ProcurementDetail({
           <Card>
             <CardContent className="p-3 space-y-1.5 text-sm">
               <div className="flex items-center gap-2 text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" />{order.order_date}</div>
-              <div className="text-muted-foreground">
-                Vendor: {(order.vendor_ids && order.vendor_ids.length
-                  ? order.vendor_ids.map((id) => vendorName(id)).join(", ")
-                  : vendorName(order.vendor_id))}
-              </div>
-              <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
-              {order.po_number && <div className="text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}
-              {order.expected_delivery_date && <div className="text-muted-foreground">Expected Delivery: {order.expected_delivery_date}</div>}
-              {order.payment_terms && <div className="text-muted-foreground">Payment Terms: {order.payment_terms}</div>}
-              {order.bill_to && <div className="text-muted-foreground">Bill To: <span className="whitespace-pre-wrap">{order.bill_to}</span>{order.bill_to_gst && <span className="block">GST: {order.bill_to_gst}</span>}</div>}
-              {order.ship_to && <div className="text-muted-foreground">Ship To: <span className="whitespace-pre-wrap">{order.ship_to}</span>{order.ship_to_gst && <span className="block">GST: {order.ship_to_gst}</span>}</div>}
-              {order.requisition_notes && <div className="text-muted-foreground">Reason: <span className="whitespace-pre-wrap">{order.requisition_notes}</span></div>}
+              {isTransfer ? (
+                <>
+                  <div className="text-muted-foreground">Transfer From: <span className="font-medium text-foreground">{siteName(order.transfer_from_site_id)}</span></div>
+                  <div className="text-muted-foreground">Transfer To: <span className="font-medium text-foreground">{siteName(order.site_id)}</span></div>
+                  {order.po_number && <div className="text-muted-foreground">Transfer Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}
+                  {order.requisition_notes && <div className="text-muted-foreground">Reason: <span className="whitespace-pre-wrap">{order.requisition_notes}</span></div>}
+                </>
+              ) : (
+                <>
+                  <div className="text-muted-foreground">
+                    Vendor: {(order.vendor_ids && order.vendor_ids.length
+                      ? order.vendor_ids.map((id) => vendorName(id)).join(", ")
+                      : vendorName(order.vendor_id))}
+                  </div>
+                  <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
+                  {order.po_number && <div className="text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}
+                  {order.expected_delivery_date && <div className="text-muted-foreground">Expected Delivery: {order.expected_delivery_date}</div>}
+                  {order.payment_terms && <div className="text-muted-foreground">Payment Terms: {order.payment_terms}</div>}
+                  {order.bill_to && <div className="text-muted-foreground">Bill To: <span className="whitespace-pre-wrap">{order.bill_to}</span>{order.bill_to_gst && <span className="block">GST: {order.bill_to_gst}</span>}</div>}
+                  {order.ship_to && <div className="text-muted-foreground">Ship To: <span className="whitespace-pre-wrap">{order.ship_to}</span>{order.ship_to_gst && <span className="block">GST: {order.ship_to_gst}</span>}</div>}
+                  {order.requisition_notes && <div className="text-muted-foreground">Reason: <span className="whitespace-pre-wrap">{order.requisition_notes}</span></div>}
 
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t mt-2">
-                <div>
-                  <Label className="text-xs">Expected Delivery Date</Label>
-                  <Input
-                    type="date" className="h-9"
-                    value={poForm.expected_delivery_date}
-                    disabled={!poUnlocked}
-                    onChange={(e) => setPoForm((p) => ({ ...p, expected_delivery_date: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Payment Terms</Label>
-                  <Select value={poForm.payment_terms} onValueChange={(v) => setPoForm((p) => ({ ...p, payment_terms: v }))} disabled={!poUnlocked}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Select terms" /></SelectTrigger>
-                    <SelectContent>{PAYMENT_TERMS.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}</SelectContent>
-                  </Select>
-                </div>
-              </div>
-              {!poUnlocked && (
-                <p className="text-[11px] text-muted-foreground">Delivery date, payment terms and rates can be set once the requisition is approved.</p>
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t mt-2">
+                    <div>
+                      <Label className="text-xs">Expected Delivery Date</Label>
+                      <Input
+                        type="date" className="h-9"
+                        value={poForm.expected_delivery_date}
+                        disabled={!poUnlocked}
+                        onChange={(e) => setPoForm((p) => ({ ...p, expected_delivery_date: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Payment Terms</Label>
+                      <Select value={poForm.payment_terms} onValueChange={(v) => setPoForm((p) => ({ ...p, payment_terms: v }))} disabled={!poUnlocked}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Select terms" /></SelectTrigger>
+                        <SelectContent>{PAYMENT_TERMS.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}</SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {!poUnlocked && (
+                    <p className="text-[11px] text-muted-foreground">Delivery date, payment terms and rates can be set once the requisition is approved.</p>
+                  )}
+                </>
               )}
+
+
 
             </CardContent>
           </Card>
@@ -283,37 +302,46 @@ export default function ProcurementDetail({
 
           {/* Line items */}
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Line Items</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-base">{isTransfer ? "Transfer Items" : "Line Items"}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {rateLines.map((l, i) => {
                 const amt = (parseFloat(l.rate) || 0) * (l.qty || 0);
                 return (
                   <div key={l.id} className="rounded-lg border p-2.5 bg-muted/30">
                     <div className="text-sm font-medium mb-1">{productName(l.product_id)}</div>
-                    <div className="grid grid-cols-3 gap-2 items-end">
+                    {isTransfer ? (
                       <div>
                         <Label className="text-[10px] text-muted-foreground">Qty</Label>
                         <div className="h-8 flex items-center text-sm">{l.qty} {l.uom || ""}</div>
                       </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">Rate</Label>
-                        <Input
-                          type="number" inputMode="decimal" value={l.rate} placeholder="0" className="h-8"
-                          disabled={!poUnlocked}
-                          onChange={(e) => setRateLines((prev) => prev.map((x, idx) => idx === i ? { ...x, rate: e.target.value } : x))}
-                        />
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2 items-end">
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground">Qty</Label>
+                          <div className="h-8 flex items-center text-sm">{l.qty} {l.uom || ""}</div>
+                        </div>
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground">Rate</Label>
+                          <Input
+                            type="number" inputMode="decimal" value={l.rate} placeholder="0" className="h-8"
+                            disabled={!poUnlocked}
+                            onChange={(e) => setRateLines((prev) => prev.map((x, idx) => idx === i ? { ...x, rate: e.target.value } : x))}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground">Amount</Label>
+                          <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
+                        </div>
                       </div>
-                      <div>
-                        <Label className="text-[10px] text-muted-foreground">Amount</Label>
-                        <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 );
               })}
-              <div className="flex items-center justify-between pt-2 font-semibold">
-                <span>Grand Total</span><span className="text-primary">{fmtAmt(poUnlocked ? poEditTotal : order.total_amount)}</span>
-              </div>
+              {!isTransfer && (
+                <div className="flex items-center justify-between pt-2 font-semibold">
+                  <span>Grand Total</span><span className="text-primary">{fmtAmt(poUnlocked ? poEditTotal : order.total_amount)}</span>
+                </div>
+              )}
               {poUnlocked && (
                 <Button className="w-full mt-2" onClick={savePoDetails} disabled={poSaving}>
                   <Save className="h-4 w-4 mr-2" />{poSaving ? "Saving..." : "Save PO Details & Rates"}
@@ -344,7 +372,8 @@ export default function ProcurementDetail({
             </CardContent>
           </Card>
 
-          {/* Invoice list */}
+          {/* Invoice list (vendor only) */}
+          {!isTransfer && (
           <Card>
             <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4" />Invoices</CardTitle>
@@ -364,9 +393,10 @@ export default function ProcurementDetail({
               ))}
             </CardContent>
           </Card>
+          )}
 
-          {/* 3-way match */}
-          {(grns.length > 0 || invoices.length > 0) && (
+          {/* 3-way match (vendor only) */}
+          {!isTransfer && (grns.length > 0 || invoices.length > 0) && (
             <ThreeWayMatch
               items={items}
               received={receivedByItem}
@@ -398,7 +428,10 @@ export default function ProcurementDetail({
         {grnOpen && (
           <GRNForm
             open={grnOpen} onOpenChange={setGrnOpen}
-            poId={order.id} poNumber={order.po_number || "(No PO #)"}
+            poId={order.id} poNumber={order.po_number || (isTransfer ? "(No TRF #)" : "(No PO #)")}
+            vendorId={isTransfer ? null : order.vendor_id}
+            sourceType={order.source_type}
+            transferFromSiteName={isTransfer ? siteName(order.transfer_from_site_id) : undefined}
             items={items} alreadyReceived={receivedByItem}
             productName={productName} createdBy={currentUserId}
             onSaved={() => { fetchSub(); onChanged(); }}

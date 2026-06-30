@@ -16,10 +16,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
-import { Plus, Search, Trash2, X, ShoppingCart, Save, CalendarDays, ChevronDown } from "lucide-react";
+import { Plus, Search, Trash2, X, ShoppingCart, Save, CalendarDays, ChevronDown, ArrowRight } from "lucide-react";
 import {
   PROC_STATUSES, USER_FORM_STATUSES, UOM_OPTIONS,
-  statusColor, fmtAmt, type ProcStatus,
+  statusColor, fmtAmt, type ProcStatus, type SourceType,
 } from "@/lib/procurement";
 import ProcurementDetail, { type DetailOrder } from "@/components/procurement/ProcurementDetail";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
@@ -30,9 +30,11 @@ interface Product { id: string; product_name: string; default_uom: string | null
 interface LineItem { id?: string; product_id: string; rate: string; qty: string; uom: string }
 
 const emptyForm = {
+  source_type: "vendor" as SourceType,
   order_date: new Date().toISOString().slice(0, 10),
   vendor_ids: [] as string[],
   site_id: "",
+  transfer_from_site_id: "",
   status: "Requisition" as ProcStatus,
   estimated_budget: "",
   requisition_notes: "",
@@ -119,9 +121,11 @@ export default function Procurement() {
     setDetail(null);
     setEditing(o);
     setForm({
+      source_type: (o.source_type === "internal_transfer" ? "internal_transfer" : "vendor") as SourceType,
       order_date: o.order_date,
       vendor_ids: o.vendor_ids && o.vendor_ids.length ? o.vendor_ids : (o.vendor_id ? [o.vendor_id] : []),
       site_id: o.site_id || "",
+      transfer_from_site_id: o.transfer_from_site_id || "",
       status: (USER_FORM_STATUSES.includes(o.status as ProcStatus) ? o.status : "Requisition") as ProcStatus,
       estimated_budget: o.estimated_budget != null ? String(o.estimated_budget) : "",
       requisition_notes: o.requisition_notes || "",
@@ -146,27 +150,35 @@ export default function Procurement() {
     setLines((prev) => (prev.length <= 1 ? [{ product_id: "", rate: "", qty: "", uom: "" }] : prev.filter((_, idx) => idx !== i)));
 
   const handleSave = async () => {
+    const isTransfer = form.source_type === "internal_transfer";
     const validLines = lines.filter((l) => l.product_id && (parseFloat(l.qty) || 0) > 0);
     if (validLines.length === 0) { toast.error("Add at least one product line item"); return; }
+    if (isTransfer) {
+      if (!form.transfer_from_site_id) { toast.error("Select the site the material is transferred from"); return; }
+      if (!form.site_id) { toast.error("Select the destination site"); return; }
+      if (form.transfer_from_site_id === form.site_id) { toast.error("Transfer From and Transfer To sites must differ"); return; }
+    }
     setIsSaving(true);
     try {
-      const billAddr = form.bill_to_id ? findAddr(form.bill_to_id) : null;
-      const shipAddr = form.ship_to_id ? findAddr(form.ship_to_id) : null;
+      const billAddr = !isTransfer && form.bill_to_id ? findAddr(form.bill_to_id) : null;
+      const shipAddr = !isTransfer && form.ship_to_id ? findAddr(form.ship_to_id) : null;
       const orderPayload = {
+        source_type: form.source_type,
         order_date: form.order_date,
-        vendor_id: form.vendor_ids[0] || null,
-        vendor_ids: form.vendor_ids.length ? form.vendor_ids : null,
+        vendor_id: isTransfer ? null : (form.vendor_ids[0] || null),
+        vendor_ids: isTransfer ? null : (form.vendor_ids.length ? form.vendor_ids : null),
         site_id: form.site_id || null,
+        transfer_from_site_id: isTransfer ? (form.transfer_from_site_id || null) : null,
         status: form.status,
-        estimated_budget: form.estimated_budget ? parseFloat(form.estimated_budget) : null,
+        estimated_budget: !isTransfer && form.estimated_budget ? parseFloat(form.estimated_budget) : null,
         requisition_notes: form.requisition_notes.trim() || null,
         bill_to: billAddr ? formatAddressSnapshot(billAddr) : null,
         ship_to: shipAddr ? formatAddressSnapshot(shipAddr) : null,
-        bill_to_address_id: form.bill_to_id || null,
-        ship_to_address_id: form.ship_to_id || null,
+        bill_to_address_id: isTransfer ? null : (form.bill_to_id || null),
+        ship_to_address_id: isTransfer ? null : (form.ship_to_id || null),
         bill_to_gst: billAddr?.gst_number || null,
         ship_to_gst: shipAddr?.gst_number || null,
-        total_amount: lineTotal,
+        total_amount: isTransfer ? 0 : lineTotal,
       };
 
 
@@ -187,18 +199,18 @@ export default function Procurement() {
       }
 
       const itemRows = validLines.map((l) => {
-        const rate = parseFloat(l.rate) || 0;
+        const rate = isTransfer ? 0 : (parseFloat(l.rate) || 0);
         const qty = parseFloat(l.qty) || 0;
         return { procurement_id: orderId, product_id: l.product_id, rate, qty, amount: rate * qty, uom: l.uom || null };
       });
       const { error: itemErr } = await supabase.from("procurement_items").insert(itemRows);
       if (itemErr) throw itemErr;
 
-      toast.success(editing ? "Procurement updated" : "Procurement created");
+      toast.success(editing ? "Saved" : (isTransfer ? "Internal transfer created" : "Procurement created"));
       setIsFormOpen(false);
       fetchAll();
     } catch (err: any) {
-      toast.error(err.message || "Failed to save procurement");
+      toast.error(err.message || "Failed to save");
     } finally {
       setIsSaving(false);
     }
@@ -259,20 +271,29 @@ export default function Procurement() {
         </CardContent></Card>
       ) : (
         <div className="space-y-2">
-          {filtered.map((o) => (
+          {filtered.map((o) => {
+            const isTransfer = o.source_type === "internal_transfer";
+            return (
             <Card key={o.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDetail(o)}>
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <h3 className="font-semibold text-sm truncate">{o.po_number || "(No PO #)"}</h3>
+                      <h3 className="font-semibold text-sm truncate">{o.po_number || (isTransfer ? "(No TRF #)" : "(No PO #)")}</h3>
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${isTransfer ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"}`}>{isTransfer ? "Internal Transfer" : "Vendor PO"}</Badge>
                       <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColor(o.status)}`}>{o.status}</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1"><CalendarDays className="h-3 w-3" />{o.order_date} · {vName(o.vendor_id)}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">Site: {sName(o.site_id)}</p>
+                    {isTransfer ? (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap"><CalendarDays className="h-3 w-3" />{o.order_date} · {sName(o.transfer_from_site_id)} <ArrowRight className="h-3 w-3" /> {sName(o.site_id)}</p>
+                    ) : (
+                      <>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1"><CalendarDays className="h-3 w-3" />{o.order_date} · {vName(o.vendor_id)}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">Site: {sName(o.site_id)}</p>
+                      </>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="font-semibold text-sm">{fmtAmt(o.total_amount || 0)}</div>
+                    {!isTransfer && <div className="font-semibold text-sm">{fmtAmt(o.total_amount || 0)}</div>}
                     <div className="text-[10px] text-muted-foreground">{o.procurement_items?.length || 0} items</div>
                     {canApprove && (
                       <Button variant="ghost" size="icon" className="h-7 w-7 mt-1 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(o.id); }}>
@@ -283,7 +304,8 @@ export default function Procurement() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -294,8 +316,33 @@ export default function Procurement() {
             <DialogTitle>{editing ? "Edit Procurement" : "New Procurement"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 p-4 overflow-y-auto flex-1 w-full">
+            {/* Source Type selector */}
+            <div>
+              <Label className="text-xs">Source Type</Label>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                {([
+                  { v: "vendor", label: "Vendor Purchase" },
+                  { v: "internal_transfer", label: "Internal Transfer" },
+                ] as const).map((opt) => {
+                  const active = form.source_type === opt.v;
+                  return (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, source_type: opt.v as SourceType }))}
+                      className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background text-foreground border-input hover:bg-muted"}`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="rounded-md bg-muted/40 border px-3 py-2 text-[11px] text-muted-foreground">
-              This is a <strong>Requisition</strong>. Once approved by an admin, PO Number, Bill/Ship To, delivery date, payment terms and rates become available on the PO detail screen.
+              {form.source_type === "internal_transfer"
+                ? <>This is an <strong>Internal Transfer</strong> requisition. Once approved by an admin, the destination site can confirm goods received.</>
+                : <>This is a <strong>Requisition</strong>. Once approved by an admin, PO Number, Bill/Ship To, delivery date, payment terms and rates become available on the PO detail screen.</>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -309,93 +356,114 @@ export default function Procurement() {
               </div>
             </div>
 
-            <div>
-              <Label className="text-xs">Site</Label>
-              <Select value={form.site_id} onValueChange={(v) => setForm((p) => ({ ...p, site_id: v }))}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Select site" /></SelectTrigger>
-                <SelectContent>{sites.map((s) => (<SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>))}</SelectContent>
-              </Select>
-            </div>
+            {form.source_type === "internal_transfer" ? (
+              <>
+                <div>
+                  <Label className="text-xs">Transfer From Site</Label>
+                  <Select value={form.transfer_from_site_id} onValueChange={(v) => setForm((p) => ({ ...p, transfer_from_site_id: v }))}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Source site giving material" /></SelectTrigger>
+                    <SelectContent>{sites.map((s) => (<SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Transfer To Site</Label>
+                  <Select value={form.site_id} onValueChange={(v) => setForm((p) => ({ ...p, site_id: v }))}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Destination site receiving material" /></SelectTrigger>
+                    <SelectContent>{sites.map((s) => (<SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label className="text-xs">Site</Label>
+                  <Select value={form.site_id} onValueChange={(v) => setForm((p) => ({ ...p, site_id: v }))}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select site" /></SelectTrigger>
+                    <SelectContent>{sites.map((s) => (<SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-xs">Vendor(s)</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" className="h-9 w-full justify-between font-normal">
+                        <span className="truncate text-left">
+                          {form.vendor_ids.length === 0
+                            ? <span className="text-muted-foreground">Select vendors</span>
+                            : form.vendor_ids.map((id) => vName(id)).join(", ")}
+                        </span>
+                        <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-2 max-h-64 overflow-y-auto" align="start">
+                      {vendors.length === 0 ? (
+                        <p className="text-xs text-muted-foreground p-2">No vendors found.</p>
+                      ) : vendors.map((v) => {
+                        const checked = form.vendor_ids.includes(v.id);
+                        return (
+                          <label key={v.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted cursor-pointer text-sm">
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(c) =>
+                                setForm((p) => ({
+                                  ...p,
+                                  vendor_ids: c ? [...p.vendor_ids, v.id] : p.vendor_ids.filter((id) => id !== v.id),
+                                }))
+                              }
+                            />
+                            <span>{v.name}</span>
+                          </label>
+                        );
+                      })}
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div>
+                  <Label className="text-xs">Estimated Budget (₹)</Label>
+                  <Input type="number" inputMode="decimal" value={form.estimated_budget} onChange={(e) => setForm((p) => ({ ...p, estimated_budget: e.target.value }))} placeholder="0" className="h-9" />
+                </div>
+
+                <div>
+                  <Label className="text-xs">Bill To</Label>
+                  <Select value={form.bill_to_id} onValueChange={(v) => setForm((p) => ({ ...p, bill_to_id: v }))}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select billing address" /></SelectTrigger>
+                    <SelectContent>{addressOptions.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}</SelectContent>
+                  </Select>
+                  {(() => {
+                    const a = form.bill_to_id ? findAddr(form.bill_to_id) : null;
+                    return a ? (
+                      <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
+                        {formatAddressSnapshot(a)}
+                        {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+
+                <div>
+                  <Label className="text-xs">Ship To</Label>
+                  <Select value={form.ship_to_id} onValueChange={(v) => setForm((p) => ({ ...p, ship_to_id: v }))}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select delivery address" /></SelectTrigger>
+                    <SelectContent>{addressOptions.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}</SelectContent>
+                  </Select>
+                  {(() => {
+                    const a = form.ship_to_id ? findAddr(form.ship_to_id) : null;
+                    return a ? (
+                      <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
+                        {formatAddressSnapshot(a)}
+                        {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              </>
+            )}
 
             <div>
-              <Label className="text-xs">Vendor(s)</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" className="h-9 w-full justify-between font-normal">
-                    <span className="truncate text-left">
-                      {form.vendor_ids.length === 0
-                        ? <span className="text-muted-foreground">Select vendors</span>
-                        : form.vendor_ids.map((id) => vName(id)).join(", ")}
-                    </span>
-                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-2 max-h-64 overflow-y-auto" align="start">
-                  {vendors.length === 0 ? (
-                    <p className="text-xs text-muted-foreground p-2">No vendors found.</p>
-                  ) : vendors.map((v) => {
-                    const checked = form.vendor_ids.includes(v.id);
-                    return (
-                      <label key={v.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted cursor-pointer text-sm">
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={(c) =>
-                            setForm((p) => ({
-                              ...p,
-                              vendor_ids: c ? [...p.vendor_ids, v.id] : p.vendor_ids.filter((id) => id !== v.id),
-                            }))
-                          }
-                        />
-                        <span>{v.name}</span>
-                      </label>
-                    );
-                  })}
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div>
-              <Label className="text-xs">Estimated Budget (₹)</Label>
-              <Input type="number" inputMode="decimal" value={form.estimated_budget} onChange={(e) => setForm((p) => ({ ...p, estimated_budget: e.target.value }))} placeholder="0" className="h-9" />
-            </div>
-
-            <div>
-              <Label className="text-xs">Bill To</Label>
-              <Select value={form.bill_to_id} onValueChange={(v) => setForm((p) => ({ ...p, bill_to_id: v }))}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Select billing address" /></SelectTrigger>
-                <SelectContent>{addressOptions.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}</SelectContent>
-              </Select>
-              {(() => {
-                const a = form.bill_to_id ? findAddr(form.bill_to_id) : null;
-                return a ? (
-                  <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
-                    {formatAddressSnapshot(a)}
-                    {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
-                  </div>
-                ) : null;
-              })()}
-            </div>
-
-            <div>
-              <Label className="text-xs">Ship To</Label>
-              <Select value={form.ship_to_id} onValueChange={(v) => setForm((p) => ({ ...p, ship_to_id: v }))}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Select delivery address" /></SelectTrigger>
-                <SelectContent>{addressOptions.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}</SelectContent>
-              </Select>
-              {(() => {
-                const a = form.ship_to_id ? findAddr(form.ship_to_id) : null;
-                return a ? (
-                  <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
-                    {formatAddressSnapshot(a)}
-                    {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
-                  </div>
-                ) : null;
-              })()}
-            </div>
-
-            <div>
-              <Label className="text-xs">Notes / Reason for Requisition</Label>
-              <Textarea value={form.requisition_notes} onChange={(e) => setForm((p) => ({ ...p, requisition_notes: e.target.value }))} placeholder="Why is this material needed?" className="min-h-[70px]" />
+              <Label className="text-xs">{form.source_type === "internal_transfer" ? "Notes / Reason for Transfer" : "Notes / Reason for Requisition"}</Label>
+              <Textarea value={form.requisition_notes} onChange={(e) => setForm((p) => ({ ...p, requisition_notes: e.target.value }))} placeholder={form.source_type === "internal_transfer" ? "Why is this material being transferred?" : "Why is this material needed?"} className="min-h-[70px]" />
             </div>
 
 
@@ -407,7 +475,7 @@ export default function Procurement() {
                 <Label className="text-sm font-semibold">Product Line Items</Label>
                 <Button type="button" variant="ghost" size="sm" className="h-7 text-xs gap-1 text-primary" onClick={addLine}><Plus className="h-3 w-3" />Add Item</Button>
               </div>
-              <p className="text-[11px] text-muted-foreground mb-2">Enter material, unit and quantity. Rates are added after the requisition is approved.</p>
+              <p className="text-[11px] text-muted-foreground mb-2">{form.source_type === "internal_transfer" ? "Enter material, unit and quantity to transfer. No rates — internal transfers involve no money." : "Enter material, unit and quantity. Rates are added after the requisition is approved."}</p>
               <div className="space-y-3">
                 {lines.map((l, i) => (
                   <div key={i} className="rounded-lg border p-2.5 space-y-2 bg-muted/30">

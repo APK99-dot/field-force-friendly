@@ -34,7 +34,7 @@ export const GRN_STATUSES = [
 ] as const;
 export type GrnStatus = (typeof GRN_STATUSES)[number];
 
-// The ordered lifecycle
+// The ordered lifecycle (vendor purchase)
 export const STATUS_FLOW: ProcStatus[] = [
   "Requisition",
   "Requisition Approved",
@@ -47,6 +47,20 @@ export const STATUS_FLOW: ProcStatus[] = [
   "Closed",
 ];
 
+// Shorter lifecycle for internal site-to-site transfers (no quotes, PO or invoice/payment)
+export const TRANSFER_STATUS_FLOW: ProcStatus[] = [
+  "Requisition",
+  "Requisition Approved",
+  "Goods Received",
+  "Closed",
+];
+
+export type SourceType = "vendor" | "internal_transfer";
+
+export function statusFlowFor(sourceType?: string | null): ProcStatus[] {
+  return sourceType === "internal_transfer" ? TRANSFER_STATUS_FLOW : STATUS_FLOW;
+}
+
 export interface Transition {
   to: ProcStatus;
   label: string;
@@ -56,7 +70,19 @@ export interface Transition {
 }
 
 // Allowed button-driven transitions from a given status
-export function allowedTransitions(status: string): Transition[] {
+export function allowedTransitions(status: string, sourceType?: string | null): Transition[] {
+  if (sourceType === "internal_transfer") {
+    switch (status) {
+      case "Requisition":
+        return [{ to: "Requisition Approved", label: "Approve Transfer", approver: true }];
+      case "Requisition Approved":
+        return [{ to: "Goods Received", label: "Mark Goods Received", approver: true }];
+      case "Goods Received":
+        return [{ to: "Closed", label: "Close Transfer", approver: true }];
+      default:
+        return [];
+    }
+  }
   switch (status) {
     case "Requisition":
       return [{ to: "Requisition Approved", label: "Approve Requisition", approver: true }];
