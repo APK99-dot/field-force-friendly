@@ -167,9 +167,9 @@ export default function ProcurementDetail({
   const transitions = allowedTransitions(order.status).filter((t) => !t.approver || canApprove);
   const editable = order.status === "Requisition";
   // After approval, admins can fill the remaining PO details (until goods are received)
-  const poUnlocked = canApprove && ["Requisition Approved", "Quote Awaited", "Quote Received", "PO Issued", "PO Finalised"].includes(order.status);
+  const poUnlocked = canApprove && ["Requisition Approved", "Quote Awaited", "Quote Received", "PO Issued"].includes(order.status);
   const canReceive =
-    canApprove && ["PO Issued", "PO Finalised", "Goods Received"].includes(order.status);
+    canApprove && ["PO Issued", "Goods Received"].includes(order.status);
   const canInvoice =
     canApprove && ["Goods Received", "Invoice Received"].includes(order.status);
 
