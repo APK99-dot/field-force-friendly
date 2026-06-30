@@ -67,8 +67,6 @@ export function allowedTransitions(status: string): Transition[] {
     case "Quote Received":
       return [{ to: "PO Issued", label: "Issue PO", approver: true }];
     case "PO Issued":
-      return [{ to: "PO Finalised", label: "Finalise PO", approver: true }];
-    case "PO Finalised":
       return [{ to: "Goods Received", label: "Mark Goods Received", approver: true }];
     case "Goods Received":
       return [{ to: "Invoice Received", label: "Mark Invoice Received", approver: true }];
