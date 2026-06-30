@@ -150,6 +150,8 @@ export default function Procurement() {
     if (validLines.length === 0) { toast.error("Add at least one product line item"); return; }
     setIsSaving(true);
     try {
+      const billAddr = form.bill_to_id ? findAddr(form.bill_to_id) : null;
+      const shipAddr = form.ship_to_id ? findAddr(form.ship_to_id) : null;
       const orderPayload = {
         order_date: form.order_date,
         vendor_id: form.vendor_ids[0] || null,
@@ -158,8 +160,15 @@ export default function Procurement() {
         status: form.status,
         estimated_budget: form.estimated_budget ? parseFloat(form.estimated_budget) : null,
         requisition_notes: form.requisition_notes.trim() || null,
+        bill_to: billAddr ? formatAddressSnapshot(billAddr) : null,
+        ship_to: shipAddr ? formatAddressSnapshot(shipAddr) : null,
+        bill_to_address_id: form.bill_to_id || null,
+        ship_to_address_id: form.ship_to_id || null,
+        bill_to_gst: billAddr?.gst_number || null,
+        ship_to_gst: shipAddr?.gst_number || null,
         total_amount: lineTotal,
       };
+
 
       let orderId = editing?.id;
       if (editing) {
