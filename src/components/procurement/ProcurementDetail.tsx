@@ -285,19 +285,42 @@ export default function ProcurementDetail({
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">Line Items</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {items.map((it) => (
-                <div key={it.id} className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5">
-                  <div className="flex-1 min-w-0">
-                    <div className="truncate font-medium">{productName(it.product_id)}</div>
-                    <div className="text-[11px] text-muted-foreground">{it.qty} {it.uom || ""} × {fmtAmt(it.rate)}</div>
+              {rateLines.map((l, i) => {
+                const amt = (parseFloat(l.rate) || 0) * (l.qty || 0);
+                return (
+                  <div key={l.id} className="rounded-lg border p-2.5 bg-muted/30">
+                    <div className="text-sm font-medium mb-1">{productName(l.product_id)}</div>
+                    <div className="grid grid-cols-3 gap-2 items-end">
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Qty</Label>
+                        <div className="h-8 flex items-center text-sm">{l.qty} {l.uom || ""}</div>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Rate</Label>
+                        <Input
+                          type="number" inputMode="decimal" value={l.rate} placeholder="0" className="h-8"
+                          disabled={!poUnlocked}
+                          onChange={(e) => setRateLines((prev) => prev.map((x, idx) => idx === i ? { ...x, rate: e.target.value } : x))}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Amount</Label>
+                        <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="font-medium">{fmtAmt(it.rate * it.qty)}</div>
-                </div>
-              ))}
+                );
+              })}
               <div className="flex items-center justify-between pt-2 font-semibold">
-                <span>Grand Total</span><span className="text-primary">{fmtAmt(order.total_amount)}</span>
+                <span>Grand Total</span><span className="text-primary">{fmtAmt(poUnlocked ? poEditTotal : order.total_amount)}</span>
               </div>
+              {poUnlocked && (
+                <Button className="w-full mt-2" onClick={savePoDetails} disabled={poSaving}>
+                  <Save className="h-4 w-4 mr-2" />{poSaving ? "Saving..." : "Save PO Details & Rates"}
+                </Button>
+              )}
             </CardContent>
+
           </Card>
 
           {/* GRN list */}
