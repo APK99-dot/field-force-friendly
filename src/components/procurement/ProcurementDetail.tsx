@@ -229,13 +229,29 @@ export default function ProcurementDetail({
               {order.bill_to && <div className="text-muted-foreground">Bill To: <span className="whitespace-pre-wrap">{order.bill_to}</span>{order.bill_to_gst && <span className="block">GST: {order.bill_to_gst}</span>}</div>}
               {order.ship_to && <div className="text-muted-foreground">Ship To: <span className="whitespace-pre-wrap">{order.ship_to}</span>{order.ship_to_gst && <span className="block">GST: {order.ship_to_gst}</span>}</div>}
               {order.requisition_notes && <div className="text-muted-foreground">Reason: <span className="whitespace-pre-wrap">{order.requisition_notes}</span></div>}
-              {poUnlocked && (
-                <div className="pt-1">
-                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={openPoEdit}>
-                    <Pencil className="h-3.5 w-3.5" />Edit PO Details &amp; Rates
-                  </Button>
+
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t mt-2">
+                <div>
+                  <Label className="text-xs">Expected Delivery Date</Label>
+                  <Input
+                    type="date" className="h-9"
+                    value={poForm.expected_delivery_date}
+                    disabled={!poUnlocked}
+                    onChange={(e) => setPoForm((p) => ({ ...p, expected_delivery_date: e.target.value }))}
+                  />
                 </div>
+                <div>
+                  <Label className="text-xs">Payment Terms</Label>
+                  <Select value={poForm.payment_terms} onValueChange={(v) => setPoForm((p) => ({ ...p, payment_terms: v }))} disabled={!poUnlocked}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select terms" /></SelectTrigger>
+                    <SelectContent>{PAYMENT_TERMS.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {!poUnlocked && (
+                <p className="text-[11px] text-muted-foreground">Delivery date, payment terms and rates can be set once the requisition is approved.</p>
               )}
+
             </CardContent>
           </Card>
 
