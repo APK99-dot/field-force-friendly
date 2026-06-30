@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Truck, Check } from "lucide-react";
 import { statusColor, fmtAmt } from "@/lib/procurement";
 
-// Statuses that represent an "open" PO still awaiting goods receipt
-const OPEN_STATUSES = ["PO Issued", "Goods Received"];
+// Statuses that represent an "open" record still awaiting goods receipt
+const VENDOR_OPEN = ["PO Issued", "Goods Received"];
+const TRANSFER_OPEN = ["Requisition Approved", "Goods Received"];
 
 interface OpenPO {
   id: string;
@@ -17,6 +18,9 @@ interface OpenPO {
   total_amount: number;
   vendor_id: string | null;
   vendor_name: string;
+  source_type: string | null;
+  transfer_from_site_id: string | null;
+  transfer_from_name: string;
 }
 
 interface Props {
