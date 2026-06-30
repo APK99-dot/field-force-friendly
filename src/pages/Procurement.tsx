@@ -22,6 +22,7 @@ import {
   statusColor, fmtAmt, type ProcStatus,
 } from "@/lib/procurement";
 import ProcurementDetail, { type DetailOrder } from "@/components/procurement/ProcurementDetail";
+import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
@@ -35,6 +36,8 @@ const emptyForm = {
   status: "Requisition" as ProcStatus,
   estimated_budget: "",
   requisition_notes: "",
+  bill_to_id: "",
+  ship_to_id: "",
 };
 
 export default function Procurement() {
@@ -57,8 +60,13 @@ export default function Procurement() {
   const [isSaving, setIsSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailOrder | null>(null);
+  const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
 
   const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => { fetchAddressOptions().then(setAddressOptions).catch(() => {}); }, []);
+  const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
+
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -117,6 +125,8 @@ export default function Procurement() {
       status: (USER_FORM_STATUSES.includes(o.status as ProcStatus) ? o.status : "Requisition") as ProcStatus,
       estimated_budget: o.estimated_budget != null ? String(o.estimated_budget) : "",
       requisition_notes: o.requisition_notes || "",
+      bill_to_id: o.bill_to_address_id || "",
+      ship_to_id: o.ship_to_address_id || "",
     });
     const items = (o.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id || "", rate: String(it.rate ?? ""), qty: String(it.qty ?? ""), uom: it.uom || "",
@@ -140,6 +150,8 @@ export default function Procurement() {
     if (validLines.length === 0) { toast.error("Add at least one product line item"); return; }
     setIsSaving(true);
     try {
+      const billAddr = form.bill_to_id ? findAddr(form.bill_to_id) : null;
+      const shipAddr = form.ship_to_id ? findAddr(form.ship_to_id) : null;
       const orderPayload = {
         order_date: form.order_date,
         vendor_id: form.vendor_ids[0] || null,
@@ -148,8 +160,15 @@ export default function Procurement() {
         status: form.status,
         estimated_budget: form.estimated_budget ? parseFloat(form.estimated_budget) : null,
         requisition_notes: form.requisition_notes.trim() || null,
+        bill_to: billAddr ? formatAddressSnapshot(billAddr) : null,
+        ship_to: shipAddr ? formatAddressSnapshot(shipAddr) : null,
+        bill_to_address_id: form.bill_to_id || null,
+        ship_to_address_id: form.ship_to_id || null,
+        bill_to_gst: billAddr?.gst_number || null,
+        ship_to_gst: shipAddr?.gst_number || null,
         total_amount: lineTotal,
       };
+
 
       let orderId = editing?.id;
       if (editing) {
@@ -341,9 +360,44 @@ export default function Procurement() {
             </div>
 
             <div>
+              <Label className="text-xs">Bill To</Label>
+              <Select value={form.bill_to_id} onValueChange={(v) => setForm((p) => ({ ...p, bill_to_id: v }))}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select billing address" /></SelectTrigger>
+                <SelectContent>{addressOptions.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}</SelectContent>
+              </Select>
+              {(() => {
+                const a = form.bill_to_id ? findAddr(form.bill_to_id) : null;
+                return a ? (
+                  <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
+                    {formatAddressSnapshot(a)}
+                    {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
+                  </div>
+                ) : null;
+              })()}
+            </div>
+
+            <div>
+              <Label className="text-xs">Ship To</Label>
+              <Select value={form.ship_to_id} onValueChange={(v) => setForm((p) => ({ ...p, ship_to_id: v }))}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Select delivery address" /></SelectTrigger>
+                <SelectContent>{addressOptions.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}</SelectContent>
+              </Select>
+              {(() => {
+                const a = form.ship_to_id ? findAddr(form.ship_to_id) : null;
+                return a ? (
+                  <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
+                    {formatAddressSnapshot(a)}
+                    {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
+                  </div>
+                ) : null;
+              })()}
+            </div>
+
+            <div>
               <Label className="text-xs">Notes / Reason for Requisition</Label>
               <Textarea value={form.requisition_notes} onChange={(e) => setForm((p) => ({ ...p, requisition_notes: e.target.value }))} placeholder="Why is this material needed?" className="min-h-[70px]" />
             </div>
+
 
 
 

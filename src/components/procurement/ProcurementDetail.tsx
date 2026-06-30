@@ -71,9 +71,8 @@ export default function ProcurementDetail({
   const [invOpen, setInvOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Post-approval PO details editing
-  const [poEditOpen, setPoEditOpen] = useState(false);
-  const [poForm, setPoForm] = useState({ bill_to_id: "", ship_to_id: "", expected_delivery_date: "", payment_terms: "" });
+  // Inline PO details editing (delivery date, payment terms, rates)
+  const [poForm, setPoForm] = useState({ expected_delivery_date: "", payment_terms: "" });
   const [rateLines, setRateLines] = useState<{ id: string; product_id: string | null; uom: string | null; qty: number; rate: string }[]>([]);
   const [poSaving, setPoSaving] = useState(false);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
@@ -82,20 +81,18 @@ export default function ProcurementDetail({
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
   }, []);
 
-  const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
-
-  const openPoEdit = () => {
+  // Sync inline editable fields whenever the order changes
+  useEffect(() => {
     setPoForm({
-      bill_to_id: order.bill_to_address_id || "",
-      ship_to_id: order.ship_to_address_id || "",
       expected_delivery_date: order.expected_delivery_date || "",
       payment_terms: order.payment_terms || "",
     });
     setRateLines((order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, uom: it.uom, qty: it.qty, rate: String(it.rate ?? ""),
     })));
-    setPoEditOpen(true);
-  };
+  }, [order]);
+
+  const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
 
   const poEditTotal = useMemo(
     () => rateLines.reduce((s, l) => s + (parseFloat(l.rate) || 0) * (l.qty || 0), 0),
@@ -105,15 +102,7 @@ export default function ProcurementDetail({
   const savePoDetails = async () => {
     setPoSaving(true);
     try {
-      const billAddr = poForm.bill_to_id ? findAddr(poForm.bill_to_id) : null;
-      const shipAddr = poForm.ship_to_id ? findAddr(poForm.ship_to_id) : null;
       const { error: oErr } = await supabase.from("procurement_orders").update({
-        bill_to: billAddr ? formatAddressSnapshot(billAddr) : null,
-        ship_to: shipAddr ? formatAddressSnapshot(shipAddr) : null,
-        bill_to_address_id: poForm.bill_to_id || null,
-        ship_to_address_id: poForm.ship_to_id || null,
-        bill_to_gst: billAddr?.gst_number || null,
-        ship_to_gst: shipAddr?.gst_number || null,
         expected_delivery_date: poForm.expected_delivery_date || null,
         payment_terms: poForm.payment_terms || null,
         total_amount: poEditTotal,
@@ -126,7 +115,6 @@ export default function ProcurementDetail({
         if (iErr) throw iErr;
       }
       toast.success("PO details updated");
-      setPoEditOpen(false);
       onChanged();
     } catch (err: any) {
       toast.error(err.message || "Failed to update PO details");
@@ -134,6 +122,7 @@ export default function ProcurementDetail({
       setPoSaving(false);
     }
   };
+
 
 
 
@@ -240,13 +229,29 @@ export default function ProcurementDetail({
               {order.bill_to && <div className="text-muted-foreground">Bill To: <span className="whitespace-pre-wrap">{order.bill_to}</span>{order.bill_to_gst && <span className="block">GST: {order.bill_to_gst}</span>}</div>}
               {order.ship_to && <div className="text-muted-foreground">Ship To: <span className="whitespace-pre-wrap">{order.ship_to}</span>{order.ship_to_gst && <span className="block">GST: {order.ship_to_gst}</span>}</div>}
               {order.requisition_notes && <div className="text-muted-foreground">Reason: <span className="whitespace-pre-wrap">{order.requisition_notes}</span></div>}
-              {poUnlocked && (
-                <div className="pt-1">
-                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={openPoEdit}>
-                    <Pencil className="h-3.5 w-3.5" />Edit PO Details &amp; Rates
-                  </Button>
+
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t mt-2">
+                <div>
+                  <Label className="text-xs">Expected Delivery Date</Label>
+                  <Input
+                    type="date" className="h-9"
+                    value={poForm.expected_delivery_date}
+                    disabled={!poUnlocked}
+                    onChange={(e) => setPoForm((p) => ({ ...p, expected_delivery_date: e.target.value }))}
+                  />
                 </div>
+                <div>
+                  <Label className="text-xs">Payment Terms</Label>
+                  <Select value={poForm.payment_terms} onValueChange={(v) => setPoForm((p) => ({ ...p, payment_terms: v }))} disabled={!poUnlocked}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select terms" /></SelectTrigger>
+                    <SelectContent>{PAYMENT_TERMS.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {!poUnlocked && (
+                <p className="text-[11px] text-muted-foreground">Delivery date, payment terms and rates can be set once the requisition is approved.</p>
               )}
+
             </CardContent>
           </Card>
 
@@ -280,19 +285,42 @@ export default function ProcurementDetail({
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">Line Items</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {items.map((it) => (
-                <div key={it.id} className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5">
-                  <div className="flex-1 min-w-0">
-                    <div className="truncate font-medium">{productName(it.product_id)}</div>
-                    <div className="text-[11px] text-muted-foreground">{it.qty} {it.uom || ""} × {fmtAmt(it.rate)}</div>
+              {rateLines.map((l, i) => {
+                const amt = (parseFloat(l.rate) || 0) * (l.qty || 0);
+                return (
+                  <div key={l.id} className="rounded-lg border p-2.5 bg-muted/30">
+                    <div className="text-sm font-medium mb-1">{productName(l.product_id)}</div>
+                    <div className="grid grid-cols-3 gap-2 items-end">
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Qty</Label>
+                        <div className="h-8 flex items-center text-sm">{l.qty} {l.uom || ""}</div>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Rate</Label>
+                        <Input
+                          type="number" inputMode="decimal" value={l.rate} placeholder="0" className="h-8"
+                          disabled={!poUnlocked}
+                          onChange={(e) => setRateLines((prev) => prev.map((x, idx) => idx === i ? { ...x, rate: e.target.value } : x))}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Amount</Label>
+                        <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="font-medium">{fmtAmt(it.rate * it.qty)}</div>
-                </div>
-              ))}
+                );
+              })}
               <div className="flex items-center justify-between pt-2 font-semibold">
-                <span>Grand Total</span><span className="text-primary">{fmtAmt(order.total_amount)}</span>
+                <span>Grand Total</span><span className="text-primary">{fmtAmt(poUnlocked ? poEditTotal : order.total_amount)}</span>
               </div>
+              {poUnlocked && (
+                <Button className="w-full mt-2" onClick={savePoDetails} disabled={poSaving}>
+                  <Save className="h-4 w-4 mr-2" />{poSaving ? "Saving..." : "Save PO Details & Rates"}
+                </Button>
+              )}
             </CardContent>
+
           </Card>
 
           {/* GRN list */}
@@ -385,111 +413,6 @@ export default function ProcurementDetail({
             onSaved={() => { fetchSub(); onChanged(); }}
           />
         )}
-
-        {/* Post-approval PO details + rates */}
-        <Dialog open={poEditOpen} onOpenChange={setPoEditOpen}>
-          <DialogContent className="max-w-lg w-[95vw] max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Edit PO Details</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              {order.po_number && (
-                <div className="text-xs text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>
-              )}
-              <div>
-                <Label className="text-xs">Bill To</Label>
-                <Select value={poForm.bill_to_id} onValueChange={(v) => setPoForm((p) => ({ ...p, bill_to_id: v }))}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Select billing address" /></SelectTrigger>
-                  <SelectContent>
-                    {addressOptions.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>{a.name}{a.source === "site" ? " (Site)" : ""}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {(() => {
-                  const a = poForm.bill_to_id ? findAddr(poForm.bill_to_id) : null;
-                  return a ? (
-                    <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
-                      {formatAddressSnapshot(a)}
-                      {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
-                    </div>
-                  ) : null;
-                })()}
-              </div>
-              <div>
-                <Label className="text-xs">Ship To</Label>
-                <Select value={poForm.ship_to_id} onValueChange={(v) => setPoForm((p) => ({ ...p, ship_to_id: v }))}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Select delivery address" /></SelectTrigger>
-                  <SelectContent>
-                    {addressOptions.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>{a.name}{a.source === "site" ? " (Site)" : ""}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {(() => {
-                  const a = poForm.ship_to_id ? findAddr(poForm.ship_to_id) : null;
-                  return a ? (
-                    <div className="mt-1.5 rounded-md border bg-muted/40 p-2 text-xs whitespace-pre-wrap text-muted-foreground">
-                      {formatAddressSnapshot(a)}
-                      {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
-                    </div>
-                  ) : null;
-                })()}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">Expected Delivery Date</Label>
-                  <Input type="date" value={poForm.expected_delivery_date} onChange={(e) => setPoForm((p) => ({ ...p, expected_delivery_date: e.target.value }))} className="h-9" />
-                </div>
-                <div>
-                  <Label className="text-xs">Payment Terms</Label>
-                  <Select value={poForm.payment_terms} onValueChange={(v) => setPoForm((p) => ({ ...p, payment_terms: v }))}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Select terms" /></SelectTrigger>
-                    <SelectContent>{PAYMENT_TERMS.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}</SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="border-t pt-3">
-                <Label className="text-sm font-semibold">Rates</Label>
-                <div className="space-y-2 mt-2">
-                  {rateLines.map((l, i) => {
-                    const amt = (parseFloat(l.rate) || 0) * (l.qty || 0);
-                    return (
-                      <div key={l.id} className="rounded-lg border p-2.5 bg-muted/30">
-                        <div className="text-sm font-medium mb-1">{productName(l.product_id)}</div>
-                        <div className="grid grid-cols-3 gap-2 items-end">
-                          <div>
-                            <Label className="text-[10px] text-muted-foreground">Qty</Label>
-                            <div className="h-8 flex items-center text-sm">{l.qty} {l.uom || ""}</div>
-                          </div>
-                          <div>
-                            <Label className="text-[10px] text-muted-foreground">Rate</Label>
-                            <Input
-                              type="number" inputMode="decimal" value={l.rate} placeholder="0" className="h-8"
-                              onChange={(e) => setRateLines((prev) => prev.map((x, idx) => idx === i ? { ...x, rate: e.target.value } : x))}
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-[10px] text-muted-foreground">Amount</Label>
-                            <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center justify-between mt-3 pt-2 border-t">
-                  <span className="text-sm font-semibold">Grand Total</span>
-                  <span className="text-base font-bold text-primary">{fmtAmt(poEditTotal)}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-1">
-                <Button variant="outline" className="flex-1" onClick={() => setPoEditOpen(false)}>Cancel</Button>
-                <Button className="flex-1" onClick={savePoDetails} disabled={poSaving}><Save className="h-4 w-4 mr-2" />{poSaving ? "Saving..." : "Save"}</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </DialogContent>
     </Dialog>
   );
