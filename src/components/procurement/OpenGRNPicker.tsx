@@ -44,16 +44,28 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
     (async () => {
       const { data } = await supabase
         .from("procurement_orders")
-        .select("id, po_number, status, order_date, total_amount, vendor_id")
+        .select("id, po_number, status, order_date, total_amount, vendor_id, source_type, transfer_from_site_id")
         .eq("site_id", siteId)
-        .in("status", OPEN_STATUSES)
+        .in("status", [...new Set([...VENDOR_OPEN, ...TRANSFER_OPEN])])
         .order("order_date", { ascending: false });
-      const rows = (data || []) as any[];
+      let rows = (data || []) as any[];
+      // Keep vendor POs at vendor-open statuses, and transfers at transfer-open statuses
+      rows = rows.filter((r) =>
+        r.source_type === "internal_transfer"
+          ? TRANSFER_OPEN.includes(r.status)
+          : VENDOR_OPEN.includes(r.status)
+      );
       const vendorIds = [...new Set(rows.filter((r) => r.vendor_id).map((r) => r.vendor_id))];
       let vmap: Record<string, string> = {};
       if (vendorIds.length) {
         const { data: vendors } = await supabase.from("vendors").select("id, name").in("id", vendorIds);
         (vendors || []).forEach((v: any) => { vmap[v.id] = v.name; });
+      }
+      const fromIds = [...new Set(rows.filter((r) => r.transfer_from_site_id).map((r) => r.transfer_from_site_id))];
+      let smap: Record<string, string> = {};
+      if (fromIds.length) {
+        const { data: sitesData } = await supabase.from("project_sites").select("id, site_name").in("id", fromIds);
+        (sitesData || []).forEach((s: any) => { smap[s.id] = s.site_name; });
       }
       if (cancelled) return;
       setPos(rows.map((r) => ({
@@ -64,6 +76,9 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
         total_amount: Number(r.total_amount || 0),
         vendor_id: r.vendor_id,
         vendor_name: r.vendor_id ? vmap[r.vendor_id] || "" : "",
+        source_type: r.source_type,
+        transfer_from_site_id: r.transfer_from_site_id,
+        transfer_from_name: r.transfer_from_site_id ? smap[r.transfer_from_site_id] || "" : "",
       })));
       setLoading(false);
     })();
