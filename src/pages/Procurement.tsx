@@ -60,8 +60,13 @@ export default function Procurement() {
   const [isSaving, setIsSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailOrder | null>(null);
+  const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
 
   const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => { fetchAddressOptions().then(setAddressOptions).catch(() => {}); }, []);
+  const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
+
 
   useEffect(() => { fetchAll(); }, []);
 
