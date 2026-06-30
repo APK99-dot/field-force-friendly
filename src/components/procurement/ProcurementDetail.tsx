@@ -71,9 +71,8 @@ export default function ProcurementDetail({
   const [invOpen, setInvOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Post-approval PO details editing
-  const [poEditOpen, setPoEditOpen] = useState(false);
-  const [poForm, setPoForm] = useState({ bill_to_id: "", ship_to_id: "", expected_delivery_date: "", payment_terms: "" });
+  // Inline PO details editing (delivery date, payment terms, rates)
+  const [poForm, setPoForm] = useState({ expected_delivery_date: "", payment_terms: "" });
   const [rateLines, setRateLines] = useState<{ id: string; product_id: string | null; uom: string | null; qty: number; rate: string }[]>([]);
   const [poSaving, setPoSaving] = useState(false);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
@@ -82,20 +81,18 @@ export default function ProcurementDetail({
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
   }, []);
 
-  const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
-
-  const openPoEdit = () => {
+  // Sync inline editable fields whenever the order changes
+  useEffect(() => {
     setPoForm({
-      bill_to_id: order.bill_to_address_id || "",
-      ship_to_id: order.ship_to_address_id || "",
       expected_delivery_date: order.expected_delivery_date || "",
       payment_terms: order.payment_terms || "",
     });
     setRateLines((order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, uom: it.uom, qty: it.qty, rate: String(it.rate ?? ""),
     })));
-    setPoEditOpen(true);
-  };
+  }, [order]);
+
+  const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
 
   const poEditTotal = useMemo(
     () => rateLines.reduce((s, l) => s + (parseFloat(l.rate) || 0) * (l.qty || 0), 0),
@@ -105,15 +102,7 @@ export default function ProcurementDetail({
   const savePoDetails = async () => {
     setPoSaving(true);
     try {
-      const billAddr = poForm.bill_to_id ? findAddr(poForm.bill_to_id) : null;
-      const shipAddr = poForm.ship_to_id ? findAddr(poForm.ship_to_id) : null;
       const { error: oErr } = await supabase.from("procurement_orders").update({
-        bill_to: billAddr ? formatAddressSnapshot(billAddr) : null,
-        ship_to: shipAddr ? formatAddressSnapshot(shipAddr) : null,
-        bill_to_address_id: poForm.bill_to_id || null,
-        ship_to_address_id: poForm.ship_to_id || null,
-        bill_to_gst: billAddr?.gst_number || null,
-        ship_to_gst: shipAddr?.gst_number || null,
         expected_delivery_date: poForm.expected_delivery_date || null,
         payment_terms: poForm.payment_terms || null,
         total_amount: poEditTotal,
@@ -126,7 +115,6 @@ export default function ProcurementDetail({
         if (iErr) throw iErr;
       }
       toast.success("PO details updated");
-      setPoEditOpen(false);
       onChanged();
     } catch (err: any) {
       toast.error(err.message || "Failed to update PO details");
@@ -134,6 +122,7 @@ export default function ProcurementDetail({
       setPoSaving(false);
     }
   };
+
 
 
 
