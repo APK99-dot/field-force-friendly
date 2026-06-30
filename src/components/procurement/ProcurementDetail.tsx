@@ -413,6 +413,7 @@ export default function ProcurementDetail({
             onSaved={() => { fetchSub(); onChanged(); }}
           />
         )}
+      </DialogContent>
     </Dialog>
   );
 }
