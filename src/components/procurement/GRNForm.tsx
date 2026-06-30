@@ -31,6 +31,8 @@ interface Props {
   poId: string;
   poNumber: string;
   vendorId?: string | null;
+  sourceType?: string | null;
+  transferFromSiteName?: string;
   items: POItem[];
   /** already-received qty keyed by procurement_item_id */
   alreadyReceived: Record<string, number>;
@@ -40,8 +42,9 @@ interface Props {
 }
 
 export default function GRNForm({
-  open, onOpenChange, poId, poNumber, vendorId, items, alreadyReceived, productName, createdBy, onSaved,
+  open, onOpenChange, poId, poNumber, vendorId, sourceType, transferFromSiteName, items, alreadyReceived, productName, createdBy, onSaved,
 }: Props) {
+  const isTransfer = sourceType === "internal_transfer";
   const queryClient = useQueryClient();
   const { profile } = useUserProfile();
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
@@ -234,14 +237,22 @@ export default function GRNForm({
         <div className="overflow-y-auto flex-1">
           <div className="space-y-5 p-4 pb-8 max-w-[800px] w-full mx-auto">
             {/* Top card: Date / Received By */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-lg border bg-muted/40 p-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Date of Receipt</Label>
-                <Input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} className="h-9 bg-background" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Received By</Label>
-                <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="Name" className="h-9 bg-background" />
+            <div className="space-y-4 rounded-lg border bg-muted/40 p-4">
+              {isTransfer && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Transferred From Site</Label>
+                  <Input value={transferFromSiteName || "—"} readOnly disabled className="h-9 bg-background" />
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Date of Receipt</Label>
+                  <Input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} className="h-9 bg-background" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Received By</Label>
+                  <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="Name" className="h-9 bg-background" />
+                </div>
               </div>
             </div>
 
