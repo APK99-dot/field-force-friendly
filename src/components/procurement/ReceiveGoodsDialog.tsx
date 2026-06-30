@@ -77,7 +77,9 @@ export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUs
       onOpenChange={onOpenChange}
       poId={poId}
       poNumber={poNumber}
-      vendorId={vendorId}
+      vendorId={sourceType === "internal_transfer" ? null : vendorId}
+      sourceType={sourceType}
+      transferFromSiteName={sourceType === "internal_transfer" ? transferFromName : undefined}
       items={items}
       alreadyReceived={received}
       productName={productName}
