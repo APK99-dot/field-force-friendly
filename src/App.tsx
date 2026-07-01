@@ -42,6 +42,7 @@ const AddressBook = lazy(() => import("./pages/master/AddressBook"));
 const Procurement = lazy(() => import("./pages/Procurement"));
 const GRN = lazy(() => import("./pages/GRN"));
 const Analytics = lazy(() => import("./pages/Analytics"));
+const ConfigurationWorkflow = lazy(() => import("./pages/ConfigurationWorkflow"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
