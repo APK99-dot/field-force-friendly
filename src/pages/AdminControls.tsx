@@ -59,6 +59,14 @@ const allAdminModules = [
     path: "/admin/company",
     permission: "field_admin_company_profile",
   },
+  {
+    title: "Configuration & Approval Workflow",
+    description: "Control every module's settings, features, and approval workflows",
+    icon: SlidersHorizontal,
+    color: "bg-emerald-100 text-emerald-600",
+    path: "/admin/configuration",
+    permission: undefined,
+  },
 ];
 
 const container = {
