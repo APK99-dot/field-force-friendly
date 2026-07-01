@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Search,
   ListChecks,
+  SlidersHorizontal,
   
 } from "lucide-react";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
@@ -57,6 +58,14 @@ const allAdminModules = [
     color: "bg-indigo-100 text-indigo-600",
     path: "/admin/company",
     permission: "field_admin_company_profile",
+  },
+  {
+    title: "Configuration & Approval Workflow",
+    description: "Control every module's settings, features, and approval workflows",
+    icon: SlidersHorizontal,
+    color: "bg-emerald-100 text-emerald-600",
+    path: "/admin/configuration",
+    permission: undefined,
   },
 ];
 
