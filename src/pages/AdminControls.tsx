@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Search,
   ListChecks,
+  SlidersHorizontal,
   
 } from "lucide-react";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
