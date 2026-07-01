@@ -1,66 +1,70 @@
-## Goal
+# Configuration & Approval Workflow Module
 
-Introduce **Internal Transfer** as a second procurement type next to the existing **Vendor Purchase** flow — site-to-site material movement with no money, a shorter lifecycle, its own number series (TRF-0001), and a transfer-aware Goods Receipt.
+A single Admin-only place to control every module's settings and approval flows. This phase delivers the **full configuration panel + database storage + Admin gating + auto-save**. Live enforcement across each feature module is wired in a follow-up phase (as agreed).
 
-## 1. Database changes (migration)
+## Location & Access
+- New card in **Admin Controls**: "Configuration & Approval Workflow" → route `/admin/configuration`.
+- Visible only to Admin role (gated like other admin modules, plus a hard Admin check inside the page).
 
-Add to `procurement_orders`:
-- `source_type` text, default `'vendor'` (values: `vendor`, `internal_transfer`)
-- `transfer_from_site_id` uuid (source site giving material; destination reuses existing `site_id`)
+## Layout
+```text
++-----------------------------------------------------------+
+| Configuration & Approval Workflow                         |
++----------------+------------------------------------------+
+| Activities     |  [ Configuration ] [ Approval Workflow ] |
+| Projects/Sites |                                          |
+| Procurement    |   ...panel for selected module...        |
+| Goods Receipt  |                                          |
+| Expenses       |                                          |
+| Leave          |                                          |
+| Attendance     |   (Regularisation shown as a section     |
+| Reports        |    inside the Attendance panel)          |
++----------------+------------------------------------------+
+```
+- Left sidebar lists the 8 modules; clicking loads its panel.
+- Each panel has two tabs: **Configuration** and **Approval Workflow**.
+- Regularisation config + its approval flow are nested inside the Attendance panel.
 
-Number series:
-- Create a new sequence `trf_number_seq`.
-- Update the `set_po_number()` trigger so that when `source_type = 'internal_transfer'`, it generates `TRF-####` into `po_number` (reuse the existing `po_number` column so list/detail/GRN linking stays unchanged); otherwise keep `PO-####` as today. Number is assigned the first time the record leaves `Requisition`, same as now.
+## Global behaviour
+- Every toggle/field auto-saves on change with a `toast("Configuration saved")`.
+- Values are read via a shared hook so future enforcement can consume them app-wide.
+- All settings persist in one config table keyed by module + config_key.
 
-Migrate existing rows: set `source_type = 'vendor'` for all current orders (covered by the default).
+## Database
+New table `app_configuration`:
+- `module` (text), `config_key` (text), `config_value` (jsonb), `updated_by` (uuid), plus id/created_at/updated_at, unique on (module, config_key).
+- RLS: any authenticated user may **read** (so feature modules can honour settings later); only Admins may **insert/update/delete** (`has_role(auth.uid(),'admin')`).
+- GRANTs for authenticated + service_role.
+- Approval-workflow definitions stored as jsonb rows too (one config_key per transition), each holding `{ enabled, approverRoles[], rule: "any"|"all", notifyRoles[] }`.
 
-No new tables, so existing RLS/grants on `procurement_orders` continue to apply.
+## Config content per module (stored keys)
+- **Activities – Config:** checkIn, gpsTrack, voiceNote, photoUpload, requireMilestone, requireActivityType, allowBackdated (toggles); assignPermission (Admin/Admin+Manager/All). **Approval:** requireManagerApproval toggle.
+- **Projects/Sites – Config:** galleryTab, documentsTab (toggles); createSites, editSite, addMilestones (Admin/Admin+Manager); updateMilestoneProgress (Admin/Admin+Manager/All). **Approval:** message "No approval flow for this module".
+- **Procurement – Config:** internalTransfer, budgetField, billShipFields (toggles); requireNotes (toggle); createRequisition (All/Manager+Admin/Admin only); editRatesAfterApproval (Admin only/Admin+Manager). **Approval:** four transition editors — Requisition→Requisition Approved, Quote Received→PO Issued, Invoice Received→Paid, Any→Rejected.
+- **Goods Receipt – Config:** takePhoto, uploadGallery (toggles); maxPhotos (number, default 20); vendorRating toggle; rating metrics (editable list, defaults Delivery Timeliness / Material Quality / Quantity Accuracy / Overall Experience); rating scale fixed 5 stars (read-only note); badge thresholds (4 numbers: Preferred/Reliable/Needs Improvement/Poor). **Approval:** "Require admin approval before GRN is confirmed" toggle.
+- **Expenses – Config:** receiptUpload toggle; requireReceipt toggle; autoApproveMax (₹ number); categories (editable list); submitPermission (All/Manager+Admin). **Approval:** Submitted→Approved, Submitted→Rejected transitions.
+- **Leave – Config:** leave types (editable list with max-days per type); allowHalfDay toggle; requireDocSickLeave toggle; viewTeamCalendar (All/Manager+Admin/Admin only). **Approval:** Applied→Approved, Applied→Rejected.
+- **Attendance – Config:** gpsCapture, requireSelfie, allowManualNoGps (toggles); workStart/workEnd (time); lateThresholdMins (number); checkoutReminder toggle; checkoutReminderTime (time). **Approval:** message "Attendance is auto-recorded, no approval flow".
+  - **Regularisation (nested) – Config:** allowRegularisation toggle; maxPastDays (number); requireReason toggle. **Approval:** Submitted→Approved, Submitted→Rejected.
+- **Reports – Config/Approval:** placeholder panel (visibility toggles per report) with "No approval flow" message. (Report-specific keys kept minimal.)
 
-## 2. Shared logic — `src/lib/procurement.ts`
+## Reusable UI pieces (new components)
+- `ConfigToggleRow` — label + description + Switch (auto-saves).
+- `ConfigSelectRow` — label + Select (permission dropdowns).
+- `ConfigNumberRow` / `ConfigTimeRow` — numeric / time inputs.
+- `EditableListEditor` — add (text + Add button) / rename / remove (× per row) for metrics, categories, leave types.
+- `ApprovalTransitionEditor` — one transition: Enable toggle, approver roles multi-select, rule radio (Any one / All), notify roles multi-select. Reused by Procurement, Expenses, Leave, Regularisation.
+- Roles for the multi-selects come from the `roles` table (roles-only, per your choice).
 
-- Add an internal-transfer status flow: `Requisition → Requisition Approved → Goods Received → Closed`.
-- Make `allowedTransitions(status, sourceType)` and the stepper flow source-type-aware:
-  - Internal Transfer transitions: Requisition → Requisition Approved (approver) → Goods Received (approver) → Closed (approver).
-  - Vendor flow unchanged.
-- Export a helper `statusFlowFor(sourceType)` returning the correct ordered array for the stepper.
-- Keep `PROC_STATUSES` (used by the list filter) as the union — no new statuses are introduced, so the filter dropdown is unaffected.
+## Files
+- **Migration:** create `app_configuration` (+ GRANTs, RLS, updated_at trigger). Seed default rows for all keys above.
+- **New:** `src/pages/ConfigurationWorkflow.tsx` (shell: sidebar + tabs), `src/hooks/useAppConfiguration.ts` (fetch/update via TanStack Query with optimistic auto-save + toast), `src/components/config/*` (the reusable pieces above and one panel component per module).
+- **Edit:** `src/App.tsx` (lazy route `/admin/configuration`, Admin-gated), `src/pages/AdminControls.tsx` (add the card with permission gating).
 
-## 3. New Procurement form — `src/pages/Procurement.tsx`
-
-- Add `source_type` to `emptyForm` (default `vendor`) plus `transfer_from_site_id`.
-- Add a **Source Type** toggle (radio/segmented) at the very top of the form: *Vendor Purchase* (default) and *Internal Transfer*.
-- Conditional rendering:
-  - **Vendor Purchase**: existing fields unchanged (Site, Vendor(s), Estimated Budget, Bill To, Ship To, line items with later rates).
-  - **Internal Transfer**: show Date, Requested By (read-only), **Transfer From Site** (dropdown), **Transfer To Site** (the existing `site_id` field, relabeled), Product Line Items (Material, UOM, Qty only — no rate inputs), and **Notes / Reason for Transfer**. Hide Vendor, Bill To, Ship To, Estimated Budget.
-- `handleSave`: when internal transfer, persist `source_type`, `transfer_from_site_id`, `site_id` (destination), null out vendor/bill/ship/budget, and write line items with `rate = 0`, `amount = 0`. Validation requires Transfer From + Transfer To + at least one line with qty.
-- List view: add a badge on each card — **"Vendor PO"** or **"Internal Transfer"** — next to the status badge. For transfers, show "From → To" sites instead of the vendor line, and hide the amount/budget display.
-- The "New PO" button label/heading stays; the type is chosen inside the form.
-
-## 4. Detail screen — `src/components/procurement/ProcurementDetail.tsx`
-
-- Extend `DetailOrder` with `source_type` and `transfer_from_site_id`.
-- Stepper uses `statusFlowFor(order.source_type)`.
-- For internal transfers: header card shows Transfer From / Transfer To sites (no vendor, no Bill/Ship To, no budget card, no payment terms / rates / invoice section). Show the transfer reason notes.
-- `canReceive` for transfers becomes true at `Requisition Approved` / `Goods Received` (since there is no PO Issued stage). Hide the Invoices card and rate-editing UI for transfers.
-- Transitions filtered through the source-type-aware `allowedTransitions`.
-
-## 5. Goods Receipt — `GRNForm.tsx` / `ReceiveGoodsDialog.tsx`
-
-- Pass `sourceType` and `transferFromSiteName` through `ReceiveGoodsDialog` → `GRNForm`.
-- In `GRNForm`, when source is internal transfer: replace the vendor context with a read-only **"Transferred From Site"** display, and hide the optional vendor-feedback (star rating) block. All else — receipt date, received by, ordered vs received, photos, GRN status — stays identical.
-- GRN records still link via `po_id`, so no GRN schema change is needed.
-
-## 6. List/filter touch-ups
-
-- `OpenGRNPicker.tsx`: include `Requisition Approved` in open statuses **only for transfers** when used in transfer context (or rely on the detail-screen "Receive Goods" button, which is the primary entry). Show site name instead of vendor for transfer rows.
+## Out of scope this phase
+- Live enforcement inside each feature module (hiding buttons/fields, routing approvals through configured approvers). The store, hook, and defaults are built so enforcement can be wired module-by-module next, starting with Procurement, Goods Receipt, and Activities.
 
 ## Technical notes
-
-- `po_number` column is reused for the TRF series to avoid touching GRN/detail/list lookups; only the prefix differs by `source_type`.
-- No changes to GRN, invoice, or item table schemas.
-- Existing vendor POs are unaffected (default `source_type = 'vendor'`).
-- Status filter dropdown keeps the full vendor status set; transfer records simply never enter the vendor-only statuses.
-
-## Out of scope / confirm later
-
-- Inventory stock-level adjustments at source/destination sites are **not** part of this (no stock ledger exists today) — transfers are tracked as documents only.
+- Reads are cached; writes debounced per control and write a single jsonb value.
+- Approval definitions validated (at least one approver role when a transition is enabled).
+- No changes to existing procurement status logic in this phase.
