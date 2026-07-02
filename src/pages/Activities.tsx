@@ -1273,6 +1273,7 @@ export default function Activities() {
                     </button>
                   </PopoverContent>
                 </Popover>
+                )}
               </div>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Activity details..." rows={3} />
               {isTranscribing && (
