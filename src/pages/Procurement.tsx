@@ -160,6 +160,7 @@ export default function Procurement() {
     const isTransfer = form.source_type === "internal_transfer";
     const validLines = lines.filter((l) => l.product_id && (parseFloat(l.qty) || 0) > 0);
     if (validLines.length === 0) { toast.error("Add at least one product line item"); return; }
+    if (cfgRequireNotes && !form.requisition_notes.trim()) { toast.error("Notes / reason is required"); return; }
     if (isTransfer) {
       if (!form.transfer_from_site_id) { toast.error("Select the site the material is transferred from"); return; }
       if (!form.site_id) { toast.error("Select the destination site"); return; }
