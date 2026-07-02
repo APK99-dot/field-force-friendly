@@ -45,6 +45,12 @@ const emptyForm = {
 export default function Procurement() {
   const { profile, isAdmin } = useUserProfile();
   const { hasPermission } = useProfilePermissions();
+  const cfg = useModuleConfig("procurement");
+  const cfgInternalTransfer = cfg.bool("internalTransfer");
+  const cfgBudgetField = cfg.bool("budgetField");
+  const cfgBillShipFields = cfg.bool("billShipFields");
+  const cfgRequireNotes = cfg.bool("requireNotes");
+  const cfgCanCreateRequisition = cfg.canDo("createRequisition");
   const canApprove = isAdmin || hasPermission("module_procurement", "edit");
 
   const [orders, setOrders] = useState<DetailOrder[]>([]);
