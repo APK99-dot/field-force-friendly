@@ -1,70 +1,47 @@
-# Configuration & Approval Workflow Module
+# Salesforce → Vendor Master Import
 
-A single Admin-only place to control every module's settings and approval flows. This phase delivers the **full configuration panel + database storage + Admin gating + auto-save**. Live enforcement across each feature module is wired in a follow-up phase (as agreed).
+## Goal
+Add the Salesforce fields that are missing from Vendor Master, then pull the Salesforce Accounts into Master Data → Vendor Management with correct field mapping.
 
-## Location & Access
-- New card in **Admin Controls**: "Configuration & Approval Workflow" → route `/admin/configuration`.
-- Visible only to Admin role (gated like other admin modules, plus a hard Admin check inside the page).
+## Field mapping (Salesforce Account → Vendor Master)
 
-## Layout
 ```text
-+-----------------------------------------------------------+
-| Configuration & Approval Workflow                         |
-+----------------+------------------------------------------+
-| Activities     |  [ Configuration ] [ Approval Workflow ] |
-| Projects/Sites |                                          |
-| Procurement    |   ...panel for selected module...        |
-| Goods Receipt  |                                          |
-| Expenses       |                                          |
-| Leave          |                                          |
-| Attendance     |   (Regularisation shown as a section     |
-| Reports        |    inside the Attendance panel)          |
-+----------------+------------------------------------------+
+Salesforce field          →  Vendor Master field
+------------------------------------------------
+Name                      →  name              (exists)
+Phone                     →  phone[]           (exists)
+Email_Id__c               →  email[]           (exists)
+Billing Street/City/      →  address           (exists, combined)
+  State/PostalCode/Country
+Account_Type__c           →  category          (exists; e.g. "Product Vendor")
+GST__c                    →  gst_number        (NEW)
+PAN__c                    →  pan_number        (NEW)
+AnnualRevenue             →  annual_revenue    (NEW)
+NumberOfEmployees         →  employee_count    (NEW)
+Salesforce Id             →  salesforce_id     (NEW, hidden, for de-dup/re-sync)
 ```
-- Left sidebar lists the 8 modules; clicking loads its panel.
-- Each panel has two tabs: **Configuration** and **Approval Workflow**.
-- Regularisation config + its approval flow are nested inside the Attendance panel.
 
-## Global behaviour
-- Every toggle/field auto-saves on change with a `toast("Configuration saved")`.
-- Values are read via a shared hook so future enforcement can consume them app-wide.
-- All settings persist in one config table keyed by module + config_key.
+Notes: Salesforce has no separate "contact person" field on Account, so that stays blank. GST/PAN are shown as their own fields instead of being buried in notes.
 
-## Database
-New table `app_configuration`:
-- `module` (text), `config_key` (text), `config_value` (jsonb), `updated_by` (uuid), plus id/created_at/updated_at, unique on (module, config_key).
-- RLS: any authenticated user may **read** (so feature modules can honour settings later); only Admins may **insert/update/delete** (`has_role(auth.uid(),'admin')`).
-- GRANTs for authenticated + service_role.
-- Approval-workflow definitions stored as jsonb rows too (one config_key per transition), each holding `{ enabled, approverRoles[], rule: "any"|"all", notifyRoles[] }`.
+## What gets built
 
-## Config content per module (stored keys)
-- **Activities – Config:** checkIn, gpsTrack, voiceNote, photoUpload, requireMilestone, requireActivityType, allowBackdated (toggles); assignPermission (Admin/Admin+Manager/All). **Approval:** requireManagerApproval toggle.
-- **Projects/Sites – Config:** galleryTab, documentsTab (toggles); createSites, editSite, addMilestones (Admin/Admin+Manager); updateMilestoneProgress (Admin/Admin+Manager/All). **Approval:** message "No approval flow for this module".
-- **Procurement – Config:** internalTransfer, budgetField, billShipFields (toggles); requireNotes (toggle); createRequisition (All/Manager+Admin/Admin only); editRatesAfterApproval (Admin only/Admin+Manager). **Approval:** four transition editors — Requisition→Requisition Approved, Quote Received→PO Issued, Invoice Received→Paid, Any→Rejected.
-- **Goods Receipt – Config:** takePhoto, uploadGallery (toggles); maxPhotos (number, default 20); vendorRating toggle; rating metrics (editable list, defaults Delivery Timeliness / Material Quality / Quantity Accuracy / Overall Experience); rating scale fixed 5 stars (read-only note); badge thresholds (4 numbers: Preferred/Reliable/Needs Improvement/Poor). **Approval:** "Require admin approval before GRN is confirmed" toggle.
-- **Expenses – Config:** receiptUpload toggle; requireReceipt toggle; autoApproveMax (₹ number); categories (editable list); submitPermission (All/Manager+Admin). **Approval:** Submitted→Approved, Submitted→Rejected transitions.
-- **Leave – Config:** leave types (editable list with max-days per type); allowHalfDay toggle; requireDocSickLeave toggle; viewTeamCalendar (All/Manager+Admin/Admin only). **Approval:** Applied→Approved, Applied→Rejected.
-- **Attendance – Config:** gpsCapture, requireSelfie, allowManualNoGps (toggles); workStart/workEnd (time); lateThresholdMins (number); checkoutReminder toggle; checkoutReminderTime (time). **Approval:** message "Attendance is auto-recorded, no approval flow".
-  - **Regularisation (nested) – Config:** allowRegularisation toggle; maxPastDays (number); requireReason toggle. **Approval:** Submitted→Approved, Submitted→Rejected.
-- **Reports – Config/Approval:** placeholder panel (visibility toggles per report) with "No approval flow" message. (Report-specific keys kept minimal.)
+### 1. Database changes
+- Add columns to `vendors`: `gst_number`, `pan_number`, `annual_revenue`, `employee_count`, `salesforce_id` (unique).
+- Relax the existing vendor phone trigger: many Salesforce accounts have no phone number, so phone becomes optional. Uniqueness is still enforced only when a phone is present. (Currently the trigger rejects any vendor without a phone, which would block most of the import.)
 
-## Reusable UI pieces (new components)
-- `ConfigToggleRow` — label + description + Switch (auto-saves).
-- `ConfigSelectRow` — label + Select (permission dropdowns).
-- `ConfigNumberRow` / `ConfigTimeRow` — numeric / time inputs.
-- `EditableListEditor` — add (text + Add button) / rename / remove (× per row) for metrics, categories, leave types.
-- `ApprovalTransitionEditor` — one transition: Enable toggle, approver roles multi-select, rule radio (Any one / All), notify roles multi-select. Reused by Procurement, Expenses, Leave, Regularisation.
-- Roles for the multi-selects come from the `roles` table (roles-only, per your choice).
+### 2. Salesforce connector link
+- Link the already-connected Salesforce connection to this project so the backend import can read from it securely.
 
-## Files
-- **Migration:** create `app_configuration` (+ GRANTs, RLS, updated_at trigger). Seed default rows for all keys above.
-- **New:** `src/pages/ConfigurationWorkflow.tsx` (shell: sidebar + tabs), `src/hooks/useAppConfiguration.ts` (fetch/update via TanStack Query with optimistic auto-save + toast), `src/components/config/*` (the reusable pieces above and one panel component per module).
-- **Edit:** `src/App.tsx` (lazy route `/admin/configuration`, Admin-gated), `src/pages/AdminControls.tsx` (add the card with permission gating).
+### 3. Import backend (edge function)
+- A secure function pulls Accounts from Salesforce via the connector, maps the fields above, and upserts into `vendors` keyed by `salesforce_id` (so re-running updates existing rows instead of creating duplicates).
+- Admin-only.
 
-## Out of scope this phase
-- Live enforcement inside each feature module (hiding buttons/fields, routing approvals through configured approvers). The store, hook, and defaults are built so enforcement can be wired module-by-module next, starting with Procurement, Goods Receipt, and Activities.
+### 4. UI in Vendor Management
+- New **"Import from Salesforce"** button (visible to admins) that runs the import and shows a summary (added / updated / skipped).
+- Add the new fields (GST, PAN, Annual Revenue, Employees) to the vendor Add/Edit form and to the Vendor detail page.
 
-## Technical notes
-- Reads are cached; writes debounced per control and write a single jsonb value.
-- Approval definitions validated (at least one approver role when a transition is enabled).
-- No changes to existing procurement status logic in this phase.
+## Open decision — which accounts to import
+Your screenshot shows **All Accounts (220)**. In Salesforce these break down by "Account Type": 93 Product Vendor, 24 Rental Client, 2 Billing Entity, 1 each Consultant/Shipping/Broker, and 99 with no type set. I'll default to importing **all 220 accounts** as vendors (each tagged with its Account Type as the category). If you'd rather import only "Product Vendor" records, tell me and I'll filter to those.
+
+## Result
+Vendor Master will hold the same GST, PAN, Revenue, and Employees data as Salesforce, populated from your Salesforce Accounts, and re-runnable to stay in sync.
