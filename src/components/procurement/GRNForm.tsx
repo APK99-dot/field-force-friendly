@@ -368,6 +368,7 @@ export default function GRNForm({
                 onChange={(e) => handleFiles(e.target.files)}
               />
               <div className="grid grid-cols-2 gap-3">
+                {cfgTakePhoto && (
                 <Button
                   type="button"
                   variant="outline"
@@ -377,6 +378,8 @@ export default function GRNForm({
                   <Camera className="h-4 w-4 mr-2" />
                   {uploadingPhoto ? "Uploading..." : "Take Photo"}
                 </Button>
+                )}
+                {cfgUploadGallery && (
                 <Button
                   type="button"
                   variant="outline"
@@ -386,6 +389,7 @@ export default function GRNForm({
                   <ImageIcon className="h-4 w-4 mr-2" />
                   Upload from Gallery
                 </Button>
+                )}
               </div>
               {photos.length > 0 && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
