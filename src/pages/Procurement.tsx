@@ -429,11 +429,14 @@ export default function Procurement() {
                   </Popover>
                 </div>
 
+                {cfgBudgetField && (
                 <div>
                   <Label className="text-xs">Estimated Budget (₹)</Label>
                   <Input type="number" inputMode="decimal" value={form.estimated_budget} onChange={(e) => setForm((p) => ({ ...p, estimated_budget: e.target.value }))} placeholder="0" className="h-9" />
                 </div>
+                )}
 
+                {cfgBillShipFields && (
                 <div>
                   <Label className="text-xs">Bill To</Label>
                   <Select value={form.bill_to_id} onValueChange={(v) => setForm((p) => ({ ...p, bill_to_id: v }))}>
