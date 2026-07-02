@@ -31,6 +31,14 @@ function Fallback() {
 
 function AnalyticsInner() {
   const { tab, setTab } = useReportContext();
+  const reportsCfg = useModuleConfig("reports");
+  const reportEnabled: Record<string, string> = {
+    attendance: "attendanceReport",
+    procurement: "procurementReport",
+    activities: "activityReport",
+    expenses: "expenseReport",
+  };
+  const visibleTabs = TABS.filter((t) => !reportEnabled[t.key] || reportsCfg.bool(reportEnabled[t.key]));
 
   return (
     <div className="pb-24">
