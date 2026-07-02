@@ -24,6 +24,7 @@ import MyLeaveApplications from "@/components/MyLeaveApplications";
 import HolidayManagement from "@/components/HolidayManagement";
 import RegularizationRequestModal from "@/components/RegularizationRequestModal";
 import CameraCapture from "@/components/CameraCapture";
+import { useModuleConfig } from "@/hooks/useModuleConfig";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,11 @@ const STEP_LABELS: Record<string, string> = {
 };
 
 export default function Attendance() {
+  const attCfg = useModuleConfig("attendance");
+  const cfgRequireSelfie = attCfg.bool("requireSelfie");
+  const cfgGpsCapture = attCfg.bool("gpsCapture");
+  const regCfg = useModuleConfig("regularisation");
+  const cfgAllowRegularisation = regCfg.bool("allowRegularisation");
   const [activeView, setActiveView] = useState<"my" | "team">("my");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [userId, setUserId] = useState<string>();
@@ -165,8 +171,40 @@ export default function Attendance() {
     return map;
   }, [regularizationRequests]);
 
+  // Direct attendance without selfie/face verification (when disabled in config)
+  const doDirectAttendance = async (mode: "checkin" | "checkout") => {
+    if (!userId) return;
+    setActionLoading(true);
+    try {
+      let location: any = null;
+      if (cfgGpsCapture) {
+        setProcessingStep("location");
+        try { location = await getCurrentPosition(); } catch {}
+      }
+      setProcessingStep("saving");
+      if (mode === "checkin") {
+        await checkIn({ location, faceVerificationStatus: "bypassed", faceMatchConfidence: 0 });
+      } else {
+        await checkOut({ location, faceVerificationStatus: "bypassed", faceMatchConfidence: 0 });
+      }
+      setProcessingStep("done");
+      toast.success(mode === "checkin" ? "Day started successfully!" : "Day ended successfully!");
+      await new Promise((r) => setTimeout(r, 1200));
+    } catch (err: any) {
+      console.error("Attendance error:", err);
+      toast.error(err.message || "Failed to record attendance");
+    } finally {
+      setActionLoading(false);
+      setProcessingStep(null);
+    }
+  };
+
   // --- Camera + Face Verification Flow ---
   const handleStartDay = () => {
+    if (!cfgRequireSelfie) {
+      void doDirectAttendance("checkin");
+      return;
+    }
     // Force face registration if no profile picture
     if (!profilePictureUrl) {
       setPendingAction("checkin");
@@ -179,6 +217,10 @@ export default function Attendance() {
   };
 
   const handleEndDay = () => {
+    if (!cfgRequireSelfie) {
+      void doDirectAttendance("checkout");
+      return;
+    }
     // Force face registration if no profile picture
     if (!profilePictureUrl) {
       setPendingAction("checkout");
@@ -217,11 +259,13 @@ export default function Attendance() {
 
     try {
       // Step 1: Get location
-      setProcessingStep("location");
       let location: any = null;
-      try {
-        location = await getCurrentPosition();
-      } catch {}
+      if (cfgGpsCapture) {
+        setProcessingStep("location");
+        try {
+          location = await getCurrentPosition();
+        } catch {}
+      }
 
       // Step 2: Upload photo
       setProcessingStep("photo");
@@ -743,9 +787,11 @@ export default function Attendance() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
+                          {cfgAllowRegularisation && (
                           <Button size="icon" variant="outline" className="h-8 w-8 border-orange-300 text-orange-700 hover:bg-orange-50" onClick={() => handleOpenRegularizationModal(record)} title={hasRejectedRequest ? "Resubmit Regularization" : "Request Regularization"}>
                             <Edit3 className="h-4 w-4" />
                           </Button>
+                          )}
 
                           {!isAbsent && (
                             <Button

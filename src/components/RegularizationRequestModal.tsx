@@ -9,6 +9,7 @@ import { Clock, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useModuleConfig } from '@/hooks/useModuleConfig';
 
 interface AttendanceRecord {
   id?: string;
@@ -41,6 +42,9 @@ interface RegularizationRequestModalProps {
 const RegularizationRequestModal: React.FC<RegularizationRequestModalProps> = ({
   isOpen, onClose, attendanceRecord, existingRequest, onSubmit, userId
 }) => {
+  const regCfg = useModuleConfig("regularisation");
+  const cfgRequireReason = regCfg.bool("requireReason");
+  const cfgMaxPastDays = regCfg.num("maxPastDays");
   const [requestedCheckIn, setRequestedCheckIn] = useState('');
   const [requestedCheckOut, setRequestedCheckOut] = useState('');
   const [reason, setReason] = useState('');
@@ -62,7 +66,11 @@ const RegularizationRequestModal: React.FC<RegularizationRequestModalProps> = ({
   const handleSubmit = async () => {
     if (!attendanceRecord || !userId) return;
     if (!requestedCheckIn && !requestedCheckOut) { toast.error('Please provide at least one time correction'); return; }
-    if (!reason || reason.trim().length < 10) { toast.error('Please provide a reason (minimum 10 characters)'); return; }
+    if (cfgRequireReason && (!reason || reason.trim().length < 10)) { toast.error('Please provide a reason (minimum 10 characters)'); return; }
+    if (cfgMaxPastDays > 0) {
+      const daysAgo = Math.floor((Date.now() - new Date(attendanceRecord.date).getTime()) / 86400000);
+      if (daysAgo > cfgMaxPastDays) { toast.error(`Regularization is only allowed for the past ${cfgMaxPastDays} days`); return; }
+    }
 
     setIsSubmitting(true);
     try {
@@ -160,7 +168,7 @@ const RegularizationRequestModal: React.FC<RegularizationRequestModalProps> = ({
                 <div className="space-y-2"><Label>Requested Check-out Time</Label><Input type="time" value={requestedCheckOut} onChange={(e) => setRequestedCheckOut(e.target.value)} /></div>
               </div>
               <div className="space-y-2">
-                <Label>Reason <span className="text-destructive">*</span></Label>
+                <Label>Reason {cfgRequireReason && <span className="text-destructive">*</span>}</Label>
                 <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Please explain why you need to regularize your attendance..." rows={3} className="resize-none" />
                 <p className="text-xs text-muted-foreground">Minimum 10 characters required</p>
               </div>

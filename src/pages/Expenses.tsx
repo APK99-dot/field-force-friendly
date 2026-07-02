@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, IndianRupee, Clock, CheckCircle2, XCircle, Loader2, Pencil, Trash2, Eye, Upload, Camera } from 'lucide-react';
 import CameraCapture from '@/components/CameraCapture';
+import { useModuleConfig } from '@/hooks/useModuleConfig';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +38,10 @@ interface ExpenseCategory {
 }
 
 export default function Expenses() {
+  const expCfg = useModuleConfig("expenses");
+  const cfgReceiptUpload = expCfg.bool("receiptUpload");
+  const cfgRequireReceipt = expCfg.bool("requireReceipt");
+  const cfgCanSubmitExpense = expCfg.canDo("submitPermission");
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
@@ -128,6 +133,7 @@ export default function Expenses() {
 
   const handleSubmit = async () => {
     if (!userId || !formCategory || !formAmount) { toast.error('Fill required fields'); return; }
+    if (cfgReceiptUpload && cfgRequireReceipt && !formFile && !editingExpense?.bill_url) { toast.error('Receipt is required'); return; }
     setSubmitting(true);
 
     let billUrl = editingExpense?.bill_url || null;
@@ -214,7 +220,7 @@ export default function Expenses() {
           <div className="space-y-4">
             {/* Header */}
             <div className="flex items-center justify-end">
-              <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Expense</Button>
+              {cfgCanSubmitExpense && <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Expense</Button>}
             </div>
 
             {/* Month & Status Filter */}
@@ -323,8 +329,9 @@ export default function Expenses() {
               <Label>Description</Label>
               <Textarea value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Enter description" rows={2} />
             </div>
+            {cfgReceiptUpload && (
             <div className="space-y-2">
-              <Label>Receipt</Label>
+              <Label>Receipt{cfgRequireReceipt ? ' *' : ''}</Label>
               <div className="flex items-center gap-2">
                 <Input type="file" accept="image/*,.pdf" onChange={e => setFormFile(e.target.files?.[0] || null)} className="flex-1" />
                 <Button type="button" variant="outline" size="icon" onClick={() => setShowCamera(true)} title="Take photo">
@@ -333,6 +340,7 @@ export default function Expenses() {
               </div>
               {formFile && <p className="text-xs text-muted-foreground">Selected: {formFile.name}</p>}
             </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowAddDialog(false); resetForm(); }}>Cancel</Button>

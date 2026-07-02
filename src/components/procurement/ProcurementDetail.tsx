@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useModuleConfig } from "@/hooks/useModuleConfig";
 import { CalendarDays, Truck, FileText, Pencil, ChevronRight, Save } from "lucide-react";
 import {
   STATUS_FLOW, allowedTransitions, statusColor, fmtAmt, PAYMENT_TERMS, statusFlowFor, type ProcStatus,
@@ -65,6 +66,8 @@ export default function ProcurementDetail({
   open, onOpenChange, order, canApprove, currentUserId,
   vendorName, siteName, productName, onEdit, onChanged,
 }: Props) {
+  const procCfg = useModuleConfig("procurement");
+  const canEditRatesPostApproval = procCfg.canDo("editRatesAfterApproval");
   const [grns, setGrns] = useState<GrnRow[]>([]);
   const [grnItems, setGrnItems] = useState<GrnItemRow[]>([]);
   const [invoices, setInvoices] = useState<InvRow[]>([]);
@@ -171,6 +174,8 @@ export default function ProcurementDetail({
   const editable = order.status === "Requisition";
   // After approval, admins can fill the remaining PO details (until goods are received) — vendor flow only
   const poUnlocked = !isTransfer && canApprove && ["Requisition Approved", "Quote Awaited", "Quote Received", "PO Issued"].includes(order.status);
+  // Editing rates once the PO has been issued is gated by the editRatesAfterApproval config
+  const ratesLocked = order.status === "PO Issued" && !canEditRatesPostApproval;
   const canReceive = isTransfer
     ? canApprove && ["Requisition Approved", "Goods Received"].includes(order.status)
     : canApprove && ["PO Issued", "Goods Received"].includes(order.status);
@@ -324,7 +329,7 @@ export default function ProcurementDetail({
                           <Label className="text-[10px] text-muted-foreground">Rate</Label>
                           <Input
                             type="number" inputMode="decimal" value={l.rate} placeholder="0" className="h-8"
-                            disabled={!poUnlocked}
+                            disabled={!poUnlocked || ratesLocked}
                             onChange={(e) => setRateLines((prev) => prev.map((x, idx) => idx === i ? { ...x, rate: e.target.value } : x))}
                           />
                         </div>

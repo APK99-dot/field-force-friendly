@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useModuleConfig } from "@/hooks/useModuleConfig";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 import { Plus, Search, Trash2, X, ShoppingCart, Save, CalendarDays, ChevronDown, ArrowRight } from "lucide-react";
 import {
@@ -45,6 +46,12 @@ const emptyForm = {
 export default function Procurement() {
   const { profile, isAdmin } = useUserProfile();
   const { hasPermission } = useProfilePermissions();
+  const cfg = useModuleConfig("procurement");
+  const cfgInternalTransfer = cfg.bool("internalTransfer");
+  const cfgBudgetField = cfg.bool("budgetField");
+  const cfgBillShipFields = cfg.bool("billShipFields");
+  const cfgRequireNotes = cfg.bool("requireNotes");
+  const cfgCanCreateRequisition = cfg.canDo("createRequisition");
   const canApprove = isAdmin || hasPermission("module_procurement", "edit");
 
   const [orders, setOrders] = useState<DetailOrder[]>([]);
@@ -153,6 +160,7 @@ export default function Procurement() {
     const isTransfer = form.source_type === "internal_transfer";
     const validLines = lines.filter((l) => l.product_id && (parseFloat(l.qty) || 0) > 0);
     if (validLines.length === 0) { toast.error("Add at least one product line item"); return; }
+    if (cfgRequireNotes && !form.requisition_notes.trim()) { toast.error("Notes / reason is required"); return; }
     if (isTransfer) {
       if (!form.transfer_from_site_id) { toast.error("Select the site the material is transferred from"); return; }
       if (!form.site_id) { toast.error("Select the destination site"); return; }
@@ -246,7 +254,7 @@ export default function Procurement() {
           <h1 className="text-xl font-bold flex items-center gap-2"><ShoppingCart className="h-5 w-5" />Procurement</h1>
           <p className="text-xs text-muted-foreground">{orders.length} purchase orders</p>
         </div>
-        <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New PO</Button>
+        {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New PO</Button>}
       </div>
 
       <div className="space-y-2">
@@ -317,6 +325,7 @@ export default function Procurement() {
           </DialogHeader>
           <div className="space-y-4 p-4 overflow-y-auto flex-1 w-full">
             {/* Source Type selector */}
+            {cfgInternalTransfer && (
             <div>
               <Label className="text-xs">Source Type</Label>
               <div className="mt-1 grid grid-cols-2 gap-2">
@@ -338,6 +347,7 @@ export default function Procurement() {
                 })}
               </div>
             </div>
+            )}
 
             <div className="rounded-md bg-muted/40 border px-3 py-2 text-[11px] text-muted-foreground">
               {form.source_type === "internal_transfer"
@@ -420,11 +430,15 @@ export default function Procurement() {
                   </Popover>
                 </div>
 
+                {cfgBudgetField && (
                 <div>
                   <Label className="text-xs">Estimated Budget (₹)</Label>
                   <Input type="number" inputMode="decimal" value={form.estimated_budget} onChange={(e) => setForm((p) => ({ ...p, estimated_budget: e.target.value }))} placeholder="0" className="h-9" />
                 </div>
+                )}
 
+                {cfgBillShipFields && (
+                <>
                 <div>
                   <Label className="text-xs">Bill To</Label>
                   <Select value={form.bill_to_id} onValueChange={(v) => setForm((p) => ({ ...p, bill_to_id: v }))}>
@@ -458,11 +472,13 @@ export default function Procurement() {
                     ) : null;
                   })()}
                 </div>
+                </>
+                )}
               </>
             )}
 
             <div>
-              <Label className="text-xs">{form.source_type === "internal_transfer" ? "Notes / Reason for Transfer" : "Notes / Reason for Requisition"}</Label>
+              <Label className="text-xs">{form.source_type === "internal_transfer" ? "Notes / Reason for Transfer" : "Notes / Reason for Requisition"}{cfgRequireNotes ? " *" : ""}</Label>
               <Textarea value={form.requisition_notes} onChange={(e) => setForm((p) => ({ ...p, requisition_notes: e.target.value }))} placeholder={form.source_type === "internal_transfer" ? "Why is this material being transferred?" : "Why is this material needed?"} className="min-h-[70px]" />
             </div>
 

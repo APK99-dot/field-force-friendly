@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { BarChart3 } from "lucide-react";
 import { OverviewTab } from "@/components/analytics/OverviewTab";
 import { ReportProvider, useReportContext, ReportTabKey } from "@/components/analytics/ReportContext";
+import { useModuleConfig } from "@/hooks/useModuleConfig";
 
 const AttendanceReport = lazy(() => import("@/components/reports/AttendanceReport"));
 const ProcurementReport = lazy(() => import("@/components/reports/ProcurementReport"));
@@ -31,6 +32,14 @@ function Fallback() {
 
 function AnalyticsInner() {
   const { tab, setTab } = useReportContext();
+  const reportsCfg = useModuleConfig("reports");
+  const reportEnabled: Record<string, string> = {
+    attendance: "attendanceReport",
+    procurement: "procurementReport",
+    activities: "activityReport",
+    expenses: "expenseReport",
+  };
+  const visibleTabs = TABS.filter((t) => !reportEnabled[t.key] || reportsCfg.bool(reportEnabled[t.key]));
 
   return (
     <div className="pb-24">
@@ -50,7 +59,7 @@ function AnalyticsInner() {
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b">
         <div className="max-w-6xl mx-auto overflow-x-auto no-scrollbar">
           <div className="flex gap-1 px-3 py-2 min-w-max">
-            {TABS.map((t) => (
+            {visibleTabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
@@ -76,11 +85,11 @@ function AnalyticsInner() {
         >
           {tab === "overview" && <OverviewTab />}
           <Suspense fallback={<Fallback />}>
-            {tab === "attendance" && <AttendanceReport />}
-            {tab === "procurement" && <ProcurementReport />}
-            {tab === "activities" && <ActivityReport />}
+            {tab === "attendance" && reportsCfg.bool("attendanceReport") && <AttendanceReport />}
+            {tab === "procurement" && reportsCfg.bool("procurementReport") && <ProcurementReport />}
+            {tab === "activities" && reportsCfg.bool("activityReport") && <ActivityReport />}
             {tab === "milestones" && <MilestoneReport />}
-            {tab === "expenses" && <ExpenseReport />}
+            {tab === "expenses" && reportsCfg.bool("expenseReport") && <ExpenseReport />}
             {tab === "payments" && <PaymentReport />}
           </Suspense>
         </motion.div>

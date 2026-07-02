@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useModuleConfig } from "@/hooks/useModuleConfig";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,11 @@ export default function GRNForm({
   const isTransfer = sourceType === "internal_transfer";
   const queryClient = useQueryClient();
   const { profile } = useUserProfile();
+  const grnCfg = useModuleConfig("goods_receipt");
+  const cfgTakePhoto = grnCfg.bool("takePhoto");
+  const cfgUploadGallery = grnCfg.bool("uploadGallery");
+  const cfgVendorRating = grnCfg.bool("vendorRating");
+  const maxPhotos = grnCfg.num("maxPhotos") || MAX_PHOTOS;
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
   const [receivedBy, setReceivedBy] = useState("");
   const [remarks, setRemarks] = useState("");
@@ -73,9 +79,9 @@ export default function GRNForm({
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const remaining = MAX_PHOTOS - photos.length;
+    const remaining = maxPhotos - photos.length;
     if (remaining <= 0) {
-      toast.error(`Maximum ${MAX_PHOTOS} photos allowed`);
+      toast.error(`Maximum ${maxPhotos} photos allowed`);
       return;
     }
     const list = Array.from(files).slice(0, remaining);
@@ -342,9 +348,10 @@ export default function GRNForm({
             </div>
 
             {/* Photos */}
+            {(cfgTakePhoto || cfgUploadGallery) && (
             <div>
               <Label className="text-sm font-semibold">Goods Photos</Label>
-              <p className="text-[11px] text-muted-foreground mb-2">Proof of delivery — up to {MAX_PHOTOS} photos.</p>
+              <p className="text-[11px] text-muted-foreground mb-2">Proof of delivery — up to {maxPhotos} photos.</p>
               <input
                 ref={cameraInputRef}
                 type="file"
@@ -362,24 +369,28 @@ export default function GRNForm({
                 onChange={(e) => handleFiles(e.target.files)}
               />
               <div className="grid grid-cols-2 gap-3">
+                {cfgTakePhoto && (
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
+                  disabled={uploadingPhoto || photos.length >= maxPhotos}
                   onClick={() => cameraInputRef.current?.click()}
                 >
                   <Camera className="h-4 w-4 mr-2" />
                   {uploadingPhoto ? "Uploading..." : "Take Photo"}
                 </Button>
+                )}
+                {cfgUploadGallery && (
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
+                  disabled={uploadingPhoto || photos.length >= maxPhotos}
                   onClick={() => galleryInputRef.current?.click()}
                 >
                   <ImageIcon className="h-4 w-4 mr-2" />
                   Upload from Gallery
                 </Button>
+                )}
               </div>
               {photos.length > 0 && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
@@ -399,9 +410,10 @@ export default function GRNForm({
                 </div>
               )}
             </div>
+            )}
 
             {/* Vendor Feedback (optional) */}
-            {vendorId && (
+            {vendorId && cfgVendorRating && (
               <div className="rounded-lg border p-3 space-y-3">
                 <div className="flex items-center gap-2">
                   <Star className="h-4 w-4 text-amber-400" />

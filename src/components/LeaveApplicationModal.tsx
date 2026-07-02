@@ -10,6 +10,7 @@ import { CalendarIcon, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { useModuleConfig } from '@/hooks/useModuleConfig';
 import { toast } from 'sonner';
 
 interface LeaveType {
@@ -29,6 +30,8 @@ const LeaveApplicationModal: React.FC<LeaveApplicationModalProps> = ({
   onApplicationSubmitted,
   defaultLeaveTypeId
 }) => {
+  const leaveCfg = useModuleConfig("leave");
+  const cfgAllowHalfDay = leaveCfg.bool("allowHalfDay");
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
@@ -165,10 +168,12 @@ const LeaveApplicationModal: React.FC<LeaveApplicationModalProps> = ({
                 <input type="radio" value="full" checked={leaveDay === 'full'} onChange={() => setLeaveDay('full')} className="w-4 h-4" />
                 <span>Full Day</span>
               </label>
+              {cfgAllowHalfDay && (
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="radio" value="half" checked={leaveDay === 'half'} onChange={() => setLeaveDay('half')} className="w-4 h-4" />
                 <span>Half Day</span>
               </label>
+              )}
             </div>
           </div>
 

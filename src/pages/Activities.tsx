@@ -62,6 +62,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCurrentPosition } from "@/utils/nativePermissions";
 import { useActivities, type Activity as ActivityType, type ActivityPhotoEntry, type ActivityStatusEntry } from "@/hooks/useActivities";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useModuleConfig } from "@/hooks/useModuleConfig";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import ActivityReportGenerator from "@/components/activities/ActivityReportGenerator";
@@ -215,6 +216,14 @@ export default function Activities() {
   const { activities, loading, users, projects, sites, fetchActivities, fetchDropdowns, createActivity, updateActivity, deleteActivity, fetchAttendanceForDate, checkInForDate, fetchGPSTrackingForDate } = useActivities();
   const { isAdmin, role } = useUserProfile();
   const navigate = useNavigate();
+  const cfg = useModuleConfig("activities");
+  const canAssign = cfg.canDo("assignPermission");
+  const cfgCheckIn = cfg.bool("checkIn");
+  const cfgPhotoUpload = cfg.bool("photoUpload");
+  const cfgVoiceNote = cfg.bool("voiceNote");
+  const cfgRequireActivityType = cfg.bool("requireActivityType");
+  const cfgRequireMilestone = cfg.bool("requireMilestone");
+  const cfgAllowBackdated = cfg.bool("allowBackdated");
   const isManagerOrAdmin = isAdmin || role === "sales_manager";
 
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -698,7 +707,7 @@ export default function Activities() {
   };
 
   const handleSave = async () => {
-    if (!form.activity_type) return;
+    if (cfgRequireActivityType && !form.activity_type) return;
     const isOther = form.activity_type.trim().toLowerCase() === "other";
     const isGrnType = form.activity_type.trim().toLowerCase().includes("grn");
     if (isOther && !form.custom_activity_name.trim()) {
@@ -707,6 +716,14 @@ export default function Activities() {
     }
     if (isGrnType && !form.grn_po_id) {
       toast.error("Please select an open purchase order (GRN) to receive against.");
+      return;
+    }
+    if (cfgRequireMilestone && form.site_id && form.site_id !== "__add_new_site__" && siteMilestones.length > 0 && !form.milestone_id) {
+      toast.error("Please select a milestone for this activity.");
+      return;
+    }
+    if (!cfgAllowBackdated && form.activity_date < format(new Date(), "yyyy-MM-dd")) {
+      toast.error("Backdated activity logging is disabled.");
       return;
     }
     setSaving(true);
@@ -729,8 +746,8 @@ export default function Activities() {
       if (audioUrl) attachmentUrls.push(audioUrl);
 
       const payload: any = {
-        activity_name: isOther ? form.custom_activity_name.trim() : form.activity_type,
-        activity_type: form.activity_type,
+        activity_name: isOther ? form.custom_activity_name.trim() : (form.activity_type || "General Activity"),
+        activity_type: form.activity_type || "General Activity",
         activity_date: form.activity_date,
         start_time: form.start_time ? `${form.activity_date}T${form.start_time}:00` : null,
         end_time: form.end_time ? `${form.activity_date}T${form.end_time}:00` : null,
@@ -747,7 +764,7 @@ export default function Activities() {
         location_address: form.location_address || null,
         total_hours: form.total_hours || 0,
         photo_urls: form.photos || [],
-        ...(isManagerOrAdmin ? { assigned_user_ids: form.assigned_user_ids || [] } : {}),
+        ...(canAssign ? { assigned_user_ids: form.assigned_user_ids || [] } : {}),
         ...(attachmentUrls.length > 0 ? { attachment_urls: attachmentUrls } : {}),
       };
       if (editingId) {
@@ -755,7 +772,7 @@ export default function Activities() {
       } else {
         payload.status = "planned";
         payload.status_history = [{ status: "planned", at: new Date().toISOString() } as ActivityStatusEntry];
-        const targetUserId = isManagerOrAdmin && form.owner_user_id ? form.owner_user_id : undefined;
+        const targetUserId = canAssign && form.owner_user_id ? form.owner_user_id : undefined;
         if (form.duration_type === "multiple_days" && form.from_date && form.to_date) {
           const start = new Date(form.from_date);
           const end = new Date(form.to_date);
@@ -1009,7 +1026,7 @@ export default function Activities() {
           </DialogHeader>
           <div className="space-y-3 mt-2">
             {/* Check-in for the record's date */}
-            {!editingId && (
+            {!editingId && cfgCheckIn && (
               <div className="rounded-lg border p-3 flex items-center justify-between gap-3">
                 {formAttendance?.check_in_time ? (
                   <p className="text-xs text-success flex items-center gap-1.5">
@@ -1034,7 +1051,7 @@ export default function Activities() {
               </div>
             )}
             {/* Activity Owner - only for managers/admins */}
-            {isManagerOrAdmin && !editingId && (
+            {canAssign && !editingId && (
               <div>
                 <Label className="text-xs font-medium">Activity Owner</Label>
                 <Select value={form.owner_user_id} onValueChange={(v) => setForm({ ...form, owner_user_id: v })}>
@@ -1161,7 +1178,7 @@ export default function Activities() {
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Activity Type *</Label>
+                <Label className="text-xs">Activity Type {cfgRequireActivityType ? "*" : ""}</Label>
                 <Select value={form.activity_type} onValueChange={(v) => {
                     if (v === "__add_new__") {
                       navigate("/activity-types");
@@ -1180,7 +1197,7 @@ export default function Activities() {
                 </Select>
               </div>
             </div>
-            {isManagerOrAdmin && (
+            {canAssign && (
               <div>
                 <MultiUserPicker
                   label="Assign To"
@@ -1223,11 +1240,12 @@ export default function Activities() {
             )}
             <div>
               <Label className="text-xs">Activity Date</Label>
-              <Input type="date" value={form.activity_date} onChange={(e) => setForm({ ...form, activity_date: e.target.value })} />
+              <Input type="date" value={form.activity_date} min={cfgAllowBackdated ? undefined : format(new Date(), "yyyy-MM-dd")} onChange={(e) => setForm({ ...form, activity_date: e.target.value })} />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1">
                 <Label className="text-xs">Description</Label>
+                {cfgVoiceNote && (
                 <Popover open={micMenuOpen} onOpenChange={setMicMenuOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -1263,6 +1281,7 @@ export default function Activities() {
                     </button>
                   </PopoverContent>
                 </Popover>
+                )}
               </div>
               <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Activity details..." rows={3} />
               {isTranscribing && (
@@ -1313,6 +1332,7 @@ export default function Activities() {
                 </div>
               )}
             </div>
+            {cfgPhotoUpload && (
             <div>
               <Label className="text-xs">Photos</Label>
               <div className="mt-1">
@@ -1323,6 +1343,7 @@ export default function Activities() {
                 />
               </div>
             </div>
+            )}
             <Collapsible>
 
               <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 rounded-md border bg-muted/50 text-sm font-medium hover:bg-muted transition-colors">
@@ -1434,7 +1455,7 @@ export default function Activities() {
                 )}
               </CollapsibleContent>
             </Collapsible>
-            <Button className="w-full" onClick={handleSave} disabled={saving || !form.activity_type || (form.activity_type.trim().toLowerCase() === "other" && !form.custom_activity_name.trim()) || isFinalizing || isRecording}>
+            <Button className="w-full" onClick={handleSave} disabled={saving || (cfgRequireActivityType && !form.activity_type) || (form.activity_type.trim().toLowerCase() === "other" && !form.custom_activity_name.trim()) || isFinalizing || isRecording}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {saving ? "Saving..." : editingId ? "Update Activity" : "Log Activity"}
             </Button>
