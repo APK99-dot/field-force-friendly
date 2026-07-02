@@ -274,13 +274,21 @@ export default function ProcurementReport() {
       }
       summary={<SummaryCards items={summary} />}
       chart={
-        <ReportChartCard
-          title="PO Value by Site"
-          description="Total purchase order value grouped by site"
-          type="bar"
-          data={chartData}
-          formatValue={inr}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ReportChartCard
+            title="PO Value by Site"
+            description="Total purchase order value grouped by site"
+            type="bar"
+            data={chartData}
+            formatValue={inr}
+          />
+          <ReportChartCard
+            title="PO Count by Payment Status"
+            description="Number of purchase orders by payment status"
+            type="pie"
+            data={payStatusChart}
+          />
+        </div>
       }
       table={
         <Table>
