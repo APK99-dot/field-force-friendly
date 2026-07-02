@@ -1287,33 +1287,51 @@ export type Database = {
       }
       master_products: {
         Row: {
+          budgeted_rate: number | null
           category_id: string | null
           created_at: string
           created_by: string | null
           default_uom: string | null
+          delivery_instruction: string | null
           id: string
           is_active: boolean
+          lead_time_days: number | null
+          product_description: string | null
           product_name: string
+          quality_instruction: string | null
+          salesforce_id: string | null
           updated_at: string
         }
         Insert: {
+          budgeted_rate?: number | null
           category_id?: string | null
           created_at?: string
           created_by?: string | null
           default_uom?: string | null
+          delivery_instruction?: string | null
           id?: string
           is_active?: boolean
+          lead_time_days?: number | null
+          product_description?: string | null
           product_name: string
+          quality_instruction?: string | null
+          salesforce_id?: string | null
           updated_at?: string
         }
         Update: {
+          budgeted_rate?: number | null
           category_id?: string | null
           created_at?: string
           created_by?: string | null
           default_uom?: string | null
+          delivery_instruction?: string | null
           id?: string
           is_active?: boolean
+          lead_time_days?: number | null
+          product_description?: string | null
           product_name?: string
+          quality_instruction?: string | null
+          salesforce_id?: string | null
           updated_at?: string
         }
         Relationships: [
