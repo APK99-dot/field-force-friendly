@@ -414,9 +414,21 @@ export default function Vendors() {
           <p className="text-xs text-muted-foreground">{vendors.length} vendors</p>
         </div>
         {isAdmin && (
-          <Button size="sm" onClick={openAdd} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Add Vendor
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setImportConfirm(true)}
+              disabled={importMutation.isPending}
+              className="gap-1.5"
+            >
+              <Download className="h-4 w-4" />
+              {importMutation.isPending ? "Importing..." : "Import from Salesforce"}
+            </Button>
+            <Button size="sm" onClick={openAdd} className="gap-1.5">
+              <Plus className="h-4 w-4" /> Add Vendor
+            </Button>
+          </div>
         )}
       </div>
 
