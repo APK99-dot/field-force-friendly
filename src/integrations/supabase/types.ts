@@ -4037,45 +4037,60 @@ export type Database = {
       vendors: {
         Row: {
           address: string | null
+          annual_revenue: number | null
           category: string | null
           contact_person: Json | null
           created_at: string
           created_by: string
           email: Json | null
+          employee_count: number | null
+          gst_number: string | null
           id: string
           name: string
           notes: string | null
+          pan_number: string | null
           phone: Json
+          salesforce_id: string | null
           services: string | null
           status: string
           updated_at: string
         }
         Insert: {
           address?: string | null
+          annual_revenue?: number | null
           category?: string | null
           contact_person?: Json | null
           created_at?: string
           created_by: string
           email?: Json | null
+          employee_count?: number | null
+          gst_number?: string | null
           id?: string
           name: string
           notes?: string | null
+          pan_number?: string | null
           phone?: Json
+          salesforce_id?: string | null
           services?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           address?: string | null
+          annual_revenue?: number | null
           category?: string | null
           contact_person?: Json | null
           created_at?: string
           created_by?: string
           email?: Json | null
+          employee_count?: number | null
+          gst_number?: string | null
           id?: string
           name?: string
           notes?: string | null
+          pan_number?: string | null
           phone?: Json
+          salesforce_id?: string | null
           services?: string | null
           status?: string
           updated_at?: string
