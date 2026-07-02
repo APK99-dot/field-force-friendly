@@ -9,6 +9,7 @@ import { Clock, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useModuleConfig } from '@/hooks/useModuleConfig';
 
 interface AttendanceRecord {
   id?: string;
