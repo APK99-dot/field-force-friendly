@@ -1170,7 +1170,7 @@ export default function Activities() {
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Activity Type *</Label>
+                <Label className="text-xs">Activity Type {cfgRequireActivityType ? "*" : ""}</Label>
                 <Select value={form.activity_type} onValueChange={(v) => {
                     if (v === "__add_new__") {
                       navigate("/activity-types");
