@@ -328,8 +328,9 @@ export default function Expenses() {
               <Label>Description</Label>
               <Textarea value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Enter description" rows={2} />
             </div>
+            {cfgReceiptUpload && (
             <div className="space-y-2">
-              <Label>Receipt</Label>
+              <Label>Receipt{cfgRequireReceipt ? ' *' : ''}</Label>
               <div className="flex items-center gap-2">
                 <Input type="file" accept="image/*,.pdf" onChange={e => setFormFile(e.target.files?.[0] || null)} className="flex-1" />
                 <Button type="button" variant="outline" size="icon" onClick={() => setShowCamera(true)} title="Take photo">
@@ -338,6 +339,7 @@ export default function Expenses() {
               </div>
               {formFile && <p className="text-xs text-muted-foreground">Selected: {formFile.name}</p>}
             </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowAddDialog(false); resetForm(); }}>Cancel</Button>
