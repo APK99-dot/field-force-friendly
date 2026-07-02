@@ -437,6 +437,7 @@ export default function Procurement() {
                 )}
 
                 {cfgBillShipFields && (
+                <>
                 <div>
                   <Label className="text-xs">Bill To</Label>
                   <Select value={form.bill_to_id} onValueChange={(v) => setForm((p) => ({ ...p, bill_to_id: v }))}>
