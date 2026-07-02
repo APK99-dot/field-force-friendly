@@ -133,6 +133,7 @@ export default function Expenses() {
 
   const handleSubmit = async () => {
     if (!userId || !formCategory || !formAmount) { toast.error('Fill required fields'); return; }
+    if (cfgReceiptUpload && cfgRequireReceipt && !formFile && !editingExpense?.bill_url) { toast.error('Receipt is required'); return; }
     setSubmitting(true);
 
     let billUrl = editingExpense?.bill_url || null;
