@@ -265,6 +265,10 @@ export default function Vendors() {
         services: payload.form.services.trim() || null,
         notes: payload.form.notes.trim() || null,
         status: payload.form.status,
+        gst_number: payload.form.gst_number.trim() || null,
+        pan_number: payload.form.pan_number.trim() || null,
+        annual_revenue: payload.form.annual_revenue.trim() ? Number(payload.form.annual_revenue) : null,
+        employee_count: payload.form.employee_count.trim() ? parseInt(payload.form.employee_count, 10) : null,
       };
       if (payload.id) {
         const { error } = await supabase.from("vendors").update(row).eq("id", payload.id);
