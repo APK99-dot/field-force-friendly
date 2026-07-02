@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, IndianRupee, Clock, CheckCircle2, XCircle, Loader2, Pencil, Trash2, Eye, Upload, Camera } from 'lucide-react';
 import CameraCapture from '@/components/CameraCapture';
+import { useModuleConfig } from '@/hooks/useModuleConfig';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
