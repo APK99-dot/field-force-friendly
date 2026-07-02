@@ -235,7 +235,7 @@ export default function ProductMaster() {
                   {filtered.map((r) => {
                     const c = catById(r.category_id);
                     return (
-                      <TableRow key={r.id}>
+                      <TableRow key={r.id} onClick={() => openEdit(r)} className="cursor-pointer">
                         <TableCell className="font-medium">{r.product_name}</TableCell>
                         <TableCell>{c?.category_name || "—"}</TableCell>
                         <TableCell>{r.default_uom || "—"}</TableCell>
