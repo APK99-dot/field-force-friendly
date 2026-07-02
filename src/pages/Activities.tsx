@@ -1237,6 +1237,7 @@ export default function Activities() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <Label className="text-xs">Description</Label>
+                {cfgVoiceNote && (
                 <Popover open={micMenuOpen} onOpenChange={setMicMenuOpen}>
                   <PopoverTrigger asChild>
                     <Button
