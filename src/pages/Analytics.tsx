@@ -59,7 +59,7 @@ function AnalyticsInner() {
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b">
         <div className="max-w-6xl mx-auto overflow-x-auto no-scrollbar">
           <div className="flex gap-1 px-3 py-2 min-w-max">
-            {TABS.map((t) => (
+            {visibleTabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
