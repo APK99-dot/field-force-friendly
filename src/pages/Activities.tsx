@@ -1018,7 +1018,7 @@ export default function Activities() {
           </DialogHeader>
           <div className="space-y-3 mt-2">
             {/* Check-in for the record's date */}
-            {!editingId && (
+            {!editingId && cfgCheckIn && (
               <div className="rounded-lg border p-3 flex items-center justify-between gap-3">
                 {formAttendance?.check_in_time ? (
                   <p className="text-xs text-success flex items-center gap-1.5">
