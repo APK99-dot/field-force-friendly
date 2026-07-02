@@ -215,6 +215,14 @@ export default function Activities() {
   const { activities, loading, users, projects, sites, fetchActivities, fetchDropdowns, createActivity, updateActivity, deleteActivity, fetchAttendanceForDate, checkInForDate, fetchGPSTrackingForDate } = useActivities();
   const { isAdmin, role } = useUserProfile();
   const navigate = useNavigate();
+  const cfg = useModuleConfig("activities");
+  const canAssign = cfg.canDo("assignPermission");
+  const cfgCheckIn = cfg.bool("checkIn");
+  const cfgPhotoUpload = cfg.bool("photoUpload");
+  const cfgVoiceNote = cfg.bool("voiceNote");
+  const cfgRequireActivityType = cfg.bool("requireActivityType");
+  const cfgRequireMilestone = cfg.bool("requireMilestone");
+  const cfgAllowBackdated = cfg.bool("allowBackdated");
   const isManagerOrAdmin = isAdmin || role === "sales_manager";
 
   const [selectedDate, setSelectedDate] = useState(new Date());
