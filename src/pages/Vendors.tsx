@@ -22,7 +22,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus, Search, Phone, Mail, Edit, Trash2, Filter, User, X,
+  Plus, Search, Phone, Mail, Edit, Trash2, Filter, User, X, Download,
 } from "lucide-react";
 import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
 
