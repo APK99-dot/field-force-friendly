@@ -471,6 +471,8 @@ export default function Procurement() {
                     ) : null;
                   })()}
                 </div>
+                </>
+                )}
               </>
             )}
 
