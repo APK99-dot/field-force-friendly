@@ -24,6 +24,7 @@ import MyLeaveApplications from "@/components/MyLeaveApplications";
 import HolidayManagement from "@/components/HolidayManagement";
 import RegularizationRequestModal from "@/components/RegularizationRequestModal";
 import CameraCapture from "@/components/CameraCapture";
+import { useModuleConfig } from "@/hooks/useModuleConfig";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
