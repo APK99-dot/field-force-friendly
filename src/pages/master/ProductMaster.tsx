@@ -244,7 +244,7 @@ export default function ProductMaster() {
                         <TableCell className="text-center">
                           <Badge
                             className={r.is_active ? "bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] cursor-pointer" : "bg-destructive/20 text-destructive cursor-pointer"}
-                            onClick={() => toggleActive(r)}
+                            onClick={(e) => { e.stopPropagation(); toggleActive(r); }}
                           >
                             {r.is_active ? "Active" : "Inactive"}
                           </Badge>
