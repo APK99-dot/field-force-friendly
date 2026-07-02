@@ -167,6 +167,14 @@ export default function PaymentReport() {
     return Array.from(m.values());
   }, [rows]);
 
+  const statusChart = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => m.set(r.payment_status, (m.get(r.payment_status) || 0) + 1));
+    return ["Paid", "Partial", "Unpaid"]
+      .filter((k) => m.has(k))
+      .map((name) => ({ name, value: m.get(name) as number }));
+  }, [rows]);
+
   const download = async () => {
     setDownloading(true);
     try {
