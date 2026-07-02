@@ -174,6 +174,7 @@ export default function Vendors() {
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [deleteVendor, setDeleteVendor] = useState<Vendor | null>(null);
   const [form, setForm] = useState<VendorForm>(emptyForm);
+  const [importConfirm, setImportConfirm] = useState(false);
 
   const { data: vendors = [], isLoading } = useQuery({
     queryKey: ["vendors"],
