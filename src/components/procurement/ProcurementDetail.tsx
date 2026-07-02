@@ -174,6 +174,8 @@ export default function ProcurementDetail({
   const editable = order.status === "Requisition";
   // After approval, admins can fill the remaining PO details (until goods are received) — vendor flow only
   const poUnlocked = !isTransfer && canApprove && ["Requisition Approved", "Quote Awaited", "Quote Received", "PO Issued"].includes(order.status);
+  // Editing rates once the PO has been issued is gated by the editRatesAfterApproval config
+  const ratesLocked = order.status === "PO Issued" && !canEditRatesPostApproval;
   const canReceive = isTransfer
     ? canApprove && ["Requisition Approved", "Goods Received"].includes(order.status)
     : canApprove && ["PO Issued", "Goods Received"].includes(order.status);
