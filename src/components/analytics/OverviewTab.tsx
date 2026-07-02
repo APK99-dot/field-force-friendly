@@ -325,6 +325,41 @@ export function OverviewTab() {
         />
       </div>
 
+      {/* Procurement */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ReportChartCard
+          title="Procurement — PO Value Trend"
+          description="Total purchase order value by month"
+          type="bar"
+          data={data?.poTrend ?? []}
+          formatValue={inr}
+        />
+        <ReportChartCard
+          title="Procurement — Status Breakdown"
+          description="Purchase orders by status"
+          type="pie"
+          data={data?.poStatus ?? []}
+        />
+      </div>
+
+      {/* Expenses & Payments */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ReportChartCard
+          title="Expenses by Category"
+          description="Expense amount grouped by category"
+          type="pie"
+          data={data?.expByCategory ?? []}
+          formatValue={inr}
+        />
+        <ReportChartCard
+          title="Payments — Pending vs Collected"
+          description="Invoiced amount collected vs outstanding"
+          type="pie"
+          data={data?.payments ?? []}
+          formatValue={inr}
+        />
+      </div>
+
       {isFetching && (
         <p className="text-center text-xs text-muted-foreground">Updating…</p>
       )}
