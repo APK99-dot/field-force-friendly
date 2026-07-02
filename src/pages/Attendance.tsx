@@ -259,11 +259,13 @@ export default function Attendance() {
 
     try {
       // Step 1: Get location
-      setProcessingStep("location");
       let location: any = null;
-      try {
-        location = await getCurrentPosition();
-      } catch {}
+      if (cfgGpsCapture) {
+        setProcessingStep("location");
+        try {
+          location = await getCurrentPosition();
+        } catch {}
+      }
 
       // Step 2: Upload photo
       setProcessingStep("photo");
