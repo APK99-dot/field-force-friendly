@@ -167,6 +167,14 @@ export default function PaymentReport() {
     return Array.from(m.values());
   }, [rows]);
 
+  const statusChart = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => m.set(r.payment_status, (m.get(r.payment_status) || 0) + 1));
+    return ["Paid", "Partial", "Unpaid"]
+      .filter((k) => m.has(k))
+      .map((name) => ({ name, value: m.get(name) as number }));
+  }, [rows]);
+
   const download = async () => {
     setDownloading(true);
     try {
@@ -234,17 +242,25 @@ export default function PaymentReport() {
       }
       summary={<SummaryCards items={summary} />}
       chart={
-        <ReportChartCard
-          title="Paid vs Pending by Vendor"
-          description="Payment status grouped by vendor"
-          type="groupedBar"
-          data={chartData}
-          series={[
-            { key: "Paid", label: "Paid", color: "hsl(160 64% 42%)" },
-            { key: "Pending", label: "Pending", color: "hsl(35 90% 55%)" },
-          ]}
-          formatValue={inr}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ReportChartCard
+            title="Paid vs Pending by Vendor"
+            description="Payment status grouped by vendor"
+            type="groupedBar"
+            data={chartData}
+            series={[
+              { key: "Paid", label: "Paid", color: "hsl(160 64% 42%)" },
+              { key: "Pending", label: "Pending", color: "hsl(35 90% 55%)" },
+            ]}
+            formatValue={inr}
+          />
+          <ReportChartCard
+            title="Payment Status Distribution"
+            description="Invoices by payment status"
+            type="pie"
+            data={statusChart}
+          />
+        </div>
       }
       table={
         <Table>

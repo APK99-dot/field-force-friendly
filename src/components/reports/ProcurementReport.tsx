@@ -130,7 +130,9 @@ export default function ProcurementReport() {
         }
       }
 
-      const siteMap = new Map(sites.map((s) => [s.value, s.label]));
+      // Full site lookup (includes inactive/deleted sites) so no PO falls into an unlabeled bucket
+      const { data: allSites } = await supabase.from("project_sites").select("id, site_name");
+      const siteMap = new Map((allSites || []).map((s) => [s.id, s.site_name]));
       const vendorMap = new Map(vendors.map((v) => [v.value, v.label]));
 
       setRows(
@@ -143,7 +145,7 @@ export default function ProcurementReport() {
             po_number: o.po_number || "—",
             order_date: o.order_date,
             vendor: o.vendor_id ? vendorMap.get(o.vendor_id) || "-" : "-",
-            site: o.site_id ? siteMap.get(o.site_id) || "-" : "-",
+            site: (o.site_id && siteMap.get(o.site_id)) || "Unassigned Site",
             items: itemCount.get(o.id) || 0,
             po_value: value,
             status: o.status,
@@ -177,6 +179,14 @@ export default function ProcurementReport() {
     const m = new Map<string, number>();
     rows.forEach((r) => m.set(r.site, (m.get(r.site) || 0) + r.po_value));
     return Array.from(m.entries()).map(([name, value]) => ({ name, value }));
+  }, [rows]);
+
+  const payStatusChart = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => m.set(r.payment_status, (m.get(r.payment_status) || 0) + 1));
+    return ["Paid", "Partial", "Unpaid"]
+      .filter((k) => m.has(k))
+      .map((name) => ({ name, value: m.get(name) as number }));
   }, [rows]);
 
   const download = async () => {
@@ -264,13 +274,21 @@ export default function ProcurementReport() {
       }
       summary={<SummaryCards items={summary} />}
       chart={
-        <ReportChartCard
-          title="PO Value by Site"
-          description="Total purchase order value grouped by site"
-          type="bar"
-          data={chartData}
-          formatValue={inr}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ReportChartCard
+            title="PO Value by Site"
+            description="Total purchase order value grouped by site"
+            type="bar"
+            data={chartData}
+            formatValue={inr}
+          />
+          <ReportChartCard
+            title="PO Count by Payment Status"
+            description="Number of purchase orders by payment status"
+            type="pie"
+            data={payStatusChart}
+          />
+        </div>
       }
       table={
         <Table>

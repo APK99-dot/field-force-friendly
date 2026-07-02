@@ -115,6 +115,22 @@ export default function MilestoneReport() {
     [rows]
   );
 
+  const statusChart = useMemo(() => {
+    const labelFor = (r: Row) => {
+      if (r.delayed) return "Delayed";
+      if (r.status === "completed") return "Completed";
+      if (r.status === "in_progress") return "In Progress";
+      return "Pending";
+    };
+    const order = ["Pending", "In Progress", "Completed", "Delayed"];
+    const m = new Map<string, number>();
+    rows.forEach((r) => {
+      const k = labelFor(r);
+      m.set(k, (m.get(k) || 0) + 1);
+    });
+    return order.filter((k) => m.has(k)).map((name) => ({ name, value: m.get(name) as number }));
+  }, [rows]);
+
   const download = async () => {
     setDownloading(true);
     try {
@@ -178,14 +194,22 @@ export default function MilestoneReport() {
       }
       summary={<SummaryCards items={summary} />}
       chart={
-        <ReportChartCard
-          title="Milestone Completion"
-          description="Completion percentage per milestone"
-          type="hbar"
-          data={chartData}
-          height={Math.max(260, chartData.length * 32)}
-          formatValue={(v) => `${v}%`}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ReportChartCard
+            title="Milestone Completion"
+            description="Completion percentage per milestone"
+            type="hbar"
+            data={chartData}
+            height={Math.max(260, chartData.length * 32)}
+            formatValue={(v) => `${v}%`}
+          />
+          <ReportChartCard
+            title="Status Breakdown"
+            description="Milestones by status"
+            type="pie"
+            data={statusChart}
+          />
+        </div>
       }
       table={
         <Table>
