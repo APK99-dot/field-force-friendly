@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { BarChart3 } from "lucide-react";
 import { OverviewTab } from "@/components/analytics/OverviewTab";
 import { ReportProvider, useReportContext, ReportTabKey } from "@/components/analytics/ReportContext";
+import { useModuleConfig } from "@/hooks/useModuleConfig";
 
 const AttendanceReport = lazy(() => import("@/components/reports/AttendanceReport"));
 const ProcurementReport = lazy(() => import("@/components/reports/ProcurementReport"));
