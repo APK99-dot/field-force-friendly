@@ -327,6 +327,10 @@ export default function Vendors() {
       services: v.services || "",
       notes: v.notes || "",
       status: (v.status as VendorStatus) || "active",
+      gst_number: v.gst_number || "",
+      pan_number: v.pan_number || "",
+      annual_revenue: v.annual_revenue != null ? String(v.annual_revenue) : "",
+      employee_count: v.employee_count != null ? String(v.employee_count) : "",
     });
     setIsFormOpen(true);
   }, []);
