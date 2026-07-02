@@ -4,15 +4,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Save, Search, Package } from "lucide-react";
+import { Plus, Edit, Trash2, Save, Search, Package, Cloud } from "lucide-react";
 import { UOM_OPTIONS } from "@/lib/procurement";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface CategoryRow {
   id: string;
@@ -27,6 +33,11 @@ interface ProductRow {
   category_id: string | null;
   default_uom: string | null;
   is_active: boolean;
+  product_description: string | null;
+  budgeted_rate: number | null;
+  lead_time_days: number | null;
+  quality_instruction: string | null;
+  delivery_instruction: string | null;
 }
 
 const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
@@ -35,7 +46,20 @@ const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
 const categoryLabel = (c?: CategoryRow) =>
   c ? `${c.category_name}${c.sub_category_name ? " — " + c.sub_category_name : ""}` : "—";
 
+const emptyForm = {
+  product_name: "",
+  category_id: "",
+  default_uom: "",
+  is_active: true,
+  product_description: "",
+  budgeted_rate: "",
+  lead_time_days: "",
+  quality_instruction: "",
+  delivery_instruction: "",
+};
+
 export default function ProductMaster() {
+  const { isAdmin } = useUserProfile();
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,14 +68,16 @@ export default function ProductMaster() {
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ product_name: "", category_id: "", default_uom: "", is_active: true });
+  const [importConfirm, setImportConfirm] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [formData, setFormData] = useState(emptyForm);
 
   useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
     setIsLoading(true);
     const [{ data: prods }, { data: cats }] = await Promise.all([
-      supabase.from("master_products").select("id, product_name, category_id, default_uom, is_active").order("product_name"),
+      supabase.from("master_products").select("id, product_name, category_id, default_uom, is_active, product_description, budgeted_rate, lead_time_days, quality_instruction, delivery_instruction").order("product_name"),
       supabase.from("master_categories").select("id, category_name, sub_category_name, is_active").order("category_name"),
     ]);
     setRows((prods || []) as ProductRow[]);
@@ -63,13 +89,23 @@ export default function ProductMaster() {
 
   const openAdd = () => {
     setEditing(null);
-    setFormData({ product_name: "", category_id: "", default_uom: "", is_active: true });
+    setFormData(emptyForm);
     setIsDialogOpen(true);
   };
 
   const openEdit = (r: ProductRow) => {
     setEditing(r);
-    setFormData({ product_name: r.product_name, category_id: r.category_id || "", default_uom: r.default_uom || "", is_active: r.is_active });
+    setFormData({
+      product_name: r.product_name,
+      category_id: r.category_id || "",
+      default_uom: r.default_uom || "",
+      is_active: r.is_active,
+      product_description: r.product_description || "",
+      budgeted_rate: r.budgeted_rate != null ? String(r.budgeted_rate) : "",
+      lead_time_days: r.lead_time_days != null ? String(r.lead_time_days) : "",
+      quality_instruction: r.quality_instruction || "",
+      delivery_instruction: r.delivery_instruction || "",
+    });
     setIsDialogOpen(true);
   };
 
@@ -78,7 +114,17 @@ export default function ProductMaster() {
     if (!name) { toast.error("Product name is required"); return; }
     setIsSaving(true);
     try {
-      const payload = { product_name: name, category_id: formData.category_id || null, default_uom: formData.default_uom || null, is_active: formData.is_active };
+      const payload = {
+        product_name: name,
+        category_id: formData.category_id || null,
+        default_uom: formData.default_uom || null,
+        is_active: formData.is_active,
+        product_description: formData.product_description.trim() || null,
+        budgeted_rate: formData.budgeted_rate.trim() !== "" ? Number(formData.budgeted_rate) : null,
+        lead_time_days: formData.lead_time_days.trim() !== "" ? parseInt(formData.lead_time_days, 10) : null,
+        quality_instruction: formData.quality_instruction.trim() || null,
+        delivery_instruction: formData.delivery_instruction.trim() || null,
+      };
       if (editing) {
         const { error } = await supabase.from("master_products").update(payload).eq("id", editing.id);
         if (error) throw error;
@@ -95,6 +141,23 @@ export default function ProductMaster() {
       toast.error(err.message || "Failed to save product");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleImport = async () => {
+    setIsImporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("import-salesforce-products", { body: {} });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const res = data as { total: number; added: number; updated: number; skipped: number };
+      setImportConfirm(false);
+      toast.success(`Salesforce import complete: ${res.added} added, ${res.updated} updated, ${res.skipped} skipped (of ${res.total}).`);
+      fetchAll();
+    } catch (err: any) {
+      toast.error(err.message || "Import failed");
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -136,7 +199,14 @@ export default function ProductMaster() {
                 <CardTitle className="flex items-center gap-2"><Package className="h-5 w-5" />Products</CardTitle>
                 <CardDescription>Category and sub category come from Category Master</CardDescription>
               </div>
-              <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />Add Product</Button>
+              <div className="flex gap-2">
+                {isAdmin && (
+                  <Button variant="outline" onClick={() => setImportConfirm(true)}>
+                    <Cloud className="h-4 w-4 mr-2" />Import from Salesforce
+                  </Button>
+                )}
+                <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />Add Product</Button>
+              </div>
             </div>
             <div className="relative mt-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -154,8 +224,9 @@ export default function ProductMaster() {
                   <TableRow>
                     <TableHead>Product Name</TableHead>
                     <TableHead>Category</TableHead>
-                    <TableHead>Sub Category</TableHead>
                     <TableHead>Default UOM</TableHead>
+                    <TableHead className="text-right">Budgeted Rate</TableHead>
+                    <TableHead className="text-center">Lead Time</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -167,8 +238,9 @@ export default function ProductMaster() {
                       <TableRow key={r.id}>
                         <TableCell className="font-medium">{r.product_name}</TableCell>
                         <TableCell>{c?.category_name || "—"}</TableCell>
-                        <TableCell>{c?.sub_category_name || "—"}</TableCell>
                         <TableCell>{r.default_uom || "—"}</TableCell>
+                        <TableCell className="text-right">{r.budgeted_rate != null ? `₹${Number(r.budgeted_rate).toLocaleString("en-IN")}` : "—"}</TableCell>
+                        <TableCell className="text-center">{r.lead_time_days != null ? `${r.lead_time_days}d` : "—"}</TableCell>
                         <TableCell className="text-center">
                           <Badge
                             className={r.is_active ? "bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] cursor-pointer" : "bg-destructive/20 text-destructive cursor-pointer"}
@@ -201,7 +273,7 @@ export default function ProductMaster() {
       </motion.div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Product" : "Add Product"}</DialogTitle>
             <DialogDescription>Configure the product details</DialogDescription>
@@ -210,6 +282,10 @@ export default function ProductMaster() {
             <div>
               <Label>Product Name *</Label>
               <Input value={formData.product_name} onChange={(e) => setFormData({ ...formData, product_name: e.target.value })} placeholder="e.g., TMT Steel Bar" autoFocus />
+            </div>
+            <div>
+              <Label>Product Description</Label>
+              <Input value={formData.product_description} onChange={(e) => setFormData({ ...formData, product_description: e.target.value })} placeholder="Short description" />
             </div>
             <div>
               <Label>Category / Sub Category</Label>
@@ -222,14 +298,35 @@ export default function ProductMaster() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Default UOM</Label>
+                <Select value={formData.default_uom} onValueChange={(val) => setFormData({ ...formData, default_uom: val })}>
+                  <SelectTrigger><SelectValue placeholder="Select UOM" /></SelectTrigger>
+                  <SelectContent>
+                    {(formData.default_uom && !UOM_OPTIONS.includes(formData.default_uom as any)
+                      ? [formData.default_uom, ...UOM_OPTIONS]
+                      : UOM_OPTIONS
+                    ).map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Lead Time (days)</Label>
+                <Input type="number" min={0} value={formData.lead_time_days} onChange={(e) => setFormData({ ...formData, lead_time_days: e.target.value })} placeholder="e.g., 5" />
+              </div>
+            </div>
             <div>
-              <Label>Default Unit of Measurement</Label>
-              <Select value={formData.default_uom} onValueChange={(val) => setFormData({ ...formData, default_uom: val })}>
-                <SelectTrigger><SelectValue placeholder="Select UOM" /></SelectTrigger>
-                <SelectContent>
-                  {UOM_OPTIONS.map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}
-                </SelectContent>
-              </Select>
+              <Label>Budgeted Rate per Unit (₹)</Label>
+              <Input type="number" min={0} step="0.01" value={formData.budgeted_rate} onChange={(e) => setFormData({ ...formData, budgeted_rate: e.target.value })} placeholder="e.g., 3700" />
+            </div>
+            <div>
+              <Label>Quality Instruction</Label>
+              <Textarea value={formData.quality_instruction} onChange={(e) => setFormData({ ...formData, quality_instruction: e.target.value })} placeholder="Quality check notes" rows={2} />
+            </div>
+            <div>
+              <Label>Delivery (GRN) Instruction</Label>
+              <Textarea value={formData.delivery_instruction} onChange={(e) => setFormData({ ...formData, delivery_instruction: e.target.value })} placeholder="Delivery / receiving notes" rows={2} />
             </div>
             <div className="flex items-center justify-between">
               <div><Label>Active</Label><p className="text-xs text-muted-foreground">Inactive items are hidden from selection</p></div>
@@ -242,6 +339,24 @@ export default function ProductMaster() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={importConfirm} onOpenChange={(open) => !open && !isImporting && setImportConfirm(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Import products from Salesforce</AlertDialogTitle>
+            <AlertDialogDescription>
+              This pulls all products from Salesforce and adds them here. Existing Salesforce-linked
+              products are updated, not duplicated. This may take a moment.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isImporting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); handleImport(); }} disabled={isImporting}>
+              {isImporting ? "Importing..." : "Import"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }
