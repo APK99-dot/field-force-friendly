@@ -214,6 +214,10 @@ export default function VendorDetail() {
 
         {vendor.address && <DetailRow icon={MapPin} label="Address" value={vendor.address} />}
         {vendor.category && <DetailRow icon={Filter} label="Category" value={vendor.category} />}
+        {vendor.gst_number && <DetailRow icon={FileText} label="GST Number" value={vendor.gst_number} />}
+        {vendor.pan_number && <DetailRow icon={Hash} label="PAN Number" value={vendor.pan_number} />}
+        {vendor.annual_revenue != null && <DetailRow icon={IndianRupee} label="Annual Revenue" value={Number(vendor.annual_revenue).toLocaleString("en-IN")} />}
+        {vendor.employee_count != null && <DetailRow icon={Users} label="Employees" value={String(vendor.employee_count)} />}
         {vendor.services && <DetailRow icon={Briefcase} label="Services" value={vendor.services} />}
         {vendor.notes && <DetailRow icon={StickyNote} label="Notes" value={vendor.notes} />}
       </div>
