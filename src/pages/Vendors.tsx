@@ -310,6 +310,30 @@ export default function Vendors() {
     },
   });
 
+  const importMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("import-salesforce-vendors", {
+        body: {},
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as { total: number; added: number; updated: number; skipped: number; errors: string[] };
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["vendors"] });
+      setImportConfirm(false);
+      toast({
+        title: "Salesforce import complete",
+        description: `${res.added} added, ${res.updated} updated, ${res.skipped} skipped (of ${res.total}).`,
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Import failed", description: err?.message, variant: "destructive" });
+    },
+  });
+
+
+
   const openAdd = useCallback(() => {
     setEditingVendor(null);
     setForm(emptyForm);
