@@ -718,6 +718,14 @@ export default function Activities() {
       toast.error("Please select an open purchase order (GRN) to receive against.");
       return;
     }
+    if (cfgRequireMilestone && form.site_id && form.site_id !== "__add_new_site__" && siteMilestones.length > 0 && !form.milestone_id) {
+      toast.error("Please select a milestone for this activity.");
+      return;
+    }
+    if (!cfgAllowBackdated && form.activity_date < format(new Date(), "yyyy-MM-dd")) {
+      toast.error("Backdated activity logging is disabled.");
+      return;
+    }
     setSaving(true);
     try {
       // Upload audio if recorded
