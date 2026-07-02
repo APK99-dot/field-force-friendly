@@ -1232,7 +1232,7 @@ export default function Activities() {
             )}
             <div>
               <Label className="text-xs">Activity Date</Label>
-              <Input type="date" value={form.activity_date} onChange={(e) => setForm({ ...form, activity_date: e.target.value })} />
+              <Input type="date" value={form.activity_date} min={cfgAllowBackdated ? undefined : format(new Date(), "yyyy-MM-dd")} onChange={(e) => setForm({ ...form, activity_date: e.target.value })} />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1">
