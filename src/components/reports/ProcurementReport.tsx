@@ -130,7 +130,9 @@ export default function ProcurementReport() {
         }
       }
 
-      const siteMap = new Map(sites.map((s) => [s.value, s.label]));
+      // Full site lookup (includes inactive/deleted sites) so no PO falls into an unlabeled bucket
+      const { data: allSites } = await supabase.from("project_sites").select("id, site_name");
+      const siteMap = new Map((allSites || []).map((s) => [s.id, s.site_name]));
       const vendorMap = new Map(vendors.map((v) => [v.value, v.label]));
 
       setRows(
@@ -143,7 +145,7 @@ export default function ProcurementReport() {
             po_number: o.po_number || "—",
             order_date: o.order_date,
             vendor: o.vendor_id ? vendorMap.get(o.vendor_id) || "-" : "-",
-            site: o.site_id ? siteMap.get(o.site_id) || "-" : "-",
+            site: (o.site_id && siteMap.get(o.site_id)) || "Unassigned Site",
             items: itemCount.get(o.id) || 0,
             po_value: value,
             status: o.status,
