@@ -625,6 +625,29 @@ export default function Vendors() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import from Salesforce Confirmation */}
+      <AlertDialog open={importConfirm} onOpenChange={(open) => !open && !importMutation.isPending && setImportConfirm(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Import vendors from Salesforce</AlertDialogTitle>
+            <AlertDialogDescription>
+              This pulls all Salesforce Accounts into Vendor Management, mapping name, phone, email,
+              address, category, GST, PAN, revenue and employees. Existing vendors already imported
+              from Salesforce are updated; new ones are added. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={importMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); importMutation.mutate(); }}
+              disabled={importMutation.isPending}
+            >
+              {importMutation.isPending ? "Importing..." : "Start Import"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }
