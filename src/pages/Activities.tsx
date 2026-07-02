@@ -746,8 +746,8 @@ export default function Activities() {
       if (audioUrl) attachmentUrls.push(audioUrl);
 
       const payload: any = {
-        activity_name: isOther ? form.custom_activity_name.trim() : form.activity_type,
-        activity_type: form.activity_type,
+        activity_name: isOther ? form.custom_activity_name.trim() : (form.activity_type || "General Activity"),
+        activity_type: form.activity_type || "General Activity",
         activity_date: form.activity_date,
         start_time: form.start_time ? `${form.activity_date}T${form.start_time}:00` : null,
         end_time: form.end_time ? `${form.activity_date}T${form.end_time}:00` : null,
