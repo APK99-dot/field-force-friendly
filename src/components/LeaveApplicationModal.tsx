@@ -29,6 +29,8 @@ const LeaveApplicationModal: React.FC<LeaveApplicationModalProps> = ({
   onApplicationSubmitted,
   defaultLeaveTypeId
 }) => {
+  const leaveCfg = useModuleConfig("leave");
+  const cfgAllowHalfDay = leaveCfg.bool("allowHalfDay");
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
