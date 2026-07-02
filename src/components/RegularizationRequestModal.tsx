@@ -168,7 +168,7 @@ const RegularizationRequestModal: React.FC<RegularizationRequestModalProps> = ({
                 <div className="space-y-2"><Label>Requested Check-out Time</Label><Input type="time" value={requestedCheckOut} onChange={(e) => setRequestedCheckOut(e.target.value)} /></div>
               </div>
               <div className="space-y-2">
-                <Label>Reason <span className="text-destructive">*</span></Label>
+                <Label>Reason {cfgRequireReason && <span className="text-destructive">*</span>}</Label>
                 <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Please explain why you need to regularize your attendance..." rows={3} className="resize-none" />
                 <p className="text-xs text-muted-foreground">Minimum 10 characters required</p>
               </div>
