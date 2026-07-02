@@ -11,6 +11,7 @@ import { generateReportPdf } from "@/components/reports/reportPdf";
 import { useReportContext } from "@/components/analytics/ReportContext";
 import { OverviewTrends } from "./OverviewTrends";
 import { SummaryByUserChart, UserDatum } from "./SummaryByUserChart";
+import { ReportChartCard } from "@/components/reports/ReportChartCard";
 import {
   Activity,
   CalendarCheck,
