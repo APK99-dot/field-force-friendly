@@ -348,6 +348,7 @@ export default function GRNForm({
             </div>
 
             {/* Photos */}
+            {(cfgTakePhoto || cfgUploadGallery) && (
             <div>
               <Label className="text-sm font-semibold">Goods Photos</Label>
               <p className="text-[11px] text-muted-foreground mb-2">Proof of delivery — up to {maxPhotos} photos.</p>
