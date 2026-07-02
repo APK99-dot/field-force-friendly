@@ -47,6 +47,11 @@ export default function GRNForm({
   const isTransfer = sourceType === "internal_transfer";
   const queryClient = useQueryClient();
   const { profile } = useUserProfile();
+  const grnCfg = useModuleConfig("goods_receipt");
+  const cfgTakePhoto = grnCfg.bool("takePhoto");
+  const cfgUploadGallery = grnCfg.bool("uploadGallery");
+  const cfgVendorRating = grnCfg.bool("vendorRating");
+  const maxPhotos = grnCfg.num("maxPhotos") || MAX_PHOTOS;
   const [receiptDate, setReceiptDate] = useState(new Date().toISOString().slice(0, 10));
   const [receivedBy, setReceivedBy] = useState("");
   const [remarks, setRemarks] = useState("");
