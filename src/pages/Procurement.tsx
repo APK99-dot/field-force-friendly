@@ -324,6 +324,7 @@ export default function Procurement() {
           </DialogHeader>
           <div className="space-y-4 p-4 overflow-y-auto flex-1 w-full">
             {/* Source Type selector */}
+            {cfgInternalTransfer && (
             <div>
               <Label className="text-xs">Source Type</Label>
               <div className="mt-1 grid grid-cols-2 gap-2">
@@ -345,6 +346,7 @@ export default function Procurement() {
                 })}
               </div>
             </div>
+            )}
 
             <div className="rounded-md bg-muted/40 border px-3 py-2 text-[11px] text-muted-foreground">
               {form.source_type === "internal_transfer"
