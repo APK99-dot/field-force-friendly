@@ -168,10 +168,12 @@ const LeaveApplicationModal: React.FC<LeaveApplicationModalProps> = ({
                 <input type="radio" value="full" checked={leaveDay === 'full'} onChange={() => setLeaveDay('full')} className="w-4 h-4" />
                 <span>Full Day</span>
               </label>
+              {cfgAllowHalfDay && (
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="radio" value="half" checked={leaveDay === 'half'} onChange={() => setLeaveDay('half')} className="w-4 h-4" />
                 <span>Half Day</span>
               </label>
+              )}
             </div>
           </div>
 
