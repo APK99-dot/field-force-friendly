@@ -1189,7 +1189,7 @@ export default function Activities() {
                 </Select>
               </div>
             </div>
-            {isManagerOrAdmin && (
+            {canAssign && (
               <div>
                 <MultiUserPicker
                   label="Assign To"
