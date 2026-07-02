@@ -554,6 +554,26 @@ export default function Vendors() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">GST Number</Label>
+                <Input value={form.gst_number} onChange={(e) => setForm((p) => ({ ...p, gst_number: e.target.value }))} placeholder="GST #" />
+              </div>
+              <div>
+                <Label className="text-xs">PAN Number</Label>
+                <Input value={form.pan_number} onChange={(e) => setForm((p) => ({ ...p, pan_number: e.target.value }))} placeholder="PAN #" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Annual Revenue</Label>
+                <Input type="number" value={form.annual_revenue} onChange={(e) => setForm((p) => ({ ...p, annual_revenue: e.target.value }))} placeholder="0" />
+              </div>
+              <div>
+                <Label className="text-xs">Employees</Label>
+                <Input type="number" value={form.employee_count} onChange={(e) => setForm((p) => ({ ...p, employee_count: e.target.value }))} placeholder="0" />
+              </div>
+            </div>
             <div>
               <Label className="text-xs">Services</Label>
               <Input value={form.services} onChange={(e) => setForm((p) => ({ ...p, services: e.target.value }))} placeholder="Services offered" />
