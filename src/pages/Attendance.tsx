@@ -42,6 +42,11 @@ const STEP_LABELS: Record<string, string> = {
 };
 
 export default function Attendance() {
+  const attCfg = useModuleConfig("attendance");
+  const cfgRequireSelfie = attCfg.bool("requireSelfie");
+  const cfgGpsCapture = attCfg.bool("gpsCapture");
+  const regCfg = useModuleConfig("regularisation");
+  const cfgAllowRegularisation = regCfg.bool("allowRegularisation");
   const [activeView, setActiveView] = useState<"my" | "team">("my");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [userId, setUserId] = useState<string>();
