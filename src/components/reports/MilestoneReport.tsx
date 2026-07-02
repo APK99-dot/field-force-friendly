@@ -115,6 +115,22 @@ export default function MilestoneReport() {
     [rows]
   );
 
+  const statusChart = useMemo(() => {
+    const labelFor = (r: Row) => {
+      if (r.delayed) return "Delayed";
+      if (r.status === "completed") return "Completed";
+      if (r.status === "in_progress") return "In Progress";
+      return "Pending";
+    };
+    const order = ["Pending", "In Progress", "Completed", "Delayed"];
+    const m = new Map<string, number>();
+    rows.forEach((r) => {
+      const k = labelFor(r);
+      m.set(k, (m.get(k) || 0) + 1);
+    });
+    return order.filter((k) => m.has(k)).map((name) => ({ name, value: m.get(name) as number }));
+  }, [rows]);
+
   const download = async () => {
     setDownloading(true);
     try {
