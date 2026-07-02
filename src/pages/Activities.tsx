@@ -1324,6 +1324,7 @@ export default function Activities() {
                 </div>
               )}
             </div>
+            {cfgPhotoUpload && (
             <div>
               <Label className="text-xs">Photos</Label>
               <div className="mt-1">
@@ -1334,6 +1335,7 @@ export default function Activities() {
                 />
               </div>
             </div>
+            )}
             <Collapsible>
 
               <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 rounded-md border bg-muted/50 text-sm font-medium hover:bg-muted transition-colors">
