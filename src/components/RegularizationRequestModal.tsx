@@ -66,7 +66,11 @@ const RegularizationRequestModal: React.FC<RegularizationRequestModalProps> = ({
   const handleSubmit = async () => {
     if (!attendanceRecord || !userId) return;
     if (!requestedCheckIn && !requestedCheckOut) { toast.error('Please provide at least one time correction'); return; }
-    if (!reason || reason.trim().length < 10) { toast.error('Please provide a reason (minimum 10 characters)'); return; }
+    if (cfgRequireReason && (!reason || reason.trim().length < 10)) { toast.error('Please provide a reason (minimum 10 characters)'); return; }
+    if (cfgMaxPastDays > 0) {
+      const daysAgo = Math.floor((Date.now() - new Date(attendanceRecord.date).getTime()) / 86400000);
+      if (daysAgo > cfgMaxPastDays) { toast.error(`Regularization is only allowed for the past ${cfgMaxPastDays} days`); return; }
+    }
 
     setIsSubmitting(true);
     try {
