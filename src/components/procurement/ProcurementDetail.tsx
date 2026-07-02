@@ -66,6 +66,8 @@ export default function ProcurementDetail({
   open, onOpenChange, order, canApprove, currentUserId,
   vendorName, siteName, productName, onEdit, onChanged,
 }: Props) {
+  const procCfg = useModuleConfig("procurement");
+  const canEditRatesPostApproval = procCfg.canDo("editRatesAfterApproval");
   const [grns, setGrns] = useState<GrnRow[]>([]);
   const [grnItems, setGrnItems] = useState<GrnItemRow[]>([]);
   const [invoices, setInvoices] = useState<InvRow[]>([]);
