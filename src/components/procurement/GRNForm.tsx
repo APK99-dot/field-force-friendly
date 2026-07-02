@@ -79,9 +79,9 @@ export default function GRNForm({
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const remaining = MAX_PHOTOS - photos.length;
+    const remaining = maxPhotos - photos.length;
     if (remaining <= 0) {
-      toast.error(`Maximum ${MAX_PHOTOS} photos allowed`);
+      toast.error(`Maximum ${maxPhotos} photos allowed`);
       return;
     }
     const list = Array.from(files).slice(0, remaining);
@@ -350,7 +350,7 @@ export default function GRNForm({
             {/* Photos */}
             <div>
               <Label className="text-sm font-semibold">Goods Photos</Label>
-              <p className="text-[11px] text-muted-foreground mb-2">Proof of delivery — up to {MAX_PHOTOS} photos.</p>
+              <p className="text-[11px] text-muted-foreground mb-2">Proof of delivery — up to {maxPhotos} photos.</p>
               <input
                 ref={cameraInputRef}
                 type="file"
@@ -371,7 +371,7 @@ export default function GRNForm({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
+                  disabled={uploadingPhoto || photos.length >= maxPhotos}
                   onClick={() => cameraInputRef.current?.click()}
                 >
                   <Camera className="h-4 w-4 mr-2" />
@@ -380,7 +380,7 @@ export default function GRNForm({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={uploadingPhoto || photos.length >= MAX_PHOTOS}
+                  disabled={uploadingPhoto || photos.length >= maxPhotos}
                   onClick={() => galleryInputRef.current?.click()}
                 >
                   <ImageIcon className="h-4 w-4 mr-2" />
