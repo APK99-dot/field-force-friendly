@@ -772,7 +772,7 @@ export default function Activities() {
       } else {
         payload.status = "planned";
         payload.status_history = [{ status: "planned", at: new Date().toISOString() } as ActivityStatusEntry];
-        const targetUserId = isManagerOrAdmin && form.owner_user_id ? form.owner_user_id : undefined;
+        const targetUserId = canAssign && form.owner_user_id ? form.owner_user_id : undefined;
         if (form.duration_type === "multiple_days" && form.from_date && form.to_date) {
           const start = new Date(form.from_date);
           const end = new Date(form.to_date);
