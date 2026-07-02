@@ -707,7 +707,7 @@ export default function Activities() {
   };
 
   const handleSave = async () => {
-    if (!form.activity_type) return;
+    if (cfgRequireActivityType && !form.activity_type) return;
     const isOther = form.activity_type.trim().toLowerCase() === "other";
     const isGrnType = form.activity_type.trim().toLowerCase().includes("grn");
     if (isOther && !form.custom_activity_name.trim()) {
