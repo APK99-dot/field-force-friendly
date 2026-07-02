@@ -102,6 +102,15 @@ export default function AttendanceReport() {
     return Array.from(weeks.values());
   }, [rows]);
 
+  const statusChart = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => m.set(r.status, (m.get(r.status) || 0) + 1));
+    return Array.from(m.entries()).map(([k, value]) => ({
+      name: k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, " "),
+      value,
+    }));
+  }, [rows]);
+
   const download = async () => {
     setDownloading(true);
     try {
