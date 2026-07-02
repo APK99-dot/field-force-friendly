@@ -73,7 +73,7 @@ export function OverviewTab() {
 
       const { data: pos } = await supabase
         .from("procurement_orders")
-        .select("total_amount")
+        .select("id, total_amount, order_date, status")
         .gte("order_date", from)
         .lte("order_date", to);
 
@@ -88,17 +88,59 @@ export function OverviewTab() {
 
       let expQ = supabase
         .from("additional_expenses")
-        .select("amount")
+        .select("amount, category, custom_category")
         .gte("expense_date", from)
         .lte("expense_date", to);
       expQ = inScope(expQ);
       const { data: exps } = await expQ;
+
+      // Payments: invoices in range + payments recorded against them
+      const { data: invoices } = await supabase
+        .from("procurement_invoices")
+        .select("id, invoice_amount")
+        .gte("invoice_date", from)
+        .lte("invoice_date", to);
+      const invIds = (invoices || []).map((i) => i.id);
+      let collected = 0;
+      if (invIds.length) {
+        const { data: payments } = await supabase
+          .from("procurement_invoice_payments")
+          .select("amount")
+          .in("invoice_id", invIds);
+        collected = (payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      }
+      const invoicedTotal = (invoices || []).reduce((s, i) => s + (Number(i.invoice_amount) || 0), 0);
 
       const userActivityCounts = new Map<string, number>();
       (acts || []).forEach((a) => {
         if (!a.user_id) return;
         userActivityCounts.set(a.user_id, (userActivityCounts.get(a.user_id) || 0) + 1);
       });
+
+      // Procurement PO value trend (by month)
+      const trendMap = new Map<string, number>();
+      (pos || []).forEach((p) => {
+        if (!p.order_date) return;
+        const key = format(new Date(p.order_date), "MMM yy");
+        trendMap.set(key, (trendMap.get(key) || 0) + (Number(p.total_amount) || 0));
+      });
+      const poTrend = Array.from(trendMap.entries()).map(([name, value]) => ({ name, value }));
+
+      // Procurement status breakdown
+      const poStatusMap = new Map<string, number>();
+      (pos || []).forEach((p) => {
+        const k = p.status || "Unknown";
+        poStatusMap.set(k, (poStatusMap.get(k) || 0) + 1);
+      });
+      const poStatus = Array.from(poStatusMap.entries()).map(([name, value]) => ({ name, value }));
+
+      // Expense category breakdown
+      const expCatMap = new Map<string, number>();
+      (exps || []).forEach((e) => {
+        const k = e.category === "Other" ? e.custom_category || "Other" : e.category || "Uncategorized";
+        expCatMap.set(k, (expCatMap.get(k) || 0) + (Number(e.amount) || 0));
+      });
+      const expByCategory = Array.from(expCatMap.entries()).map(([name, value]) => ({ name, value }));
 
       return {
         totalActivities: acts?.length || 0,
@@ -108,6 +150,13 @@ export function OverviewTab() {
         pendingApprovals: (pendingLeaves || 0) + (pendingExp || 0),
         totalExpenses: (exps || []).reduce((s, e) => s + (Number(e.amount) || 0), 0),
         userActivityCounts: Array.from(userActivityCounts.entries()),
+        poTrend,
+        poStatus,
+        expByCategory,
+        payments: [
+          { name: "Collected", value: collected },
+          { name: "Pending", value: Math.max(0, invoicedTotal - collected) },
+        ].filter((d) => d.value > 0),
       };
     },
   });
