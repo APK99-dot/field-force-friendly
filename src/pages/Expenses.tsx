@@ -37,6 +37,10 @@ interface ExpenseCategory {
 }
 
 export default function Expenses() {
+  const expCfg = useModuleConfig("expenses");
+  const cfgReceiptUpload = expCfg.bool("receiptUpload");
+  const cfgRequireReceipt = expCfg.bool("requireReceipt");
+  const cfgCanSubmitExpense = expCfg.canDo("submitPermission");
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
