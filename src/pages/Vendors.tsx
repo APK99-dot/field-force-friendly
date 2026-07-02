@@ -22,7 +22,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus, Search, Phone, Mail, Edit, Trash2, Filter, User, X,
+  Plus, Search, Phone, Mail, Edit, Trash2, Filter, User, X, Download,
 } from "lucide-react";
 import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
 
@@ -45,6 +45,11 @@ interface Vendor {
   services: string | null;
   notes: string | null;
   status: string;
+  gst_number: string | null;
+  pan_number: string | null;
+  annual_revenue: number | null;
+  employee_count: number | null;
+  salesforce_id: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -60,6 +65,10 @@ interface VendorForm {
   services: string;
   notes: string;
   status: VendorStatus;
+  gst_number: string;
+  pan_number: string;
+  annual_revenue: string;
+  employee_count: string;
 }
 
 const emptyForm: VendorForm = {
@@ -72,6 +81,10 @@ const emptyForm: VendorForm = {
   services: "",
   notes: "",
   status: "active",
+  gst_number: "",
+  pan_number: "",
+  annual_revenue: "",
+  employee_count: "",
 };
 
 function statusColor(status: string) {
@@ -161,6 +174,7 @@ export default function Vendors() {
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [deleteVendor, setDeleteVendor] = useState<Vendor | null>(null);
   const [form, setForm] = useState<VendorForm>(emptyForm);
+  const [importConfirm, setImportConfirm] = useState(false);
 
   const { data: vendors = [], isLoading } = useQuery({
     queryKey: ["vendors"],
@@ -252,6 +266,10 @@ export default function Vendors() {
         services: payload.form.services.trim() || null,
         notes: payload.form.notes.trim() || null,
         status: payload.form.status,
+        gst_number: payload.form.gst_number.trim() || null,
+        pan_number: payload.form.pan_number.trim() || null,
+        annual_revenue: payload.form.annual_revenue.trim() ? Number(payload.form.annual_revenue) : null,
+        employee_count: payload.form.employee_count.trim() ? parseInt(payload.form.employee_count, 10) : null,
       };
       if (payload.id) {
         const { error } = await supabase.from("vendors").update(row).eq("id", payload.id);
@@ -292,6 +310,30 @@ export default function Vendors() {
     },
   });
 
+  const importMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("import-salesforce-vendors", {
+        body: {},
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as { total: number; added: number; updated: number; skipped: number; errors: string[] };
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["vendors"] });
+      setImportConfirm(false);
+      toast({
+        title: "Salesforce import complete",
+        description: `${res.added} added, ${res.updated} updated, ${res.skipped} skipped (of ${res.total}).`,
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Import failed", description: err?.message, variant: "destructive" });
+    },
+  });
+
+
+
   const openAdd = useCallback(() => {
     setEditingVendor(null);
     setForm(emptyForm);
@@ -310,6 +352,10 @@ export default function Vendors() {
       services: v.services || "",
       notes: v.notes || "",
       status: (v.status as VendorStatus) || "active",
+      gst_number: v.gst_number || "",
+      pan_number: v.pan_number || "",
+      annual_revenue: v.annual_revenue != null ? String(v.annual_revenue) : "",
+      employee_count: v.employee_count != null ? String(v.employee_count) : "",
     });
     setIsFormOpen(true);
   }, []);
@@ -338,10 +384,6 @@ export default function Vendors() {
       return;
     }
     const phones = form.phones.map((p) => p.trim()).filter(Boolean);
-    if (phones.length === 0) {
-      toast({ title: "At least one phone number is required", variant: "destructive" });
-      return;
-    }
     // Check for duplicate phones within form
     const uniquePhones = new Set(phones);
     if (uniquePhones.size !== phones.length) {
@@ -368,9 +410,21 @@ export default function Vendors() {
           <p className="text-xs text-muted-foreground">{vendors.length} vendors</p>
         </div>
         {isAdmin && (
-          <Button size="sm" onClick={openAdd} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Add Vendor
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setImportConfirm(true)}
+              disabled={importMutation.isPending}
+              className="gap-1.5"
+            >
+              <Download className="h-4 w-4" />
+              {importMutation.isPending ? "Importing..." : "Import from Salesforce"}
+            </Button>
+            <Button size="sm" onClick={openAdd} className="gap-1.5">
+              <Plus className="h-4 w-4" /> Add Vendor
+            </Button>
+          </div>
         )}
       </div>
 
@@ -496,6 +550,26 @@ export default function Vendors() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">GST Number</Label>
+                <Input value={form.gst_number} onChange={(e) => setForm((p) => ({ ...p, gst_number: e.target.value }))} placeholder="GST #" />
+              </div>
+              <div>
+                <Label className="text-xs">PAN Number</Label>
+                <Input value={form.pan_number} onChange={(e) => setForm((p) => ({ ...p, pan_number: e.target.value }))} placeholder="PAN #" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Annual Revenue</Label>
+                <Input type="number" value={form.annual_revenue} onChange={(e) => setForm((p) => ({ ...p, annual_revenue: e.target.value }))} placeholder="0" />
+              </div>
+              <div>
+                <Label className="text-xs">Employees</Label>
+                <Input type="number" value={form.employee_count} onChange={(e) => setForm((p) => ({ ...p, employee_count: e.target.value }))} placeholder="0" />
+              </div>
+            </div>
             <div>
               <Label className="text-xs">Services</Label>
               <Input value={form.services} onChange={(e) => setForm((p) => ({ ...p, services: e.target.value }))} placeholder="Services offered" />
@@ -543,6 +617,29 @@ export default function Vendors() {
               onClick={() => deleteVendor && deleteMutation.mutate(deleteVendor.id)}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Import from Salesforce Confirmation */}
+      <AlertDialog open={importConfirm} onOpenChange={(open) => !open && !importMutation.isPending && setImportConfirm(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Import vendors from Salesforce</AlertDialogTitle>
+            <AlertDialogDescription>
+              This pulls all Salesforce Accounts into Vendor Management, mapping name, phone, email,
+              address, category, GST, PAN, revenue and employees. Existing vendors already imported
+              from Salesforce are updated; new ones are added. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={importMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); importMutation.mutate(); }}
+              disabled={importMutation.isPending}
+            >
+              {importMutation.isPending ? "Importing..." : "Start Import"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
