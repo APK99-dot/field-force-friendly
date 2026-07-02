@@ -219,7 +219,7 @@ export default function Expenses() {
           <div className="space-y-4">
             {/* Header */}
             <div className="flex items-center justify-end">
-              <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Expense</Button>
+              {cfgCanSubmitExpense && <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Expense</Button>}
             </div>
 
             {/* Month & Status Filter */}
