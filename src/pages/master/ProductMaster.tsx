@@ -235,7 +235,7 @@ export default function ProductMaster() {
                   {filtered.map((r) => {
                     const c = catById(r.category_id);
                     return (
-                      <TableRow key={r.id}>
+                      <TableRow key={r.id} onClick={() => openEdit(r)} className="cursor-pointer">
                         <TableCell className="font-medium">{r.product_name}</TableCell>
                         <TableCell>{c?.category_name || "—"}</TableCell>
                         <TableCell>{r.default_uom || "—"}</TableCell>
@@ -244,12 +244,12 @@ export default function ProductMaster() {
                         <TableCell className="text-center">
                           <Badge
                             className={r.is_active ? "bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] cursor-pointer" : "bg-destructive/20 text-destructive cursor-pointer"}
-                            onClick={() => toggleActive(r)}
+                            onClick={(e) => { e.stopPropagation(); toggleActive(r); }}
                           >
                             {r.is_active ? "Active" : "Inactive"}
                           </Badge>
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
                             <Button variant="outline" size="sm" onClick={() => openEdit(r)}><Edit className="h-4 w-4" /></Button>
                             {deleteConfirmId === r.id ? (
