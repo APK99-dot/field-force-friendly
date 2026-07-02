@@ -384,10 +384,6 @@ export default function Vendors() {
       return;
     }
     const phones = form.phones.map((p) => p.trim()).filter(Boolean);
-    if (phones.length === 0) {
-      toast({ title: "At least one phone number is required", variant: "destructive" });
-      return;
-    }
     // Check for duplicate phones within form
     const uniquePhones = new Set(phones);
     if (uniquePhones.size !== phones.length) {
