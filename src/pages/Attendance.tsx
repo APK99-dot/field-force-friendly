@@ -171,8 +171,40 @@ export default function Attendance() {
     return map;
   }, [regularizationRequests]);
 
+  // Direct attendance without selfie/face verification (when disabled in config)
+  const doDirectAttendance = async (mode: "checkin" | "checkout") => {
+    if (!userId) return;
+    setActionLoading(true);
+    try {
+      let location: any = null;
+      if (cfgGpsCapture) {
+        setProcessingStep("location");
+        try { location = await getCurrentPosition(); } catch {}
+      }
+      setProcessingStep("saving");
+      if (mode === "checkin") {
+        await checkIn({ location, faceVerificationStatus: "bypassed", faceMatchConfidence: 0 });
+      } else {
+        await checkOut({ location, faceVerificationStatus: "bypassed", faceMatchConfidence: 0 });
+      }
+      setProcessingStep("done");
+      toast.success(mode === "checkin" ? "Day started successfully!" : "Day ended successfully!");
+      await new Promise((r) => setTimeout(r, 1200));
+    } catch (err: any) {
+      console.error("Attendance error:", err);
+      toast.error(err.message || "Failed to record attendance");
+    } finally {
+      setActionLoading(false);
+      setProcessingStep(null);
+    }
+  };
+
   // --- Camera + Face Verification Flow ---
   const handleStartDay = () => {
+    if (!cfgRequireSelfie) {
+      void doDirectAttendance("checkin");
+      return;
+    }
     // Force face registration if no profile picture
     if (!profilePictureUrl) {
       setPendingAction("checkin");
@@ -185,6 +217,10 @@ export default function Attendance() {
   };
 
   const handleEndDay = () => {
+    if (!cfgRequireSelfie) {
+      void doDirectAttendance("checkout");
+      return;
+    }
     // Force face registration if no profile picture
     if (!profilePictureUrl) {
       setPendingAction("checkout");
