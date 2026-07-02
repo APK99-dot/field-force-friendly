@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft, Phone, Mail, MapPin, Edit, Trash2, Filter, User, Briefcase, StickyNote,
+  FileText, Hash, IndianRupee, Users,
 } from "lucide-react";
 import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
 
