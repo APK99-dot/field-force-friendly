@@ -1043,7 +1043,7 @@ export default function Activities() {
               </div>
             )}
             {/* Activity Owner - only for managers/admins */}
-            {isManagerOrAdmin && !editingId && (
+            {canAssign && !editingId && (
               <div>
                 <Label className="text-xs font-medium">Activity Owner</Label>
                 <Select value={form.owner_user_id} onValueChange={(v) => setForm({ ...form, owner_user_id: v })}>
