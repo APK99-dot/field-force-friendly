@@ -45,6 +45,11 @@ interface Vendor {
   services: string | null;
   notes: string | null;
   status: string;
+  gst_number: string | null;
+  pan_number: string | null;
+  annual_revenue: number | null;
+  employee_count: number | null;
+  salesforce_id: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -60,6 +65,10 @@ interface VendorForm {
   services: string;
   notes: string;
   status: VendorStatus;
+  gst_number: string;
+  pan_number: string;
+  annual_revenue: string;
+  employee_count: string;
 }
 
 const emptyForm: VendorForm = {
@@ -72,6 +81,10 @@ const emptyForm: VendorForm = {
   services: "",
   notes: "",
   status: "active",
+  gst_number: "",
+  pan_number: "",
+  annual_revenue: "",
+  employee_count: "",
 };
 
 function statusColor(status: string) {
