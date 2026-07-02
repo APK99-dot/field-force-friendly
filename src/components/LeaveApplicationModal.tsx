@@ -10,6 +10,7 @@ import { CalendarIcon, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { useModuleConfig } from '@/hooks/useModuleConfig';
 import { toast } from 'sonner';
 
 interface LeaveType {
