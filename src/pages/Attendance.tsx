@@ -787,9 +787,11 @@ export default function Attendance() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
+                          {cfgAllowRegularisation && (
                           <Button size="icon" variant="outline" className="h-8 w-8 border-orange-300 text-orange-700 hover:bg-orange-50" onClick={() => handleOpenRegularizationModal(record)} title={hasRejectedRequest ? "Resubmit Regularization" : "Request Regularization"}>
                             <Edit3 className="h-4 w-4" />
                           </Button>
+                          )}
 
                           {!isAbsent && (
                             <Button
