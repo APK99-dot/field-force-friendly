@@ -176,16 +176,24 @@ export default function AttendanceReport() {
       }
       summary={<SummaryCards items={summary} />}
       chart={
-        <ReportChartCard
-          title="Present vs Absent per Week"
-          description="Attendance distribution across the selected date range"
-          type="groupedBar"
-          data={chartData}
-          series={[
-            { key: "Present", label: "Present", color: "hsl(160 64% 42%)" },
-            { key: "Absent", label: "Absent", color: "hsl(0 75% 60%)" },
-          ]}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ReportChartCard
+            title="Present vs Absent per Week"
+            description="Attendance distribution across the selected date range"
+            type="groupedBar"
+            data={chartData}
+            series={[
+              { key: "Present", label: "Present", color: "hsl(160 64% 42%)" },
+              { key: "Absent", label: "Absent", color: "hsl(0 75% 60%)" },
+            ]}
+          />
+          <ReportChartCard
+            title="Status Breakdown"
+            description="Records by attendance status"
+            type="pie"
+            data={statusChart}
+          />
+        </div>
       }
       table={
         <Table>
