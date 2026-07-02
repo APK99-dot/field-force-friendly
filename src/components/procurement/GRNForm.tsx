@@ -410,6 +410,7 @@ export default function GRNForm({
                 </div>
               )}
             </div>
+            )}
 
             {/* Vendor Feedback (optional) */}
             {vendorId && cfgVendorRating && (
