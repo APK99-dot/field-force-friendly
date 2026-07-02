@@ -16,7 +16,14 @@ export type ProcStatus = (typeof PROC_STATUSES)[number];
 // Statuses a user is allowed to set directly on the PO form (creation only)
 export const USER_FORM_STATUSES: ProcStatus[] = ["Requisition"];
 
-export const UOM_OPTIONS = ["Nos", "Kg", "Ton", "Bags", "Sqft", "Rmt", "Set"] as const;
+export const UOM_OPTIONS = [
+  "Nos", "No", "Pc", "Set", "Box", "Bag", "Bags", "Coil", "Bundles", "Sheets", "Packet",
+  "Kg", "Kgs", "Grams", "MT", "Tonne", "M.T",
+  "Ltr", "Ltrs", "L", "CAN",
+  "Mtr", "Mtrs", "M", "Meters", "Rmt", "Feet", "Ft", "Sft", "Smt", "Sqft",
+  "M3", "CUM", "Cmt", "CFT",
+  "Days", "Hrs", "Trips", "Load", "Loads", "LS", "Lumsum",
+] as const;
 
 export const PAYMENT_TERMS = [
   "Immediate",

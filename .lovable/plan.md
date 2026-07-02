@@ -1,47 +1,49 @@
-# Salesforce → Vendor Master Import
+# Import Salesforce Products into Product Master
 
-## Goal
-Add the Salesforce fields that are missing from Vendor Master, then pull the Salesforce Accounts into Master Data → Vendor Management with correct field mapping.
+## What's in Salesforce
+The products live in a custom object **`Product__c`** — **770 records**. Field usage:
 
-## Field mapping (Salesforce Account → Vendor Master)
+| Salesforce field | Populated | Maps to Product Master |
+|---|---|---|
+| `Name` | all | `product_name` (exists) |
+| `UOM__c` (free text) | 650 | `default_uom` (exists, text) |
+| `Budgeted_rate_per_unit__c` (currency) | 437 | `budgeted_rate` (**new**) |
+| `Lead_Time__c` (number, days) | 158 | `lead_time_days` (**new**) |
+| `Product_Description__c` | 77 | `product_description` (**new**) |
+| `Quality_instruction__c` (long text) | some | `quality_instruction` (**new**) |
+| `Delivery_instruction__c` (long text) | some | `delivery_instruction` (**new**) |
+| `Id` | all | `salesforce_id` (**new**, unique — dedup/re-sync) |
+| `Product_Category__c` | **0** | — |
+| `Product_Hierarchy__c` | **0** | — |
 
-```text
-Salesforce field          →  Vendor Master field
-------------------------------------------------
-Name                      →  name              (exists)
-Phone                     →  phone[]           (exists)
-Email_Id__c               →  email[]           (exists)
-Billing Street/City/      →  address           (exists, combined)
-  State/PostalCode/Country
-Account_Type__c           →  category          (exists; e.g. "Product Vendor")
-GST__c                    →  gst_number        (NEW)
-PAN__c                    →  pan_number        (NEW)
-AnnualRevenue             →  annual_revenue    (NEW)
-NumberOfEmployees         →  employee_count    (NEW)
-Salesforce Id             →  salesforce_id     (NEW, hidden, for de-dup/re-sync)
-```
+## Category & UOM findings (important)
+- **Categories:** No category data exists in Salesforce — both the category lookup and hierarchy fields are empty on all 770 records. So **nothing needs to be added to Category Master**, and products will import with no category. They can be categorized later in Product Master.
+- **UOM:** Salesforce has **51 distinct free-text UOM values** (e.g. `Nos`, `No`, `MT`, `Kgs`, `KG`, `Cmt`, `Coil`, `Bag`, `Bags`, `M3`, `CFT`, plus messy ones like `1`, `test`, `e.T.T`). The `default_uom` column is free text, so values import **as-is** (no data loss). The current dropdown (`UOM_OPTIONS`) only has 7 entries; it will be **expanded** with the common clean values so manual edits have a fuller list, while raw imported text is preserved.
 
-Notes: Salesforce has no separate "contact person" field on Account, so that stays blank. GST/PAN are shown as their own fields instead of being buried in notes.
+## Plan
 
-## What gets built
+### 1. Database migration
+Add to `master_products`:
+- `product_description` (text)
+- `budgeted_rate` (numeric)
+- `lead_time_days` (integer)
+- `quality_instruction` (text)
+- `delivery_instruction` (text)
+- `salesforce_id` (text) + unique index for de-duplication
 
-### 1. Database changes
-- Add columns to `vendors`: `gst_number`, `pan_number`, `annual_revenue`, `employee_count`, `salesforce_id` (unique).
-- Relax the existing vendor phone trigger: many Salesforce accounts have no phone number, so phone becomes optional. Uniqueness is still enforced only when a phone is present. (Currently the trigger rejects any vendor without a phone, which would block most of the import.)
+### 2. Import Edge Function
+Create `supabase/functions/import-salesforce-products/index.ts` (mirrors the vendor importer):
+- Admin-only (JWT + `has_role` check).
+- Paginates `SELECT ... FROM Product__c` via the Salesforce connector gateway.
+- Maps fields per table above; UOM stored as raw text.
+- Upserts into `master_products` keyed by `salesforce_id` (insert new, update existing). Returns `{ total, added, updated, skipped, errors }`.
 
-### 2. Salesforce connector link
-- Link the already-connected Salesforce connection to this project so the backend import can read from it securely.
+### 3. UI — Product Master page
+- Add an **"Import from Salesforce"** button (admin only) with a confirmation dialog and a result summary toast (added / updated / skipped).
+- Extend the Add/Edit dialog with the new fields: Description, Budgeted Rate, Lead Time (days), Quality Instruction, Delivery Instruction.
+- Add Budgeted Rate and UOM (already shown) columns; keep table readable.
+- Expand `UOM_OPTIONS` in `src/lib/procurement.ts` with the common Salesforce UOM values.
 
-### 3. Import backend (edge function)
-- A secure function pulls Accounts from Salesforce via the connector, maps the fields above, and upserts into `vendors` keyed by `salesforce_id` (so re-running updates existing rows instead of creating duplicates).
-- Admin-only.
-
-### 4. UI in Vendor Management
-- New **"Import from Salesforce"** button (visible to admins) that runs the import and shows a summary (added / updated / skipped).
-- Add the new fields (GST, PAN, Annual Revenue, Employees) to the vendor Add/Edit form and to the Vendor detail page.
-
-## Open decision — which accounts to import
-Your screenshot shows **All Accounts (220)**. In Salesforce these break down by "Account Type": 93 Product Vendor, 24 Rental Client, 2 Billing Entity, 1 each Consultant/Shipping/Broker, and 99 with no type set. I'll default to importing **all 220 accounts** as vendors (each tagged with its Account Type as the category). If you'd rather import only "Product Vendor" records, tell me and I'll filter to those.
-
-## Result
-Vendor Master will hold the same GST, PAN, Revenue, and Employees data as Salesforce, populated from your Salesforce Accounts, and re-runnable to stay in sync.
+## Notes
+- Some product names appear more than once in Salesforce (e.g. different casing of the same item). Dedup is by `salesforce_id`, so each Salesforce record maps to one product; near-duplicate names will import as separate rows and can be cleaned up manually.
+- Re-running the import is safe (updates existing records rather than duplicating).
