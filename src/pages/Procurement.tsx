@@ -478,7 +478,7 @@ export default function Procurement() {
             )}
 
             <div>
-              <Label className="text-xs">{form.source_type === "internal_transfer" ? "Notes / Reason for Transfer" : "Notes / Reason for Requisition"}</Label>
+              <Label className="text-xs">{form.source_type === "internal_transfer" ? "Notes / Reason for Transfer" : "Notes / Reason for Requisition"}{cfgRequireNotes ? " *" : ""}</Label>
               <Textarea value={form.requisition_notes} onChange={(e) => setForm((p) => ({ ...p, requisition_notes: e.target.value }))} placeholder={form.source_type === "internal_transfer" ? "Why is this material being transferred?" : "Why is this material needed?"} className="min-h-[70px]" />
             </div>
 
