@@ -41,6 +41,9 @@ interface RegularizationRequestModalProps {
 const RegularizationRequestModal: React.FC<RegularizationRequestModalProps> = ({
   isOpen, onClose, attendanceRecord, existingRequest, onSubmit, userId
 }) => {
+  const regCfg = useModuleConfig("regularisation");
+  const cfgRequireReason = regCfg.bool("requireReason");
+  const cfgMaxPastDays = regCfg.num("maxPastDays");
   const [requestedCheckIn, setRequestedCheckIn] = useState('');
   const [requestedCheckOut, setRequestedCheckOut] = useState('');
   const [reason, setReason] = useState('');
