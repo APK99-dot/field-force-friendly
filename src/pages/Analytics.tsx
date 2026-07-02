@@ -85,11 +85,11 @@ function AnalyticsInner() {
         >
           {tab === "overview" && <OverviewTab />}
           <Suspense fallback={<Fallback />}>
-            {tab === "attendance" && <AttendanceReport />}
-            {tab === "procurement" && <ProcurementReport />}
-            {tab === "activities" && <ActivityReport />}
+            {tab === "attendance" && reportsCfg.bool("attendanceReport") && <AttendanceReport />}
+            {tab === "procurement" && reportsCfg.bool("procurementReport") && <ProcurementReport />}
+            {tab === "activities" && reportsCfg.bool("activityReport") && <ActivityReport />}
             {tab === "milestones" && <MilestoneReport />}
-            {tab === "expenses" && <ExpenseReport />}
+            {tab === "expenses" && reportsCfg.bool("expenseReport") && <ExpenseReport />}
             {tab === "payments" && <PaymentReport />}
           </Suspense>
         </motion.div>
