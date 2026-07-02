@@ -329,7 +329,7 @@ export default function ProcurementDetail({
                           <Label className="text-[10px] text-muted-foreground">Rate</Label>
                           <Input
                             type="number" inputMode="decimal" value={l.rate} placeholder="0" className="h-8"
-                            disabled={!poUnlocked}
+                            disabled={!poUnlocked || ratesLocked}
                             onChange={(e) => setRateLines((prev) => prev.map((x, idx) => idx === i ? { ...x, rate: e.target.value } : x))}
                           />
                         </div>
