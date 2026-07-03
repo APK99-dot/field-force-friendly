@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useModuleConfig } from "@/hooks/useModuleConfig";
-import { CalendarDays, Truck, FileText, Pencil, ChevronRight, Save } from "lucide-react";
+import { CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, Save } from "lucide-react";
 import {
   STATUS_FLOW, allowedTransitions, statusColor, fmtAmt, PAYMENT_TERMS, statusFlowFor, type ProcStatus,
 } from "@/lib/procurement";
@@ -81,9 +83,12 @@ export default function ProcurementDetail({
   const [rateLines, setRateLines] = useState<{ id: string; product_id: string | null; uom: string | null; qty: number; rate: string }[]>([]);
   const [poSaving, setPoSaving] = useState(false);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
+  const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
+  const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
+    supabase.from("vendors").select("id, name").order("name").then(({ data }) => setVendors((data || []) as { id: string; name: string }[]));
   }, []);
 
   // Sync inline editable fields whenever the order changes
@@ -92,6 +97,7 @@ export default function ProcurementDetail({
       expected_delivery_date: order.expected_delivery_date || "",
       payment_terms: order.payment_terms || "",
     });
+    setSelectedVendorIds(order.vendor_ids && order.vendor_ids.length ? order.vendor_ids : (order.vendor_id ? [order.vendor_id] : []));
     setRateLines((order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, uom: it.uom, qty: it.qty, rate: String(it.rate ?? ""),
     })));
@@ -110,6 +116,8 @@ export default function ProcurementDetail({
       const { error: oErr } = await supabase.from("procurement_orders").update({
         expected_delivery_date: poForm.expected_delivery_date || null,
         payment_terms: poForm.payment_terms || null,
+        vendor_ids: selectedVendorIds.length ? selectedVendorIds : null,
+        vendor_id: selectedVendorIds[0] || null,
         total_amount: poEditTotal,
       }).eq("id", order.id);
       if (oErr) throw oErr;
@@ -237,10 +245,38 @@ export default function ProcurementDetail({
                 </>
               ) : (
                 <>
-                  <div className="text-muted-foreground">
-                    Vendor: {(order.vendor_ids && order.vendor_ids.length
-                      ? order.vendor_ids.map((id) => vendorName(id)).join(", ")
-                      : vendorName(order.vendor_id))}
+                  <div>
+                    <Label className="text-xs">Vendor(s)</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button type="button" variant="outline" className="h-9 w-full justify-between font-normal" disabled={!poUnlocked}>
+                          <span className="truncate text-left">
+                            {selectedVendorIds.length === 0
+                              ? <span className="text-muted-foreground">Select vendors</span>
+                              : selectedVendorIds.map((id) => vendorName(id)).join(", ")}
+                          </span>
+                          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-2 max-h-64 overflow-y-auto" align="start">
+                        {vendors.length === 0 ? (
+                          <p className="text-xs text-muted-foreground p-2">No vendors found.</p>
+                        ) : vendors.map((v) => {
+                          const checked = selectedVendorIds.includes(v.id);
+                          return (
+                            <label key={v.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted cursor-pointer text-sm">
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(c) =>
+                                  setSelectedVendorIds((prev) => c ? [...prev, v.id] : prev.filter((id) => id !== v.id))
+                                }
+                              />
+                              <span>{v.name}</span>
+                            </label>
+                          );
+                        })}
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
                   {order.po_number && <div className="text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}
@@ -269,7 +305,7 @@ export default function ProcurementDetail({
                     </div>
                   </div>
                   {!poUnlocked && (
-                    <p className="text-[11px] text-muted-foreground">Delivery date, payment terms and rates can be set once the requisition is approved.</p>
+                    <p className="text-[11px] text-muted-foreground">Vendor(s), delivery date, payment terms and rates can be set once the requisition is approved.</p>
                   )}
                 </>
               )}
