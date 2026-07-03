@@ -21,7 +21,7 @@ interface Props {
   className?: string;
 }
 
-const ROW_HEIGHT = 52; // px per option row
+const ROW_HEIGHT = 48; // px per option row
 const OVERSCAN = 6;
 const VIEWPORT_HEIGHT = 288; // matches max-h-72
 
@@ -127,6 +127,15 @@ export default function ProductCombobox({ products, value, onChange, placeholder
     }
   };
 
+  // Popover portals outside the Dialog, whose react-remove-scroll blocks native
+  // wheel scrolling on the list. Drive the scroll manually so it works inside dialogs.
+  const onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop += e.deltaY;
+    setScrollTop(el.scrollTop);
+  };
+
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQuery(""); }}>
       <PopoverTrigger asChild>
@@ -135,23 +144,25 @@ export default function ProductCombobox({ products, value, onChange, placeholder
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("h-9 w-full justify-between font-normal", !selected && "text-muted-foreground", className)}
+          className={cn("h-10 w-full justify-between font-normal", !selected && "text-muted-foreground", className)}
         >
           <span className="truncate">{selected ? selected.product_name : placeholder}</span>
           <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <div className="flex items-center border-b px-3">
-          <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-          <Input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="Search name, code, category…"
-            className="h-11 border-0 p-0 shadow-none focus-visible:ring-0"
-          />
+        <div className="border-b p-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
+            <Input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Search name or category…"
+              className="pl-9"
+            />
+          </div>
         </div>
         {total === 0 ? (
           <div className="py-6 text-center text-sm text-muted-foreground">No products found.</div>
@@ -159,7 +170,8 @@ export default function ProductCombobox({ products, value, onChange, placeholder
           <div
             ref={listRef}
             onScroll={(e) => setScrollTop((e.target as HTMLDivElement).scrollTop)}
-            className="overflow-y-auto"
+            onWheel={onWheel}
+            className="overflow-y-auto overscroll-contain"
             style={{ maxHeight: VIEWPORT_HEIGHT }}
           >
             <div style={{ height: total * ROW_HEIGHT, position: "relative" }}>
@@ -173,20 +185,21 @@ export default function ProductCombobox({ products, value, onChange, placeholder
                     onMouseEnter={() => setActive(idx)}
                     onClick={() => commit(p.id)}
                     className={cn(
-                      "absolute left-0 right-0 flex cursor-pointer items-start gap-2 px-3 py-1.5 text-sm",
+                      "absolute left-0 right-0 flex cursor-pointer items-center gap-2 px-3 text-sm",
                       idx === active && "bg-accent text-accent-foreground",
                     )}
                     style={{ top: idx * ROW_HEIGHT, height: ROW_HEIGHT }}
                   >
-                    <Check className={cn("mt-0.5 h-4 w-4 shrink-0", p.id === value ? "opacity-100" : "opacity-0")} />
+                    <Check className={cn("h-4 w-4 shrink-0", p.id === value ? "opacity-100" : "opacity-0")} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium">
                         <Highlight text={p.product_name} query={query} />
                       </div>
-                      <div className="truncate text-[11px] text-muted-foreground">
-                        {p.code && <><Highlight text={p.code} query={query} />{p.category_name ? " · " : ""}</>}
-                        {p.category_name && <Highlight text={p.category_name} query={query} />}
-                      </div>
+                      {p.category_name && (
+                        <div className="truncate text-[11px] text-muted-foreground">
+                          <Highlight text={p.category_name} query={query} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
