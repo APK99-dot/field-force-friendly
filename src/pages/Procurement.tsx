@@ -106,7 +106,6 @@ export default function Procurement() {
       product_name: p.product_name,
       default_uom: p.default_uom,
       product_description: p.product_description,
-      code: p.salesforce_id,
       category_name: p.master_categories?.category_name ?? null,
     })) as Product[]);
     setIsLoading(false);
