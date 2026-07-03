@@ -17,9 +17,10 @@ import { useModuleConfig } from "@/hooks/useModuleConfig";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 import { Plus, Search, Trash2, X, ShoppingCart, Save, CalendarDays, ArrowRight } from "lucide-react";
 import {
-  PROC_STATUSES, USER_FORM_STATUSES, UOM_OPTIONS,
+  PROC_STATUSES, USER_FORM_STATUSES,
   statusColor, fmtAmt, type ProcStatus, type SourceType,
 } from "@/lib/procurement";
+import { useUomOptions } from "@/hooks/useUomOptions";
 import ProcurementDetail, { type DetailOrder } from "@/components/procurement/ProcurementDetail";
 import ProductCombobox from "@/components/procurement/ProductCombobox";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
