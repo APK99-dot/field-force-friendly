@@ -21,6 +21,7 @@ import {
   statusColor, fmtAmt, type ProcStatus, type SourceType,
 } from "@/lib/procurement";
 import ProcurementDetail, { type DetailOrder } from "@/components/procurement/ProcurementDetail";
+import ProductCombobox from "@/components/procurement/ProductCombobox";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 
 interface Vendor { id: string; name: string }
