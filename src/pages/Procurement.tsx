@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useModuleConfig } from "@/hooks/useModuleConfig";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
-import { Plus, Search, Trash2, X, ShoppingCart, Save, CalendarDays, ChevronDown, ArrowRight } from "lucide-react";
+import { Plus, Search, Trash2, X, ShoppingCart, Save, CalendarDays, ArrowRight } from "lucide-react";
 import {
   PROC_STATUSES, USER_FORM_STATUSES, UOM_OPTIONS,
   statusColor, fmtAmt, type ProcStatus, type SourceType,
