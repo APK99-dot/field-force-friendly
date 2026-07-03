@@ -321,7 +321,7 @@ export default function Procurement() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col">
           <DialogHeader className="px-4 py-3 border-b shrink-0">
-            <DialogTitle>{editing ? "Edit Procurement" : "New Procurement"}</DialogTitle>
+            <DialogTitle>{editing ? "Edit Requisition" : "New Requisition"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 p-4 overflow-y-auto flex-1 w-full">
             {/* Source Type selector */}
