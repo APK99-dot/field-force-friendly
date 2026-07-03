@@ -71,6 +71,7 @@ export default function ProductMaster() {
   const [importConfirm, setImportConfirm] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
+  const { options: uomOptions } = useUomOptions(formData.default_uom || null);
 
   useEffect(() => { fetchAll(); }, []);
 
