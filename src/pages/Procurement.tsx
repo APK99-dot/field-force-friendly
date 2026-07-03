@@ -25,7 +25,7 @@ import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
-interface Product { id: string; product_name: string; default_uom: string | null }
+interface Product { id: string; product_name: string; default_uom: string | null; category_name?: string | null; product_description?: string | null; code?: string | null }
 interface LineItem { id?: string; product_id: string; rate: string; qty: string; uom: string }
 
 const emptyForm = {
