@@ -83,9 +83,12 @@ export default function ProcurementDetail({
   const [rateLines, setRateLines] = useState<{ id: string; product_id: string | null; uom: string | null; qty: number; rate: string }[]>([]);
   const [poSaving, setPoSaving] = useState(false);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
+  const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
+  const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
+    supabase.from("vendors").select("id, name").order("name").then(({ data }) => setVendors((data || []) as { id: string; name: string }[]));
   }, []);
 
   // Sync inline editable fields whenever the order changes
@@ -94,6 +97,7 @@ export default function ProcurementDetail({
       expected_delivery_date: order.expected_delivery_date || "",
       payment_terms: order.payment_terms || "",
     });
+    setSelectedVendorIds(order.vendor_ids && order.vendor_ids.length ? order.vendor_ids : (order.vendor_id ? [order.vendor_id] : []));
     setRateLines((order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, uom: it.uom, qty: it.qty, rate: String(it.rate ?? ""),
     })));
