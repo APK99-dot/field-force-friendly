@@ -1,0 +1,1 @@
+UPDATE public.procurement_orders SET status = 'Quote Requested' WHERE status = 'Quote Awaited';
