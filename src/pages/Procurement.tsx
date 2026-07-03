@@ -474,7 +474,7 @@ export default function Procurement() {
                         <Label className="text-[10px] text-muted-foreground">UOM</Label>
                         <Select value={l.uom} onValueChange={(v) => updateLine(i, { uom: v })}>
                           <SelectTrigger className="h-8"><SelectValue placeholder="UOM" /></SelectTrigger>
-                          <SelectContent>{UOM_OPTIONS.map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}</SelectContent>
+                          <SelectContent>{(l.uom && !uomOptions.includes(l.uom) ? [l.uom, ...uomOptions] : uomOptions).map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}</SelectContent>
                         </Select>
                       </div>
                       <div>
