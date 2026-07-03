@@ -245,10 +245,38 @@ export default function ProcurementDetail({
                 </>
               ) : (
                 <>
-                  <div className="text-muted-foreground">
-                    Vendor: {(order.vendor_ids && order.vendor_ids.length
-                      ? order.vendor_ids.map((id) => vendorName(id)).join(", ")
-                      : vendorName(order.vendor_id))}
+                  <div>
+                    <Label className="text-xs">Vendor(s)</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button type="button" variant="outline" className="h-9 w-full justify-between font-normal" disabled={!poUnlocked}>
+                          <span className="truncate text-left">
+                            {selectedVendorIds.length === 0
+                              ? <span className="text-muted-foreground">Select vendors</span>
+                              : selectedVendorIds.map((id) => vendorName(id)).join(", ")}
+                          </span>
+                          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-2 max-h-64 overflow-y-auto" align="start">
+                        {vendors.length === 0 ? (
+                          <p className="text-xs text-muted-foreground p-2">No vendors found.</p>
+                        ) : vendors.map((v) => {
+                          const checked = selectedVendorIds.includes(v.id);
+                          return (
+                            <label key={v.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted cursor-pointer text-sm">
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(c) =>
+                                  setSelectedVendorIds((prev) => c ? [...prev, v.id] : prev.filter((id) => id !== v.id))
+                                }
+                              />
+                              <span>{v.name}</span>
+                            </label>
+                          );
+                        })}
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
                   {order.po_number && <div className="text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}
