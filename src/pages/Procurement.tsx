@@ -21,11 +21,12 @@ import {
   statusColor, fmtAmt, type ProcStatus, type SourceType,
 } from "@/lib/procurement";
 import ProcurementDetail, { type DetailOrder } from "@/components/procurement/ProcurementDetail";
+import ProductCombobox from "@/components/procurement/ProductCombobox";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
-interface Product { id: string; product_name: string; default_uom: string | null }
+interface Product { id: string; product_name: string; default_uom: string | null; category_name?: string | null; product_description?: string | null; code?: string | null }
 interface LineItem { id?: string; product_id: string; rate: string; qty: string; uom: string }
 
 const emptyForm = {
@@ -95,12 +96,19 @@ export default function Procurement() {
       supabase.from("procurement_orders").select("*, procurement_items(*)").order("order_date", { ascending: false }),
       supabase.from("vendors").select("id, name").order("name"),
       supabase.from("project_sites").select("id, site_name").is("deleted_at", null).order("site_name"),
-      supabase.from("master_products").select("id, product_name, default_uom").eq("is_active", true).order("product_name"),
+      supabase.from("master_products").select("id, product_name, default_uom, product_description, salesforce_id, master_categories(name)").eq("is_active", true).order("product_name"),
     ]);
     setOrders((ord.data || []) as DetailOrder[]);
     setVendors((ven.data || []) as Vendor[]);
     setSites((sit.data || []) as Site[]);
-    setProducts((prod.data || []) as Product[]);
+    setProducts(((prod.data || []) as any[]).map((p) => ({
+      id: p.id,
+      product_name: p.product_name,
+      default_uom: p.default_uom,
+      product_description: p.product_description,
+      code: p.salesforce_id,
+      category_name: p.master_categories?.name ?? null,
+    })) as Product[]);
     setIsLoading(false);
     // keep open detail fresh
     setDetail((d) => (d ? ((ord.data || []) as DetailOrder[]).find((o) => o.id === d.id) || null : null));
@@ -458,10 +466,7 @@ export default function Procurement() {
                   <div key={i} className="rounded-lg border p-2.5 space-y-2 bg-muted/30">
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
-                        <Select value={l.product_id} onValueChange={(v) => onProductChange(i, v)}>
-                          <SelectTrigger className="h-9"><SelectValue placeholder="Select material" /></SelectTrigger>
-                          <SelectContent>{products.map((p) => (<SelectItem key={p.id} value={p.id}>{p.product_name}</SelectItem>))}</SelectContent>
-                        </Select>
+                        <ProductCombobox products={products} value={l.product_id} onChange={(v) => onProductChange(i, v)} />
                       </div>
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeLine(i)}><X className="h-3.5 w-3.5" /></Button>
                     </div>
