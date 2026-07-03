@@ -393,50 +393,6 @@ export default function Procurement() {
                   </Select>
                 </div>
 
-                <div>
-                  <Label className="text-xs">Vendor(s)</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button type="button" variant="outline" className="h-9 w-full justify-between font-normal">
-                        <span className="truncate text-left">
-                          {form.vendor_ids.length === 0
-                            ? <span className="text-muted-foreground">Select vendors</span>
-                            : form.vendor_ids.map((id) => vName(id)).join(", ")}
-                        </span>
-                        <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-2 max-h-64 overflow-y-auto" align="start">
-                      {vendors.length === 0 ? (
-                        <p className="text-xs text-muted-foreground p-2">No vendors found.</p>
-                      ) : vendors.map((v) => {
-                        const checked = form.vendor_ids.includes(v.id);
-                        return (
-                          <label key={v.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted cursor-pointer text-sm">
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={(c) =>
-                                setForm((p) => ({
-                                  ...p,
-                                  vendor_ids: c ? [...p.vendor_ids, v.id] : p.vendor_ids.filter((id) => id !== v.id),
-                                }))
-                              }
-                            />
-                            <span>{v.name}</span>
-                          </label>
-                        );
-                      })}
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                {cfgBudgetField && (
-                <div>
-                  <Label className="text-xs">Estimated Budget (₹)</Label>
-                  <Input type="number" inputMode="decimal" value={form.estimated_budget} onChange={(e) => setForm((p) => ({ ...p, estimated_budget: e.target.value }))} placeholder="0" className="h-9" />
-                </div>
-                )}
-
                 {cfgBillShipFields && (
                 <>
                 <div>
@@ -473,6 +429,13 @@ export default function Procurement() {
                   })()}
                 </div>
                 </>
+                )}
+
+                {cfgBudgetField && (
+                <div>
+                  <Label className="text-xs">Estimated Budget (₹)</Label>
+                  <Input type="number" inputMode="decimal" value={form.estimated_budget} onChange={(e) => setForm((p) => ({ ...p, estimated_budget: e.target.value }))} placeholder="0" className="h-9" />
+                </div>
                 )}
               </>
             )}
