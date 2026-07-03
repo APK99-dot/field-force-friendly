@@ -116,6 +116,8 @@ export default function ProcurementDetail({
       const { error: oErr } = await supabase.from("procurement_orders").update({
         expected_delivery_date: poForm.expected_delivery_date || null,
         payment_terms: poForm.payment_terms || null,
+        vendor_ids: selectedVendorIds.length ? selectedVendorIds : null,
+        vendor_id: selectedVendorIds[0] || null,
         total_amount: poEditTotal,
       }).eq("id", order.id);
       if (oErr) throw oErr;
