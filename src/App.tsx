@@ -38,6 +38,7 @@ const MasterData = lazy(() => import("./pages/MasterData"));
 const CategoryMaster = lazy(() => import("./pages/master/CategoryMaster"));
 const ProductMaster = lazy(() => import("./pages/master/ProductMaster"));
 const AddressBook = lazy(() => import("./pages/master/AddressBook"));
+const UomMaster = lazy(() => import("./pages/master/UomMaster"));
 
 const Procurement = lazy(() => import("./pages/Procurement"));
 const GRN = lazy(() => import("./pages/GRN"));
