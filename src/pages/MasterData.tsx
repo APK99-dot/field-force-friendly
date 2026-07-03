@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Handshake, ListChecks, FolderTree, Package, MapPin } from "lucide-react";
+import { Handshake, ListChecks, FolderTree, Package, MapPin, Ruler } from "lucide-react";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 
 const allMasterModules = [
@@ -44,6 +44,14 @@ const allMasterModules = [
     icon: MapPin,
     color: "bg-rose-100 text-rose-600",
     path: "/master-data/addresses",
+    module: null as string | null,
+  },
+  {
+    title: "UOM Master",
+    description: "Manage units of measure used across the app",
+    icon: Ruler,
+    color: "bg-indigo-100 text-indigo-600",
+    path: "/master-data/uom",
     module: null as string | null,
   },
 ];

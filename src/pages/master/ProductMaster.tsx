@@ -17,8 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Save, Search, Package, Cloud } from "lucide-react";
-import { UOM_OPTIONS } from "@/lib/procurement";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useUomOptions } from "@/hooks/useUomOptions";
 
 interface CategoryRow {
   id: string;
@@ -71,6 +71,7 @@ export default function ProductMaster() {
   const [importConfirm, setImportConfirm] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
+  const { options: uomOptions } = useUomOptions(formData.default_uom || null);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -304,10 +305,7 @@ export default function ProductMaster() {
                 <Select value={formData.default_uom} onValueChange={(val) => setFormData({ ...formData, default_uom: val })}>
                   <SelectTrigger><SelectValue placeholder="Select UOM" /></SelectTrigger>
                   <SelectContent>
-                    {(formData.default_uom && !UOM_OPTIONS.includes(formData.default_uom as any)
-                      ? [formData.default_uom, ...UOM_OPTIONS]
-                      : UOM_OPTIONS
-                    ).map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}
+                    {uomOptions.map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </div>

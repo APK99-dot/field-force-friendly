@@ -17,9 +17,10 @@ import { useModuleConfig } from "@/hooks/useModuleConfig";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 import { Plus, Search, Trash2, X, ShoppingCart, Save, CalendarDays, ArrowRight } from "lucide-react";
 import {
-  PROC_STATUSES, USER_FORM_STATUSES, UOM_OPTIONS,
+  PROC_STATUSES, USER_FORM_STATUSES,
   statusColor, fmtAmt, type ProcStatus, type SourceType,
 } from "@/lib/procurement";
+import { useUomOptions } from "@/hooks/useUomOptions";
 import ProcurementDetail, { type DetailOrder } from "@/components/procurement/ProcurementDetail";
 import ProductCombobox from "@/components/procurement/ProductCombobox";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
@@ -44,6 +45,7 @@ const emptyForm = {
 
 export default function Procurement() {
   const { profile, isAdmin } = useUserProfile();
+  const { options: uomOptions } = useUomOptions();
   const { hasPermission } = useProfilePermissions();
   const cfg = useModuleConfig("procurement");
   const cfgInternalTransfer = cfg.bool("internalTransfer");
@@ -474,7 +476,7 @@ export default function Procurement() {
                         <Label className="text-[10px] text-muted-foreground">UOM</Label>
                         <Select value={l.uom} onValueChange={(v) => updateLine(i, { uom: v })}>
                           <SelectTrigger className="h-8"><SelectValue placeholder="UOM" /></SelectTrigger>
-                          <SelectContent>{UOM_OPTIONS.map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}</SelectContent>
+                          <SelectContent>{(l.uom && !uomOptions.includes(l.uom) ? [l.uom, ...uomOptions] : uomOptions).map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}</SelectContent>
                         </Select>
                       </div>
                       <div>
