@@ -17,8 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Save, Search, Package, Cloud } from "lucide-react";
-import { UOM_OPTIONS } from "@/lib/procurement";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useUomOptions } from "@/hooks/useUomOptions";
 
 interface CategoryRow {
   id: string;
