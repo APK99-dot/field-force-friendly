@@ -465,10 +465,7 @@ export default function Procurement() {
                   <div key={i} className="rounded-lg border p-2.5 space-y-2 bg-muted/30">
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
-                        <Select value={l.product_id} onValueChange={(v) => onProductChange(i, v)}>
-                          <SelectTrigger className="h-9"><SelectValue placeholder="Select material" /></SelectTrigger>
-                          <SelectContent>{products.map((p) => (<SelectItem key={p.id} value={p.id}>{p.product_name}</SelectItem>))}</SelectContent>
-                        </Select>
+                        <ProductCombobox products={products} value={l.product_id} onChange={(v) => onProductChange(i, v)} />
                       </div>
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeLine(i)}><X className="h-3.5 w-3.5" /></Button>
                     </div>
