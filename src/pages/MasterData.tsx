@@ -46,6 +46,14 @@ const allMasterModules = [
     path: "/master-data/addresses",
     module: null as string | null,
   },
+  {
+    title: "UOM Master",
+    description: "Manage units of measure used across the app",
+    icon: Ruler,
+    color: "bg-indigo-100 text-indigo-600",
+    path: "/master-data/uom",
+    module: null as string | null,
+  },
 ];
 
 const container = {
