@@ -96,7 +96,7 @@ export default function Procurement() {
       supabase.from("procurement_orders").select("*, procurement_items(*)").order("order_date", { ascending: false }),
       supabase.from("vendors").select("id, name").order("name"),
       supabase.from("project_sites").select("id, site_name").is("deleted_at", null).order("site_name"),
-      supabase.from("master_products").select("id, product_name, default_uom, product_description, salesforce_id, master_categories(name)").eq("is_active", true).order("product_name"),
+      supabase.from("master_products").select("id, product_name, default_uom, product_description, salesforce_id, master_categories(category_name)").eq("is_active", true).order("product_name"),
     ]);
     setOrders((ord.data || []) as DetailOrder[]);
     setVendors((ven.data || []) as Vendor[]);
