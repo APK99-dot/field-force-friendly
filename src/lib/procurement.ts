@@ -45,7 +45,7 @@ export type GrnStatus = (typeof GRN_STATUSES)[number];
 export const STATUS_FLOW: ProcStatus[] = [
   "Requisition",
   "Requisition Approved",
-  "Quote Awaited",
+  "Quote Requested",
   "Quote Received",
   "PO Issued",
   "Goods Received",
@@ -94,8 +94,8 @@ export function allowedTransitions(status: string, sourceType?: string | null): 
     case "Requisition":
       return [{ to: "Requisition Approved", label: "Approve Requisition", approver: true }];
     case "Requisition Approved":
-      return [{ to: "Quote Awaited", label: "Mark Quote Awaited", approver: false }];
-    case "Quote Awaited":
+      return [{ to: "Quote Requested", label: "Mark Quote Requested", approver: false }];
+    case "Quote Requested":
       return [{ to: "Quote Received", label: "Mark Quote Received", approver: false }];
     case "Quote Received":
       return [{ to: "PO Issued", label: "Issue PO", approver: true }];
