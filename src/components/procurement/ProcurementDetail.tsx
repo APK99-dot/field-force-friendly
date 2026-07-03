@@ -305,7 +305,7 @@ export default function ProcurementDetail({
                     </div>
                   </div>
                   {!poUnlocked && (
-                    <p className="text-[11px] text-muted-foreground">Delivery date, payment terms and rates can be set once the requisition is approved.</p>
+                    <p className="text-[11px] text-muted-foreground">Vendor(s), delivery date, payment terms and rates can be set once the requisition is approved.</p>
                   )}
                 </>
               )}
