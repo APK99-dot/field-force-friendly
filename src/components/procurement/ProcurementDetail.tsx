@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useModuleConfig } from "@/hooks/useModuleConfig";
-import { CalendarDays, Truck, FileText, Pencil, ChevronRight, Save } from "lucide-react";
+import { CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, Save } from "lucide-react";
 import {
   STATUS_FLOW, allowedTransitions, statusColor, fmtAmt, PAYMENT_TERMS, statusFlowFor, type ProcStatus,
 } from "@/lib/procurement";
