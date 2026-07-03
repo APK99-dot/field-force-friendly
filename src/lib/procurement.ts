@@ -3,7 +3,7 @@
 export const PROC_STATUSES = [
   "Requisition",
   "Requisition Approved",
-  "Quote Awaited",
+  "Quote Requested",
   "Quote Received",
   "PO Issued",
   "Goods Received",
