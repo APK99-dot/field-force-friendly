@@ -45,6 +45,7 @@ const emptyForm = {
 
 export default function Procurement() {
   const { profile, isAdmin } = useUserProfile();
+  const { options: uomOptions } = useUomOptions();
   const { hasPermission } = useProfilePermissions();
   const cfg = useModuleConfig("procurement");
   const cfgInternalTransfer = cfg.bool("internalTransfer");
