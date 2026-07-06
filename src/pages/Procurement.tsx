@@ -23,6 +23,7 @@ import {
 import { useUomOptions } from "@/hooks/useUomOptions";
 import ProcurementDetail, { type DetailOrder } from "@/components/procurement/ProcurementDetail";
 import ProductCombobox from "@/components/procurement/ProductCombobox";
+import CategoryCombobox from "@/components/procurement/CategoryCombobox";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 
 interface Vendor { id: string; name: string }
