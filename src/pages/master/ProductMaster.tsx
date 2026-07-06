@@ -73,8 +73,18 @@ export default function ProductMaster() {
   const [isImporting, setIsImporting] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
   const { options: uomOptions } = useUomOptions(formData.default_uom || null);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const returnTo = searchParams.get("returnTo");
 
   useEffect(() => { fetchAll(); }, []);
+
+  // When launched from the Requisition "+ Add Product" flow, open the form immediately.
+  useEffect(() => {
+    if (returnTo) openAdd();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnTo]);
+
 
   const fetchAll = async () => {
     setIsLoading(true);
