@@ -73,6 +73,7 @@ const adminItems = [
 
 export function AppHeader() {
   const navigate = useNavigate();
+  const battery = useBatteryStatus();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
