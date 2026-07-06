@@ -80,7 +80,8 @@ export default function Procurement() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [pendingRestore, setPendingRestore] = useState<null | {
-    existingProductIds: string[]; existingCategoryIds: string[]; pending: { type: "product" | "category" };
+    existingProductIds: string[]; existingCategoryIds: string[];
+    pending: { type: "product" | "category" }; editingId: string | null;
   }>(null);
 
   useEffect(() => { fetchAddressOptions().then(setAddressOptions).catch(() => {}); }, []);
