@@ -28,14 +28,19 @@ const ALL_MANAGER_ADMIN = [
 type Tab = "config" | "approval";
 
 export function ModulePanel({ module, tab }: { module: string; tab: Tab }) {
-  const { getValue, setValue } = useAppConfiguration();
+  const { getValue, setValue, hasValue } = useAppConfiguration();
   const g = <T,>(key: string) => getValue<T>(module, key);
   const s = (key: string, v: unknown) => setValue(module, key, v);
 
   const bool = (key: string) => Boolean(g<boolean>(key));
+  const boolOr = (key: string, fallbackKey: string) =>
+    hasValue(module, key) ? bool(key) : bool(fallbackKey);
   const num = (key: string) => Number(g<number>(key));
   const str = (key: string) => String(g<string>(key) ?? "");
   const trans = (key: string) => g<ApprovalTransition>(key);
+
+  const takePhoto = boolOr("takePhoto", "photoUpload");
+  const uploadGallery = boolOr("uploadGallery", "photoUpload");
 
   // ---------------- ACTIVITIES ----------------
   if (module === "activities") {
