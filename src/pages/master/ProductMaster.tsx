@@ -148,6 +148,7 @@ export default function ProductMaster() {
         toast.success("Product created");
       }
       setIsDialogOpen(false);
+      if (returnTo) { navigate(returnTo); return; }
       fetchAll();
     } catch (err: any) {
       toast.error(err.message || "Failed to save product");
