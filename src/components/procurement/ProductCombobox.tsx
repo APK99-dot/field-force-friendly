@@ -63,7 +63,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   );
 }
 
-export default function ProductCombobox({ products, value, onChange, placeholder = "Select material", className }: Props) {
+export default function ProductCombobox({ products, value, onChange, placeholder = "Select material", className, categoryId, onAddNew, addNewLabel = "Add Product" }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -72,15 +72,20 @@ export default function ProductCombobox({ products, value, onChange, placeholder
 
   const selected = products.find((p) => p.id === value);
 
+  const byCategory = useMemo(
+    () => (categoryId ? products.filter((p) => p.category_id === categoryId) : products),
+    [products, categoryId],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter((p) =>
+    if (!q) return byCategory;
+    return byCategory.filter((p) =>
       [p.product_name, p.category_name, p.product_description, p.code]
         .filter(Boolean)
         .some((f) => String(f).toLowerCase().includes(q)),
     );
-  }, [products, query]);
+  }, [byCategory, query]);
 
   useEffect(() => {
     setActive(0);
