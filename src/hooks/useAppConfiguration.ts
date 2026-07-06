@@ -44,6 +44,8 @@ export const CONFIG_DEFAULTS: Record<string, Record<string, unknown>> = {
     gpsTrack: true,
     voiceNote: true,
     photoUpload: true,
+    takePhoto: true,
+    uploadGallery: true,
     requireMilestone: false,
     requireActivityType: true,
     allowBackdated: true,
@@ -160,6 +162,12 @@ export function useAppConfiguration() {
     return defaultValue(module, key) as T;
   }
 
+  /** Whether an explicit value has been saved for this key (not just default). */
+  function hasValue(module: string, key: string): boolean {
+    const stored = map.get(`${module}.${key}`);
+    return stored !== undefined && stored !== null;
+  }
+
   const mutation = useMutation({
     mutationFn: async ({
       module,
@@ -198,5 +206,5 @@ export function useAppConfiguration() {
     mutation.mutate({ module, key, value });
   }
 
-  return { getValue, setValue, isLoading, saving: mutation.isPending };
+  return { getValue, hasValue, setValue, isLoading, saving: mutation.isPending };
 }

@@ -28,14 +28,19 @@ const ALL_MANAGER_ADMIN = [
 type Tab = "config" | "approval";
 
 export function ModulePanel({ module, tab }: { module: string; tab: Tab }) {
-  const { getValue, setValue } = useAppConfiguration();
+  const { getValue, setValue, hasValue } = useAppConfiguration();
   const g = <T,>(key: string) => getValue<T>(module, key);
   const s = (key: string, v: unknown) => setValue(module, key, v);
 
   const bool = (key: string) => Boolean(g<boolean>(key));
+  const boolOr = (key: string, fallbackKey: string) =>
+    hasValue(module, key) ? bool(key) : bool(fallbackKey);
   const num = (key: string) => Number(g<number>(key));
   const str = (key: string) => String(g<string>(key) ?? "");
   const trans = (key: string) => g<ApprovalTransition>(key);
+
+  const takePhoto = boolOr("takePhoto", "photoUpload");
+  const uploadGallery = boolOr("uploadGallery", "photoUpload");
 
   // ---------------- ACTIVITIES ----------------
   if (module === "activities") {
@@ -45,7 +50,8 @@ export function ModulePanel({ module, tab }: { module: string; tab: Tab }) {
           <ConfigToggleRow label="Check In button" description="Show the check-in action on activities" checked={bool("checkIn")} onChange={(v) => s("checkIn", v)} />
           <ConfigToggleRow label="GPS Track" description="Capture GPS location during activities" checked={bool("gpsTrack")} onChange={(v) => s("gpsTrack", v)} />
           <ConfigToggleRow label="Voice Note in description" checked={bool("voiceNote")} onChange={(v) => s("voiceNote", v)} />
-          <ConfigToggleRow label="Photo upload in activity" checked={bool("photoUpload")} onChange={(v) => s("photoUpload", v)} />
+          <ConfigToggleRow label="Take Photo" description="Show the camera / Take Photo button on the activity form" checked={takePhoto} onChange={(v) => s("takePhoto", v)} />
+          <ConfigToggleRow label="Upload from Gallery" description="Show the Upload button on the activity form" checked={uploadGallery} onChange={(v) => s("uploadGallery", v)} />
           <ConfigToggleRow label="Require Milestone selection" description="Make milestone mandatory" checked={bool("requireMilestone")} onChange={(v) => s("requireMilestone", v)} />
           <ConfigToggleRow label="Require Activity Type selection" checked={bool("requireActivityType")} onChange={(v) => s("requireActivityType", v)} />
           <ConfigToggleRow label="Allow backdated activity logging" checked={bool("allowBackdated")} onChange={(v) => s("allowBackdated", v)} />

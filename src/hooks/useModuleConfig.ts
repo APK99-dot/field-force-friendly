@@ -15,9 +15,10 @@ import { useAppConfiguration } from "./useAppConfiguration";
  *  - "admin"         → admins only
  */
 export function useModuleConfig(module: string) {
-  const { getValue, isLoading } = useAppConfiguration();
+  const { getValue, hasValue: hasValueRaw, isLoading } = useAppConfiguration();
   const { isAdmin } = useUserProfile();
   const { userId } = useCurrentUser();
+
 
   // A user is treated as a "manager" if anyone reports to them.
   const { data: isManager = false } = useQuery({
@@ -43,6 +44,16 @@ export function useModuleConfig(module: string) {
     return Boolean(getValue<boolean>(module, key));
   }
 
+  function hasValue(key: string): boolean {
+    return hasValueRaw(module, key);
+  }
+
+  /** Read a boolean, falling back to another key when this one was never saved. */
+  function boolOr(key: string, fallbackKey: string): boolean {
+    return hasValueRaw(module, key) ? bool(key) : bool(fallbackKey);
+  }
+
+
   function num(key: string): number {
     return Number(getValue<number>(module, key));
   }
@@ -64,5 +75,5 @@ export function useModuleConfig(module: string) {
     return canByScope(str(key));
   }
 
-  return { get, bool, num, str, canByScope, canDo, isAdmin, isManager, isLoading };
+  return { get, bool, boolOr, hasValue, num, str, canByScope, canDo, isAdmin, isManager, isLoading };
 }

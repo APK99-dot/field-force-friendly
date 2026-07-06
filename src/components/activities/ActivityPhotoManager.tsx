@@ -13,6 +13,8 @@ interface ActivityPhotoManagerProps {
   onChange?: (photos: ActivityPhotoEntry[]) => void;
   editable?: boolean;
   compact?: boolean;
+  allowCamera?: boolean;
+  allowUpload?: boolean;
 }
 
 function PhotoThumb({
@@ -71,7 +73,7 @@ function PhotoThumb({
   );
 }
 
-export default function ActivityPhotoManager({ photos, onChange, editable = false, compact = false }: ActivityPhotoManagerProps) {
+export default function ActivityPhotoManager({ photos, onChange, editable = false, compact = false, allowCamera = true, allowUpload = true }: ActivityPhotoManagerProps) {
   const [showCamera, setShowCamera] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
@@ -125,16 +127,20 @@ export default function ActivityPhotoManager({ photos, onChange, editable = fals
 
   return (
     <div className="space-y-2">
-      {editable && (
+      {editable && (allowCamera || allowUpload) && (
         <div className="flex gap-2">
-          <Button type="button" variant="outline" size="sm" className="flex-1 gap-1.5" onClick={handleTakePhoto} disabled={uploading}>
-            {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
-            Take Photo
-          </Button>
-          <Button type="button" variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-            <ImagePlus className="h-3.5 w-3.5" />
-            Upload
-          </Button>
+          {allowCamera && (
+            <Button type="button" variant="outline" size="sm" className="flex-1 gap-1.5" onClick={handleTakePhoto} disabled={uploading}>
+              {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+              Take Photo
+            </Button>
+          )}
+          {allowUpload && (
+            <Button type="button" variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+              <ImagePlus className="h-3.5 w-3.5" />
+              Upload
+            </Button>
+          )}
           <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFiles} />
         </div>
       )}
