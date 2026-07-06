@@ -1341,6 +1341,8 @@ export default function Activities() {
                 <ActivityPhotoManager
                   photos={form.photos}
                   editable
+                  allowCamera={cfgTakePhoto}
+                  allowUpload={cfgUploadGallery}
                   onChange={(photos) => setForm((f) => ({ ...f, photos }))}
                 />
               </div>
