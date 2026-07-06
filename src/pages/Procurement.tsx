@@ -70,7 +70,7 @@ export default function Procurement() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<DetailOrder | null>(null);
   const [form, setForm] = useState(emptyForm);
-  const [lines, setLines] = useState<LineItem[]>([{ product_id: "", rate: "", qty: "", uom: "" }]);
+  const [lines, setLines] = useState<LineItem[]>([{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailOrder | null>(null);
@@ -131,7 +131,7 @@ export default function Procurement() {
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm);
-    setLines([{ product_id: "", rate: "", qty: "", uom: "" }]);
+    setLines([{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
     setIsFormOpen(true);
   };
 
@@ -153,7 +153,7 @@ export default function Procurement() {
     const items = (o.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id || "", rate: String(it.rate ?? ""), qty: String(it.qty ?? ""), uom: it.uom || "",
     }));
-    setLines(items.length ? items : [{ product_id: "", rate: "", qty: "", uom: "" }]);
+    setLines(items.length ? items : [{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
     setIsFormOpen(true);
   };
 
@@ -163,9 +163,9 @@ export default function Procurement() {
     const def = products.find((p) => p.id === productId)?.default_uom || "";
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, product_id: productId, uom: l.uom || def } : l)));
   };
-  const addLine = () => setLines((prev) => [...prev, { product_id: "", rate: "", qty: "", uom: "" }]);
+  const addLine = () => setLines((prev) => [...prev, { product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
   const removeLine = (i: number) =>
-    setLines((prev) => (prev.length <= 1 ? [{ product_id: "", rate: "", qty: "", uom: "" }] : prev.filter((_, idx) => idx !== i)));
+    setLines((prev) => (prev.length <= 1 ? [{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }] : prev.filter((_, idx) => idx !== i)));
 
   const handleSave = async () => {
     const isTransfer = form.source_type === "internal_transfer";
