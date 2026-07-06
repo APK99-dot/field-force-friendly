@@ -90,6 +90,54 @@ export default function Procurement() {
 
   useEffect(() => { fetchAll(); }, []);
 
+  // Restore an in-progress requisition after returning from a master screen.
+  useEffect(() => {
+    let draft: any = null;
+    try { draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "null"); } catch { /* ignore */ }
+    if (!draft) return;
+    sessionStorage.removeItem(DRAFT_KEY);
+    setForm(draft.form);
+    setLines(draft.lines);
+    setIsFormOpen(true);
+    setPendingRestore({
+      existingProductIds: draft.existingProductIds || [],
+      existingCategoryIds: draft.existingCategoryIds || [],
+      pending: draft.pending,
+      editingId: draft.editingId ?? null,
+    });
+  }, []);
+
+  // Once master data is refreshed, auto-select the newly created Product/Category.
+  useEffect(() => {
+    if (!pendingRestore || isLoading) return;
+    if (pendingRestore.editingId) {
+      const o = orders.find((x) => x.id === pendingRestore.editingId);
+      if (o) setEditing(o);
+    }
+    if (pendingRestore.pending.type === "product") {
+      const newProd = products.find((p) => !pendingRestore.existingProductIds.includes(p.id));
+      if (newProd) {
+        setLines((prev) => {
+          const idx = prev.findIndex((l) => !l.product_id);
+          const t = idx === -1 ? prev.length - 1 : idx;
+          return prev.map((l, i) => i === t ? { ...l, product_id: newProd.id, category_id: newProd.category_id || l.category_id, uom: l.uom || newProd.default_uom || "" } : l);
+        });
+        toast.success(`"${newProd.product_name}" added and selected`);
+      }
+    } else {
+      const newCat = categories.find((c) => !pendingRestore.existingCategoryIds.includes(c.id));
+      if (newCat) {
+        setLines((prev) => {
+          const idx = prev.findIndex((l) => !l.category_id);
+          const t = idx === -1 ? prev.length - 1 : idx;
+          return prev.map((l, i) => i === t ? { ...l, category_id: newCat.id } : l);
+        });
+        toast.success(`"${newCat.category_name}" added and selected`);
+      }
+    }
+    setPendingRestore(null);
+  }, [pendingRestore, isLoading, products, categories, orders]);
+
   // Open detail when navigated with ?po=<id>
   useEffect(() => {
     const poId = searchParams.get("po");
