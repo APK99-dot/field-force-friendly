@@ -151,7 +151,9 @@ export default function Procurement() {
       ship_to_id: o.ship_to_address_id || "",
     });
     const items = (o.procurement_items || []).map((it) => ({
-      id: it.id, product_id: it.product_id || "", rate: String(it.rate ?? ""), qty: String(it.qty ?? ""), uom: it.uom || "",
+      id: it.id, product_id: it.product_id || "",
+      category_id: products.find((p) => p.id === it.product_id)?.category_id || "",
+      rate: String(it.rate ?? ""), qty: String(it.qty ?? ""), uom: it.uom || "",
     }));
     setLines(items.length ? items : [{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
     setIsFormOpen(true);
@@ -160,12 +162,35 @@ export default function Procurement() {
   const updateLine = (i: number, patch: Partial<LineItem>) =>
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const onProductChange = (i: number, productId: string) => {
-    const def = products.find((p) => p.id === productId)?.default_uom || "";
-    setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, product_id: productId, uom: l.uom || def } : l)));
+    const prod = products.find((p) => p.id === productId);
+    const def = prod?.default_uom || "";
+    setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, product_id: productId, category_id: prod?.category_id || l.category_id, uom: l.uom || def } : l)));
+  };
+  const onCategoryChange = (i: number, categoryId: string) => {
+    setLines((prev) => prev.map((l, idx) => {
+      if (idx !== i) return l;
+      // Clear the product if it no longer belongs to the chosen category.
+      const prod = products.find((p) => p.id === l.product_id);
+      const keepProduct = prod && prod.category_id === categoryId;
+      return { ...l, category_id: categoryId, product_id: keepProduct ? l.product_id : "" };
+    }));
   };
   const addLine = () => setLines((prev) => [...prev, { product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
   const removeLine = (i: number) =>
     setLines((prev) => (prev.length <= 1 ? [{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }] : prev.filter((_, idx) => idx !== i)));
+
+  // Persist the in-progress requisition and jump to a master screen to add a new
+  // Product/Category, then return to this exact form (see restore effect on mount).
+  const quickAdd = (type: "product" | "category") => {
+    const draft = {
+      form, lines, editingId: editing?.id ?? null,
+      existingProductIds: products.map((p) => p.id),
+      existingCategoryIds: categories.map((c) => c.id),
+      pending: { type },
+    };
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch { /* ignore */ }
+    navigate(type === "product" ? "/master-data/products?returnTo=/procurement" : "/master-data/categories?returnTo=/procurement");
+  };
 
   const handleSave = async () => {
     const isTransfer = form.source_type === "internal_transfer";
