@@ -78,6 +78,10 @@ export default function Procurement() {
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [pendingRestore, setPendingRestore] = useState<null | {
+    existingProductIds: string[]; existingCategoryIds: string[]; pending: { type: "product" | "category" };
+  }>(null);
 
   useEffect(() => { fetchAddressOptions().then(setAddressOptions).catch(() => {}); }, []);
   const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
