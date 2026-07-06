@@ -6,11 +6,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigationPreferences } from "@/hooks/useNavigationPreferences";
+import { useBatteryStatus } from "@/hooks/useBatteryStatus";
 import {
   Menu,
   ArrowLeft,
   Building2,
   LogOut,
+  BatteryFull,
+  BatteryMedium,
+  BatteryLow,
+  BatteryWarning,
+  BatteryCharging,
   UserCheck,
   Navigation2,
   FolderKanban,
@@ -67,6 +73,7 @@ const adminItems = [
 
 export function AppHeader() {
   const navigate = useNavigate();
+  const battery = useBatteryStatus();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
@@ -340,6 +347,31 @@ export function AppHeader() {
                     </div>
                     <span className="text-sm font-medium">Logout</span>
                   </button>
+
+                  {battery.supported && battery.level !== null && (
+                    <div className="flex items-center gap-3 px-4 py-3 mt-1">
+                      <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
+                        {(() => {
+                          const iconClass = `h-4 w-4 ${
+                            battery.charging
+                              ? "text-green-600"
+                              : battery.level! <= 15
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                          }`;
+                          if (battery.charging) return <BatteryCharging className={iconClass} />;
+                          if (battery.level! <= 15) return <BatteryWarning className={iconClass} />;
+                          if (battery.level! <= 40) return <BatteryLow className={iconClass} />;
+                          if (battery.level! <= 70) return <BatteryMedium className={iconClass} />;
+                          return <BatteryFull className={iconClass} />;
+                        })()}
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        Battery: <span className="font-medium text-foreground">{battery.level}%</span>
+                        {battery.charging && " (Charging)"}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
