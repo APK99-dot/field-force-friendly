@@ -15,9 +15,10 @@ import { useAppConfiguration } from "./useAppConfiguration";
  *  - "admin"         → admins only
  */
 export function useModuleConfig(module: string) {
-  const { getValue, isLoading } = useAppConfiguration();
+  const { getValue, hasValue: hasValueRaw, isLoading } = useAppConfiguration();
   const { isAdmin } = useUserProfile();
   const { userId } = useCurrentUser();
+
 
   // A user is treated as a "manager" if anyone reports to them.
   const { data: isManager = false } = useQuery({
