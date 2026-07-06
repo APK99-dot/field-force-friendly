@@ -32,8 +32,18 @@ export default function CategoryMaster() {
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ category_name: "", sub_category_name: "", is_active: true });
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const returnTo = searchParams.get("returnTo");
 
   useEffect(() => { fetchRows(); }, []);
+
+  // When launched from the Requisition "+ Add Category" flow, open the form immediately.
+  useEffect(() => {
+    if (returnTo) openAdd();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnTo]);
+
 
   const fetchRows = async () => {
     setIsLoading(true);
