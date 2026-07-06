@@ -218,6 +218,23 @@ export default function ProductCombobox({ products, value, onChange, placeholder
             </div>
           </div>
         )}
+        {onAddNew && (
+          <div className="border-t p-1">
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-9 w-full justify-start gap-2 text-sm text-primary"
+              onClick={() => {
+                setOpen(false);
+                setQuery("");
+                onAddNew();
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              {addNewLabel}
+            </Button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );
