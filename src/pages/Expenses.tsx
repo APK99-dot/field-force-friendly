@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, IndianRupee, Clock, CheckCircle2, XCircle, Loader2, Pencil, Trash2, Eye, Upload, Camera } from 'lucide-react';
+import { Plus, IndianRupee, Clock, CheckCircle2, XCircle, Loader2, Pencil, Trash2, Eye, Upload, Camera, Download } from 'lucide-react';
+import { downloadXLSX } from '@/utils/nativeDownload';
 import CameraCapture from '@/components/CameraCapture';
 import { useModuleConfig } from '@/hooks/useModuleConfig';
 import { Card, CardContent } from '@/components/ui/card';
@@ -197,6 +198,34 @@ export default function Expenses() {
     fetchExpenses();
   };
 
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    if (filtered.length === 0) { toast.error('No expenses to export'); return; }
+    setExporting(true);
+    try {
+      const XLSX = await import('xlsx');
+      const rows = filtered.map(e => ({
+        Date: format(new Date(e.expense_date), 'dd MMM yyyy'),
+        Category: e.category === 'Other' ? (e.custom_category || 'Other') : e.category,
+        Amount: Number(e.amount),
+        Description: e.description || '',
+        Status: e.status,
+        Receipt: e.bill_url ? 'Yes' : 'No',
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [{ wch: 14 }, { wch: 20 }, { wch: 12 }, { wch: 40 }, { wch: 12 }, { wch: 10 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Expenses');
+      await downloadXLSX(wb, `expenses-${selectedMonth}.xlsx`);
+      toast.success('Excel exported');
+    } catch {
+      toast.error('Failed to export');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+
   const statusBadge = (status: string) => {
     switch (status) {
       case 'approved': return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"><CheckCircle2 className="h-3 w-3 mr-1" />Approved</Badge>;
@@ -219,7 +248,10 @@ export default function Expenses() {
         <TabsContent value="my-expenses">
           <div className="space-y-4">
             {/* Header */}
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={handleExport} disabled={exporting || filtered.length === 0}>
+                {exporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}Export Excel
+              </Button>
               {cfgCanSubmitExpense && <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Expense</Button>}
             </div>
 
