@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, IndianRupee, Clock, CheckCircle2, XCircle, Loader2, Pencil, Trash2, Eye, Upload, Camera } from 'lucide-react';
+import { Plus, IndianRupee, Clock, CheckCircle2, XCircle, Loader2, Pencil, Trash2, Eye, Upload, Camera, Download } from 'lucide-react';
+import { downloadXLSX } from '@/utils/nativeDownload';
 import CameraCapture from '@/components/CameraCapture';
 import { useModuleConfig } from '@/hooks/useModuleConfig';
 import { Card, CardContent } from '@/components/ui/card';
