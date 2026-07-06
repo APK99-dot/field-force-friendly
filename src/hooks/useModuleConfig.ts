@@ -75,5 +75,5 @@ export function useModuleConfig(module: string) {
     return canByScope(str(key));
   }
 
-  return { get, bool, num, str, canByScope, canDo, isAdmin, isManager, isLoading };
+  return { get, bool, boolOr, hasValue, num, str, canByScope, canDo, isAdmin, isManager, isLoading };
 }
