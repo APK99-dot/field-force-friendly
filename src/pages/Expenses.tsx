@@ -198,6 +198,34 @@ export default function Expenses() {
     fetchExpenses();
   };
 
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    if (filtered.length === 0) { toast.error('No expenses to export'); return; }
+    setExporting(true);
+    try {
+      const XLSX = await import('xlsx');
+      const rows = filtered.map(e => ({
+        Date: format(new Date(e.expense_date), 'dd MMM yyyy'),
+        Category: e.category === 'Other' ? (e.custom_category || 'Other') : e.category,
+        Amount: Number(e.amount),
+        Description: e.description || '',
+        Status: e.status,
+        Receipt: e.bill_url ? 'Yes' : 'No',
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [{ wch: 14 }, { wch: 20 }, { wch: 12 }, { wch: 40 }, { wch: 12 }, { wch: 10 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Expenses');
+      await downloadXLSX(wb, `expenses-${selectedMonth}.xlsx`);
+      toast.success('Excel exported');
+    } catch {
+      toast.error('Failed to export');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+
   const statusBadge = (status: string) => {
     switch (status) {
       case 'approved': return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"><CheckCircle2 className="h-3 w-3 mr-1" />Approved</Badge>;
