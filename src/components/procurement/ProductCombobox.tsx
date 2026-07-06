@@ -8,6 +8,7 @@ import { Check, ChevronsUpDown, Search } from "lucide-react";
 export interface ComboProduct {
   id: string;
   product_name: string;
+  category_id?: string | null;
   category_name?: string | null;
   product_description?: string | null;
   code?: string | null;
@@ -19,6 +20,11 @@ interface Props {
   onChange: (id: string) => void;
   placeholder?: string;
   className?: string;
+  /** When set, only products in this category are shown. */
+  categoryId?: string;
+  /** Renders a "+ Add Product" action at the bottom of the list. */
+  onAddNew?: () => void;
+  addNewLabel?: string;
 }
 
 const ROW_HEIGHT = 48; // px per option row
