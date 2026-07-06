@@ -63,6 +63,7 @@ export default function Procurement() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
