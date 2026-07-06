@@ -44,6 +44,16 @@ export function useModuleConfig(module: string) {
     return Boolean(getValue<boolean>(module, key));
   }
 
+  function hasValue(key: string): boolean {
+    return hasValueRaw(module, key);
+  }
+
+  /** Read a boolean, falling back to another key when this one was never saved. */
+  function boolOr(key: string, fallbackKey: string): boolean {
+    return hasValueRaw(module, key) ? bool(key) : bool(fallbackKey);
+  }
+
+
   function num(key: string): number {
     return Number(getValue<number>(module, key));
   }
