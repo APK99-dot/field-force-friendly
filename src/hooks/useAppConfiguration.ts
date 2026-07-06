@@ -160,6 +160,12 @@ export function useAppConfiguration() {
     return defaultValue(module, key) as T;
   }
 
+  /** Whether an explicit value has been saved for this key (not just default). */
+  function hasValue(module: string, key: string): boolean {
+    const stored = map.get(`${module}.${key}`);
+    return stored !== undefined && stored !== null;
+  }
+
   const mutation = useMutation({
     mutationFn: async ({
       module,
