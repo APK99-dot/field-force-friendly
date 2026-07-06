@@ -551,9 +551,29 @@ export default function Procurement() {
               <div className="space-y-3">
                 {lines.map((l, i) => (
                   <div key={i} className="rounded-lg border p-2.5 space-y-2 bg-muted/30">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <ProductCombobox products={products} value={l.product_id} onChange={(v) => onProductChange(i, v)} />
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground">Category</Label>
+                          <CategoryCombobox
+                            categories={categories}
+                            value={l.category_id}
+                            onChange={(v) => onCategoryChange(i, v)}
+                            onAddNew={() => quickAdd("category")}
+                            addNewLabel="Add Category"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground">Material</Label>
+                          <ProductCombobox
+                            products={products}
+                            categoryId={l.category_id || undefined}
+                            value={l.product_id}
+                            onChange={(v) => onProductChange(i, v)}
+                            onAddNew={() => quickAdd("product")}
+                            addNewLabel="Add Product"
+                          />
+                        </div>
                       </div>
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeLine(i)}><X className="h-3.5 w-3.5" /></Button>
                     </div>
