@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigationPreferences } from "@/hooks/useNavigationPreferences";
+import { useBatteryStatus } from "@/hooks/useBatteryStatus";
 import {
   Menu,
   ArrowLeft,
