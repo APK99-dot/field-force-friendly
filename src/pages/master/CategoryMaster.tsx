@@ -85,6 +85,7 @@ export default function CategoryMaster() {
         toast.success("Category created");
       }
       setIsDialogOpen(false);
+      if (returnTo) { navigate(returnTo); return; }
       fetchRows();
     } catch (err: any) {
       toast.error(err.message || "Failed to save category");
