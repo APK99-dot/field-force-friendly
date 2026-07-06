@@ -28,8 +28,11 @@ import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
-interface Product { id: string; product_name: string; default_uom: string | null; category_name?: string | null; product_description?: string | null; code?: string | null }
-interface LineItem { id?: string; product_id: string; rate: string; qty: string; uom: string }
+interface Category { id: string; category_name: string; sub_category_name?: string | null }
+interface Product { id: string; product_name: string; default_uom: string | null; category_id?: string | null; category_name?: string | null; product_description?: string | null; code?: string | null }
+interface LineItem { id?: string; product_id: string; category_id: string; rate: string; qty: string; uom: string }
+
+const DRAFT_KEY = "procurement_requisition_draft";
 
 const emptyForm = {
   source_type: "vendor" as SourceType,
