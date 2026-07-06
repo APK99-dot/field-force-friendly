@@ -210,7 +210,7 @@ export default function CategoryMaster() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setIsDialogOpen(false); if (returnTo) navigate(returnTo); }}>Cancel</Button>
             <Button onClick={handleSave} disabled={isSaving}><Save className="h-4 w-4 mr-2" />{isSaving ? "Saving..." : "Save"}</Button>
           </DialogFooter>
         </DialogContent>
