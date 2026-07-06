@@ -13,6 +13,8 @@ interface ActivityPhotoManagerProps {
   onChange?: (photos: ActivityPhotoEntry[]) => void;
   editable?: boolean;
   compact?: boolean;
+  allowCamera?: boolean;
+  allowUpload?: boolean;
 }
 
 function PhotoThumb({
