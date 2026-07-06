@@ -103,11 +103,12 @@ export default function Procurement() {
 
   const fetchAll = async () => {
     setIsLoading(true);
-    const [ord, ven, sit, prod] = await Promise.all([
+    const [ord, ven, sit, prod, cat] = await Promise.all([
       supabase.from("procurement_orders").select("*, procurement_items(*)").order("order_date", { ascending: false }),
       supabase.from("vendors").select("id, name").order("name"),
       supabase.from("project_sites").select("id, site_name").is("deleted_at", null).order("site_name"),
-      supabase.from("master_products").select("id, product_name, default_uom, product_description, master_categories(category_name)").eq("is_active", true).order("product_name"),
+      supabase.from("master_products").select("id, product_name, default_uom, category_id, product_description, master_categories(category_name)").eq("is_active", true).order("product_name"),
+      supabase.from("master_categories").select("id, category_name, sub_category_name").eq("is_active", true).order("category_name"),
     ]);
     setOrders((ord.data || []) as DetailOrder[]);
     setVendors((ven.data || []) as Vendor[]);
@@ -116,9 +117,11 @@ export default function Procurement() {
       id: p.id,
       product_name: p.product_name,
       default_uom: p.default_uom,
+      category_id: p.category_id ?? null,
       product_description: p.product_description,
       category_name: p.master_categories?.category_name ?? null,
     })) as Product[]);
+    setCategories((cat.data || []) as Category[]);
     setIsLoading(false);
     // keep open detail fresh
     setDetail((d) => (d ? ((ord.data || []) as DetailOrder[]).find((o) => o.id === d.id) || null : null));
