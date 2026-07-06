@@ -44,6 +44,8 @@ export const CONFIG_DEFAULTS: Record<string, Record<string, unknown>> = {
     gpsTrack: true,
     voiceNote: true,
     photoUpload: true,
+    takePhoto: true,
+    uploadGallery: true,
     requireMilestone: false,
     requireActivityType: true,
     allowBackdated: true,
