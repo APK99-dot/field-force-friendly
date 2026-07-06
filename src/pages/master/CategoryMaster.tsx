@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,8 +32,18 @@ export default function CategoryMaster() {
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ category_name: "", sub_category_name: "", is_active: true });
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const returnTo = searchParams.get("returnTo");
 
   useEffect(() => { fetchRows(); }, []);
+
+  // When launched from the Requisition "+ Add Category" flow, open the form immediately.
+  useEffect(() => {
+    if (returnTo) openAdd();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnTo]);
+
 
   const fetchRows = async () => {
     setIsLoading(true);
@@ -74,6 +85,7 @@ export default function CategoryMaster() {
         toast.success("Category created");
       }
       setIsDialogOpen(false);
+      if (returnTo) { navigate(returnTo); return; }
       fetchRows();
     } catch (err: any) {
       toast.error(err.message || "Failed to save category");
@@ -177,7 +189,7 @@ export default function CategoryMaster() {
         </Card>
       </motion.div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(o) => { setIsDialogOpen(o); if (!o && returnTo) navigate(returnTo); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Category" : "Add Category"}</DialogTitle>
@@ -198,7 +210,7 @@ export default function CategoryMaster() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setIsDialogOpen(false); if (returnTo) navigate(returnTo); }}>Cancel</Button>
             <Button onClick={handleSave} disabled={isSaving}><Save className="h-4 w-4 mr-2" />{isSaving ? "Saving..." : "Save"}</Button>
           </DialogFooter>
         </DialogContent>

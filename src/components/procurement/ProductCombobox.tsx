@@ -3,11 +3,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Search } from "lucide-react";
 
 export interface ComboProduct {
   id: string;
   product_name: string;
+  category_id?: string | null;
   category_name?: string | null;
   product_description?: string | null;
   code?: string | null;
@@ -19,6 +20,11 @@ interface Props {
   onChange: (id: string) => void;
   placeholder?: string;
   className?: string;
+  /** When set, only products in this category are shown. */
+  categoryId?: string;
+  /** Renders a "+ Add Product" action at the bottom of the list. */
+  onAddNew?: () => void;
+  addNewLabel?: string;
 }
 
 const ROW_HEIGHT = 48; // px per option row
@@ -57,7 +63,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   );
 }
 
-export default function ProductCombobox({ products, value, onChange, placeholder = "Select material", className }: Props) {
+export default function ProductCombobox({ products, value, onChange, placeholder = "Select material", className, categoryId, onAddNew, addNewLabel = "Add Product" }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -66,15 +72,20 @@ export default function ProductCombobox({ products, value, onChange, placeholder
 
   const selected = products.find((p) => p.id === value);
 
+  const byCategory = useMemo(
+    () => (categoryId ? products.filter((p) => p.category_id === categoryId) : products),
+    [products, categoryId],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter((p) =>
+    if (!q) return byCategory;
+    return byCategory.filter((p) =>
       [p.product_name, p.category_name, p.product_description, p.code]
         .filter(Boolean)
         .some((f) => String(f).toLowerCase().includes(q)),
     );
-  }, [products, query]);
+  }, [byCategory, query]);
 
   useEffect(() => {
     setActive(0);
@@ -205,6 +216,23 @@ export default function ProductCombobox({ products, value, onChange, placeholder
                 );
               })}
             </div>
+          </div>
+        )}
+        {onAddNew && (
+          <div className="border-t p-1">
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-9 w-full justify-start gap-2 text-sm text-primary"
+              onClick={() => {
+                setOpen(false);
+                setQuery("");
+                onAddNew();
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              {addNewLabel}
+            </Button>
           </div>
         )}
       </PopoverContent>

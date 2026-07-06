@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,12 +23,16 @@ import {
 import { useUomOptions } from "@/hooks/useUomOptions";
 import ProcurementDetail, { type DetailOrder } from "@/components/procurement/ProcurementDetail";
 import ProductCombobox from "@/components/procurement/ProductCombobox";
+import CategoryCombobox from "@/components/procurement/CategoryCombobox";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
-interface Product { id: string; product_name: string; default_uom: string | null; category_name?: string | null; product_description?: string | null; code?: string | null }
-interface LineItem { id?: string; product_id: string; rate: string; qty: string; uom: string }
+interface Category { id: string; category_name: string; sub_category_name?: string | null }
+interface Product { id: string; product_name: string; default_uom: string | null; category_id?: string | null; category_name?: string | null; product_description?: string | null; code?: string | null }
+interface LineItem { id?: string; product_id: string; category_id: string; rate: string; qty: string; uom: string }
+
+const DRAFT_KEY = "procurement_requisition_draft";
 
 const emptyForm = {
   source_type: "vendor" as SourceType,
@@ -59,6 +63,7 @@ export default function Procurement() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -66,19 +71,72 @@ export default function Procurement() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<DetailOrder | null>(null);
   const [form, setForm] = useState(emptyForm);
-  const [lines, setLines] = useState<LineItem[]>([{ product_id: "", rate: "", qty: "", uom: "" }]);
+  const [lines, setLines] = useState<LineItem[]>([{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailOrder | null>(null);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [pendingRestore, setPendingRestore] = useState<null | {
+    existingProductIds: string[]; existingCategoryIds: string[];
+    pending: { type: "product" | "category" }; editingId: string | null;
+  }>(null);
 
   useEffect(() => { fetchAddressOptions().then(setAddressOptions).catch(() => {}); }, []);
   const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
 
 
   useEffect(() => { fetchAll(); }, []);
+
+  // Restore an in-progress requisition after returning from a master screen.
+  useEffect(() => {
+    let draft: any = null;
+    try { draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "null"); } catch { /* ignore */ }
+    if (!draft) return;
+    sessionStorage.removeItem(DRAFT_KEY);
+    setForm(draft.form);
+    setLines(draft.lines);
+    setIsFormOpen(true);
+    setPendingRestore({
+      existingProductIds: draft.existingProductIds || [],
+      existingCategoryIds: draft.existingCategoryIds || [],
+      pending: draft.pending,
+      editingId: draft.editingId ?? null,
+    });
+  }, []);
+
+  // Once master data is refreshed, auto-select the newly created Product/Category.
+  useEffect(() => {
+    if (!pendingRestore || isLoading) return;
+    if (pendingRestore.editingId) {
+      const o = orders.find((x) => x.id === pendingRestore.editingId);
+      if (o) setEditing(o);
+    }
+    if (pendingRestore.pending.type === "product") {
+      const newProd = products.find((p) => !pendingRestore.existingProductIds.includes(p.id));
+      if (newProd) {
+        setLines((prev) => {
+          const idx = prev.findIndex((l) => !l.product_id);
+          const t = idx === -1 ? prev.length - 1 : idx;
+          return prev.map((l, i) => i === t ? { ...l, product_id: newProd.id, category_id: newProd.category_id || l.category_id, uom: l.uom || newProd.default_uom || "" } : l);
+        });
+        toast.success(`"${newProd.product_name}" added and selected`);
+      }
+    } else {
+      const newCat = categories.find((c) => !pendingRestore.existingCategoryIds.includes(c.id));
+      if (newCat) {
+        setLines((prev) => {
+          const idx = prev.findIndex((l) => !l.category_id);
+          const t = idx === -1 ? prev.length - 1 : idx;
+          return prev.map((l, i) => i === t ? { ...l, category_id: newCat.id } : l);
+        });
+        toast.success(`"${newCat.category_name}" added and selected`);
+      }
+    }
+    setPendingRestore(null);
+  }, [pendingRestore, isLoading, products, categories, orders]);
 
   // Open detail when navigated with ?po=<id>
   useEffect(() => {
@@ -94,11 +152,12 @@ export default function Procurement() {
 
   const fetchAll = async () => {
     setIsLoading(true);
-    const [ord, ven, sit, prod] = await Promise.all([
+    const [ord, ven, sit, prod, cat] = await Promise.all([
       supabase.from("procurement_orders").select("*, procurement_items(*)").order("order_date", { ascending: false }),
       supabase.from("vendors").select("id, name").order("name"),
       supabase.from("project_sites").select("id, site_name").is("deleted_at", null).order("site_name"),
-      supabase.from("master_products").select("id, product_name, default_uom, product_description, master_categories(category_name)").eq("is_active", true).order("product_name"),
+      supabase.from("master_products").select("id, product_name, default_uom, category_id, product_description, master_categories(category_name)").eq("is_active", true).order("product_name"),
+      supabase.from("master_categories").select("id, category_name, sub_category_name").eq("is_active", true).order("category_name"),
     ]);
     setOrders((ord.data || []) as DetailOrder[]);
     setVendors((ven.data || []) as Vendor[]);
@@ -107,9 +166,11 @@ export default function Procurement() {
       id: p.id,
       product_name: p.product_name,
       default_uom: p.default_uom,
+      category_id: p.category_id ?? null,
       product_description: p.product_description,
       category_name: p.master_categories?.category_name ?? null,
     })) as Product[]);
+    setCategories((cat.data || []) as Category[]);
     setIsLoading(false);
     // keep open detail fresh
     setDetail((d) => (d ? ((ord.data || []) as DetailOrder[]).find((o) => o.id === d.id) || null : null));
@@ -127,7 +188,7 @@ export default function Procurement() {
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm);
-    setLines([{ product_id: "", rate: "", qty: "", uom: "" }]);
+    setLines([{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
     setIsFormOpen(true);
   };
 
@@ -147,21 +208,46 @@ export default function Procurement() {
       ship_to_id: o.ship_to_address_id || "",
     });
     const items = (o.procurement_items || []).map((it) => ({
-      id: it.id, product_id: it.product_id || "", rate: String(it.rate ?? ""), qty: String(it.qty ?? ""), uom: it.uom || "",
+      id: it.id, product_id: it.product_id || "",
+      category_id: products.find((p) => p.id === it.product_id)?.category_id || "",
+      rate: String(it.rate ?? ""), qty: String(it.qty ?? ""), uom: it.uom || "",
     }));
-    setLines(items.length ? items : [{ product_id: "", rate: "", qty: "", uom: "" }]);
+    setLines(items.length ? items : [{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
     setIsFormOpen(true);
   };
 
   const updateLine = (i: number, patch: Partial<LineItem>) =>
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const onProductChange = (i: number, productId: string) => {
-    const def = products.find((p) => p.id === productId)?.default_uom || "";
-    setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, product_id: productId, uom: l.uom || def } : l)));
+    const prod = products.find((p) => p.id === productId);
+    const def = prod?.default_uom || "";
+    setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, product_id: productId, category_id: prod?.category_id || l.category_id, uom: l.uom || def } : l)));
   };
-  const addLine = () => setLines((prev) => [...prev, { product_id: "", rate: "", qty: "", uom: "" }]);
+  const onCategoryChange = (i: number, categoryId: string) => {
+    setLines((prev) => prev.map((l, idx) => {
+      if (idx !== i) return l;
+      // Clear the product if it no longer belongs to the chosen category.
+      const prod = products.find((p) => p.id === l.product_id);
+      const keepProduct = prod && prod.category_id === categoryId;
+      return { ...l, category_id: categoryId, product_id: keepProduct ? l.product_id : "" };
+    }));
+  };
+  const addLine = () => setLines((prev) => [...prev, { product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
   const removeLine = (i: number) =>
-    setLines((prev) => (prev.length <= 1 ? [{ product_id: "", rate: "", qty: "", uom: "" }] : prev.filter((_, idx) => idx !== i)));
+    setLines((prev) => (prev.length <= 1 ? [{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }] : prev.filter((_, idx) => idx !== i)));
+
+  // Persist the in-progress requisition and jump to a master screen to add a new
+  // Product/Category, then return to this exact form (see restore effect on mount).
+  const quickAdd = (type: "product" | "category") => {
+    const draft = {
+      form, lines, editingId: editing?.id ?? null,
+      existingProductIds: products.map((p) => p.id),
+      existingCategoryIds: categories.map((c) => c.id),
+      pending: { type },
+    };
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch { /* ignore */ }
+    navigate(type === "product" ? "/master-data/products?returnTo=/procurement" : "/master-data/categories?returnTo=/procurement");
+  };
 
   const handleSave = async () => {
     const isTransfer = form.source_type === "internal_transfer";
@@ -465,9 +551,29 @@ export default function Procurement() {
               <div className="space-y-3">
                 {lines.map((l, i) => (
                   <div key={i} className="rounded-lg border p-2.5 space-y-2 bg-muted/30">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <ProductCombobox products={products} value={l.product_id} onChange={(v) => onProductChange(i, v)} />
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground">Category</Label>
+                          <CategoryCombobox
+                            categories={categories}
+                            value={l.category_id}
+                            onChange={(v) => onCategoryChange(i, v)}
+                            onAddNew={() => quickAdd("category")}
+                            addNewLabel="Add Category"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] text-muted-foreground">Material</Label>
+                          <ProductCombobox
+                            products={products}
+                            categoryId={l.category_id || undefined}
+                            value={l.product_id}
+                            onChange={(v) => onProductChange(i, v)}
+                            onAddNew={() => quickAdd("product")}
+                            addNewLabel="Add Product"
+                          />
+                        </div>
                       </div>
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeLine(i)}><X className="h-3.5 w-3.5" /></Button>
                     </div>
