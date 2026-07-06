@@ -204,5 +204,5 @@ export function useAppConfiguration() {
     mutation.mutate({ module, key, value });
   }
 
-  return { getValue, setValue, isLoading, saving: mutation.isPending };
+  return { getValue, hasValue, setValue, isLoading, saving: mutation.isPending };
 }
