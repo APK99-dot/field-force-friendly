@@ -73,7 +73,7 @@ function PhotoThumb({
   );
 }
 
-export default function ActivityPhotoManager({ photos, onChange, editable = false, compact = false }: ActivityPhotoManagerProps) {
+export default function ActivityPhotoManager({ photos, onChange, editable = false, compact = false, allowCamera = true, allowUpload = true }: ActivityPhotoManagerProps) {
   const [showCamera, setShowCamera] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
