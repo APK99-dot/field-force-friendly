@@ -248,7 +248,10 @@ export default function Expenses() {
         <TabsContent value="my-expenses">
           <div className="space-y-4">
             {/* Header */}
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={handleExport} disabled={exporting || filtered.length === 0}>
+                {exporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}Export Excel
+              </Button>
               {cfgCanSubmitExpense && <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Expense</Button>}
             </div>
 
