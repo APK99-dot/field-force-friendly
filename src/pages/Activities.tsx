@@ -219,7 +219,9 @@ export default function Activities() {
   const cfg = useModuleConfig("activities");
   const canAssign = cfg.canDo("assignPermission");
   const cfgCheckIn = cfg.bool("checkIn");
-  const cfgPhotoUpload = cfg.bool("photoUpload");
+  const cfgTakePhoto = cfg.boolOr("takePhoto", "photoUpload");
+  const cfgUploadGallery = cfg.boolOr("uploadGallery", "photoUpload");
+  const cfgPhotoUpload = cfgTakePhoto || cfgUploadGallery;
   const cfgVoiceNote = cfg.bool("voiceNote");
   const cfgRequireActivityType = cfg.bool("requireActivityType");
   const cfgRequireMilestone = cfg.bool("requireMilestone");
