@@ -45,7 +45,8 @@ export function ModulePanel({ module, tab }: { module: string; tab: Tab }) {
           <ConfigToggleRow label="Check In button" description="Show the check-in action on activities" checked={bool("checkIn")} onChange={(v) => s("checkIn", v)} />
           <ConfigToggleRow label="GPS Track" description="Capture GPS location during activities" checked={bool("gpsTrack")} onChange={(v) => s("gpsTrack", v)} />
           <ConfigToggleRow label="Voice Note in description" checked={bool("voiceNote")} onChange={(v) => s("voiceNote", v)} />
-          <ConfigToggleRow label="Photo upload in activity" checked={bool("photoUpload")} onChange={(v) => s("photoUpload", v)} />
+          <ConfigToggleRow label="Take Photo" description="Show the camera / Take Photo button on the activity form" checked={takePhoto} onChange={(v) => s("takePhoto", v)} />
+          <ConfigToggleRow label="Upload from Gallery" description="Show the Upload button on the activity form" checked={uploadGallery} onChange={(v) => s("uploadGallery", v)} />
           <ConfigToggleRow label="Require Milestone selection" description="Make milestone mandatory" checked={bool("requireMilestone")} onChange={(v) => s("requireMilestone", v)} />
           <ConfigToggleRow label="Require Activity Type selection" checked={bool("requireActivityType")} onChange={(v) => s("requireActivityType", v)} />
           <ConfigToggleRow label="Allow backdated activity logging" checked={bool("allowBackdated")} onChange={(v) => s("allowBackdated", v)} />
