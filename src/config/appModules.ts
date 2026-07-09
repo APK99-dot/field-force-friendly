@@ -1,0 +1,30 @@
+// Single source of truth for the application's permission-gated modules.
+// Add or remove an entry here and it automatically syncs everywhere the
+// module list is consumed — including the Role Permissions matrix.
+//
+// The `name` must be unique and stable (it is stored in
+// profile_object_permissions.object_name). `label` is what users see.
+
+export interface AppModule {
+  name: string;
+  label: string;
+  sort_order: number;
+}
+
+export const APP_MODULES: AppModule[] = [
+  { name: "module_admin_panel", label: "Admin Panel", sort_order: 1 },
+  { name: "module_attendance", label: "Attendance", sort_order: 2 },
+  { name: "module_activities", label: "Activities", sort_order: 3 },
+  { name: "module_expenses", label: "Expenses", sort_order: 4 },
+  { name: "module_gps_tracking", label: "GPS Tracking", sort_order: 5 },
+  { name: "module_projects_sites", label: "Projects / Sites", sort_order: 6 },
+  { name: "module_my_team", label: "My Team", sort_order: 7 },
+  { name: "module_procurement", label: "Procurement", sort_order: 8 },
+  { name: "module_goods_receipt", label: "Goods Receipt", sort_order: 9 },
+  { name: "module_master_data", label: "Master Data", sort_order: 10 },
+  { name: "module_reports", label: "Reports", sort_order: 11 },
+];
+
+export function getAppModuleNames(): string[] {
+  return APP_MODULES.map((m) => m.name);
+}
