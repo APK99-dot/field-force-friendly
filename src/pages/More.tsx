@@ -36,7 +36,6 @@ const allNavigationItems = [
   { icon: FolderKanban, label: "Projects", href: "/projects", color: "from-indigo-500 to-indigo-600", module: null },
   { icon: Receipt, label: "Expenses", href: "/expenses", color: "from-orange-500 to-orange-600", module: "module_expenses" },
   { icon: ShoppingCart, label: "Procurement", href: "/procurement", color: "from-rose-500 to-rose-600", module: "module_procurement" },
-  { icon: Database, label: "Master Data", href: "/master-data", color: "from-amber-500 to-amber-600", module: null },
   { icon: FileBarChart, label: "Reports", href: "/reports", color: "from-teal-500 to-teal-600", module: null },
 ];
 
