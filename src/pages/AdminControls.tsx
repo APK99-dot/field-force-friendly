@@ -14,6 +14,7 @@ import {
   Search,
   ListChecks,
   SlidersHorizontal,
+  Database,
   
 } from "lucide-react";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
