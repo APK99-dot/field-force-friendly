@@ -68,6 +68,14 @@ const allAdminModules = [
     path: "/admin/configuration",
     permission: undefined,
   },
+  {
+    title: "Master Data",
+    description: "Manage vendors, categories, products, addresses, and units of measure",
+    icon: Database,
+    color: "bg-amber-100 text-amber-600",
+    path: "/master-data",
+    permission: undefined,
+  },
 ];
 
 const container = {
