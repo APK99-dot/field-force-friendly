@@ -50,7 +50,7 @@ export default function ConfigurationWorkflow() {
 
   return (
     <motion.div className="space-y-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="gradient-hero px-4 pt-4 pb-6 -mx-4 -mt-4 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-8">
+      <div className="gradient-hero px-4 safe-top-20 pb-6 -mx-4 -mt-4 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-8">
         <div className="max-w-6xl mx-auto flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
             <SlidersHorizontal className="h-5 w-5 text-white" />
