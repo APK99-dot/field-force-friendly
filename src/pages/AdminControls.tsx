@@ -14,6 +14,7 @@ import {
   Search,
   ListChecks,
   SlidersHorizontal,
+  Database,
   
 } from "lucide-react";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
@@ -65,6 +66,14 @@ const allAdminModules = [
     icon: SlidersHorizontal,
     color: "bg-emerald-100 text-emerald-600",
     path: "/admin/configuration",
+    permission: undefined,
+  },
+  {
+    title: "Master Data",
+    description: "Manage vendors, categories, products, addresses, and units of measure",
+    icon: Database,
+    color: "bg-amber-100 text-amber-600",
+    path: "/master-data",
     permission: undefined,
   },
 ];
