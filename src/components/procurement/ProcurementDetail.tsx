@@ -12,14 +12,28 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useModuleConfig } from "@/hooks/useModuleConfig";
-import { CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, Save } from "lucide-react";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, Save, ArrowRight, Undo2, Download, MessageCircle } from "lucide-react";
 import {
   STATUS_FLOW, allowedTransitions, statusColor, fmtAmt, PAYMENT_TERMS, statusFlowFor, type ProcStatus,
 } from "@/lib/procurement";
+import jsPDF from "jspdf";
+import { downloadPDF } from "@/utils/nativeDownload";
 import GRNForm, { type POItem } from "./GRNForm";
 import InvoiceForm from "./InvoiceForm";
 import ThreeWayMatch from "./ThreeWayMatch";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
+
+export interface StageHistoryEntry {
+  status: string;
+  moved_by?: string | null;
+  moved_by_name?: string | null;
+  moved_at: string;
+}
 
 export interface DetailOrder {
   id: string;
@@ -43,6 +57,7 @@ export interface DetailOrder {
   ship_to_gst?: string | null;
   requisition_notes: string | null;
   created_by: string | null;
+  stage_history?: StageHistoryEntry[] | any;
   procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null }[];
 }
 
@@ -70,6 +85,7 @@ export default function ProcurementDetail({
 }: Props) {
   const procCfg = useModuleConfig("procurement");
   const canEditRatesPostApproval = procCfg.canDo("editRatesAfterApproval");
+  const { profile: currentProfile, isAdmin } = useUserProfile();
   const [grns, setGrns] = useState<GrnRow[]>([]);
   const [grnItems, setGrnItems] = useState<GrnItemRow[]>([]);
   const [invoices, setInvoices] = useState<InvRow[]>([]);
@@ -77,18 +93,21 @@ export default function ProcurementDetail({
   const [grnOpen, setGrnOpen] = useState(false);
   const [invOpen, setInvOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [advanceOpen, setAdvanceOpen] = useState(false);
+  const [revertOpen, setRevertOpen] = useState(false);
 
   // Inline PO details editing (delivery date, payment terms, rates)
   const [poForm, setPoForm] = useState({ expected_delivery_date: "", payment_terms: "" });
   const [rateLines, setRateLines] = useState<{ id: string; product_id: string | null; uom: string | null; qty: number; rate: string }[]>([]);
   const [poSaving, setPoSaving] = useState(false);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
-  const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
+  const [vendors, setVendors] = useState<{ id: string; name: string; phone: string | null; contact_person: string | null; email: string | null }[]>([]);
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
-    supabase.from("vendors").select("id, name").order("name").then(({ data }) => setVendors((data || []) as { id: string; name: string }[]));
+    supabase.from("vendors").select("id, name, phone, contact_person, email").order("name")
+      .then(({ data }) => setVendors((data || []) as typeof vendors));
   }, []);
 
   // Sync inline editable fields whenever the order changes
@@ -195,18 +214,110 @@ export default function ProcurementDetail({
   const variance = estBudget != null ? estBudget - poValue : null;
   const overBudget = estBudget != null && poValue > estBudget;
 
-  const applyTransition = async (to: ProcStatus) => {
+  const stageHistory: StageHistoryEntry[] = useMemo(
+    () => (Array.isArray(order.stage_history) ? (order.stage_history as StageHistoryEntry[]) : []),
+    [order.stage_history]
+  );
+  // Latest history entry per stage (for the mini activity log under each pill)
+  const historyByStatus = useMemo(() => {
+    const m: Record<string, StageHistoryEntry> = {};
+    stageHistory.forEach((h) => { if (h?.status) m[h.status] = h; });
+    return m;
+  }, [stageHistory]);
+
+  const moverName = currentProfile?.full_name || currentProfile?.username || "Unknown";
+
+  const changeStatus = async (to: ProcStatus, closeAfter = true) => {
     setBusy(true);
-    const { error } = await supabase.from("procurement_orders").update({ status: to }).eq("id", order.id);
+    const entry: StageHistoryEntry = {
+      status: to, moved_by: currentUserId ?? null, moved_by_name: moverName, moved_at: new Date().toISOString(),
+    };
+    const nextHistory = [...stageHistory, entry];
+    const { error } = await supabase.from("procurement_orders")
+      .update({ status: to, stage_history: nextHistory as any }).eq("id", order.id);
     setBusy(false);
     if (error) { toast.error(error.message || "Failed to update status"); return; }
     toast.success(`Status changed to ${to}`);
     onChanged();
-    onOpenChange(false);
+    if (closeAfter) onOpenChange(false);
   };
+
+  const applyTransition = (to: ProcStatus) => changeStatus(to);
 
   const stepFlow = statusFlowFor(order.source_type);
   const stepIndex = stepFlow.indexOf(order.status as ProcStatus);
+  const nextStage = stepIndex >= 0 && stepIndex < stepFlow.length - 1 ? stepFlow[stepIndex + 1] : null;
+  const prevStage = stepIndex > 0 ? stepFlow[stepIndex - 1] : null;
+  // The immediate next transition (unfiltered) tells us whether approval rights are needed
+  const nextTransition = allowedTransitions(order.status, order.source_type)[0] || null;
+  const canAdvance = !!nextStage && (!nextTransition?.approver || canApprove);
+
+  const reqName = order.po_number || "Requisition";
+  const selectedVendors = vendors.filter((v) => selectedVendorIds.includes(v.id));
+  const primaryVendor = selectedVendors[0] || null;
+
+  const generateQuotePdf = async () => {
+    try {
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      let y = 18;
+      doc.setFontSize(16); doc.setFont("helvetica", "bold");
+      doc.text("Quote Request", pageW / 2, y, { align: "center" });
+      y += 10;
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      const line = (label: string, val: string) => {
+        doc.setFont("helvetica", "bold"); doc.text(`${label}:`, 14, y);
+        doc.setFont("helvetica", "normal"); doc.text(val || "-", 55, y);
+        y += 6;
+      };
+      line("Requisition", reqName);
+      line("Site", siteName(order.site_id) || "-");
+      line("Raised Date", order.order_date || "-");
+
+      if (selectedVendors.length) {
+        y += 2; doc.setFont("helvetica", "bold"); doc.text("Vendor(s):", 14, y); y += 6;
+        doc.setFont("helvetica", "normal");
+        selectedVendors.forEach((v) => {
+          const parts = [v.name];
+          if (v.contact_person) parts.push(`Attn: ${v.contact_person}`);
+          if (v.phone) parts.push(`Ph: ${v.phone}`);
+          if (v.email) parts.push(v.email);
+          doc.text(`• ${parts.join("  |  ")}`, 18, y); y += 6;
+        });
+      }
+
+      y += 4;
+      doc.setFont("helvetica", "bold");
+      doc.text("#", 14, y); doc.text("Product", 24, y); doc.text("Qty", 150, y); doc.text("UOM", 170, y);
+      y += 2; doc.line(14, y, pageW - 14, y); y += 6;
+      doc.setFont("helvetica", "normal");
+      (order.procurement_items || []).forEach((it, idx) => {
+        if (y > 275) { doc.addPage(); y = 20; }
+        doc.text(String(idx + 1), 14, y);
+        const nm = doc.splitTextToSize(productName(it.product_id) || "-", 120);
+        doc.text(nm, 24, y);
+        doc.text(String(it.qty ?? ""), 150, y);
+        doc.text(it.uom || "-", 170, y);
+        y += Math.max(6, nm.length * 5);
+      });
+
+      await downloadPDF(doc, `Quote-Request-${reqName}.pdf`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to generate PDF");
+    }
+  };
+
+  const shareViaWhatsApp = () => {
+    const msg = `Quote request for ${reqName} — please see attached PDF for line items.`;
+    const phone = primaryVendor?.phone ? primaryVendor.phone.replace(/[^\d]/g, "") : "";
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank");
+  };
+
+
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -220,17 +331,56 @@ export default function ProcurementDetail({
         </DialogHeader>
 
         <div className="space-y-4 p-4 overflow-y-auto flex-1 max-w-3xl w-full mx-auto">
-          {/* Stepper */}
+          {/* Stepper + stage controls */}
           {order.status !== "Rejected" && (
-            <div className="flex items-center gap-1 overflow-x-auto pb-1">
-              {stepFlow.map((s, i) => (
-                <div key={s} className="flex items-center shrink-0">
-                  <span className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
-                  {i < stepFlow.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-                </div>
-              ))}
+            <div className="space-y-3">
+              <div className="flex items-start gap-1 overflow-x-auto pb-1">
+                {stepFlow.map((s, i) => {
+                  const h = historyByStatus[s];
+                  const when = h?.moved_at ? new Date(h.moved_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : null;
+                  return (
+                    <div key={s} className="flex items-start shrink-0">
+                      <div className="flex flex-col items-center gap-1 max-w-[92px]">
+                        <span className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
+                        {i <= stepIndex && h && (
+                          <span className="text-[9px] text-muted-foreground text-center leading-tight">
+                            {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
+                          </span>
+                        )}
+                      </div>
+                      {i < stepFlow.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground mt-1.5" />}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                {nextStage && (
+                  <Button
+                    className="gap-1.5"
+                    disabled={busy || !canAdvance}
+                    onClick={() => setAdvanceOpen(true)}
+                  >
+                    Mark as {nextStage} <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
+                {!canAdvance && nextStage && (
+                  <span className="text-[11px] text-muted-foreground">Requires approval rights to advance.</span>
+                )}
+                {isAdmin && prevStage && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive underline underline-offset-2"
+                    disabled={busy}
+                    onClick={() => setRevertOpen(true)}
+                  >
+                    <Undo2 className="h-3.5 w-3.5" /> Revert to {prevStage}
+                  </button>
+                )}
+              </div>
             </div>
           )}
+
 
           {/* Header info */}
           <Card>
@@ -277,7 +427,16 @@ export default function ProcurementDetail({
                         })}
                       </PopoverContent>
                     </Popover>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={generateQuotePdf}>
+                        <Download className="h-3.5 w-3.5" /> Download Quote Request
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs text-emerald-700 dark:text-emerald-400" onClick={shareViaWhatsApp}>
+                        <MessageCircle className="h-3.5 w-3.5" /> Share via WhatsApp
+                      </Button>
+                    </div>
                   </div>
+
                   <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
                   {order.po_number && <div className="text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}
                   {order.expected_delivery_date && <div className="text-muted-foreground">Expected Delivery: {order.expected_delivery_date}</div>}
@@ -453,18 +612,45 @@ export default function ProcurementDetail({
             {editable && (
               <Button variant="outline" className="gap-1.5" onClick={() => onEdit(order)}><Pencil className="h-4 w-4" />Edit</Button>
             )}
-            {transitions.map((t) => (
-              <Button
-                key={t.to}
-                variant={t.variant || "default"}
-                disabled={busy}
-                onClick={() => applyTransition(t.to)}
-              >
-                {t.label}
-              </Button>
-            ))}
           </div>
         </div>
+
+        {/* Advance stage confirmation */}
+        <AlertDialog open={advanceOpen} onOpenChange={setAdvanceOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Advance stage?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Move this {isTransfer ? "transfer" : "requisition"} from <strong>{order.status}</strong> to <strong>{nextStage}</strong>?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction disabled={busy} onClick={() => { if (nextStage) changeStatus(nextStage); }}>
+                Confirm
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Revert stage confirmation (admin only) */}
+        <AlertDialog open={revertOpen} onOpenChange={setRevertOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Revert to previous stage?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Move this {isTransfer ? "transfer" : "requisition"} back from <strong>{order.status}</strong> to <strong>{prevStage}</strong>? Use this only to correct mistakes.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction disabled={busy} onClick={() => { if (prevStage) changeStatus(prevStage, false); }}>
+                Revert
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
 
         {grnOpen && (
           <GRNForm

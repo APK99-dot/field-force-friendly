@@ -3181,6 +3181,7 @@ export type Database = {
           ship_to_gst: string | null
           site_id: string | null
           source_type: string
+          stage_history: Json
           status: string
           total_amount: number
           transfer_from_site_id: string | null
@@ -3209,6 +3210,7 @@ export type Database = {
           ship_to_gst?: string | null
           site_id?: string | null
           source_type?: string
+          stage_history?: Json
           status?: string
           total_amount?: number
           transfer_from_site_id?: string | null
@@ -3237,6 +3239,7 @@ export type Database = {
           ship_to_gst?: string | null
           site_id?: string | null
           source_type?: string
+          stage_history?: Json
           status?: string
           total_amount?: number
           transfer_from_site_id?: string | null
