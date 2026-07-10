@@ -12,10 +12,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useModuleConfig } from "@/hooks/useModuleConfig";
-import { CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, Save } from "lucide-react";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, Save, ArrowRight, Undo2, Download, MessageCircle } from "lucide-react";
 import {
   STATUS_FLOW, allowedTransitions, statusColor, fmtAmt, PAYMENT_TERMS, statusFlowFor, type ProcStatus,
 } from "@/lib/procurement";
+import jsPDF from "jspdf";
+import { downloadPDF } from "@/utils/nativeDownload";
 import GRNForm, { type POItem } from "./GRNForm";
 import InvoiceForm from "./InvoiceForm";
 import ThreeWayMatch from "./ThreeWayMatch";
