@@ -252,6 +252,72 @@ export default function ProcurementDetail({
   const nextTransition = allowedTransitions(order.status, order.source_type)[0] || null;
   const canAdvance = !!nextStage && (!nextTransition?.approver || canApprove);
 
+  const reqName = order.po_number || "Requisition";
+  const selectedVendors = vendors.filter((v) => selectedVendorIds.includes(v.id));
+  const primaryVendor = selectedVendors[0] || null;
+
+  const generateQuotePdf = async () => {
+    try {
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      let y = 18;
+      doc.setFontSize(16); doc.setFont("helvetica", "bold");
+      doc.text("Quote Request", pageW / 2, y, { align: "center" });
+      y += 10;
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      const line = (label: string, val: string) => {
+        doc.setFont("helvetica", "bold"); doc.text(`${label}:`, 14, y);
+        doc.setFont("helvetica", "normal"); doc.text(val || "-", 55, y);
+        y += 6;
+      };
+      line("Requisition", reqName);
+      line("Site", siteName(order.site_id) || "-");
+      line("Raised Date", order.order_date || "-");
+
+      if (selectedVendors.length) {
+        y += 2; doc.setFont("helvetica", "bold"); doc.text("Vendor(s):", 14, y); y += 6;
+        doc.setFont("helvetica", "normal");
+        selectedVendors.forEach((v) => {
+          const parts = [v.name];
+          if (v.contact_person) parts.push(`Attn: ${v.contact_person}`);
+          if (v.phone) parts.push(`Ph: ${v.phone}`);
+          if (v.email) parts.push(v.email);
+          doc.text(`• ${parts.join("  |  ")}`, 18, y); y += 6;
+        });
+      }
+
+      y += 4;
+      doc.setFont("helvetica", "bold");
+      doc.text("#", 14, y); doc.text("Product", 24, y); doc.text("Qty", 150, y); doc.text("UOM", 170, y);
+      y += 2; doc.line(14, y, pageW - 14, y); y += 6;
+      doc.setFont("helvetica", "normal");
+      (order.procurement_items || []).forEach((it, idx) => {
+        if (y > 275) { doc.addPage(); y = 20; }
+        doc.text(String(idx + 1), 14, y);
+        const nm = doc.splitTextToSize(productName(it.product_id) || "-", 120);
+        doc.text(nm, 24, y);
+        doc.text(String(it.qty ?? ""), 150, y);
+        doc.text(it.uom || "-", 170, y);
+        y += Math.max(6, nm.length * 5);
+      });
+
+      await downloadPDF(doc, `Quote-Request-${reqName}.pdf`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to generate PDF");
+    }
+  };
+
+  const shareViaWhatsApp = () => {
+    const msg = `Quote request for ${reqName} — please see attached PDF for line items.`;
+    const phone = primaryVendor?.phone ? primaryVendor.phone.replace(/[^\d]/g, "") : "";
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank");
+  };
+
+
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
