@@ -394,8 +394,7 @@ export default function ProcurementDetail({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 p-4 overflow-y-auto flex-1 w-full">
-          <div className="max-w-5xl w-full mx-auto space-y-4">
+        <div className="space-y-4 p-4 overflow-y-auto flex-1 w-full max-w-6xl mx-auto">
           {/* Stepper + stage controls */}
           {order.status !== "Rejected" && (
             <div className="space-y-3">
