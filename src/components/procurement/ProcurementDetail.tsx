@@ -427,7 +427,16 @@ export default function ProcurementDetail({
                         })}
                       </PopoverContent>
                     </Popover>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={generateQuotePdf}>
+                        <Download className="h-3.5 w-3.5" /> Download Quote Request
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs text-emerald-700 dark:text-emerald-400" onClick={shareViaWhatsApp}>
+                        <MessageCircle className="h-3.5 w-3.5" /> Share via WhatsApp
+                      </Button>
+                    </div>
                   </div>
+
                   <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
                   {order.po_number && <div className="text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}
                   {order.expected_delivery_date && <div className="text-muted-foreground">Expected Delivery: {order.expected_delivery_date}</div>}
