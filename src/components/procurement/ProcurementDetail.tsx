@@ -85,6 +85,7 @@ export default function ProcurementDetail({
 }: Props) {
   const procCfg = useModuleConfig("procurement");
   const canEditRatesPostApproval = procCfg.canDo("editRatesAfterApproval");
+  const { profile: currentProfile, isAdmin } = useUserProfile();
   const [grns, setGrns] = useState<GrnRow[]>([]);
   const [grnItems, setGrnItems] = useState<GrnItemRow[]>([]);
   const [invoices, setInvoices] = useState<InvRow[]>([]);
@@ -92,6 +93,8 @@ export default function ProcurementDetail({
   const [grnOpen, setGrnOpen] = useState(false);
   const [invOpen, setInvOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [advanceOpen, setAdvanceOpen] = useState(false);
+  const [revertOpen, setRevertOpen] = useState(false);
 
   // Inline PO details editing (delivery date, payment terms, rates)
   const [poForm, setPoForm] = useState({ expected_delivery_date: "", payment_terms: "" });
