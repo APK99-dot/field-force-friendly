@@ -626,7 +626,7 @@ export default function ProcurementDetail({
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction disabled={busy} onClick={() => { if (nextStage) changeStatus(nextStage); }}>
+              <AlertDialogAction disabled={busy} onClick={() => { if (nextStage) changeStatus(nextStage, false); }}>
                 Confirm
               </AlertDialogAction>
             </AlertDialogFooter>
