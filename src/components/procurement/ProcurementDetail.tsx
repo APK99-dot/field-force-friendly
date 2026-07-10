@@ -57,7 +57,7 @@ export interface DetailOrder {
   ship_to_gst?: string | null;
   requisition_notes: string | null;
   created_by: string | null;
-  stage_history?: StageHistoryEntry[] | null;
+  stage_history?: StageHistoryEntry[] | any;
   procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null }[];
 }
 
