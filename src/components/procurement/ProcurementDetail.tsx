@@ -213,18 +213,44 @@ export default function ProcurementDetail({
   const variance = estBudget != null ? estBudget - poValue : null;
   const overBudget = estBudget != null && poValue > estBudget;
 
-  const applyTransition = async (to: ProcStatus) => {
+  const stageHistory: StageHistoryEntry[] = useMemo(
+    () => (Array.isArray(order.stage_history) ? (order.stage_history as StageHistoryEntry[]) : []),
+    [order.stage_history]
+  );
+  // Latest history entry per stage (for the mini activity log under each pill)
+  const historyByStatus = useMemo(() => {
+    const m: Record<string, StageHistoryEntry> = {};
+    stageHistory.forEach((h) => { if (h?.status) m[h.status] = h; });
+    return m;
+  }, [stageHistory]);
+
+  const moverName = currentProfile?.full_name || currentProfile?.username || "Unknown";
+
+  const changeStatus = async (to: ProcStatus, closeAfter = true) => {
     setBusy(true);
-    const { error } = await supabase.from("procurement_orders").update({ status: to }).eq("id", order.id);
+    const entry: StageHistoryEntry = {
+      status: to, moved_by: currentUserId ?? null, moved_by_name: moverName, moved_at: new Date().toISOString(),
+    };
+    const nextHistory = [...stageHistory, entry];
+    const { error } = await supabase.from("procurement_orders")
+      .update({ status: to, stage_history: nextHistory as any }).eq("id", order.id);
     setBusy(false);
     if (error) { toast.error(error.message || "Failed to update status"); return; }
     toast.success(`Status changed to ${to}`);
     onChanged();
-    onOpenChange(false);
+    if (closeAfter) onOpenChange(false);
   };
+
+  const applyTransition = (to: ProcStatus) => changeStatus(to);
 
   const stepFlow = statusFlowFor(order.source_type);
   const stepIndex = stepFlow.indexOf(order.status as ProcStatus);
+  const nextStage = stepIndex >= 0 && stepIndex < stepFlow.length - 1 ? stepFlow[stepIndex + 1] : null;
+  const prevStage = stepIndex > 0 ? stepFlow[stepIndex - 1] : null;
+  // The immediate next transition (unfiltered) tells us whether approval rights are needed
+  const nextTransition = allowedTransitions(order.status, order.source_type)[0] || null;
+  const canAdvance = !!nextStage && (!nextTransition?.approver || canApprove);
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
