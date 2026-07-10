@@ -341,13 +341,13 @@ export default function Procurement() {
   }, [orders, search, filterStatus, vendors, sites]);
 
   return (
-    <motion.div className="space-y-4 p-4 pb-24 max-w-5xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.div className="space-y-4 p-4 pb-24 w-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2"><ShoppingCart className="h-5 w-5" />Procurement</h1>
           <p className="text-xs text-muted-foreground">{orders.length} purchase orders</p>
         </div>
-        {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New PO</Button>}
+        {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New Requisition</Button>}
       </div>
 
       <div className="space-y-2">

@@ -394,11 +394,11 @@ export default function ProcurementDetail({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 p-4 overflow-y-auto flex-1 max-w-3xl w-full mx-auto">
+        <div className="space-y-4 p-4 overflow-y-auto flex-1 w-full max-w-6xl mx-auto">
           {/* Stepper + stage controls */}
           {order.status !== "Rejected" && (
             <div className="space-y-3">
-              <div className="flex items-start gap-1 overflow-x-auto pb-1">
+              <div className="flex items-start gap-1 flex-wrap pb-1">
                 {stepFlow.map((s, i) => {
                   const h = historyByStatus[s];
                   const when = h?.moved_at ? new Date(h.moved_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : null;
