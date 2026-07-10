@@ -101,12 +101,13 @@ export default function ProcurementDetail({
   const [rateLines, setRateLines] = useState<{ id: string; product_id: string | null; uom: string | null; qty: number; rate: string }[]>([]);
   const [poSaving, setPoSaving] = useState(false);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
-  const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
+  const [vendors, setVendors] = useState<{ id: string; name: string; phone: string | null; contact_person: string | null; email: string | null }[]>([]);
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
-    supabase.from("vendors").select("id, name").order("name").then(({ data }) => setVendors((data || []) as { id: string; name: string }[]));
+    supabase.from("vendors").select("id, name, phone, contact_person, email").order("name")
+      .then(({ data }) => setVendors((data || []) as typeof vendors));
   }, []);
 
   // Sync inline editable fields whenever the order changes
