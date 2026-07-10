@@ -347,7 +347,7 @@ export default function Procurement() {
           <h1 className="text-xl font-bold flex items-center gap-2"><ShoppingCart className="h-5 w-5" />Procurement</h1>
           <p className="text-xs text-muted-foreground">{orders.length} purchase orders</p>
         </div>
-        {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New PO</Button>}
+        {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New Requisition</Button>}
       </div>
 
       <div className="space-y-2">
