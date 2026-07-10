@@ -336,6 +336,8 @@ export default function ProcurementDetail({
   };
 
   const shareViaWhatsApp = async () => {
+    // Open the tab synchronously so mobile/desktop popup blockers don't stop it after the await.
+    const win = window.open("", "_blank");
     setBusy(true);
     try {
       const summaryLines = [
@@ -360,9 +362,11 @@ export default function ProcurementDetail({
       const url = phone
         ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
         : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-      window.open(url, "_blank");
+      if (win) win.location.href = url;
+      else window.open(url, "_blank");
     } catch (err: any) {
       toast.error(err?.message || "Failed to share via WhatsApp");
+      if (win) win.close();
     } finally {
       setBusy(false);
     }
