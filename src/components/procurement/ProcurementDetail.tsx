@@ -365,7 +365,7 @@ export default function ProcurementDetail({
       else toast.message("Sharing summary (PDF link unavailable)");
 
       const msg = summaryLines.join("\n");
-      const phone = primaryVendor?.phone ? primaryVendor.phone.replace(/[^\d]/g, "") : "";
+      const phone = vendorPhoneStr(primaryVendor?.phone).replace(/[^\d]/g, "");
       const url = phone
         ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
         : `https://wa.me/?text=${encodeURIComponent(msg)}`;
