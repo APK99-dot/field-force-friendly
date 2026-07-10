@@ -612,18 +612,45 @@ export default function ProcurementDetail({
             {editable && (
               <Button variant="outline" className="gap-1.5" onClick={() => onEdit(order)}><Pencil className="h-4 w-4" />Edit</Button>
             )}
-            {transitions.map((t) => (
-              <Button
-                key={t.to}
-                variant={t.variant || "default"}
-                disabled={busy}
-                onClick={() => applyTransition(t.to)}
-              >
-                {t.label}
-              </Button>
-            ))}
           </div>
         </div>
+
+        {/* Advance stage confirmation */}
+        <AlertDialog open={advanceOpen} onOpenChange={setAdvanceOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Advance stage?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Move this {isTransfer ? "transfer" : "requisition"} from <strong>{order.status}</strong> to <strong>{nextStage}</strong>?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction disabled={busy} onClick={() => { if (nextStage) changeStatus(nextStage); }}>
+                Confirm
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Revert stage confirmation (admin only) */}
+        <AlertDialog open={revertOpen} onOpenChange={setRevertOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Revert to previous stage?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Move this {isTransfer ? "transfer" : "requisition"} back from <strong>{order.status}</strong> to <strong>{prevStage}</strong>? Use this only to correct mistakes.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction disabled={busy} onClick={() => { if (prevStage) changeStatus(prevStage, false); }}>
+                Revert
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
 
         {grnOpen && (
           <GRNForm
