@@ -255,6 +255,13 @@ export default function ProcurementDetail({
   const reqName = order.po_number || "Requisition";
   const selectedVendors = vendors.filter((v) => selectedVendorIds.includes(v.id));
   const primaryVendor = selectedVendors[0] || null;
+  // Vendor phone may be a JSONB array, a string, or null — normalise to a display string.
+  const vendorPhoneStr = (phone: unknown): string => {
+    if (!phone) return "";
+    if (Array.isArray(phone)) return phone.filter(Boolean).map(String).join(", ");
+    return String(phone);
+  };
+
 
   const buildQuoteDoc = () => {
     const doc = new jsPDF({ unit: "mm", format: "a4" });
