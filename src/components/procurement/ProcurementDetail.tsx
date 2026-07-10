@@ -28,6 +28,13 @@ import InvoiceForm from "./InvoiceForm";
 import ThreeWayMatch from "./ThreeWayMatch";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 
+export interface StageHistoryEntry {
+  status: string;
+  moved_by?: string | null;
+  moved_by_name?: string | null;
+  moved_at: string;
+}
+
 export interface DetailOrder {
   id: string;
   source_type?: string | null;
