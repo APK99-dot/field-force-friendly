@@ -256,65 +256,122 @@ export default function ProcurementDetail({
   const selectedVendors = vendors.filter((v) => selectedVendorIds.includes(v.id));
   const primaryVendor = selectedVendors[0] || null;
 
+  const buildQuoteDoc = () => {
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    let y = 18;
+    doc.setFontSize(16); doc.setFont("helvetica", "bold");
+    doc.text("Quote Request", pageW / 2, y, { align: "center" });
+    y += 10;
+    doc.setFontSize(10); doc.setFont("helvetica", "normal");
+    const line = (label: string, val: string) => {
+      doc.setFont("helvetica", "bold"); doc.text(`${label}:`, 14, y);
+      doc.setFont("helvetica", "normal"); doc.text(val || "-", 55, y);
+      y += 6;
+    };
+    line("Requisition", reqName);
+    line("Site", siteName(order.site_id) || "-");
+    line("Raised Date", order.order_date || "-");
+    if (order.expected_delivery_date) line("Expected Delivery", order.expected_delivery_date);
+    if (order.payment_terms) line("Payment Terms", order.payment_terms);
+    if (order.bill_to) line("Bill To", String(order.bill_to).replace(/\n/g, ", "));
+    if (order.ship_to) line("Ship To", String(order.ship_to).replace(/\n/g, ", "));
+
+    if (selectedVendors.length) {
+      y += 2; doc.setFont("helvetica", "bold"); doc.text("Vendor(s):", 14, y); y += 6;
+      doc.setFont("helvetica", "normal");
+      selectedVendors.forEach((v) => {
+        const parts = [v.name];
+        if (v.contact_person) parts.push(`Attn: ${v.contact_person}`);
+        if (v.phone) parts.push(`Ph: ${v.phone}`);
+        if (v.email) parts.push(v.email);
+        doc.text(`• ${parts.join("  |  ")}`, 18, y); y += 6;
+      });
+    }
+
+    y += 4;
+    doc.setFont("helvetica", "bold");
+    doc.text("#", 14, y); doc.text("Product", 24, y); doc.text("Qty", 150, y); doc.text("UOM", 170, y);
+    y += 2; doc.line(14, y, pageW - 14, y); y += 6;
+    doc.setFont("helvetica", "normal");
+    (order.procurement_items || []).forEach((it, idx) => {
+      if (y > 275) { doc.addPage(); y = 20; }
+      doc.text(String(idx + 1), 14, y);
+      const nm = doc.splitTextToSize(productName(it.product_id) || "-", 120);
+      doc.text(nm, 24, y);
+      doc.text(String(it.qty ?? ""), 150, y);
+      doc.text(it.uom || "-", 170, y);
+      y += Math.max(6, nm.length * 5);
+    });
+    return doc;
+  };
+
   const generateQuotePdf = async () => {
     try {
-      const doc = new jsPDF({ unit: "mm", format: "a4" });
-      const pageW = doc.internal.pageSize.getWidth();
-      let y = 18;
-      doc.setFontSize(16); doc.setFont("helvetica", "bold");
-      doc.text("Quote Request", pageW / 2, y, { align: "center" });
-      y += 10;
-      doc.setFontSize(10); doc.setFont("helvetica", "normal");
-      const line = (label: string, val: string) => {
-        doc.setFont("helvetica", "bold"); doc.text(`${label}:`, 14, y);
-        doc.setFont("helvetica", "normal"); doc.text(val || "-", 55, y);
-        y += 6;
-      };
-      line("Requisition", reqName);
-      line("Site", siteName(order.site_id) || "-");
-      line("Raised Date", order.order_date || "-");
-
-      if (selectedVendors.length) {
-        y += 2; doc.setFont("helvetica", "bold"); doc.text("Vendor(s):", 14, y); y += 6;
-        doc.setFont("helvetica", "normal");
-        selectedVendors.forEach((v) => {
-          const parts = [v.name];
-          if (v.contact_person) parts.push(`Attn: ${v.contact_person}`);
-          if (v.phone) parts.push(`Ph: ${v.phone}`);
-          if (v.email) parts.push(v.email);
-          doc.text(`• ${parts.join("  |  ")}`, 18, y); y += 6;
-        });
-      }
-
-      y += 4;
-      doc.setFont("helvetica", "bold");
-      doc.text("#", 14, y); doc.text("Product", 24, y); doc.text("Qty", 150, y); doc.text("UOM", 170, y);
-      y += 2; doc.line(14, y, pageW - 14, y); y += 6;
-      doc.setFont("helvetica", "normal");
-      (order.procurement_items || []).forEach((it, idx) => {
-        if (y > 275) { doc.addPage(); y = 20; }
-        doc.text(String(idx + 1), 14, y);
-        const nm = doc.splitTextToSize(productName(it.product_id) || "-", 120);
-        doc.text(nm, 24, y);
-        doc.text(String(it.qty ?? ""), 150, y);
-        doc.text(it.uom || "-", 170, y);
-        y += Math.max(6, nm.length * 5);
-      });
-
+      const doc = buildQuoteDoc();
       await downloadPDF(doc, `Quote-Request-${reqName}.pdf`);
     } catch (err: any) {
       toast.error(err?.message || "Failed to generate PDF");
     }
   };
 
-  const shareViaWhatsApp = () => {
-    const msg = `Quote request for ${reqName} — please see attached PDF for line items.`;
-    const phone = primaryVendor?.phone ? primaryVendor.phone.replace(/[^\d]/g, "") : "";
-    const url = phone
-      ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
-      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-    window.open(url, "_blank");
+  // Upload the generated quote PDF to storage and return a public HTTPS link.
+  const uploadQuotePdf = async (): Promise<string | null> => {
+    try {
+      const doc = buildQuoteDoc();
+      const blob = doc.output("blob");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const path = `${user.id}/${Date.now()}-Quote-Request-${reqName.replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`;
+      const { error: upErr } = await supabase.storage
+        .from("temp-downloads")
+        .upload(path, blob, { contentType: "application/pdf", upsert: true });
+      if (upErr) { console.error("Quote upload error:", upErr); return null; }
+      const { data } = supabase.storage.from("temp-downloads").getPublicUrl(path);
+      return data?.publicUrl ?? null;
+    } catch (err) {
+      console.error("uploadQuotePdf failed:", err);
+      return null;
+    }
   };
+
+  const shareViaWhatsApp = async () => {
+    // Open the tab synchronously so mobile/desktop popup blockers don't stop it after the await.
+    const win = window.open("", "_blank");
+    setBusy(true);
+    try {
+      const summaryLines = [
+        `*Quote Request — ${reqName}*`,
+        `Site: ${siteName(order.site_id) || "-"}`,
+      ];
+      if (primaryVendor) summaryLines.push(`Vendor: ${primaryVendor.name}`);
+      if (order.bill_to) summaryLines.push(`Bill To: ${String(order.bill_to).replace(/\n/g, ", ")}`);
+      if (order.ship_to) summaryLines.push(`Ship To: ${String(order.ship_to).replace(/\n/g, ", ")}`);
+      if (order.expected_delivery_date) summaryLines.push(`Expected Delivery: ${order.expected_delivery_date}`);
+      if (order.payment_terms) summaryLines.push(`Payment Terms: ${order.payment_terms}`);
+      const items = (order.procurement_items || [])
+        .map((it, i) => `${i + 1}. ${productName(it.product_id) || "-"} — ${it.qty ?? ""} ${it.uom || ""}`.trim());
+      if (items.length) summaryLines.push("", "Items:", ...items);
+
+      const link = await uploadQuotePdf();
+      if (link) summaryLines.push("", `Full quote PDF: ${link}`);
+      else toast.message("Sharing summary (PDF link unavailable)");
+
+      const msg = summaryLines.join("\n");
+      const phone = primaryVendor?.phone ? primaryVendor.phone.replace(/[^\d]/g, "") : "";
+      const url = phone
+        ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+        : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+      if (win) win.location.href = url;
+      else window.open(url, "_blank");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to share via WhatsApp");
+      if (win) win.close();
+    } finally {
+      setBusy(false);
+    }
+  };
+
 
 
 
@@ -626,7 +683,7 @@ export default function ProcurementDetail({
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction disabled={busy} onClick={() => { if (nextStage) changeStatus(nextStage); }}>
+              <AlertDialogAction disabled={busy} onClick={() => { if (nextStage) changeStatus(nextStage, false); }}>
                 Confirm
               </AlertDialogAction>
             </AlertDialogFooter>
