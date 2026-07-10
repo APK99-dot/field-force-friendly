@@ -290,7 +290,7 @@ export default function ProcurementDetail({
       selectedVendors.forEach((v) => {
         const parts = [v.name];
         if (v.contact_person) parts.push(`Attn: ${v.contact_person}`);
-        if (v.phone) parts.push(`Ph: ${v.phone}`);
+        if (v.phone) parts.push(`Ph: ${vendorPhoneStr(v.phone)}`);
         if (v.email) parts.push(v.email);
         doc.text(`• ${parts.join("  |  ")}`, 18, y); y += 6;
       });
