@@ -331,17 +331,56 @@ export default function ProcurementDetail({
         </DialogHeader>
 
         <div className="space-y-4 p-4 overflow-y-auto flex-1 max-w-3xl w-full mx-auto">
-          {/* Stepper */}
+          {/* Stepper + stage controls */}
           {order.status !== "Rejected" && (
-            <div className="flex items-center gap-1 overflow-x-auto pb-1">
-              {stepFlow.map((s, i) => (
-                <div key={s} className="flex items-center shrink-0">
-                  <span className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
-                  {i < stepFlow.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-                </div>
-              ))}
+            <div className="space-y-3">
+              <div className="flex items-start gap-1 overflow-x-auto pb-1">
+                {stepFlow.map((s, i) => {
+                  const h = historyByStatus[s];
+                  const when = h?.moved_at ? new Date(h.moved_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : null;
+                  return (
+                    <div key={s} className="flex items-start shrink-0">
+                      <div className="flex flex-col items-center gap-1 max-w-[92px]">
+                        <span className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
+                        {i <= stepIndex && h && (
+                          <span className="text-[9px] text-muted-foreground text-center leading-tight">
+                            {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
+                          </span>
+                        )}
+                      </div>
+                      {i < stepFlow.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground mt-1.5" />}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                {nextStage && (
+                  <Button
+                    className="gap-1.5"
+                    disabled={busy || !canAdvance}
+                    onClick={() => setAdvanceOpen(true)}
+                  >
+                    Mark as {nextStage} <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
+                {!canAdvance && nextStage && (
+                  <span className="text-[11px] text-muted-foreground">Requires approval rights to advance.</span>
+                )}
+                {isAdmin && prevStage && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive underline underline-offset-2"
+                    disabled={busy}
+                    onClick={() => setRevertOpen(true)}
+                  >
+                    <Undo2 className="h-3.5 w-3.5" /> Revert to {prevStage}
+                  </button>
+                )}
+              </div>
             </div>
           )}
+
 
           {/* Header info */}
           <Card>
