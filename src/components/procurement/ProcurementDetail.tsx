@@ -255,6 +255,13 @@ export default function ProcurementDetail({
   const reqName = order.po_number || "Requisition";
   const selectedVendors = vendors.filter((v) => selectedVendorIds.includes(v.id));
   const primaryVendor = selectedVendors[0] || null;
+  // Vendor phone may be a JSONB array, a string, or null — normalise to a display string.
+  const vendorPhoneStr = (phone: unknown): string => {
+    if (!phone) return "";
+    if (Array.isArray(phone)) return phone.filter(Boolean).map(String).join(", ");
+    return String(phone);
+  };
+
 
   const buildQuoteDoc = () => {
     const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -283,7 +290,7 @@ export default function ProcurementDetail({
       selectedVendors.forEach((v) => {
         const parts = [v.name];
         if (v.contact_person) parts.push(`Attn: ${v.contact_person}`);
-        if (v.phone) parts.push(`Ph: ${v.phone}`);
+        if (v.phone) parts.push(`Ph: ${vendorPhoneStr(v.phone)}`);
         if (v.email) parts.push(v.email);
         doc.text(`• ${parts.join("  |  ")}`, 18, y); y += 6;
       });
@@ -358,7 +365,7 @@ export default function ProcurementDetail({
       else toast.message("Sharing summary (PDF link unavailable)");
 
       const msg = summaryLines.join("\n");
-      const phone = primaryVendor?.phone ? primaryVendor.phone.replace(/[^\d]/g, "") : "";
+      const phone = vendorPhoneStr(primaryVendor?.phone).replace(/[^\d]/g, "");
       const url = phone
         ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
         : `https://wa.me/?text=${encodeURIComponent(msg)}`;
