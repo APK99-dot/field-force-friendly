@@ -1,0 +1,1 @@
+ALTER TABLE public.procurement_orders ADD COLUMN IF NOT EXISTS stage_history jsonb NOT NULL DEFAULT '[]'::jsonb;
