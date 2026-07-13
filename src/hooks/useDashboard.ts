@@ -2,24 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
-const CACHE_KEY = "dashboard_cache_v1";
-
-function getCachedDashboard() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-function setCachedDashboard(data: any) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-  } catch { /* quota exceeded */ }
-}
-
 interface DashboardSummary {
   pending_leaves: number;
   activities_total: number;
@@ -51,20 +33,18 @@ export function useDashboard(userId: string | undefined) {
   });
 
   // Secondary: single RPC call for all aggregate stats
-  const cached = getCachedDashboard();
   const summaryQuery = useQuery({
     queryKey: ["dashboard-summary", userId],
     queryFn: async () => {
       if (!userId) return null;
       const { data, error } = await supabase.rpc("get_dashboard_summary");
       if (error) throw error;
-      const result = data as unknown as DashboardSummary;
-      setCachedDashboard(result);
-      return result;
+      return data as unknown as DashboardSummary;
     },
     enabled: !!userId,
-    initialData: cached as DashboardSummary | undefined,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const summary = summaryQuery.data;
@@ -77,7 +57,7 @@ export function useDashboard(userId: string | undefined) {
   return {
     attendance,
     isLoading: attendanceQuery.isLoading,
-    isSummaryLoading: summaryQuery.isLoading && !cached,
+    isSummaryLoading: summaryQuery.isLoading,
     dayStarted,
     isCheckedIn,
     isCheckedOut,
