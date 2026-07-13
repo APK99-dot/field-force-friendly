@@ -549,32 +549,41 @@ export default function ProcurementDetail({
     window.open(url, "_blank");
   };
 
-  const applyVendorRates = async (q: VendorQuoteRow) => {
-    setPoSaving(true);
-    try {
-      const qItems = q.procurement_vendor_quote_items || [];
-      const byItem: Record<string, VendorQuoteItemRow> = {};
-      qItems.forEach((qi) => { if (qi.procurement_item_id) byItem[qi.procurement_item_id] = qi; });
-      let total = 0;
-      for (const l of rateLines) {
-        const qi = byItem[l.id];
-        if (!qi) continue;
-        const rate = Number(qi.rate_after_discount) || 0;
-        total += rate * (l.qty || 0);
-        const { error } = await supabase.from("procurement_items")
-          .update({ rate, amount: rate * (l.qty || 0) }).eq("id", l.id);
-        if (error) throw error;
-      }
-      const patch: Record<string, unknown> = { total_amount: total, vendor_id: q.vendor_id, vendor_ids: q.vendor_id ? [q.vendor_id] : null };
-      if (q.vendor_payment_term) patch.payment_terms = q.vendor_payment_term;
-      await supabase.from("procurement_orders").update(patch).eq("id", order.id);
-      toast.success("Vendor rates applied to this requisition");
-      onChanged();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to apply vendor rates");
-    } finally {
-      setPoSaving(false);
+  // Apply a single vendor's quoted rate to one line item, tagging its source.
+  const applyLineQuote = (lineId: string, quote: VendorQuoteRow) => {
+    const qi = (quote.procurement_vendor_quote_items || []).find((x) => x.procurement_item_id === lineId);
+    if (!qi) { toast.error("This vendor did not quote this item."); return; }
+    const rate = Number(qi.rate_after_discount ?? qi.rate) || 0;
+    setRateLines((prev) => prev.map((l) => l.id === lineId ? {
+      ...l,
+      rate: String(rate),
+      rate_source: "quote",
+      rate_source_vendor_id: quote.vendor_id,
+      vendor_ids: quote.vendor_id && !l.vendor_ids.includes(quote.vendor_id)
+        ? [...l.vendor_ids, quote.vendor_id]
+        : l.vendor_ids,
+    } : l));
+    toast.success("Rate applied. Remember to Save.");
+  };
+
+  // Update a single line's rate (manual edit clears/flips the source tag).
+  const setLineRate = (lineId: string, value: string) => {
+    setRateLines((prev) => prev.map((l) => l.id === lineId
+      ? { ...l, rate: value, rate_source: l.rate_source === "quote" ? "manual_adjusted" : l.rate_source }
+      : l));
+  };
+
+  const setLineVendors = (lineId: string, ids: string[]) => {
+    setRateLines((prev) => prev.map((l) => l.id === lineId ? { ...l, vendor_ids: ids } : l));
+  };
+
+  // Human-readable tag describing where a line's rate came from.
+  const rateSourceLabel = (l: RateLine): string | null => {
+    if (l.rate_source === "quote" && l.rate_source_vendor_id) {
+      return `From ${vendorNameById[l.rate_source_vendor_id] || "vendor"}'s quote`;
     }
+    if (l.rate_source === "manual_adjusted") return "Manually adjusted";
+    return null;
   };
 
 
