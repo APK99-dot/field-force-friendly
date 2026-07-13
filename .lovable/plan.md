@@ -1,39 +1,63 @@
-## Vendor Quote Portal (Salesforce-style Indent Order)
+# Per-Line-Item Vendors, Rates & Quotes
 
-Replace the one-way PDF quote request with a live, public web page each vendor opens via a unique link, fills in rates/discount/commitment date/per-line selection, and submits back into the app. You then review submissions and pick the winning quote.
+Move vendor assignment, quoting, and rate sourcing from the whole PO down to each line item, so different products in one requisition can come from different vendors. The top "Vendor(s)" field becomes an automatic read-only summary.
 
-### How the link flow works
-1. Requisition is approved; in the detail view you select the vendor(s).
-2. Click **Generate & Share Quote Links** — the app creates a unique secret token per vendor and a public URL like `.../vendor-quote/<token>`.
-3. Each vendor's link opens the Indent Order page (no login needed). You share it via WhatsApp (pre-filled message, like today) or copy it.
-4. Vendor fills Rate/Unit, Discount %, Vendor Delivery Commitment Date, ticks the items they can supply, adds payment term/notes, and submits.
-5. Submissions appear back in the requisition detail under **Vendor Quotes**, side by side, so you compare and choose.
+## What changes for the user
 
-### The public page (mirrors the Salesforce template)
-- Bharath Builders logo + company name/address at top (from Company Profile).
-- Title "Indent Order", requisition name, date.
-- **From** (company) / **To** (this vendor) blocks.
-- Line-item table: Product, Description, Quantity, Quality Instructions, UOM, Expected Delivery Date, **Vendor Delivery Commitment Date** (input), **Rate/Unit** (input), **Discount %** (input), **Rate After Discount** (auto-calculated), and a per-row **Select** checkbox.
-- Running total of selected lines.
-- Fields for Expected Payment Terms (shown), Vendor Payment Term (input), Additional Notes (input).
-- Save (partial) and Submit buttons; a read-only confirmation state after submit.
+**Line items (in the PO/Requisition detail view)**
+- Each line item row gains a **Vendor(s)** multi-select (same popover checkbox picker used at the top today), scoped to that row only.
+- **Rate** stays editable per line (never locked), **Amount** stays Qty × Rate.
+- A small **rate-source tag** appears next to the Rate:
+  - Selecting a vendor from that line's quote comparison auto-fills the Rate and shows `From [Vendor]'s quote`.
+  - Manually editing that number afterward switches the tag to `Manually adjusted`.
+  - Typing a rate without ever picking a quote shows no tag (plain manual entry).
 
-### Technical section
+**Top "Vendor(s)" field**
+- No longer selectable. It becomes a read-only line listing the distinct vendors used across all line items (e.g. "Abhaya Enterprises, ABC Electricals"), derived automatically from the per-line vendor assignments.
 
-**Database (migration)**
-- `procurement_vendor_quotes`: `po_id`, `vendor_id`, `token` (unique, random), `status` (`sent`/`submitted`), `vendor_payment_term`, `notes`, `submitted_at`, timestamps.
-- `procurement_vendor_quote_items`: `quote_id`, `procurement_item_id`, `rate`, `discount_pct`, `rate_after_discount`, `delivery_commitment_date`, `is_selected`.
-- GRANTs: `authenticated` full, `service_role` all. RLS: authenticated users with procurement access read/manage; **no anon access** — the public page goes only through edge functions using service role, keyed by the secret token (tokens are never listed, only looked up).
+**Quote request / comparison — now per line item**
+- "Download Quote Request", "Share via WhatsApp", quote-link generation, and the submitted-quote comparison table all operate per line item.
+- A vendor invited on Line 1 only sees and quotes Line 1.
+- You can still invite in bulk: select multiple line items + multiple vendors in one action; each resulting quote is tracked and compared per line item (not merged into one PO total).
+- Each line's comparison table lists vendors who quoted that item, with an **Apply** action that fills that line's Rate and sets the "From [Vendor]'s quote" tag.
 
-**Edge functions (public, `verify_jwt = false`, token-gated, Zod-validated)**
-- `get-vendor-quote?token=…`: returns company branding, vendor info, requisition + line items (product name/description/quality/uom/qty/expected date), and any saved response. Returns 404 for bad/expired tokens.
-- `submit-vendor-quote`: body `{ token, items[], vendor_payment_term, notes, submit }`; upserts response rows, sets `rate_after_discount = rate*(1-discount/100)`, marks `submitted` when `submit=true`.
+**Totals**
+- Grand Total and Budget vs Actual keep summing each line's Amount, unchanged in behaviour.
 
-**Frontend**
-- New public page `src/pages/VendorQuote.tsx` at route `/vendor-quote/:token`, added in `App.tsx` **outside** `AppLayout` (like `/install`), so no auth is required.
-- In `ProcurementDetail.tsx`: add a **Generate & Share Quote Links** action (replacing/augmenting the current PDF quote button) that creates a quote row per selected vendor and shows each vendor's link with WhatsApp + copy buttons. Add a **Vendor Quotes** section listing submissions per vendor (payment term, notes, per-line rate/discount/after-discount/commitment/selected) with an option to apply a chosen vendor's rates into the PO line items.
-- Keep the existing "Download Quote Request" PDF as an optional fallback.
+## Technical section
 
-**Notes**
-- The public page must be reachable on the published site; publish visibility should be Public for vendors to open links.
-- Rate After Discount is computed live on the page and re-verified server-side on submit.
+### Database (migration)
+1. `procurement_items`: add
+   - `vendor_ids uuid[]` — vendors assigned to this line.
+   - `rate_source text` — `null` (manual), `'quote'` (from a submitted quote), or `'quote_adjusted'` (was from a quote, then edited).
+   - `rate_source_vendor_id uuid` — vendor whose quote produced the rate (for the tag label).
+2. `procurement_vendor_quotes`: add
+   - `procurement_item_ids uuid[]` — the specific line items this vendor was invited to quote. Existing rows (PO-wide) can be backfilled with all of their PO's item ids so nothing breaks.
+   - Keep existing `po_id` + `vendor_id`; drop the implicit "one quote per vendor per PO" assumption in code so a vendor can have a quote covering a subset of items.
+   - GRANTs already exist on these tables; no new GRANTs needed (only ADD COLUMN).
+
+### Edge functions
+- `get-vendor-quote`: return only the line items in the quote's `procurement_item_ids` (fall back to all items when the array is empty, for legacy links).
+- `submit-vendor-quote`: unchanged logic, but validate submitted item ids are within the quote's invited set.
+
+### Frontend — `src/components/procurement/ProcurementDetail.tsx`
+- Extend `rateLines` state to carry `vendor_ids`, `rate_source`, `rate_source_vendor_id` per row.
+- **Per-line Vendor(s) picker**: reuse the existing Popover + Checkbox pattern (extract a small `VendorMultiSelect` helper to avoid duplication), bound to each row.
+- **Rate change handler**: when the user edits a rate whose `rate_source === 'quote'`, flip it to `'quote_adjusted'`; render tag accordingly (`From X's quote` / `Manually adjusted` / none).
+- **Top Vendor(s)**: replace the selectable popover with a read-only text derived from `distinct(rateLines.flatMap(vendor_ids))` mapped through `vendorName`.
+- **Quote actions moved into each line item card**:
+  - Per-line "Generate/Share Quote Link" and comparison list, filtered to quotes whose `procurement_item_ids` include that line.
+  - Add a **bulk invite** control (select line items + vendors) that creates quote rows carrying the chosen `procurement_item_ids`.
+  - `applyVendorRates` becomes per line: sets that line's `rate`, `rate_source='quote'`, `rate_source_vendor_id`, recomputes only that line's amount.
+- `savePoDetails` / line save: persist `vendor_ids`, `rate`, `amount`, `rate_source`, `rate_source_vendor_id` per `procurement_items` row; still write `total_amount` = sum of line amounts. Keep writing the PO-level `vendor_ids`/`vendor_id` as the derived distinct set (so existing list/report code that reads PO-level vendors keeps working).
+- PDF (`buildQuoteDoc`) and WhatsApp message builders take a set of item ids + target vendor so they render only the invited lines.
+
+### Frontend — `src/pages/VendorQuote.tsx`
+- No structural change needed; it renders whatever items the edge function returns (now scoped per invitation).
+
+### Totals verification
+- `poEditTotal` already sums `rate * qty` across `rateLines`; confirm it and `order.total_amount` stay consistent after per-line saves, and Budget vs Actual reads the same `total_amount`.
+
+### Notes / caveats
+- Legacy PO-wide quotes remain valid via the `procurement_item_ids` backfill.
+- No changes to GRN/Invoice logic; they already key off `procurement_item_id`.
