@@ -47,12 +47,20 @@ Deno.serve(async (req) => {
     // Requisition title comes from notes' first line fallback to PO number
     const reqTitle = order.po_number || "Requisition";
 
-    // Line items
-    const { data: items, error: iErr } = await supabase
+    // Line items — scope to the specific items this vendor was invited to quote.
+    // Legacy quotes with no invited list fall back to all items of the PO.
+    let itemsQuery = supabase
       .from("procurement_items")
       .select("id, product_id, qty, uom")
       .eq("procurement_id", quote.po_id)
       .order("created_at");
+    const invitedIds: string[] = Array.isArray(quote.procurement_item_ids)
+      ? quote.procurement_item_ids.filter(Boolean)
+      : [];
+    if (invitedIds.length) {
+      itemsQuery = itemsQuery.in("id", invitedIds);
+    }
+    const { data: items, error: iErr } = await itemsQuery;
     if (iErr) throw iErr;
 
     const productIds = [...new Set((items || []).map((i) => i.product_id).filter(Boolean))];

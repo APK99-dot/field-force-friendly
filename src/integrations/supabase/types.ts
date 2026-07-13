@@ -3117,8 +3117,11 @@ export type Database = {
           product_id: string | null
           qty: number
           rate: number
+          rate_source: string | null
+          rate_source_vendor_id: string | null
           uom: string | null
           updated_at: string
+          vendor_ids: string[] | null
         }
         Insert: {
           amount?: number
@@ -3128,8 +3131,11 @@ export type Database = {
           product_id?: string | null
           qty?: number
           rate?: number
+          rate_source?: string | null
+          rate_source_vendor_id?: string | null
           uom?: string | null
           updated_at?: string
+          vendor_ids?: string[] | null
         }
         Update: {
           amount?: number
@@ -3139,8 +3145,11 @@ export type Database = {
           product_id?: string | null
           qty?: number
           rate?: number
+          rate_source?: string | null
+          rate_source_vendor_id?: string | null
           uom?: string | null
           updated_at?: string
+          vendor_ids?: string[] | null
         }
         Relationships: [
           {
@@ -3399,6 +3408,7 @@ export type Database = {
           id: string
           notes: string | null
           po_id: string
+          procurement_item_ids: string[] | null
           status: string
           submitted_at: string | null
           token: string
@@ -3412,6 +3422,7 @@ export type Database = {
           id?: string
           notes?: string | null
           po_id: string
+          procurement_item_ids?: string[] | null
           status?: string
           submitted_at?: string | null
           token?: string
@@ -3425,6 +3436,7 @@ export type Database = {
           id?: string
           notes?: string | null
           po_id?: string
+          procurement_item_ids?: string[] | null
           status?: string
           submitted_at?: string | null
           token?: string

@@ -58,7 +58,7 @@ export interface DetailOrder {
   requisition_notes: string | null;
   created_by: string | null;
   stage_history?: StageHistoryEntry[] | any;
-  procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null }[];
+  procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null; vendor_ids?: string[] | null; rate_source?: string | null; rate_source_vendor_id?: string | null }[];
 }
 
 interface Props {
@@ -95,7 +95,61 @@ interface VendorQuoteRow {
   vendor_payment_term: string | null;
   notes: string | null;
   submitted_at: string | null;
+  procurement_item_ids?: string[] | null;
   procurement_vendor_quote_items?: VendorQuoteItemRow[];
+}
+
+interface RateLine {
+  id: string;
+  product_id: string | null;
+  uom: string | null;
+  qty: number;
+  rate: string;
+  vendor_ids: string[];
+  rate_source: string | null;
+  rate_source_vendor_id: string | null;
+}
+
+// Reusable multi-select vendor picker (popover + checkboxes)
+function VendorMultiSelect({
+  vendors, selectedIds, onChange, disabled, placeholder = "Select vendors",
+}: {
+  vendors: { id: string; name: string }[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className="h-8 w-full justify-between font-normal text-xs" disabled={disabled}>
+          <span className="truncate text-left">
+            {selectedIds.length === 0
+              ? <span className="text-muted-foreground">{placeholder}</span>
+              : vendors.filter((v) => selectedIds.includes(v.id)).map((v) => v.name).join(", ")}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-2 max-h-64 overflow-y-auto" align="start">
+        {vendors.length === 0 ? (
+          <p className="text-xs text-muted-foreground p-2">No vendors found.</p>
+        ) : vendors.map((v) => {
+          const checked = selectedIds.includes(v.id);
+          return (
+            <label key={v.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted cursor-pointer text-sm">
+              <Checkbox
+                checked={checked}
+                onCheckedChange={(c) => onChange(c ? [...selectedIds, v.id] : selectedIds.filter((id) => id !== v.id))}
+              />
+              <span>{v.name}</span>
+            </label>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export default function ProcurementDetail({
@@ -117,14 +171,15 @@ export default function ProcurementDetail({
 
   // Inline PO details editing (delivery date, payment terms, rates)
   const [poForm, setPoForm] = useState({ expected_delivery_date: "", payment_terms: "" });
-  const [rateLines, setRateLines] = useState<{ id: string; product_id: string | null; uom: string | null; qty: number; rate: string }[]>([]);
+  const [rateLines, setRateLines] = useState<RateLine[]>([]);
   const [poSaving, setPoSaving] = useState(false);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
   const [vendors, setVendors] = useState<{ id: string; name: string; phone: string | null; contact_person: string | null; email: string | null }[]>([]);
-  const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
-  const [quoteLinks, setQuoteLinks] = useState<Record<string, { token: string; vendor_id: string }>>({});
   const [vendorQuotes, setVendorQuotes] = useState<VendorQuoteRow[]>([]);
   const [genLinks, setGenLinks] = useState(false);
+  // Bulk invite state: which line items + which vendors to invite in one action
+  const [inviteItemIds, setInviteItemIds] = useState<string[]>([]);
+  const [inviteVendorIds, setInviteVendorIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
@@ -138,9 +193,11 @@ export default function ProcurementDetail({
       expected_delivery_date: order.expected_delivery_date || "",
       payment_terms: order.payment_terms || "",
     });
-    setSelectedVendorIds(order.vendor_ids && order.vendor_ids.length ? order.vendor_ids : (order.vendor_id ? [order.vendor_id] : []));
     setRateLines((order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, uom: it.uom, qty: it.qty, rate: String(it.rate ?? ""),
+      vendor_ids: Array.isArray(it.vendor_ids) ? (it.vendor_ids as string[]) : [],
+      rate_source: it.rate_source ?? null,
+      rate_source_vendor_id: it.rate_source_vendor_id ?? null,
     })));
   }, [order]);
 
@@ -151,21 +208,33 @@ export default function ProcurementDetail({
     [rateLines]
   );
 
+  // Distinct vendors used across all line items (drives the read-only PO-level summary)
+  const derivedVendorIds = useMemo(() => {
+    const s = new Set<string>();
+    rateLines.forEach((l) => (l.vendor_ids || []).forEach((v) => s.add(v)));
+    return [...s];
+  }, [rateLines]);
+
   const savePoDetails = async () => {
     setPoSaving(true);
     try {
       const { error: oErr } = await supabase.from("procurement_orders").update({
         expected_delivery_date: poForm.expected_delivery_date || null,
         payment_terms: poForm.payment_terms || null,
-        vendor_ids: selectedVendorIds.length ? selectedVendorIds : null,
-        vendor_id: selectedVendorIds[0] || null,
+        vendor_ids: derivedVendorIds.length ? derivedVendorIds : null,
+        vendor_id: derivedVendorIds[0] || null,
         total_amount: poEditTotal,
       }).eq("id", order.id);
       if (oErr) throw oErr;
       for (const l of rateLines) {
         const rate = parseFloat(l.rate) || 0;
         const { error: iErr } = await supabase.from("procurement_items")
-          .update({ rate, amount: rate * (l.qty || 0) }).eq("id", l.id);
+          .update({
+            rate, amount: rate * (l.qty || 0),
+            vendor_ids: l.vendor_ids.length ? l.vendor_ids : null,
+            rate_source: l.rate_source,
+            rate_source_vendor_id: l.rate_source_vendor_id,
+          }).eq("id", l.id);
         if (iErr) throw iErr;
       }
       toast.success("PO details updated");
@@ -275,8 +344,13 @@ export default function ProcurementDetail({
   const canAdvance = !!nextStage && (!nextTransition?.approver || canApprove);
 
   const reqName = order.po_number || "Requisition";
-  const selectedVendors = vendors.filter((v) => selectedVendorIds.includes(v.id));
+  const selectedVendors = vendors.filter((v) => derivedVendorIds.includes(v.id));
   const primaryVendor = selectedVendors[0] || null;
+  const vendorNameById = useMemo(() => {
+    const m: Record<string, string> = {};
+    vendors.forEach((v) => { m[v.id] = v.name; });
+    return m;
+  }, [vendors]);
   // Vendor phone may be a JSONB array, a string, or null — normalise to a display string.
   const vendorPhoneStr = (phone: unknown): string => {
     if (!phone) return "";
@@ -401,48 +475,52 @@ export default function ProcurementDetail({
     }
   };
 
-  // ---- Vendor quote portal ----
+  // ---- Vendor quote portal (per line item) ----
   const loadVendorQuotes = useCallback(async () => {
     const { data } = await supabase
       .from("procurement_vendor_quotes")
-      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, procurement_vendor_quote_items(*)")
+      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, procurement_item_ids, procurement_vendor_quote_items(*)")
       .eq("po_id", order.id);
-    const rows = (data || []) as VendorQuoteRow[];
-    setVendorQuotes(rows);
-    const map: Record<string, { token: string; vendor_id: string }> = {};
-    rows.forEach((r) => { if (r.vendor_id) map[r.vendor_id] = { token: r.token, vendor_id: r.vendor_id }; });
-    setQuoteLinks(map);
+    setVendorQuotes((data || []) as VendorQuoteRow[]);
   }, [order.id]);
 
   useEffect(() => { if (open) loadVendorQuotes(); }, [open, loadVendorQuotes]);
 
   const quoteUrl = (token: string) => `${window.location.origin}/vendor-quote/${token}`;
 
-  const generateQuoteLinks = async () => {
-    if (selectedVendorIds.length === 0) {
-      toast.error("Select at least one vendor first.");
-      return;
-    }
+  // Invite selected vendors to quote on selected line items (one quote row per vendor, scoped to items).
+  const inviteToQuote = async () => {
+    if (inviteItemIds.length === 0) { toast.error("Select at least one line item."); return; }
+    if (inviteVendorIds.length === 0) { toast.error("Select at least one vendor."); return; }
     setGenLinks(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      // Create a quote row per vendor that doesn't already have one
-      const existing = new Set(vendorQuotes.map((q) => q.vendor_id));
-      const toCreate = selectedVendorIds.filter((id) => !existing.has(id));
-      if (toCreate.length) {
-        const { error } = await supabase.from("procurement_vendor_quotes").insert(
-          toCreate.map((vid) => ({ po_id: order.id, vendor_id: vid, token: crypto.randomUUID().replace(/-/g, ""), created_by: user?.id ?? null }))
-        );
-        if (error) throw error;
-      }
+      const { error } = await supabase.from("procurement_vendor_quotes").insert(
+        inviteVendorIds.map((vid) => ({
+          po_id: order.id,
+          vendor_id: vid,
+          token: crypto.randomUUID().replace(/-/g, ""),
+          procurement_item_ids: inviteItemIds,
+          created_by: user?.id ?? null,
+        }))
+      );
+      if (error) throw error;
       await loadVendorQuotes();
-      toast.success("Quote links ready. Share them with vendors below.");
+      setInviteItemIds([]);
+      setInviteVendorIds([]);
+      toast.success("Quote links generated. Share them with vendors below.");
     } catch (err: any) {
       toast.error(err.message || "Failed to generate quote links");
     } finally {
       setGenLinks(false);
     }
   };
+
+  // Quotes scoped to a given line item
+  const quotesForItem = useCallback(
+    (itemId: string) => vendorQuotes.filter((q) => Array.isArray(q.procurement_item_ids) && q.procurement_item_ids.includes(itemId)),
+    [vendorQuotes]
+  );
 
   const copyLink = async (token: string) => {
     try {
@@ -471,32 +549,41 @@ export default function ProcurementDetail({
     window.open(url, "_blank");
   };
 
-  const applyVendorRates = async (q: VendorQuoteRow) => {
-    setPoSaving(true);
-    try {
-      const qItems = q.procurement_vendor_quote_items || [];
-      const byItem: Record<string, VendorQuoteItemRow> = {};
-      qItems.forEach((qi) => { if (qi.procurement_item_id) byItem[qi.procurement_item_id] = qi; });
-      let total = 0;
-      for (const l of rateLines) {
-        const qi = byItem[l.id];
-        if (!qi) continue;
-        const rate = Number(qi.rate_after_discount) || 0;
-        total += rate * (l.qty || 0);
-        const { error } = await supabase.from("procurement_items")
-          .update({ rate, amount: rate * (l.qty || 0) }).eq("id", l.id);
-        if (error) throw error;
-      }
-      const patch: Record<string, unknown> = { total_amount: total, vendor_id: q.vendor_id, vendor_ids: q.vendor_id ? [q.vendor_id] : null };
-      if (q.vendor_payment_term) patch.payment_terms = q.vendor_payment_term;
-      await supabase.from("procurement_orders").update(patch).eq("id", order.id);
-      toast.success("Vendor rates applied to this requisition");
-      onChanged();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to apply vendor rates");
-    } finally {
-      setPoSaving(false);
+  // Apply a single vendor's quoted rate to one line item, tagging its source.
+  const applyLineQuote = (lineId: string, quote: VendorQuoteRow) => {
+    const qi = (quote.procurement_vendor_quote_items || []).find((x) => x.procurement_item_id === lineId);
+    if (!qi) { toast.error("This vendor did not quote this item."); return; }
+    const rate = Number(qi.rate_after_discount ?? qi.rate) || 0;
+    setRateLines((prev) => prev.map((l) => l.id === lineId ? {
+      ...l,
+      rate: String(rate),
+      rate_source: "quote",
+      rate_source_vendor_id: quote.vendor_id,
+      vendor_ids: quote.vendor_id && !l.vendor_ids.includes(quote.vendor_id)
+        ? [...l.vendor_ids, quote.vendor_id]
+        : l.vendor_ids,
+    } : l));
+    toast.success("Rate applied. Remember to Save.");
+  };
+
+  // Update a single line's rate (manual edit clears/flips the source tag).
+  const setLineRate = (lineId: string, value: string) => {
+    setRateLines((prev) => prev.map((l) => l.id === lineId
+      ? { ...l, rate: value, rate_source: l.rate_source === "quote" ? "manual_adjusted" : l.rate_source }
+      : l));
+  };
+
+  const setLineVendors = (lineId: string, ids: string[]) => {
+    setRateLines((prev) => prev.map((l) => l.id === lineId ? { ...l, vendor_ids: ids } : l));
+  };
+
+  // Human-readable tag describing where a line's rate came from.
+  const rateSourceLabel = (l: RateLine): string | null => {
+    if (l.rate_source === "quote" && l.rate_source_vendor_id) {
+      return `From ${vendorNameById[l.rate_source_vendor_id] || "vendor"}'s quote`;
     }
+    if (l.rate_source === "manual_adjusted") return "Manually adjusted";
+    return null;
   };
 
 
@@ -583,97 +670,13 @@ export default function ProcurementDetail({
                 <>
                   <div>
                     <Label className="text-xs">Vendor(s)</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button type="button" variant="outline" className="h-9 w-full justify-between font-normal" disabled={!poUnlocked}>
-                          <span className="truncate text-left">
-                            {selectedVendorIds.length === 0
-                              ? <span className="text-muted-foreground">Select vendors</span>
-                              : selectedVendorIds.map((id) => vendorName(id)).join(", ")}
-                          </span>
-                          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-2 max-h-64 overflow-y-auto" align="start">
-                        {vendors.length === 0 ? (
-                          <p className="text-xs text-muted-foreground p-2">No vendors found.</p>
-                        ) : vendors.map((v) => {
-                          const checked = selectedVendorIds.includes(v.id);
-                          return (
-                            <label key={v.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted cursor-pointer text-sm">
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={(c) =>
-                                  setSelectedVendorIds((prev) => c ? [...prev, v.id] : prev.filter((id) => id !== v.id))
-                                }
-                              />
-                              <span>{v.name}</span>
-                            </label>
-                          );
-                        })}
-                      </PopoverContent>
-                    </Popover>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={generateQuotePdf}>
-                        <Download className="h-3.5 w-3.5" /> Download Quote Request
-                      </Button>
-                      <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={generateQuoteLinks} disabled={genLinks}>
-                        <Link2 className="h-3.5 w-3.5" /> {genLinks ? "Generating..." : "Generate Quote Links"}
-                      </Button>
-                    </div>
-
-                    {/* Per-vendor quote links */}
-                    {Object.keys(quoteLinks).length > 0 && (
-                      <div className="mt-3 space-y-2 rounded-lg border p-2.5 bg-muted/30">
-                        <p className="text-xs font-medium">Vendor Quote Links</p>
-                        {Object.values(quoteLinks).map((ql) => {
-                          const sub = vendorQuotes.find((q) => q.vendor_id === ql.vendor_id);
-                          return (
-                            <div key={ql.vendor_id} className="flex items-center gap-2 text-xs">
-                              <span className="flex-1 truncate">{vendorName(ql.vendor_id)}</span>
-                              {sub?.status === "submitted" ? (
-                                <span className="text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Submitted</span>
-                              ) : (
-                                <span className="text-muted-foreground whitespace-nowrap">Pending</span>
-                              )}
-                              <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyLink(ql.token)} title="Copy link">
-                                <Copy className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-emerald-700 dark:text-emerald-400" onClick={() => shareLinkWhatsApp(ql.vendor_id, ql.token)} title="Share on WhatsApp">
-                                <MessageCircle className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Submitted quotes comparison */}
-                    {vendorQuotes.some((q) => q.status === "submitted") && (
-                      <div className="mt-3 space-y-2 rounded-lg border p-2.5">
-                        <p className="text-xs font-medium">Submitted Vendor Quotes</p>
-                        {vendorQuotes.filter((q) => q.status === "submitted").map((q) => {
-                          const total = (q.procurement_vendor_quote_items || []).reduce(
-                            (s, it) => s + (Number(it.rate_after_discount) || 0), 0
-                          );
-                          return (
-                            <div key={q.id} className="flex items-center gap-2 text-xs border-t pt-2 first:border-t-0 first:pt-0">
-                              <div className="flex-1">
-                                <div className="font-medium">{vendorName(q.vendor_id || "")}</div>
-                                <div className="text-muted-foreground">
-                                  {q.vendor_payment_term ? `Terms: ${q.vendor_payment_term} · ` : ""}
-                                  Line total (unit): {fmtAmt(total)}
-                                </div>
-                              </div>
-                              <Button type="button" size="sm" variant="outline" className="h-7 text-xs" disabled={!poUnlocked || poSaving} onClick={() => applyVendorRates(q)}>
-                                Apply Rates
-                              </Button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <p className="text-sm font-medium">
+                      {derivedVendorIds.length === 0
+                        ? <span className="text-muted-foreground font-normal">None assigned yet — assign vendors per line item below.</span>
+                        : derivedVendorIds.map((id) => vendorName(id)).join(", ")}
+                    </p>
                   </div>
+
 
 
                   <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
@@ -743,35 +746,132 @@ export default function ProcurementDetail({
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">{isTransfer ? "Transfer Items" : "Line Items"}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
+              {/* Bulk invite: choose line items + vendors and generate quote links per item */}
+              {poUnlocked && rateLines.length > 0 && (
+                <div className="rounded-lg border p-2.5 bg-muted/20 space-y-2">
+                  <p className="text-xs font-medium">Invite vendors to quote</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Line items</Label>
+                      <div className="space-y-1 mt-1 max-h-32 overflow-y-auto">
+                        {rateLines.map((l) => (
+                          <label key={l.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                            <Checkbox
+                              checked={inviteItemIds.includes(l.id)}
+                              onCheckedChange={(c) => setInviteItemIds((prev) => c ? [...prev, l.id] : prev.filter((id) => id !== l.id))}
+                            />
+                            <span className="truncate">{productName(l.product_id)}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Vendors</Label>
+                      <div className="mt-1">
+                        <VendorMultiSelect vendors={vendors} selectedIds={inviteVendorIds} onChange={setInviteVendorIds} />
+                      </div>
+                    </div>
+                  </div>
+                  <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={inviteToQuote} disabled={genLinks}>
+                    <Link2 className="h-3.5 w-3.5" /> {genLinks ? "Generating..." : "Generate Quote Links"}
+                  </Button>
+                </div>
+              )}
+
               {rateLines.map((l, i) => {
                 const amt = (parseFloat(l.rate) || 0) * (l.qty || 0);
+                const tag = rateSourceLabel(l);
+                const lineQuotes = quotesForItem(l.id);
+                const submittedQuotes = lineQuotes.filter((q) => q.status === "submitted");
                 return (
-                  <div key={l.id} className="rounded-lg border p-2.5 bg-muted/30">
-                    <div className="text-sm font-medium mb-1">{productName(l.product_id)}</div>
+                  <div key={l.id} className="rounded-lg border p-2.5 bg-muted/30 space-y-2">
+                    <div className="text-sm font-medium">{productName(l.product_id)}</div>
                     {isTransfer ? (
                       <div>
                         <Label className="text-[10px] text-muted-foreground">Qty</Label>
                         <div className="h-8 flex items-center text-sm">{l.qty} {l.uom || ""}</div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-3 gap-2 items-end">
+                      <>
                         <div>
-                          <Label className="text-[10px] text-muted-foreground">Qty</Label>
-                          <div className="h-8 flex items-center text-sm">{l.qty} {l.uom || ""}</div>
-                        </div>
-                        <div>
-                          <Label className="text-[10px] text-muted-foreground">Rate</Label>
-                          <Input
-                            type="number" inputMode="decimal" value={l.rate} placeholder="0" className="h-8"
-                            disabled={!poUnlocked || ratesLocked}
-                            onChange={(e) => setRateLines((prev) => prev.map((x, idx) => idx === i ? { ...x, rate: e.target.value } : x))}
+                          <Label className="text-[10px] text-muted-foreground">Vendor(s)</Label>
+                          <VendorMultiSelect
+                            vendors={vendors}
+                            selectedIds={l.vendor_ids}
+                            onChange={(ids) => setLineVendors(l.id, ids)}
+                            disabled={!poUnlocked}
                           />
                         </div>
-                        <div>
-                          <Label className="text-[10px] text-muted-foreground">Amount</Label>
-                          <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
+                        <div className="grid grid-cols-3 gap-2 items-end">
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Qty</Label>
+                            <div className="h-8 flex items-center text-sm">{l.qty} {l.uom || ""}</div>
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Rate</Label>
+                            <Input
+                              type="number" inputMode="decimal" value={l.rate} placeholder="0" className="h-8"
+                              disabled={!poUnlocked || ratesLocked}
+                              onChange={(e) => setLineRate(l.id, e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Amount</Label>
+                            <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
+                          </div>
                         </div>
-                      </div>
+                        {tag && (
+                          <Badge variant="outline" className="text-[10px] font-normal">{tag}</Badge>
+                        )}
+
+                        {/* Quote links for this line item */}
+                        {lineQuotes.length > 0 && (
+                          <div className="space-y-1.5 rounded-md border p-2 bg-background">
+                            <p className="text-[11px] font-medium">Quote requests</p>
+                            {lineQuotes.map((q) => (
+                              <div key={q.id} className="flex items-center gap-2 text-[11px]">
+                                <span className="flex-1 truncate">{vendorName(q.vendor_id || "")}</span>
+                                <span className={q.status === "submitted" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                                  {q.status === "submitted" ? "Submitted" : "Pending"}
+                                </span>
+                                <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(q.token)} title="Copy link">
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                                <Button type="button" size="icon" variant="ghost" className="h-6 w-6 text-emerald-700 dark:text-emerald-400" onClick={() => shareLinkWhatsApp(q.vendor_id || "", q.token)} title="Share on WhatsApp">
+                                  <MessageCircle className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Submitted quote comparison for this line item */}
+                        {submittedQuotes.length > 0 && (
+                          <div className="space-y-1.5 rounded-md border p-2">
+                            <p className="text-[11px] font-medium">Submitted quotes for this item</p>
+                            {submittedQuotes.map((q) => {
+                              const qi = (q.procurement_vendor_quote_items || []).find((x) => x.procurement_item_id === l.id);
+                              const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
+                              return (
+                                <div key={q.id} className="flex items-center gap-2 text-[11px] border-t pt-1.5 first:border-t-0 first:pt-0">
+                                  <div className="flex-1">
+                                    <div className="font-medium">{vendorName(q.vendor_id || "")}</div>
+                                    <div className="text-muted-foreground">
+                                      {rate != null ? `Rate: ${fmtAmt(rate)}` : "Not quoted"}
+                                      {qi?.delivery_commitment_date ? ` · By ${qi.delivery_commitment_date}` : ""}
+                                    </div>
+                                  </div>
+                                  {rate != null && (
+                                    <Button type="button" size="sm" variant="outline" className="h-6 text-[11px]" disabled={!poUnlocked || ratesLocked} onClick={() => applyLineQuote(l.id, q)}>
+                                      Apply
+                                    </Button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 );
@@ -789,6 +889,7 @@ export default function ProcurementDetail({
             </CardContent>
 
           </Card>
+
 
           {/* GRN list */}
           <Card>
