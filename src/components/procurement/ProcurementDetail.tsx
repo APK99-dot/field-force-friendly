@@ -178,8 +178,6 @@ export default function ProcurementDetail({
   const [vendorQuotes, setVendorQuotes] = useState<VendorQuoteRow[]>([]);
   const [genLinks, setGenLinks] = useState(false);
   // Bulk invite state: which line items + which vendors to invite in one action
-  const [inviteItemIds, setInviteItemIds] = useState<string[]>([]);
-  const [inviteVendorIds, setInviteVendorIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
@@ -488,26 +486,29 @@ export default function ProcurementDetail({
 
   const quoteUrl = (token: string) => `${window.location.origin}/vendor-quote/${token}`;
 
-  // Invite selected vendors to quote on selected line items (one quote row per vendor, scoped to items).
-  const inviteToQuote = async () => {
-    if (inviteItemIds.length === 0) { toast.error("Select at least one line item."); return; }
-    if (inviteVendorIds.length === 0) { toast.error("Select at least one vendor."); return; }
+  // Invite the vendors selected on a single line item to quote on that item.
+  const inviteLineToQuote = async (lineId: string) => {
+    const line = rateLines.find((l) => l.id === lineId);
+    if (!line || line.vendor_ids.length === 0) { toast.error("Select at least one vendor for this line item."); return; }
     setGenLinks(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const existing = quotesForItem(lineId);
+      const newVendorIds = line.vendor_ids.filter(
+        (vid) => !existing.some((q) => q.vendor_id === vid)
+      );
+      if (newVendorIds.length === 0) { toast.message("Quote links already exist for all selected vendors."); return; }
       const { error } = await supabase.from("procurement_vendor_quotes").insert(
-        inviteVendorIds.map((vid) => ({
+        newVendorIds.map((vid) => ({
           po_id: order.id,
           vendor_id: vid,
           token: crypto.randomUUID().replace(/-/g, ""),
-          procurement_item_ids: inviteItemIds,
+          procurement_item_ids: [lineId],
           created_by: user?.id ?? null,
         }))
       );
       if (error) throw error;
       await loadVendorQuotes();
-      setInviteItemIds([]);
-      setInviteVendorIds([]);
       toast.success("Quote links generated. Share them with vendors below.");
     } catch (err: any) {
       toast.error(err.message || "Failed to generate quote links");
@@ -515,6 +516,7 @@ export default function ProcurementDetail({
       setGenLinks(false);
     }
   };
+
 
   // Quotes scoped to a given line item
   const quotesForItem = useCallback(
@@ -746,37 +748,8 @@ export default function ProcurementDetail({
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">{isTransfer ? "Transfer Items" : "Line Items"}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {/* Bulk invite: choose line items + vendors and generate quote links per item */}
-              {poUnlocked && rateLines.length > 0 && (
-                <div className="rounded-lg border p-2.5 bg-muted/20 space-y-2">
-                  <p className="text-xs font-medium">Invite vendors to quote</p>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div>
-                      <Label className="text-[10px] text-muted-foreground">Line items</Label>
-                      <div className="space-y-1 mt-1 max-h-32 overflow-y-auto">
-                        {rateLines.map((l) => (
-                          <label key={l.id} className="flex items-center gap-2 text-xs cursor-pointer">
-                            <Checkbox
-                              checked={inviteItemIds.includes(l.id)}
-                              onCheckedChange={(c) => setInviteItemIds((prev) => c ? [...prev, l.id] : prev.filter((id) => id !== l.id))}
-                            />
-                            <span className="truncate">{productName(l.product_id)}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-[10px] text-muted-foreground">Vendors</Label>
-                      <div className="mt-1">
-                        <VendorMultiSelect vendors={vendors} selectedIds={inviteVendorIds} onChange={setInviteVendorIds} />
-                      </div>
-                    </div>
-                  </div>
-                  <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={inviteToQuote} disabled={genLinks}>
-                    <Link2 className="h-3.5 w-3.5" /> {genLinks ? "Generating..." : "Generate Quote Links"}
-                  </Button>
-                </div>
-              )}
+
+
 
               {rateLines.map((l, i) => {
                 const amt = (parseFloat(l.rate) || 0) * (l.qty || 0);
@@ -801,7 +774,13 @@ export default function ProcurementDetail({
                             onChange={(ids) => setLineVendors(l.id, ids)}
                             disabled={!poUnlocked}
                           />
+                          {poUnlocked && l.vendor_ids.length > 0 && (
+                            <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs mt-2" onClick={() => inviteLineToQuote(l.id)} disabled={genLinks}>
+                              <Link2 className="h-3.5 w-3.5" /> {genLinks ? "Generating..." : "Generate Quote Links"}
+                            </Button>
+                          )}
                         </div>
+
                         <div className="grid grid-cols-3 gap-2 items-end">
                           <div>
                             <Label className="text-[10px] text-muted-foreground">Qty</Label>
