@@ -95,7 +95,61 @@ interface VendorQuoteRow {
   vendor_payment_term: string | null;
   notes: string | null;
   submitted_at: string | null;
+  procurement_item_ids?: string[] | null;
   procurement_vendor_quote_items?: VendorQuoteItemRow[];
+}
+
+interface RateLine {
+  id: string;
+  product_id: string | null;
+  uom: string | null;
+  qty: number;
+  rate: string;
+  vendor_ids: string[];
+  rate_source: string | null;
+  rate_source_vendor_id: string | null;
+}
+
+// Reusable multi-select vendor picker (popover + checkboxes)
+function VendorMultiSelect({
+  vendors, selectedIds, onChange, disabled, placeholder = "Select vendors",
+}: {
+  vendors: { id: string; name: string }[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className="h-8 w-full justify-between font-normal text-xs" disabled={disabled}>
+          <span className="truncate text-left">
+            {selectedIds.length === 0
+              ? <span className="text-muted-foreground">{placeholder}</span>
+              : vendors.filter((v) => selectedIds.includes(v.id)).map((v) => v.name).join(", ")}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-2 max-h-64 overflow-y-auto" align="start">
+        {vendors.length === 0 ? (
+          <p className="text-xs text-muted-foreground p-2">No vendors found.</p>
+        ) : vendors.map((v) => {
+          const checked = selectedIds.includes(v.id);
+          return (
+            <label key={v.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted cursor-pointer text-sm">
+              <Checkbox
+                checked={checked}
+                onCheckedChange={(c) => onChange(c ? [...selectedIds, v.id] : selectedIds.filter((id) => id !== v.id))}
+              />
+              <span>{v.name}</span>
+            </label>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export default function ProcurementDetail({
