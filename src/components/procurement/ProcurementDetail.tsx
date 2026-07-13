@@ -401,6 +401,106 @@ export default function ProcurementDetail({
     }
   };
 
+  // ---- Vendor quote portal ----
+  const loadVendorQuotes = useCallback(async () => {
+    const { data } = await supabase
+      .from("procurement_vendor_quotes")
+      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, procurement_vendor_quote_items(*)")
+      .eq("po_id", order.id);
+    const rows = (data || []) as VendorQuoteRow[];
+    setVendorQuotes(rows);
+    const map: Record<string, { token: string; vendor_id: string }> = {};
+    rows.forEach((r) => { if (r.vendor_id) map[r.vendor_id] = { token: r.token, vendor_id: r.vendor_id }; });
+    setQuoteLinks(map);
+  }, [order.id]);
+
+  useEffect(() => { if (open) loadVendorQuotes(); }, [open, loadVendorQuotes]);
+
+  const quoteUrl = (token: string) => `${window.location.origin}/vendor-quote/${token}`;
+
+  const generateQuoteLinks = async () => {
+    if (selectedVendorIds.length === 0) {
+      toast.error("Select at least one vendor first.");
+      return;
+    }
+    setGenLinks(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      // Create a quote row per vendor that doesn't already have one
+      const existing = new Set(vendorQuotes.map((q) => q.vendor_id));
+      const toCreate = selectedVendorIds.filter((id) => !existing.has(id));
+      if (toCreate.length) {
+        const { error } = await supabase.from("procurement_vendor_quotes").insert(
+          toCreate.map((vid) => ({ po_id: order.id, vendor_id: vid, created_by: user?.id ?? null }))
+        );
+        if (error) throw error;
+      }
+      await loadVendorQuotes();
+      toast.success("Quote links ready. Share them with vendors below.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate quote links");
+    } finally {
+      setGenLinks(false);
+    }
+  };
+
+  const copyLink = async (token: string) => {
+    try {
+      await navigator.clipboard.writeText(quoteUrl(token));
+      toast.success("Link copied");
+    } catch {
+      toast.error("Could not copy link");
+    }
+  };
+
+  const shareLinkWhatsApp = (vendorId: string, token: string) => {
+    const v = vendors.find((x) => x.id === vendorId);
+    const link = quoteUrl(token);
+    const msg = [
+      `*Quote Request — ${reqName}*`,
+      v ? `To: ${v.name}` : "",
+      `Site: ${siteName(order.site_id) || "-"}`,
+      "",
+      "Please fill your rates, discount and delivery commitment here:",
+      link,
+    ].filter(Boolean).join("\n");
+    const phone = vendorPhoneStr(v?.phone).replace(/[^\d]/g, "");
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank");
+  };
+
+  const applyVendorRates = async (q: VendorQuoteRow) => {
+    setPoSaving(true);
+    try {
+      const qItems = q.procurement_vendor_quote_items || [];
+      const byItem: Record<string, VendorQuoteItemRow> = {};
+      qItems.forEach((qi) => { if (qi.procurement_item_id) byItem[qi.procurement_item_id] = qi; });
+      let total = 0;
+      for (const l of rateLines) {
+        const qi = byItem[l.id];
+        if (!qi) continue;
+        const rate = Number(qi.rate_after_discount) || 0;
+        total += rate * (l.qty || 0);
+        const { error } = await supabase.from("procurement_items")
+          .update({ rate, amount: rate * (l.qty || 0) }).eq("id", l.id);
+        if (error) throw error;
+      }
+      const patch: Record<string, unknown> = { total_amount: total, vendor_id: q.vendor_id, vendor_ids: q.vendor_id ? [q.vendor_id] : null };
+      if (q.vendor_payment_term) patch.payment_terms = q.vendor_payment_term;
+      await supabase.from("procurement_orders").update(patch).eq("id", order.id);
+      toast.success("Vendor rates applied to this requisition");
+      onChanged();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to apply vendor rates");
+    } finally {
+      setPoSaving(false);
+    }
+  };
+
+
+
 
 
 
