@@ -30,6 +30,7 @@ const ActivityTimeline = lazy(() => import("./pages/ActivityTimeline"));
 const SiteMasterPage = lazy(() => import("./pages/SiteMaster"));
 const ActivityTypeMasterPage = lazy(() => import("./pages/ActivityTypeMaster"));
 const InstallApp = lazy(() => import("./pages/InstallApp"));
+const VendorQuote = lazy(() => import("./pages/VendorQuote"));
 const Profile = lazy(() => import("./pages/Profile"));
 const MyTeam = lazy(() => import("./pages/MyTeam"));
 const Vendors = lazy(() => import("./pages/Vendors"));
@@ -116,6 +117,7 @@ const App = () => (
             <Route path="/analytics" element={<Navigate to="/reports" replace />} />
           </Route>
           <Route path="/install" element={<Suspense fallback={<PageFallback />}><InstallApp /></Suspense>} />
+          <Route path="/vendor-quote/:token" element={<Suspense fallback={<PageFallback />}><VendorQuote /></Suspense>} />
           <Route path="*" element={<Suspense fallback={<PageFallback />}><NotFound /></Suspense>} />
         </Routes>
       </BrowserRouter>

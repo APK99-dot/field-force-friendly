@@ -17,7 +17,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, Save, ArrowRight, Undo2, Download, MessageCircle } from "lucide-react";
+import { CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, Save, ArrowRight, Undo2, Download, MessageCircle, Link2, Copy } from "lucide-react";
 import {
   STATUS_FLOW, allowedTransitions, statusColor, fmtAmt, PAYMENT_TERMS, statusFlowFor, type ProcStatus,
 } from "@/lib/procurement";
@@ -79,6 +79,25 @@ interface GrnItemRow { grn_id: string; procurement_item_id: string | null; recei
 interface InvRow { id: string; invoice_number: string | null; invoice_date: string; invoice_amount: number; }
 interface InvItemRow { invoice_id: string; procurement_item_id: string | null; invoiced_rate: number; }
 
+interface VendorQuoteItemRow {
+  procurement_item_id: string | null;
+  rate: number;
+  discount_pct: number;
+  rate_after_discount: number;
+  delivery_commitment_date: string | null;
+  is_selected: boolean;
+}
+interface VendorQuoteRow {
+  id: string;
+  vendor_id: string | null;
+  token: string;
+  status: string;
+  vendor_payment_term: string | null;
+  notes: string | null;
+  submitted_at: string | null;
+  procurement_vendor_quote_items?: VendorQuoteItemRow[];
+}
+
 export default function ProcurementDetail({
   open, onOpenChange, order, canApprove, currentUserId,
   vendorName, siteName, productName, onEdit, onChanged,
@@ -103,6 +122,9 @@ export default function ProcurementDetail({
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
   const [vendors, setVendors] = useState<{ id: string; name: string; phone: string | null; contact_person: string | null; email: string | null }[]>([]);
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
+  const [quoteLinks, setQuoteLinks] = useState<Record<string, { token: string; vendor_id: string }>>({});
+  const [vendorQuotes, setVendorQuotes] = useState<VendorQuoteRow[]>([]);
+  const [genLinks, setGenLinks] = useState(false);
 
   useEffect(() => {
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
@@ -379,6 +401,106 @@ export default function ProcurementDetail({
     }
   };
 
+  // ---- Vendor quote portal ----
+  const loadVendorQuotes = useCallback(async () => {
+    const { data } = await supabase
+      .from("procurement_vendor_quotes")
+      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, procurement_vendor_quote_items(*)")
+      .eq("po_id", order.id);
+    const rows = (data || []) as VendorQuoteRow[];
+    setVendorQuotes(rows);
+    const map: Record<string, { token: string; vendor_id: string }> = {};
+    rows.forEach((r) => { if (r.vendor_id) map[r.vendor_id] = { token: r.token, vendor_id: r.vendor_id }; });
+    setQuoteLinks(map);
+  }, [order.id]);
+
+  useEffect(() => { if (open) loadVendorQuotes(); }, [open, loadVendorQuotes]);
+
+  const quoteUrl = (token: string) => `${window.location.origin}/vendor-quote/${token}`;
+
+  const generateQuoteLinks = async () => {
+    if (selectedVendorIds.length === 0) {
+      toast.error("Select at least one vendor first.");
+      return;
+    }
+    setGenLinks(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      // Create a quote row per vendor that doesn't already have one
+      const existing = new Set(vendorQuotes.map((q) => q.vendor_id));
+      const toCreate = selectedVendorIds.filter((id) => !existing.has(id));
+      if (toCreate.length) {
+        const { error } = await supabase.from("procurement_vendor_quotes").insert(
+          toCreate.map((vid) => ({ po_id: order.id, vendor_id: vid, token: crypto.randomUUID().replace(/-/g, ""), created_by: user?.id ?? null }))
+        );
+        if (error) throw error;
+      }
+      await loadVendorQuotes();
+      toast.success("Quote links ready. Share them with vendors below.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate quote links");
+    } finally {
+      setGenLinks(false);
+    }
+  };
+
+  const copyLink = async (token: string) => {
+    try {
+      await navigator.clipboard.writeText(quoteUrl(token));
+      toast.success("Link copied");
+    } catch {
+      toast.error("Could not copy link");
+    }
+  };
+
+  const shareLinkWhatsApp = (vendorId: string, token: string) => {
+    const v = vendors.find((x) => x.id === vendorId);
+    const link = quoteUrl(token);
+    const msg = [
+      `*Quote Request — ${reqName}*`,
+      v ? `To: ${v.name}` : "",
+      `Site: ${siteName(order.site_id) || "-"}`,
+      "",
+      "Please fill your rates, discount and delivery commitment here:",
+      link,
+    ].filter(Boolean).join("\n");
+    const phone = vendorPhoneStr(v?.phone).replace(/[^\d]/g, "");
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank");
+  };
+
+  const applyVendorRates = async (q: VendorQuoteRow) => {
+    setPoSaving(true);
+    try {
+      const qItems = q.procurement_vendor_quote_items || [];
+      const byItem: Record<string, VendorQuoteItemRow> = {};
+      qItems.forEach((qi) => { if (qi.procurement_item_id) byItem[qi.procurement_item_id] = qi; });
+      let total = 0;
+      for (const l of rateLines) {
+        const qi = byItem[l.id];
+        if (!qi) continue;
+        const rate = Number(qi.rate_after_discount) || 0;
+        total += rate * (l.qty || 0);
+        const { error } = await supabase.from("procurement_items")
+          .update({ rate, amount: rate * (l.qty || 0) }).eq("id", l.id);
+        if (error) throw error;
+      }
+      const patch: Record<string, unknown> = { total_amount: total, vendor_id: q.vendor_id, vendor_ids: q.vendor_id ? [q.vendor_id] : null };
+      if (q.vendor_payment_term) patch.payment_terms = q.vendor_payment_term;
+      await supabase.from("procurement_orders").update(patch).eq("id", order.id);
+      toast.success("Vendor rates applied to this requisition");
+      onChanged();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to apply vendor rates");
+    } finally {
+      setPoSaving(false);
+    }
+  };
+
+
+
 
 
 
@@ -495,11 +617,64 @@ export default function ProcurementDetail({
                       <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={generateQuotePdf}>
                         <Download className="h-3.5 w-3.5" /> Download Quote Request
                       </Button>
-                      <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs text-emerald-700 dark:text-emerald-400" onClick={shareViaWhatsApp}>
-                        <MessageCircle className="h-3.5 w-3.5" /> Share via WhatsApp
+                      <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={generateQuoteLinks} disabled={genLinks}>
+                        <Link2 className="h-3.5 w-3.5" /> {genLinks ? "Generating..." : "Generate Quote Links"}
                       </Button>
                     </div>
+
+                    {/* Per-vendor quote links */}
+                    {Object.keys(quoteLinks).length > 0 && (
+                      <div className="mt-3 space-y-2 rounded-lg border p-2.5 bg-muted/30">
+                        <p className="text-xs font-medium">Vendor Quote Links</p>
+                        {Object.values(quoteLinks).map((ql) => {
+                          const sub = vendorQuotes.find((q) => q.vendor_id === ql.vendor_id);
+                          return (
+                            <div key={ql.vendor_id} className="flex items-center gap-2 text-xs">
+                              <span className="flex-1 truncate">{vendorName(ql.vendor_id)}</span>
+                              {sub?.status === "submitted" ? (
+                                <span className="text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Submitted</span>
+                              ) : (
+                                <span className="text-muted-foreground whitespace-nowrap">Pending</span>
+                              )}
+                              <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyLink(ql.token)} title="Copy link">
+                                <Copy className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-emerald-700 dark:text-emerald-400" onClick={() => shareLinkWhatsApp(ql.vendor_id, ql.token)} title="Share on WhatsApp">
+                                <MessageCircle className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Submitted quotes comparison */}
+                    {vendorQuotes.some((q) => q.status === "submitted") && (
+                      <div className="mt-3 space-y-2 rounded-lg border p-2.5">
+                        <p className="text-xs font-medium">Submitted Vendor Quotes</p>
+                        {vendorQuotes.filter((q) => q.status === "submitted").map((q) => {
+                          const total = (q.procurement_vendor_quote_items || []).reduce(
+                            (s, it) => s + (Number(it.rate_after_discount) || 0), 0
+                          );
+                          return (
+                            <div key={q.id} className="flex items-center gap-2 text-xs border-t pt-2 first:border-t-0 first:pt-0">
+                              <div className="flex-1">
+                                <div className="font-medium">{vendorName(q.vendor_id || "")}</div>
+                                <div className="text-muted-foreground">
+                                  {q.vendor_payment_term ? `Terms: ${q.vendor_payment_term} · ` : ""}
+                                  Line total (unit): {fmtAmt(total)}
+                                </div>
+                              </div>
+                              <Button type="button" size="sm" variant="outline" className="h-7 text-xs" disabled={!poUnlocked || poSaving} onClick={() => applyVendorRates(q)}>
+                                Apply Rates
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
+
 
                   <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
                   {order.po_number && <div className="text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}

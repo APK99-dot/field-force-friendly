@@ -1,49 +1,39 @@
-# Import Salesforce Products into Product Master
+## Vendor Quote Portal (Salesforce-style Indent Order)
 
-## What's in Salesforce
-The products live in a custom object **`Product__c`** — **770 records**. Field usage:
+Replace the one-way PDF quote request with a live, public web page each vendor opens via a unique link, fills in rates/discount/commitment date/per-line selection, and submits back into the app. You then review submissions and pick the winning quote.
 
-| Salesforce field | Populated | Maps to Product Master |
-|---|---|---|
-| `Name` | all | `product_name` (exists) |
-| `UOM__c` (free text) | 650 | `default_uom` (exists, text) |
-| `Budgeted_rate_per_unit__c` (currency) | 437 | `budgeted_rate` (**new**) |
-| `Lead_Time__c` (number, days) | 158 | `lead_time_days` (**new**) |
-| `Product_Description__c` | 77 | `product_description` (**new**) |
-| `Quality_instruction__c` (long text) | some | `quality_instruction` (**new**) |
-| `Delivery_instruction__c` (long text) | some | `delivery_instruction` (**new**) |
-| `Id` | all | `salesforce_id` (**new**, unique — dedup/re-sync) |
-| `Product_Category__c` | **0** | — |
-| `Product_Hierarchy__c` | **0** | — |
+### How the link flow works
+1. Requisition is approved; in the detail view you select the vendor(s).
+2. Click **Generate & Share Quote Links** — the app creates a unique secret token per vendor and a public URL like `.../vendor-quote/<token>`.
+3. Each vendor's link opens the Indent Order page (no login needed). You share it via WhatsApp (pre-filled message, like today) or copy it.
+4. Vendor fills Rate/Unit, Discount %, Vendor Delivery Commitment Date, ticks the items they can supply, adds payment term/notes, and submits.
+5. Submissions appear back in the requisition detail under **Vendor Quotes**, side by side, so you compare and choose.
 
-## Category & UOM findings (important)
-- **Categories:** No category data exists in Salesforce — both the category lookup and hierarchy fields are empty on all 770 records. So **nothing needs to be added to Category Master**, and products will import with no category. They can be categorized later in Product Master.
-- **UOM:** Salesforce has **51 distinct free-text UOM values** (e.g. `Nos`, `No`, `MT`, `Kgs`, `KG`, `Cmt`, `Coil`, `Bag`, `Bags`, `M3`, `CFT`, plus messy ones like `1`, `test`, `e.T.T`). The `default_uom` column is free text, so values import **as-is** (no data loss). The current dropdown (`UOM_OPTIONS`) only has 7 entries; it will be **expanded** with the common clean values so manual edits have a fuller list, while raw imported text is preserved.
+### The public page (mirrors the Salesforce template)
+- Bharath Builders logo + company name/address at top (from Company Profile).
+- Title "Indent Order", requisition name, date.
+- **From** (company) / **To** (this vendor) blocks.
+- Line-item table: Product, Description, Quantity, Quality Instructions, UOM, Expected Delivery Date, **Vendor Delivery Commitment Date** (input), **Rate/Unit** (input), **Discount %** (input), **Rate After Discount** (auto-calculated), and a per-row **Select** checkbox.
+- Running total of selected lines.
+- Fields for Expected Payment Terms (shown), Vendor Payment Term (input), Additional Notes (input).
+- Save (partial) and Submit buttons; a read-only confirmation state after submit.
 
-## Plan
+### Technical section
 
-### 1. Database migration
-Add to `master_products`:
-- `product_description` (text)
-- `budgeted_rate` (numeric)
-- `lead_time_days` (integer)
-- `quality_instruction` (text)
-- `delivery_instruction` (text)
-- `salesforce_id` (text) + unique index for de-duplication
+**Database (migration)**
+- `procurement_vendor_quotes`: `po_id`, `vendor_id`, `token` (unique, random), `status` (`sent`/`submitted`), `vendor_payment_term`, `notes`, `submitted_at`, timestamps.
+- `procurement_vendor_quote_items`: `quote_id`, `procurement_item_id`, `rate`, `discount_pct`, `rate_after_discount`, `delivery_commitment_date`, `is_selected`.
+- GRANTs: `authenticated` full, `service_role` all. RLS: authenticated users with procurement access read/manage; **no anon access** — the public page goes only through edge functions using service role, keyed by the secret token (tokens are never listed, only looked up).
 
-### 2. Import Edge Function
-Create `supabase/functions/import-salesforce-products/index.ts` (mirrors the vendor importer):
-- Admin-only (JWT + `has_role` check).
-- Paginates `SELECT ... FROM Product__c` via the Salesforce connector gateway.
-- Maps fields per table above; UOM stored as raw text.
-- Upserts into `master_products` keyed by `salesforce_id` (insert new, update existing). Returns `{ total, added, updated, skipped, errors }`.
+**Edge functions (public, `verify_jwt = false`, token-gated, Zod-validated)**
+- `get-vendor-quote?token=…`: returns company branding, vendor info, requisition + line items (product name/description/quality/uom/qty/expected date), and any saved response. Returns 404 for bad/expired tokens.
+- `submit-vendor-quote`: body `{ token, items[], vendor_payment_term, notes, submit }`; upserts response rows, sets `rate_after_discount = rate*(1-discount/100)`, marks `submitted` when `submit=true`.
 
-### 3. UI — Product Master page
-- Add an **"Import from Salesforce"** button (admin only) with a confirmation dialog and a result summary toast (added / updated / skipped).
-- Extend the Add/Edit dialog with the new fields: Description, Budgeted Rate, Lead Time (days), Quality Instruction, Delivery Instruction.
-- Add Budgeted Rate and UOM (already shown) columns; keep table readable.
-- Expand `UOM_OPTIONS` in `src/lib/procurement.ts` with the common Salesforce UOM values.
+**Frontend**
+- New public page `src/pages/VendorQuote.tsx` at route `/vendor-quote/:token`, added in `App.tsx` **outside** `AppLayout` (like `/install`), so no auth is required.
+- In `ProcurementDetail.tsx`: add a **Generate & Share Quote Links** action (replacing/augmenting the current PDF quote button) that creates a quote row per selected vendor and shows each vendor's link with WhatsApp + copy buttons. Add a **Vendor Quotes** section listing submissions per vendor (payment term, notes, per-line rate/discount/after-discount/commitment/selected) with an option to apply a chosen vendor's rates into the PO line items.
+- Keep the existing "Download Quote Request" PDF as an optional fallback.
 
-## Notes
-- Some product names appear more than once in Salesforce (e.g. different casing of the same item). Dedup is by `salesforce_id`, so each Salesforce record maps to one product; near-duplicate names will import as separate rows and can be cleaned up manually.
-- Re-running the import is safe (updates existing records rather than duplicating).
+**Notes**
+- The public page must be reachable on the published site; publish visibility should be Public for vendors to open links.
+- Rate After Discount is computed live on the page and re-verified server-side on submit.

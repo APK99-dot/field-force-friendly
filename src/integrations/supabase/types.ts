@@ -3338,6 +3338,117 @@ export type Database = {
           },
         ]
       }
+      procurement_vendor_quote_items: {
+        Row: {
+          created_at: string
+          delivery_commitment_date: string | null
+          discount_pct: number
+          id: string
+          is_selected: boolean
+          procurement_item_id: string | null
+          quote_id: string
+          rate: number
+          rate_after_discount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_commitment_date?: string | null
+          discount_pct?: number
+          id?: string
+          is_selected?: boolean
+          procurement_item_id?: string | null
+          quote_id: string
+          rate?: number
+          rate_after_discount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivery_commitment_date?: string | null
+          discount_pct?: number
+          id?: string
+          is_selected?: boolean
+          procurement_item_id?: string | null
+          quote_id?: string
+          rate?: number
+          rate_after_discount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_vendor_quote_items_procurement_item_id_fkey"
+            columns: ["procurement_item_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_vendor_quote_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_vendor_quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      procurement_vendor_quotes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          po_id: string
+          status: string
+          submitted_at: string | null
+          token: string
+          updated_at: string
+          vendor_id: string | null
+          vendor_payment_term: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          po_id: string
+          status?: string
+          submitted_at?: string | null
+          token?: string
+          updated_at?: string
+          vendor_id?: string | null
+          vendor_payment_term?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          po_id?: string
+          status?: string
+          submitted_at?: string | null
+          token?: string
+          updated_at?: string
+          vendor_id?: string | null
+          vendor_payment_term?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_vendor_quotes_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_vendor_quotes_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_categories: {
         Row: {
           created_at: string
