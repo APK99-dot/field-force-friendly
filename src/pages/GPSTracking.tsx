@@ -85,17 +85,22 @@ export default function GPSTracking() {
   const [activityMarkers, setActivityMarkers] = useState<ActivityAtLocation[]>([]);
   const [trackingLoading, setTrackingLoading] = useState(false);
 
-  // Get own location
+  // Get own location — refreshed live while viewing the Current Location tab
   useEffect(() => {
-    if (currentSelectedUser === "me") {
+    if (currentSelectedUser !== "me") return;
+    const load = () => {
       getCurrentPosition()
         .then((pos) => {
           setCurrentLocation({ lat: pos.latitude, lng: pos.longitude });
           setLocationError(false);
         })
         .catch(() => setLocationError(true));
-    }
-  }, [currentSelectedUser]);
+    };
+    load();
+    if (activeTab !== "current") return;
+    const id = setInterval(load, 30000);
+    return () => clearInterval(id);
+  }, [currentSelectedUser, activeTab]);
 
   // Fetch selected user's latest GPS location
   useEffect(() => {
