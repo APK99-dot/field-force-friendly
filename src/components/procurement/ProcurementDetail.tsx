@@ -488,26 +488,29 @@ export default function ProcurementDetail({
 
   const quoteUrl = (token: string) => `${window.location.origin}/vendor-quote/${token}`;
 
-  // Invite selected vendors to quote on selected line items (one quote row per vendor, scoped to items).
-  const inviteToQuote = async () => {
-    if (inviteItemIds.length === 0) { toast.error("Select at least one line item."); return; }
-    if (inviteVendorIds.length === 0) { toast.error("Select at least one vendor."); return; }
+  // Invite the vendors selected on a single line item to quote on that item.
+  const inviteLineToQuote = async (lineId: string) => {
+    const line = rateLines.find((l) => l.id === lineId);
+    if (!line || line.vendor_ids.length === 0) { toast.error("Select at least one vendor for this line item."); return; }
     setGenLinks(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const existing = quotesForItem(lineId);
+      const newVendorIds = line.vendor_ids.filter(
+        (vid) => !existing.some((q) => q.vendor_id === vid)
+      );
+      if (newVendorIds.length === 0) { toast.message("Quote links already exist for all selected vendors."); return; }
       const { error } = await supabase.from("procurement_vendor_quotes").insert(
-        inviteVendorIds.map((vid) => ({
+        newVendorIds.map((vid) => ({
           po_id: order.id,
           vendor_id: vid,
           token: crypto.randomUUID().replace(/-/g, ""),
-          procurement_item_ids: inviteItemIds,
+          procurement_item_ids: [lineId],
           created_by: user?.id ?? null,
         }))
       );
       if (error) throw error;
       await loadVendorQuotes();
-      setInviteItemIds([]);
-      setInviteVendorIds([]);
       toast.success("Quote links generated. Share them with vendors below.");
     } catch (err: any) {
       toast.error(err.message || "Failed to generate quote links");
@@ -515,6 +518,7 @@ export default function ProcurementDetail({
       setGenLinks(false);
     }
   };
+
 
   // Quotes scoped to a given line item
   const quotesForItem = useCallback(
