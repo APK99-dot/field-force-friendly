@@ -193,9 +193,11 @@ export default function ProcurementDetail({
       expected_delivery_date: order.expected_delivery_date || "",
       payment_terms: order.payment_terms || "",
     });
-    setSelectedVendorIds(order.vendor_ids && order.vendor_ids.length ? order.vendor_ids : (order.vendor_id ? [order.vendor_id] : []));
     setRateLines((order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, uom: it.uom, qty: it.qty, rate: String(it.rate ?? ""),
+      vendor_ids: Array.isArray(it.vendor_ids) ? (it.vendor_ids as string[]) : [],
+      rate_source: it.rate_source ?? null,
+      rate_source_vendor_id: it.rate_source_vendor_id ?? null,
     })));
   }, [order]);
 
