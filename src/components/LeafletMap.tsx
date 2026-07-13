@@ -104,8 +104,17 @@ export default function LeafletMap({ location, gpsPoints, activityMarkers }: Lea
         </Marker>
       )}
       {polylinePositions.length > 1 && (
-        <Polyline positions={polylinePositions} pathOptions={{ color: "#3B82F6", weight: 4 }} />
+        <Polyline positions={polylinePositions} pathOptions={{ color: "#3B82F6", weight: 3, dashArray: "6 8" }} />
       )}
+      {(gpsPoints || []).map((p, i) => (
+        <Marker key={`gps-${i}`} position={[p.latitude, p.longitude]} icon={gpsPointIcon}>
+          <Popup>
+            Point {i + 1}
+            {p.timestamp ? ` · ${new Date(p.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
+          </Popup>
+        </Marker>
+      ))}
+
       {(activityMarkers || []).map((m, i) => (
         <Marker key={i} position={[m.lat, m.lng]} icon={activityIcon}>
           <Popup>{m.name}</Popup>
