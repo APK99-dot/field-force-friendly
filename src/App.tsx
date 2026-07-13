@@ -30,6 +30,7 @@ const ActivityTimeline = lazy(() => import("./pages/ActivityTimeline"));
 const SiteMasterPage = lazy(() => import("./pages/SiteMaster"));
 const ActivityTypeMasterPage = lazy(() => import("./pages/ActivityTypeMaster"));
 const InstallApp = lazy(() => import("./pages/InstallApp"));
+const VendorQuote = lazy(() => import("./pages/VendorQuote"));
 const Profile = lazy(() => import("./pages/Profile"));
 const MyTeam = lazy(() => import("./pages/MyTeam"));
 const Vendors = lazy(() => import("./pages/Vendors"));
