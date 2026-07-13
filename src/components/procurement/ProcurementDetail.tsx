@@ -746,35 +746,132 @@ export default function ProcurementDetail({
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">{isTransfer ? "Transfer Items" : "Line Items"}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
+              {/* Bulk invite: choose line items + vendors and generate quote links per item */}
+              {poUnlocked && rateLines.length > 0 && (
+                <div className="rounded-lg border p-2.5 bg-muted/20 space-y-2">
+                  <p className="text-xs font-medium">Invite vendors to quote</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Line items</Label>
+                      <div className="space-y-1 mt-1 max-h-32 overflow-y-auto">
+                        {rateLines.map((l) => (
+                          <label key={l.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                            <Checkbox
+                              checked={inviteItemIds.includes(l.id)}
+                              onCheckedChange={(c) => setInviteItemIds((prev) => c ? [...prev, l.id] : prev.filter((id) => id !== l.id))}
+                            />
+                            <span className="truncate">{productName(l.product_id)}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Vendors</Label>
+                      <div className="mt-1">
+                        <VendorMultiSelect vendors={vendors} selectedIds={inviteVendorIds} onChange={setInviteVendorIds} />
+                      </div>
+                    </div>
+                  </div>
+                  <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={inviteToQuote} disabled={genLinks}>
+                    <Link2 className="h-3.5 w-3.5" /> {genLinks ? "Generating..." : "Generate Quote Links"}
+                  </Button>
+                </div>
+              )}
+
               {rateLines.map((l, i) => {
                 const amt = (parseFloat(l.rate) || 0) * (l.qty || 0);
+                const tag = rateSourceLabel(l);
+                const lineQuotes = quotesForItem(l.id);
+                const submittedQuotes = lineQuotes.filter((q) => q.status === "submitted");
                 return (
-                  <div key={l.id} className="rounded-lg border p-2.5 bg-muted/30">
-                    <div className="text-sm font-medium mb-1">{productName(l.product_id)}</div>
+                  <div key={l.id} className="rounded-lg border p-2.5 bg-muted/30 space-y-2">
+                    <div className="text-sm font-medium">{productName(l.product_id)}</div>
                     {isTransfer ? (
                       <div>
                         <Label className="text-[10px] text-muted-foreground">Qty</Label>
                         <div className="h-8 flex items-center text-sm">{l.qty} {l.uom || ""}</div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-3 gap-2 items-end">
+                      <>
                         <div>
-                          <Label className="text-[10px] text-muted-foreground">Qty</Label>
-                          <div className="h-8 flex items-center text-sm">{l.qty} {l.uom || ""}</div>
-                        </div>
-                        <div>
-                          <Label className="text-[10px] text-muted-foreground">Rate</Label>
-                          <Input
-                            type="number" inputMode="decimal" value={l.rate} placeholder="0" className="h-8"
-                            disabled={!poUnlocked || ratesLocked}
-                            onChange={(e) => setRateLines((prev) => prev.map((x, idx) => idx === i ? { ...x, rate: e.target.value } : x))}
+                          <Label className="text-[10px] text-muted-foreground">Vendor(s)</Label>
+                          <VendorMultiSelect
+                            vendors={vendors}
+                            selectedIds={l.vendor_ids}
+                            onChange={(ids) => setLineVendors(l.id, ids)}
+                            disabled={!poUnlocked}
                           />
                         </div>
-                        <div>
-                          <Label className="text-[10px] text-muted-foreground">Amount</Label>
-                          <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
+                        <div className="grid grid-cols-3 gap-2 items-end">
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Qty</Label>
+                            <div className="h-8 flex items-center text-sm">{l.qty} {l.uom || ""}</div>
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Rate</Label>
+                            <Input
+                              type="number" inputMode="decimal" value={l.rate} placeholder="0" className="h-8"
+                              disabled={!poUnlocked || ratesLocked}
+                              onChange={(e) => setLineRate(l.id, e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Amount</Label>
+                            <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
+                          </div>
                         </div>
-                      </div>
+                        {tag && (
+                          <Badge variant="outline" className="text-[10px] font-normal">{tag}</Badge>
+                        )}
+
+                        {/* Quote links for this line item */}
+                        {lineQuotes.length > 0 && (
+                          <div className="space-y-1.5 rounded-md border p-2 bg-background">
+                            <p className="text-[11px] font-medium">Quote requests</p>
+                            {lineQuotes.map((q) => (
+                              <div key={q.id} className="flex items-center gap-2 text-[11px]">
+                                <span className="flex-1 truncate">{vendorName(q.vendor_id || "")}</span>
+                                <span className={q.status === "submitted" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                                  {q.status === "submitted" ? "Submitted" : "Pending"}
+                                </span>
+                                <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(q.token)} title="Copy link">
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                                <Button type="button" size="icon" variant="ghost" className="h-6 w-6 text-emerald-700 dark:text-emerald-400" onClick={() => shareLinkWhatsApp(q.vendor_id || "", q.token)} title="Share on WhatsApp">
+                                  <MessageCircle className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Submitted quote comparison for this line item */}
+                        {submittedQuotes.length > 0 && (
+                          <div className="space-y-1.5 rounded-md border p-2">
+                            <p className="text-[11px] font-medium">Submitted quotes for this item</p>
+                            {submittedQuotes.map((q) => {
+                              const qi = (q.procurement_vendor_quote_items || []).find((x) => x.procurement_item_id === l.id);
+                              const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
+                              return (
+                                <div key={q.id} className="flex items-center gap-2 text-[11px] border-t pt-1.5 first:border-t-0 first:pt-0">
+                                  <div className="flex-1">
+                                    <div className="font-medium">{vendorName(q.vendor_id || "")}</div>
+                                    <div className="text-muted-foreground">
+                                      {rate != null ? `Rate: ${fmtAmt(rate)}` : "Not quoted"}
+                                      {qi?.delivery_commitment_date ? ` · By ${qi.delivery_commitment_date}` : ""}
+                                    </div>
+                                  </div>
+                                  {rate != null && (
+                                    <Button type="button" size="sm" variant="outline" className="h-6 text-[11px]" disabled={!poUnlocked || ratesLocked} onClick={() => applyLineQuote(l.id, q)}>
+                                      Apply
+                                    </Button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 );
@@ -792,6 +889,7 @@ export default function ProcurementDetail({
             </CardContent>
 
           </Card>
+
 
           {/* GRN list */}
           <Card>
