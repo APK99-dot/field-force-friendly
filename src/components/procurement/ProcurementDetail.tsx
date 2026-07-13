@@ -103,6 +103,9 @@ export default function ProcurementDetail({
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
   const [vendors, setVendors] = useState<{ id: string; name: string; phone: string | null; contact_person: string | null; email: string | null }[]>([]);
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
+  const [quoteLinks, setQuoteLinks] = useState<Record<string, { token: string; vendor_id: string }>>({});
+  const [vendorQuotes, setVendorQuotes] = useState<VendorQuoteRow[]>([]);
+  const [genLinks, setGenLinks] = useState(false);
 
   useEffect(() => {
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
