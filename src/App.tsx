@@ -117,6 +117,7 @@ const App = () => (
             <Route path="/analytics" element={<Navigate to="/reports" replace />} />
           </Route>
           <Route path="/install" element={<Suspense fallback={<PageFallback />}><InstallApp /></Suspense>} />
+          <Route path="/vendor-quote/:token" element={<Suspense fallback={<PageFallback />}><VendorQuote /></Suspense>} />
           <Route path="*" element={<Suspense fallback={<PageFallback />}><NotFound /></Suspense>} />
         </Routes>
       </BrowserRouter>
