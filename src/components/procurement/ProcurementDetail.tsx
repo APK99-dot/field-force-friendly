@@ -178,8 +178,6 @@ export default function ProcurementDetail({
   const [vendorQuotes, setVendorQuotes] = useState<VendorQuoteRow[]>([]);
   const [genLinks, setGenLinks] = useState(false);
   // Bulk invite state: which line items + which vendors to invite in one action
-  const [inviteItemIds, setInviteItemIds] = useState<string[]>([]);
-  const [inviteVendorIds, setInviteVendorIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
