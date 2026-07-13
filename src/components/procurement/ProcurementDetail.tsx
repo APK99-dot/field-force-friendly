@@ -58,7 +58,7 @@ export interface DetailOrder {
   requisition_notes: string | null;
   created_by: string | null;
   stage_history?: StageHistoryEntry[] | any;
-  procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null }[];
+  procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null; vendor_ids?: string[] | null; rate_source?: string | null; rate_source_vendor_id?: string | null }[];
 }
 
 interface Props {
