@@ -79,6 +79,25 @@ interface GrnItemRow { grn_id: string; procurement_item_id: string | null; recei
 interface InvRow { id: string; invoice_number: string | null; invoice_date: string; invoice_amount: number; }
 interface InvItemRow { invoice_id: string; procurement_item_id: string | null; invoiced_rate: number; }
 
+interface VendorQuoteItemRow {
+  procurement_item_id: string | null;
+  rate: number;
+  discount_pct: number;
+  rate_after_discount: number;
+  delivery_commitment_date: string | null;
+  is_selected: boolean;
+}
+interface VendorQuoteRow {
+  id: string;
+  vendor_id: string | null;
+  token: string;
+  status: string;
+  vendor_payment_term: string | null;
+  notes: string | null;
+  submitted_at: string | null;
+  procurement_vendor_quote_items?: VendorQuoteItemRow[];
+}
+
 export default function ProcurementDetail({
   open, onOpenChange, order, canApprove, currentUserId,
   vendorName, siteName, productName, onEdit, onChanged,
