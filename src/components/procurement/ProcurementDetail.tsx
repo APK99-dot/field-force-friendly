@@ -670,97 +670,13 @@ export default function ProcurementDetail({
                 <>
                   <div>
                     <Label className="text-xs">Vendor(s)</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button type="button" variant="outline" className="h-9 w-full justify-between font-normal" disabled={!poUnlocked}>
-                          <span className="truncate text-left">
-                            {selectedVendorIds.length === 0
-                              ? <span className="text-muted-foreground">Select vendors</span>
-                              : selectedVendorIds.map((id) => vendorName(id)).join(", ")}
-                          </span>
-                          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-2 max-h-64 overflow-y-auto" align="start">
-                        {vendors.length === 0 ? (
-                          <p className="text-xs text-muted-foreground p-2">No vendors found.</p>
-                        ) : vendors.map((v) => {
-                          const checked = selectedVendorIds.includes(v.id);
-                          return (
-                            <label key={v.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted cursor-pointer text-sm">
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={(c) =>
-                                  setSelectedVendorIds((prev) => c ? [...prev, v.id] : prev.filter((id) => id !== v.id))
-                                }
-                              />
-                              <span>{v.name}</span>
-                            </label>
-                          );
-                        })}
-                      </PopoverContent>
-                    </Popover>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={generateQuotePdf}>
-                        <Download className="h-3.5 w-3.5" /> Download Quote Request
-                      </Button>
-                      <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={generateQuoteLinks} disabled={genLinks}>
-                        <Link2 className="h-3.5 w-3.5" /> {genLinks ? "Generating..." : "Generate Quote Links"}
-                      </Button>
-                    </div>
-
-                    {/* Per-vendor quote links */}
-                    {Object.keys(quoteLinks).length > 0 && (
-                      <div className="mt-3 space-y-2 rounded-lg border p-2.5 bg-muted/30">
-                        <p className="text-xs font-medium">Vendor Quote Links</p>
-                        {Object.values(quoteLinks).map((ql) => {
-                          const sub = vendorQuotes.find((q) => q.vendor_id === ql.vendor_id);
-                          return (
-                            <div key={ql.vendor_id} className="flex items-center gap-2 text-xs">
-                              <span className="flex-1 truncate">{vendorName(ql.vendor_id)}</span>
-                              {sub?.status === "submitted" ? (
-                                <span className="text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Submitted</span>
-                              ) : (
-                                <span className="text-muted-foreground whitespace-nowrap">Pending</span>
-                              )}
-                              <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyLink(ql.token)} title="Copy link">
-                                <Copy className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-emerald-700 dark:text-emerald-400" onClick={() => shareLinkWhatsApp(ql.vendor_id, ql.token)} title="Share on WhatsApp">
-                                <MessageCircle className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Submitted quotes comparison */}
-                    {vendorQuotes.some((q) => q.status === "submitted") && (
-                      <div className="mt-3 space-y-2 rounded-lg border p-2.5">
-                        <p className="text-xs font-medium">Submitted Vendor Quotes</p>
-                        {vendorQuotes.filter((q) => q.status === "submitted").map((q) => {
-                          const total = (q.procurement_vendor_quote_items || []).reduce(
-                            (s, it) => s + (Number(it.rate_after_discount) || 0), 0
-                          );
-                          return (
-                            <div key={q.id} className="flex items-center gap-2 text-xs border-t pt-2 first:border-t-0 first:pt-0">
-                              <div className="flex-1">
-                                <div className="font-medium">{vendorName(q.vendor_id || "")}</div>
-                                <div className="text-muted-foreground">
-                                  {q.vendor_payment_term ? `Terms: ${q.vendor_payment_term} · ` : ""}
-                                  Line total (unit): {fmtAmt(total)}
-                                </div>
-                              </div>
-                              <Button type="button" size="sm" variant="outline" className="h-7 text-xs" disabled={!poUnlocked || poSaving} onClick={() => applyVendorRates(q)}>
-                                Apply Rates
-                              </Button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <p className="text-sm font-medium">
+                      {derivedVendorIds.length === 0
+                        ? <span className="text-muted-foreground font-normal">None assigned yet — assign vendors per line item below.</span>
+                        : derivedVendorIds.map((id) => vendorName(id)).join(", ")}
+                    </p>
                   </div>
+
 
 
                   <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
