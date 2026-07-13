@@ -67,15 +67,14 @@ Deno.serve(async (req) => {
 
     // Site name
     let siteName = "";
-    let siteAddress = "";
+    const siteAddress = "";
     if (order.site_id) {
       const { data: site } = await supabase
         .from("project_sites")
-        .select("name, address")
+        .select("site_name")
         .eq("id", order.site_id)
         .maybeSingle();
-      siteName = site?.name || "";
-      siteAddress = site?.address || "";
+      siteName = site?.site_name || "";
     }
 
     // Vendor
