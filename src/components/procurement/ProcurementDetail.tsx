@@ -17,7 +17,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, Save, ArrowRight, Undo2, Download, MessageCircle } from "lucide-react";
+import { CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, Save, ArrowRight, Undo2, Download, MessageCircle, Link2, Copy } from "lucide-react";
 import {
   STATUS_FLOW, allowedTransitions, statusColor, fmtAmt, PAYMENT_TERMS, statusFlowFor, type ProcStatus,
 } from "@/lib/procurement";
