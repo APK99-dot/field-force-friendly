@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.dispatch-notification]
 verify_jwt = false
+
+[functions.get-vendor-quote]
+verify_jwt = false
+
+[functions.submit-vendor-quote]
+verify_jwt = false
