@@ -208,21 +208,33 @@ export default function ProcurementDetail({
     [rateLines]
   );
 
+  // Distinct vendors used across all line items (drives the read-only PO-level summary)
+  const derivedVendorIds = useMemo(() => {
+    const s = new Set<string>();
+    rateLines.forEach((l) => (l.vendor_ids || []).forEach((v) => s.add(v)));
+    return [...s];
+  }, [rateLines]);
+
   const savePoDetails = async () => {
     setPoSaving(true);
     try {
       const { error: oErr } = await supabase.from("procurement_orders").update({
         expected_delivery_date: poForm.expected_delivery_date || null,
         payment_terms: poForm.payment_terms || null,
-        vendor_ids: selectedVendorIds.length ? selectedVendorIds : null,
-        vendor_id: selectedVendorIds[0] || null,
+        vendor_ids: derivedVendorIds.length ? derivedVendorIds : null,
+        vendor_id: derivedVendorIds[0] || null,
         total_amount: poEditTotal,
       }).eq("id", order.id);
       if (oErr) throw oErr;
       for (const l of rateLines) {
         const rate = parseFloat(l.rate) || 0;
         const { error: iErr } = await supabase.from("procurement_items")
-          .update({ rate, amount: rate * (l.qty || 0) }).eq("id", l.id);
+          .update({
+            rate, amount: rate * (l.qty || 0),
+            vendor_ids: l.vendor_ids.length ? l.vendor_ids : null,
+            rate_source: l.rate_source,
+            rate_source_vendor_id: l.rate_source_vendor_id,
+          }).eq("id", l.id);
         if (iErr) throw iErr;
       }
       toast.success("PO details updated");
