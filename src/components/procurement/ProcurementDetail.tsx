@@ -171,14 +171,15 @@ export default function ProcurementDetail({
 
   // Inline PO details editing (delivery date, payment terms, rates)
   const [poForm, setPoForm] = useState({ expected_delivery_date: "", payment_terms: "" });
-  const [rateLines, setRateLines] = useState<{ id: string; product_id: string | null; uom: string | null; qty: number; rate: string }[]>([]);
+  const [rateLines, setRateLines] = useState<RateLine[]>([]);
   const [poSaving, setPoSaving] = useState(false);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
   const [vendors, setVendors] = useState<{ id: string; name: string; phone: string | null; contact_person: string | null; email: string | null }[]>([]);
-  const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
-  const [quoteLinks, setQuoteLinks] = useState<Record<string, { token: string; vendor_id: string }>>({});
   const [vendorQuotes, setVendorQuotes] = useState<VendorQuoteRow[]>([]);
   const [genLinks, setGenLinks] = useState(false);
+  // Bulk invite state: which line items + which vendors to invite in one action
+  const [inviteItemIds, setInviteItemIds] = useState<string[]>([]);
+  const [inviteVendorIds, setInviteVendorIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
