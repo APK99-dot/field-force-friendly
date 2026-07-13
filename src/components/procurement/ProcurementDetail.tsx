@@ -776,7 +776,13 @@ export default function ProcurementDetail({
                             onChange={(ids) => setLineVendors(l.id, ids)}
                             disabled={!poUnlocked}
                           />
+                          {poUnlocked && l.vendor_ids.length > 0 && (
+                            <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs mt-2" onClick={() => inviteLineToQuote(l.id)} disabled={genLinks}>
+                              <Link2 className="h-3.5 w-3.5" /> {genLinks ? "Generating..." : "Generate Quote Links"}
+                            </Button>
+                          )}
                         </div>
+
                         <div className="grid grid-cols-3 gap-2 items-end">
                           <div>
                             <Label className="text-[10px] text-muted-foreground">Qty</Label>
