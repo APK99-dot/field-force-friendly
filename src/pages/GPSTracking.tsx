@@ -102,13 +102,13 @@ export default function GPSTracking() {
     return () => clearInterval(id);
   }, [currentSelectedUser, activeTab]);
 
-  // Fetch selected user's latest GPS location
+  // Fetch selected user's latest GPS location — auto-refreshing as new pings arrive
   useEffect(() => {
     if (!currentUserId || currentSelectedUser === "me") return;
 
+    let firstLoad = true;
     const fetchUserLocation = async () => {
-      setFetchingUserLocation(true);
-      setLocationError(false);
+      if (firstLoad) setFetchingUserLocation(true);
       try {
         const today = format(new Date(), "yyyy-MM-dd");
         const { data } = await supabase
@@ -121,6 +121,7 @@ export default function GPSTracking() {
 
         if (data && data.length > 0) {
           setCurrentLocation({ lat: Number(data[0].latitude), lng: Number(data[0].longitude) });
+          setLocationError(false);
         } else {
           setCurrentLocation(null);
           setLocationError(true);
@@ -128,11 +129,28 @@ export default function GPSTracking() {
       } catch {
         setLocationError(true);
       } finally {
-        setFetchingUserLocation(false);
+        if (firstLoad) setFetchingUserLocation(false);
+        firstLoad = false;
       }
     };
     fetchUserLocation();
-  }, [currentUserId, currentSelectedUser]);
+
+    // Live refresh + realtime updates while viewing this user's location
+    const poll = activeTab === "current" ? setInterval(fetchUserLocation, 20000) : null;
+    const channel = supabase
+      .channel(`gps-live-${currentSelectedUser}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "gps_tracking", filter: `user_id=eq.${currentSelectedUser}` },
+        () => fetchUserLocation()
+      )
+      .subscribe();
+
+    return () => {
+      if (poll) clearInterval(poll);
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, currentSelectedUser, activeTab]);
 
   const retryLocation = () => {
     setLocationError(false);
