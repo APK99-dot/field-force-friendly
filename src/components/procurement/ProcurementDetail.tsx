@@ -431,7 +431,7 @@ export default function ProcurementDetail({
       const toCreate = selectedVendorIds.filter((id) => !existing.has(id));
       if (toCreate.length) {
         const { error } = await supabase.from("procurement_vendor_quotes").insert(
-          toCreate.map((vid) => ({ po_id: order.id, vendor_id: vid, created_by: user?.id ?? null }))
+          toCreate.map((vid) => ({ po_id: order.id, vendor_id: vid, token: crypto.randomUUID().replace(/-/g, ""), created_by: user?.id ?? null }))
         );
         if (error) throw error;
       }
