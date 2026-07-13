@@ -38,6 +38,7 @@ export function AppLayout() {
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const [mustChangePassword, setMustChangePassword] = useState<boolean>(false);
   usePushNotifications(userId ?? undefined);
+  useContinuousGPS(userId ?? undefined);
 
   useEffect(() => {
     const handleSession = (session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]) => {
