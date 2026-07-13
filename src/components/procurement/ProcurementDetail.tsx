@@ -344,8 +344,13 @@ export default function ProcurementDetail({
   const canAdvance = !!nextStage && (!nextTransition?.approver || canApprove);
 
   const reqName = order.po_number || "Requisition";
-  const selectedVendors = vendors.filter((v) => selectedVendorIds.includes(v.id));
+  const selectedVendors = vendors.filter((v) => derivedVendorIds.includes(v.id));
   const primaryVendor = selectedVendors[0] || null;
+  const vendorNameById = useMemo(() => {
+    const m: Record<string, string> = {};
+    vendors.forEach((v) => { m[v.id] = v.name; });
+    return m;
+  }, [vendors]);
   // Vendor phone may be a JSONB array, a string, or null — normalise to a display string.
   const vendorPhoneStr = (phone: unknown): string => {
     if (!phone) return "";
