@@ -750,37 +750,8 @@ export default function ProcurementDetail({
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">{isTransfer ? "Transfer Items" : "Line Items"}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {/* Bulk invite: choose line items + vendors and generate quote links per item */}
-              {poUnlocked && rateLines.length > 0 && (
-                <div className="rounded-lg border p-2.5 bg-muted/20 space-y-2">
-                  <p className="text-xs font-medium">Invite vendors to quote</p>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div>
-                      <Label className="text-[10px] text-muted-foreground">Line items</Label>
-                      <div className="space-y-1 mt-1 max-h-32 overflow-y-auto">
-                        {rateLines.map((l) => (
-                          <label key={l.id} className="flex items-center gap-2 text-xs cursor-pointer">
-                            <Checkbox
-                              checked={inviteItemIds.includes(l.id)}
-                              onCheckedChange={(c) => setInviteItemIds((prev) => c ? [...prev, l.id] : prev.filter((id) => id !== l.id))}
-                            />
-                            <span className="truncate">{productName(l.product_id)}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-[10px] text-muted-foreground">Vendors</Label>
-                      <div className="mt-1">
-                        <VendorMultiSelect vendors={vendors} selectedIds={inviteVendorIds} onChange={setInviteVendorIds} />
-                      </div>
-                    </div>
-                  </div>
-                  <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={inviteToQuote} disabled={genLinks}>
-                    <Link2 className="h-3.5 w-3.5" /> {genLinks ? "Generating..." : "Generate Quote Links"}
-                  </Button>
-                </div>
-              )}
+
+
 
               {rateLines.map((l, i) => {
                 const amt = (parseFloat(l.rate) || 0) * (l.qty || 0);
