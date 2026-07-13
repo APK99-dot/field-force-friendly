@@ -10,6 +10,7 @@ import PWAInstallBanner from "@/components/PWAInstallBanner";
 import WebPushPrompt from "@/components/WebPushPrompt";
 import { useNativeStartup } from "@/hooks/useNativeStartup";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useContinuousGPS } from "@/hooks/useContinuousGPS";
 
 // Keys of caches scoped to the signed-in user. Must be cleared on user change.
 const USER_SCOPED_CACHE_KEYS = [
