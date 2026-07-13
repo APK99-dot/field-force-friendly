@@ -475,48 +475,52 @@ export default function ProcurementDetail({
     }
   };
 
-  // ---- Vendor quote portal ----
+  // ---- Vendor quote portal (per line item) ----
   const loadVendorQuotes = useCallback(async () => {
     const { data } = await supabase
       .from("procurement_vendor_quotes")
-      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, procurement_vendor_quote_items(*)")
+      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, procurement_item_ids, procurement_vendor_quote_items(*)")
       .eq("po_id", order.id);
-    const rows = (data || []) as VendorQuoteRow[];
-    setVendorQuotes(rows);
-    const map: Record<string, { token: string; vendor_id: string }> = {};
-    rows.forEach((r) => { if (r.vendor_id) map[r.vendor_id] = { token: r.token, vendor_id: r.vendor_id }; });
-    setQuoteLinks(map);
+    setVendorQuotes((data || []) as VendorQuoteRow[]);
   }, [order.id]);
 
   useEffect(() => { if (open) loadVendorQuotes(); }, [open, loadVendorQuotes]);
 
   const quoteUrl = (token: string) => `${window.location.origin}/vendor-quote/${token}`;
 
-  const generateQuoteLinks = async () => {
-    if (selectedVendorIds.length === 0) {
-      toast.error("Select at least one vendor first.");
-      return;
-    }
+  // Invite selected vendors to quote on selected line items (one quote row per vendor, scoped to items).
+  const inviteToQuote = async () => {
+    if (inviteItemIds.length === 0) { toast.error("Select at least one line item."); return; }
+    if (inviteVendorIds.length === 0) { toast.error("Select at least one vendor."); return; }
     setGenLinks(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      // Create a quote row per vendor that doesn't already have one
-      const existing = new Set(vendorQuotes.map((q) => q.vendor_id));
-      const toCreate = selectedVendorIds.filter((id) => !existing.has(id));
-      if (toCreate.length) {
-        const { error } = await supabase.from("procurement_vendor_quotes").insert(
-          toCreate.map((vid) => ({ po_id: order.id, vendor_id: vid, token: crypto.randomUUID().replace(/-/g, ""), created_by: user?.id ?? null }))
-        );
-        if (error) throw error;
-      }
+      const { error } = await supabase.from("procurement_vendor_quotes").insert(
+        inviteVendorIds.map((vid) => ({
+          po_id: order.id,
+          vendor_id: vid,
+          token: crypto.randomUUID().replace(/-/g, ""),
+          procurement_item_ids: inviteItemIds,
+          created_by: user?.id ?? null,
+        }))
+      );
+      if (error) throw error;
       await loadVendorQuotes();
-      toast.success("Quote links ready. Share them with vendors below.");
+      setInviteItemIds([]);
+      setInviteVendorIds([]);
+      toast.success("Quote links generated. Share them with vendors below.");
     } catch (err: any) {
       toast.error(err.message || "Failed to generate quote links");
     } finally {
       setGenLinks(false);
     }
   };
+
+  // Quotes scoped to a given line item
+  const quotesForItem = useCallback(
+    (itemId: string) => vendorQuotes.filter((q) => Array.isArray(q.procurement_item_ids) && q.procurement_item_ids.includes(itemId)),
+    [vendorQuotes]
+  );
 
   const copyLink = async (token: string) => {
     try {
