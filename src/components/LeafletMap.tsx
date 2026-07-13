@@ -21,6 +21,18 @@ const activityIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
+// Orange pin for individual GPS trail points
+const gpsPointIcon = new L.Icon({
+  iconUrl:
+    "data:image/svg+xml;base64," +
+    btoa(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="36" viewBox="0 0 24 36"><path fill="#F59E0B" stroke="#ffffff" stroke-width="1.5" d="M12 1C6.5 1 2 5.5 2 11c0 7.5 10 23 10 23s10-15.5 10-23C22 5.5 17.5 1 12 1z"/><circle cx="12" cy="11" r="4" fill="#ffffff"/></svg>`
+    ),
+  iconSize: [24, 36],
+  iconAnchor: [12, 36],
+  popupAnchor: [0, -30],
+});
+
 interface GPSPoint {
   latitude: number;
   longitude: number;
@@ -92,8 +104,17 @@ export default function LeafletMap({ location, gpsPoints, activityMarkers }: Lea
         </Marker>
       )}
       {polylinePositions.length > 1 && (
-        <Polyline positions={polylinePositions} pathOptions={{ color: "#3B82F6", weight: 4 }} />
+        <Polyline positions={polylinePositions} pathOptions={{ color: "#3B82F6", weight: 3, dashArray: "6 8" }} />
       )}
+      {(gpsPoints || []).map((p, i) => (
+        <Marker key={`gps-${i}`} position={[p.latitude, p.longitude]} icon={gpsPointIcon}>
+          <Popup>
+            Point {i + 1}
+            {p.timestamp ? ` · ${new Date(p.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
+          </Popup>
+        </Marker>
+      ))}
+
       {(activityMarkers || []).map((m, i) => (
         <Marker key={i} position={[m.lat, m.lng]} icon={activityIcon}>
           <Popup>{m.name}</Popup>
