@@ -102,11 +102,15 @@ function MilestoneCard({
   m,
   children,
   linked,
+  linkedActivities,
   linkedByChild,
+  activityCountForChild,
   comments,
   onCommentAdded,
   onChanged,
   currentUserId,
+  onAddSubMilestone,
+  isChild,
 }: MilestoneCardProps) {
   const hasChildren = children.length > 0;
   const [draft, setDraft] = useState<number>(m.percent_complete ?? 0);
