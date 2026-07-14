@@ -195,7 +195,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
       } else {
         const { error } = await supabase.from("site_milestones").insert({ site_id: site.id, ...payload });
         if (error) throw error;
-        toast.success(msForm.parent_id ? "Sub-milestone added" : "Milestone added");
+        toast.success(msForm.parent_id ? "Sub-task added" : "Milestone added");
       }
       setShowAddMilestone(false);
       setSubParentName("");
@@ -417,8 +417,8 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
             <DialogTitle className="flex items-center gap-2">
               <Target className="h-5 w-5" />
               {editingMilestoneId
-                ? `Edit ${msForm.parent_id ? "Sub-Milestone" : "Milestone"}`
-                : msForm.parent_id ? `Add Sub-Milestone${subParentName ? ` — under ${subParentName}` : ""}` : "Add Milestone"}
+                ? `Edit ${msForm.parent_id ? "Sub-Task" : "Milestone"}`
+                : msForm.parent_id ? `Add Sub-Task${subParentName ? ` — under ${subParentName}` : ""}` : "Add Milestone"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 overflow-y-auto max-h-[70vh] pr-1">
