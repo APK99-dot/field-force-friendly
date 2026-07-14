@@ -226,7 +226,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
 
   
 
-  if (open && !site) return null;
+  if (!site) return null;
 
   return (
     <>
