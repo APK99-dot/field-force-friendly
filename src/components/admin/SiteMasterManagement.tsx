@@ -194,9 +194,10 @@ export default function SiteMasterManagement() {
   const [milestoneStats, setMilestoneStats] = useState<Record<string, { avg: number; count: number }>>({});
 
   const fetchMilestoneStats = useCallback(async () => {
-    const { data } = await supabase.from("site_milestones").select("site_id, percent_complete");
+    const { data } = await supabase.from("site_milestones").select("site_id, percent_complete, parent_id");
     const acc: Record<string, { sum: number; count: number }> = {};
     (data || []).forEach((m: any) => {
+      if (m.parent_id) return; // only count top-level milestones
       if (!acc[m.site_id]) acc[m.site_id] = { sum: 0, count: 0 };
       acc[m.site_id].sum += m.percent_complete ?? 0;
       acc[m.site_id].count += 1;
