@@ -249,7 +249,7 @@ export default function InvoiceForm({
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((it) => (
+                    {visibleItems.map((it) => (
                       <tr key={it.id} className="border-t">
                         <td className="px-3 py-2 font-medium">{productName(it.product_id)}</td>
                         <td className="px-3 py-2 text-right text-muted-foreground">{fmtAmt(it.rate)}</td>
