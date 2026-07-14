@@ -636,6 +636,7 @@ export default function SiteMilestoneList({ milestones, activities = [], onChang
               onChanged={onChanged}
               currentUserId={user?.id}
               onAddSubMilestone={onAddSubMilestone}
+              onEditMilestone={onEditMilestone}
             />
           ))}
         </div>
