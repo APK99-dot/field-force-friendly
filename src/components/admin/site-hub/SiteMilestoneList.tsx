@@ -431,6 +431,7 @@ function MilestoneCard({
               onCommentAdded={onCommentAdded}
               onChanged={onChanged}
               currentUserId={currentUserId}
+              onEditMilestone={onEditMilestone}
               isChild
             />
           ))}
