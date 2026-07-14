@@ -9,6 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
@@ -30,7 +33,48 @@ interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
 interface Category { id: string; category_name: string; sub_category_name?: string | null }
 interface Product { id: string; product_name: string; default_uom: string | null; category_id?: string | null; category_name?: string | null; product_description?: string | null; code?: string | null }
-interface LineItem { id?: string; product_id: string; category_id: string; rate: string; qty: string; uom: string }
+interface LineItem { id?: string; product_id: string; category_id: string; rate: string; qty: string; uom: string; vendor_ids: string[] }
+
+// Reusable vendor multi-select for line items (mirrors the one on the detail screen)
+function LineVendorMultiSelect({
+  vendors, selectedIds, onChange, placeholder = "Select vendors (optional)",
+}: {
+  vendors: { id: string; name: string }[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  placeholder?: string;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className="h-8 w-full justify-between font-normal text-xs">
+          <span className="truncate text-left">
+            {selectedIds.length === 0
+              ? <span className="text-muted-foreground">{placeholder}</span>
+              : vendors.filter((v) => selectedIds.includes(v.id)).map((v) => v.name).join(", ")}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-2 max-h-64 overflow-y-auto" align="start">
+        {vendors.length === 0 ? (
+          <p className="text-xs text-muted-foreground p-2">No vendors found.</p>
+        ) : vendors.map((v) => {
+          const checked = selectedIds.includes(v.id);
+          return (
+            <label key={v.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted cursor-pointer text-sm">
+              <Checkbox
+                checked={checked}
+                onCheckedChange={(c) => onChange(c ? [...selectedIds, v.id] : selectedIds.filter((id) => id !== v.id))}
+              />
+              <span>{v.name}</span>
+            </label>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 const DRAFT_KEY = "procurement_requisition_draft";
 
@@ -71,7 +115,7 @@ export default function Procurement() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<DetailOrder | null>(null);
   const [form, setForm] = useState(emptyForm);
-  const [lines, setLines] = useState<LineItem[]>([{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
+  const [lines, setLines] = useState<LineItem[]>([{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailOrder | null>(null);
@@ -188,7 +232,7 @@ export default function Procurement() {
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm);
-    setLines([{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
+    setLines([{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
     setIsFormOpen(true);
   };
 
@@ -211,8 +255,9 @@ export default function Procurement() {
       id: it.id, product_id: it.product_id || "",
       category_id: products.find((p) => p.id === it.product_id)?.category_id || "",
       rate: String(it.rate ?? ""), qty: String(it.qty ?? ""), uom: it.uom || "",
+      vendor_ids: Array.isArray(it.vendor_ids) ? it.vendor_ids : [],
     }));
-    setLines(items.length ? items : [{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
+    setLines(items.length ? items : [{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
     setIsFormOpen(true);
   };
 
@@ -232,9 +277,9 @@ export default function Procurement() {
       return { ...l, category_id: categoryId, product_id: keepProduct ? l.product_id : "" };
     }));
   };
-  const addLine = () => setLines((prev) => [...prev, { product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
+  const addLine = () => setLines((prev) => [...prev, { product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
   const removeLine = (i: number) =>
-    setLines((prev) => (prev.length <= 1 ? [{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }] : prev.filter((_, idx) => idx !== i)));
+    setLines((prev) => (prev.length <= 1 ? [{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }] : prev.filter((_, idx) => idx !== i)));
 
   // Persist the in-progress requisition and jump to a master screen to add a new
   // Product/Category, then return to this exact form (see restore effect on mount).
@@ -263,11 +308,13 @@ export default function Procurement() {
     try {
       const billAddr = !isTransfer && form.bill_to_id ? findAddr(form.bill_to_id) : null;
       const shipAddr = !isTransfer && form.ship_to_id ? findAddr(form.ship_to_id) : null;
+      // Derive PO-level vendor list from the per-line vendor assignments
+      const derivedVendorIds = Array.from(new Set(validLines.flatMap((l) => l.vendor_ids || [])));
       const orderPayload = {
         source_type: form.source_type,
         order_date: form.order_date,
-        vendor_id: isTransfer ? null : (form.vendor_ids[0] || null),
-        vendor_ids: isTransfer ? null : (form.vendor_ids.length ? form.vendor_ids : null),
+        vendor_id: isTransfer ? null : (derivedVendorIds[0] || null),
+        vendor_ids: isTransfer ? null : (derivedVendorIds.length ? derivedVendorIds : null),
         site_id: form.site_id || null,
         transfer_from_site_id: isTransfer ? (form.transfer_from_site_id || null) : null,
         status: form.status,
@@ -302,7 +349,11 @@ export default function Procurement() {
       const itemRows = validLines.map((l) => {
         const rate = isTransfer ? 0 : (parseFloat(l.rate) || 0);
         const qty = parseFloat(l.qty) || 0;
-        return { procurement_id: orderId, product_id: l.product_id, rate, qty, amount: rate * qty, uom: l.uom || null };
+        return {
+          procurement_id: orderId, product_id: l.product_id, rate, qty, amount: rate * qty,
+          uom: l.uom || null,
+          vendor_ids: isTransfer ? [] : (l.vendor_ids || []),
+        };
       });
       const { error: itemErr } = await supabase.from("procurement_items").insert(itemRows);
       if (itemErr) throw itemErr;
@@ -590,6 +641,16 @@ export default function Procurement() {
                         <Input type="number" inputMode="decimal" value={l.qty} onChange={(e) => updateLine(i, { qty: e.target.value })} placeholder="0" className="h-8" />
                       </div>
                     </div>
+                    {form.source_type !== "internal_transfer" && (
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Vendor(s)</Label>
+                        <LineVendorMultiSelect
+                          vendors={vendors}
+                          selectedIds={l.vendor_ids}
+                          onChange={(ids) => updateLine(i, { vendor_ids: ids })}
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
