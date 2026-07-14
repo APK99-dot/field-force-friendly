@@ -262,6 +262,7 @@ export default function GRNForm({
                   <Label className="text-xs font-medium">Transferred From Site</Label>
                   <Input value={transferFromSiteName || "—"} readOnly disabled className="h-9 bg-background" />
                 </div>
+              )}
               {!isTransfer && poVendors && poVendors.length > 0 && (
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Vendor (receipt from)</Label>
