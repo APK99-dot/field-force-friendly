@@ -158,16 +158,8 @@ function MilestoneCard({
       setDeleting(false);
     }
   };
-  const hasChildren = children.length > 0;
-  const [draft, setDraft] = useState<number>(m.percent_complete ?? 0);
-  const [saving, setSaving] = useState(false);
-  const [togglingRisk, setTogglingRisk] = useState(false);
-  const [savingStatus, setSavingStatus] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [showActivities, setShowActivities] = useState(false);
-  const [expanded, setExpanded] = useState(true);
-  const [newComment, setNewComment] = useState("");
-  const [postingComment, setPostingComment] = useState(false);
+
+
 
   // If children exist, derived progress = avg; slider disabled
   useEffect(() => {
