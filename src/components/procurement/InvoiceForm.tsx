@@ -202,6 +202,27 @@ export default function InvoiceForm({
             </div>
           </div>
 
+          {poVendors && poVendors.length > 0 && (
+            <div>
+              <Label className="text-xs">Vendor (invoice from)</Label>
+              <select
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                value={selectedVendorId || ""}
+                onChange={(e) => setSelectedVendorId(e.target.value || null)}
+              >
+                <option value="">— Select vendor —</option>
+                {poVendors.map((v) => (
+                  <option key={v.id} value={v.id}>{v.name}</option>
+                ))}
+              </select>
+              {selectedVendorId && itemVendorMap && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Showing only line items assigned to this vendor ({visibleItems.length} of {items.length}).
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Invoice Number</Label>
