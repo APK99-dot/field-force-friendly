@@ -20,10 +20,13 @@ import {
   Send,
   Trash2,
   Plus,
+  CornerDownRight,
   Pencil,
   User,
   ChevronDown,
   ChevronRight,
+  LayoutGrid,
+  Rows3,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -35,6 +38,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { MILESTONE_STATUSES, milestoneStatusLabel } from "@/components/admin/SiteMilestonesDialog";
@@ -73,22 +84,6 @@ interface Props {
   onEditMilestone?: (m: HubMilestone) => void;
 }
 
-interface MilestoneCardProps {
-  m: HubMilestone;
-  children: HubMilestone[];
-  linked: number;
-  linkedActivities: Activity[];
-  linkedByChild: Record<string, number>;
-  activityCountForChild: Record<string, Activity[]>;
-  comments: Comment[];
-  onCommentAdded: () => void;
-  onChanged?: () => void;
-  currentUserId?: string;
-  onAddSubMilestone?: (parentId: string, parentName: string) => void;
-  onEditMilestone?: (m: HubMilestone) => void;
-  isChild?: boolean;
-}
-
 async function saveMilestoneProgress(id: string, pct: number, currentStatus?: string | null) {
   const clamped = Math.min(100, Math.max(0, Math.round(pct)));
   const status = statusFromProgress(clamped, currentStatus);
@@ -111,22 +106,48 @@ async function rollUpParent(parentId: string, parentStatus: string | null | unde
   await saveMilestoneProgress(parentId, avg, parentStatus);
 }
 
+// Depth-based accent colors for the "add child" button
+const DEPTH_ACCENTS = [
+  "text-primary border-primary/40 hover:bg-primary/10",
+  "text-emerald-600 border-emerald-500/40 hover:bg-emerald-500/10 dark:text-emerald-400",
+  "text-purple-600 border-purple-500/40 hover:bg-purple-500/10 dark:text-purple-400",
+  "text-orange-600 border-orange-500/40 hover:bg-orange-500/10 dark:text-orange-400",
+];
+
+interface MilestoneCardProps {
+  m: HubMilestone;
+  childrenList: HubMilestone[];
+  childrenByParent: Record<string, HubMilestone[]>;
+  activityCount: Record<string, number>;
+  activitiesById: Record<string, Activity[]>;
+  comments: Comment[];
+  onCommentAdded: () => void;
+  onChanged?: () => void;
+  currentUserId?: string;
+  onAddSubMilestone?: (parentId: string, parentName: string) => void;
+  onEditMilestone?: (m: HubMilestone) => void;
+  depth: number;
+  ancestorPath: string[];
+}
+
 function MilestoneCard({
   m,
-  children,
-  linked,
-  linkedActivities,
-  linkedByChild,
-  activityCountForChild,
+  childrenList,
+  childrenByParent,
+  activityCount,
+  activitiesById,
   comments,
   onCommentAdded,
   onChanged,
   currentUserId,
   onAddSubMilestone,
   onEditMilestone,
-  isChild,
+  depth,
+  ancestorPath,
 }: MilestoneCardProps) {
-  const hasChildren = children.length > 0;
+  const hasChildren = childrenList.length > 0;
+  const linked = activityCount[m.id] || 0;
+  const linkedActivities = activitiesById[m.id] || [];
   const [draft, setDraft] = useState<number>(m.percent_complete ?? 0);
   const [saving, setSaving] = useState(false);
   const [togglingRisk, setTogglingRisk] = useState(false);
@@ -138,18 +159,27 @@ function MilestoneCard({
   const [postingComment, setPostingComment] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [riskReason, setRiskReason] = useState("");
+  const [showRiskDialog, setShowRiskDialog] = useState(false);
+
+  const collectDescendantIds = (id: string): string[] => {
+    const kids = childrenByParent[id] || [];
+    return kids.flatMap((k) => [k.id, ...collectDescendantIds(k.id)]);
+  };
+
+  const descendantCount = useMemo(() => collectDescendantIds(m.id).length, [m.id, childrenByParent]);
 
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      if (hasChildren) {
-        const childIds = children.map((c) => c.id);
-        const { error: cErr } = await supabase.from("site_milestones").delete().in("id", childIds);
+      const ids = collectDescendantIds(m.id);
+      if (ids.length) {
+        const { error: cErr } = await supabase.from("site_milestones").delete().in("id", ids);
         if (cErr) throw cErr;
       }
       const { error } = await supabase.from("site_milestones").delete().eq("id", m.id);
       if (error) throw error;
-      toast.success(hasChildren ? "Milestone and sub-milestones deleted" : "Milestone deleted");
+      toast.success(ids.length ? "Milestone and sub-milestones deleted" : "Milestone deleted");
       setConfirmDelete(false);
       onChanged?.();
     } catch (err: any) {
@@ -159,19 +189,16 @@ function MilestoneCard({
     }
   };
 
-
-
-  // If children exist, derived progress = avg; slider disabled
   useEffect(() => {
     if (hasChildren) {
-      const avg = children.length
-        ? Math.round(children.reduce((s, c) => s + (c.percent_complete || 0), 0) / children.length)
+      const avg = childrenList.length
+        ? Math.round(childrenList.reduce((s, c) => s + (c.percent_complete || 0), 0) / childrenList.length)
         : 0;
       setDraft(avg);
     } else {
       setDraft(m.percent_complete ?? 0);
     }
-  }, [m.percent_complete, hasChildren, children]);
+  }, [m.percent_complete, hasChildren, childrenList]);
 
   const commitProgress = async (val: number) => {
     if (hasChildren) return;
@@ -190,15 +217,12 @@ function MilestoneCard({
     }
   };
 
-  const toggleAtRisk = async () => {
+  const clearAtRisk = async () => {
     setTogglingRisk(true);
     try {
-      const { error } = await supabase
-        .from("site_milestones")
-        .update({ at_risk: !m.at_risk })
-        .eq("id", m.id);
+      const { error } = await supabase.from("site_milestones").update({ at_risk: false }).eq("id", m.id);
       if (error) throw error;
-      toast.success(!m.at_risk ? "Flagged as At Risk" : "At Risk flag cleared");
+      toast.success("At Risk flag cleared");
       onChanged?.();
     } catch (err: any) {
       toast.error(err.message || "Could not update flag");
@@ -207,14 +231,53 @@ function MilestoneCard({
     }
   };
 
+  const confirmFlagAtRisk = async () => {
+    const reason = riskReason.trim();
+    if (!reason) {
+      toast.error("Please enter a reason for flagging At Risk");
+      return;
+    }
+    if (!currentUserId) {
+      toast.error("You must be signed in");
+      return;
+    }
+    setTogglingRisk(true);
+    try {
+      const { error: flagErr } = await supabase
+        .from("site_milestones")
+        .update({ at_risk: true })
+        .eq("id", m.id);
+      if (flagErr) throw flagErr;
+      const { error: commentErr } = await supabase
+        .from("site_milestone_comments")
+        .insert({
+          milestone_id: m.id,
+          user_id: currentUserId,
+          content: `⚠️ Flagged At Risk: ${reason}`,
+        });
+      if (commentErr) throw commentErr;
+      toast.success("Flagged as At Risk");
+      setRiskReason("");
+      setShowRiskDialog(false);
+      onCommentAdded();
+      onChanged?.();
+    } catch (err: any) {
+      toast.error(err.message || "Could not flag At Risk");
+    } finally {
+      setTogglingRisk(false);
+    }
+  };
+
+  const onAtRiskClick = () => {
+    if (m.at_risk) clearAtRisk();
+    else setShowRiskDialog(true);
+  };
+
   const changeStatus = async (newStatus: string) => {
     if (newStatus === m.status) return;
     setSavingStatus(true);
     try {
-      const { error } = await supabase
-        .from("site_milestones")
-        .update({ status: newStatus })
-        .eq("id", m.id);
+      const { error } = await supabase.from("site_milestones").update({ status: newStatus }).eq("id", m.id);
       if (error) throw error;
       toast.success("Status updated");
       onChanged?.();
@@ -245,16 +308,17 @@ function MilestoneCard({
 
   const deleteComment = async (commentId: string) => {
     try {
-      const { error } = await supabase
-        .from("site_milestone_comments")
-        .delete()
-        .eq("id", commentId);
+      const { error } = await supabase.from("site_milestone_comments").delete().eq("id", commentId);
       if (error) throw error;
       onCommentAdded();
     } catch (err: any) {
       toast.error(err.message || "Could not delete comment");
     }
   };
+
+  const addChildAccent = DEPTH_ACCENTS[depth % DEPTH_ACCENTS.length];
+  const AddChildIcon = depth === 0 ? Plus : CornerDownRight;
+  const cardComments = comments.filter((c) => c.milestone_id === m.id);
 
   return (
     <div
@@ -263,6 +327,11 @@ function MilestoneCard({
         m.at_risk && "border-amber-400 bg-amber-50/60 dark:bg-amber-950/20"
       )}
     >
+      {depth > 0 && ancestorPath.length > 0 && (
+        <p className="text-[10px] text-muted-foreground -mb-1 truncate">
+          {ancestorPath.join(" → ")} →
+        </p>
+      )}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {hasChildren && (
@@ -305,7 +374,7 @@ function MilestoneCard({
             variant={m.at_risk ? "default" : "outline"}
             className={cn("h-7 w-7 shrink-0", m.at_risk && "bg-amber-500 hover:bg-amber-600 text-white border-amber-500")}
             title={m.at_risk ? "Clear At Risk flag" : "Flag as At Risk"}
-            onClick={toggleAtRisk}
+            onClick={onAtRiskClick}
             disabled={togglingRisk}
           >
             <AlertTriangle className="h-3.5 w-3.5" />
@@ -321,6 +390,17 @@ function MilestoneCard({
               <Pencil className="h-3.5 w-3.5" />
             </Button>
           )}
+          {onAddSubMilestone && (
+            <Button
+              size="icon"
+              variant="outline"
+              className={cn("h-7 w-7 shrink-0", addChildAccent)}
+              title={depth === 0 ? "Add sub-milestone" : "Add nested sub-milestone"}
+              onClick={() => onAddSubMilestone(m.id, m.name)}
+            >
+              <AddChildIcon className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             size="icon"
             variant="outline"
@@ -332,7 +412,6 @@ function MilestoneCard({
           </Button>
         </div>
       </div>
-
 
       <div className="flex items-center gap-3 pt-0.5">
         <Slider
@@ -383,7 +462,7 @@ function MilestoneCard({
           className="flex items-center gap-1 text-muted-foreground hover:text-foreground justify-end"
         >
           <MessageSquare className="h-3 w-3" />
-          {comments.filter((c) => c.milestone_id === m.id).length} {comments.filter((c) => c.milestone_id === m.id).length === 1 ? "comment" : "comments"}
+          {cardComments.length} {cardComments.length === 1 ? "comment" : "comments"}
         </button>
       </div>
 
@@ -402,38 +481,34 @@ function MilestoneCard({
         </div>
       )}
 
-      {!isChild && onAddSubMilestone && (
-        <div className="pt-1">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs w-full"
-            onClick={() => onAddSubMilestone(m.id, m.name)}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add Sub-Milestone
-          </Button>
-        </div>
-      )}
-
       {m.notes && <p className="text-[11px] text-muted-foreground border-t pt-1.5">{m.notes}</p>}
 
       {hasChildren && expanded && (
-        <div className="pl-4 mt-3 border-l-2 border-dashed border-muted-foreground/30 space-y-2">
-          {children.map((c) => (
+        <div
+          className={cn(
+            "mt-3 space-y-2 pl-4 border-l-2",
+            depth === 0 && "border-primary/30",
+            depth === 1 && "border-emerald-500/40 border-dashed",
+            depth === 2 && "border-purple-500/40 border-dotted",
+            depth >= 3 && "border-orange-500/40"
+          )}
+        >
+          {childrenList.map((c) => (
             <MilestoneCard
               key={c.id}
               m={c}
-              children={[]}
-              linked={linkedByChild[c.id] || 0}
-              linkedActivities={activityCountForChild[c.id] || []}
-              linkedByChild={{}}
-              activityCountForChild={{}}
+              childrenList={childrenByParent[c.id] || []}
+              childrenByParent={childrenByParent}
+              activityCount={activityCount}
+              activitiesById={activitiesById}
               comments={comments}
               onCommentAdded={onCommentAdded}
               onChanged={onChanged}
               currentUserId={currentUserId}
+              onAddSubMilestone={onAddSubMilestone}
               onEditMilestone={onEditMilestone}
-              isChild
+              depth={depth + 1}
+              ancestorPath={[...ancestorPath, m.name]}
             />
           ))}
         </div>
@@ -442,34 +517,32 @@ function MilestoneCard({
       {showComments && (
         <div className="border-t pt-2.5 space-y-2">
           <div className="space-y-1.5 max-h-48 overflow-y-auto">
-            {comments.filter((c) => c.milestone_id === m.id).length === 0 ? (
+            {cardComments.length === 0 ? (
               <p className="text-[11px] text-muted-foreground italic">No comments yet.</p>
             ) : (
-              comments
-                .filter((c) => c.milestone_id === m.id)
-                .map((c) => (
-                  <div key={c.id} className="text-[11px] bg-muted/40 rounded px-2 py-1.5 group">
-                    <div className="flex justify-between items-start gap-2">
-                      <span className="font-medium">{c.author_name || "User"}</span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-muted-foreground">
-                          {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}
-                        </span>
-                        {c.user_id === currentUserId && (
-                          <button
-                            type="button"
-                            onClick={() => deleteComment(c.id)}
-                            className="opacity-0 group-hover:opacity-100 text-destructive"
-                            aria-label="Delete comment"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        )}
-                      </div>
+              cardComments.map((c) => (
+                <div key={c.id} className="text-[11px] bg-muted/40 rounded px-2 py-1.5 group">
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="font-medium">{c.author_name || "User"}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-muted-foreground">
+                        {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}
+                      </span>
+                      {c.user_id === currentUserId && (
+                        <button
+                          type="button"
+                          onClick={() => deleteComment(c.id)}
+                          className="opacity-0 group-hover:opacity-100 text-destructive"
+                          aria-label="Delete comment"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
                     </div>
-                    <p className="whitespace-pre-wrap mt-0.5">{c.content}</p>
                   </div>
-                ))
+                  <p className="whitespace-pre-wrap mt-0.5">{c.content}</p>
+                </div>
+              ))
             )}
           </div>
           <div className="flex gap-1.5">
@@ -497,8 +570,8 @@ function MilestoneCard({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete "{m.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              {hasChildren
-                ? `This will also permanently delete ${children.length} sub-milestone${children.length === 1 ? "" : "s"}. Activities linked to any of these milestones will lose the milestone link. This action cannot be undone.`
+              {descendantCount > 0
+                ? `This will also permanently delete ${descendantCount} nested sub-milestone${descendantCount === 1 ? "" : "s"}. Activities linked to any of these milestones will lose the milestone link. This action cannot be undone.`
                 : "This will permanently delete the milestone. Activities linked to it will lose the milestone link. This action cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -515,6 +588,151 @@ function MilestoneCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={showRiskDialog} onOpenChange={(o) => { setShowRiskDialog(o); if (!o) setRiskReason(""); }}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Flag "{m.name}" as At Risk
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Reason (required)</Label>
+            <Textarea
+              autoFocus
+              value={riskReason}
+              onChange={(e) => setRiskReason(e.target.value)}
+              placeholder="Explain why this milestone is at risk..."
+              rows={4}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              This reason will be posted to the milestone's comment thread.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRiskDialog(false)} disabled={togglingRisk}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmFlagAtRisk}
+              disabled={togglingRisk || !riskReason.trim()}
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              {togglingRisk ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Flag At Risk
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ---------- Table view ----------
+
+interface TableRowsProps {
+  parents: HubMilestone[];
+  childrenByParent: Record<string, HubMilestone[]>;
+  activityCount: Record<string, number>;
+  commentsCount: Record<string, number>;
+  onEditMilestone?: (m: HubMilestone) => void;
+  onAddSubMilestone?: (parentId: string, parentName: string) => void;
+}
+
+function TableView({
+  parents,
+  childrenByParent,
+  activityCount,
+  commentsCount,
+  onEditMilestone,
+  onAddSubMilestone,
+}: TableRowsProps) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const toggle = (id: string) => setCollapsed((c) => ({ ...c, [id]: !c[id] }));
+
+  const renderRow = (m: HubMilestone, depth: number): JSX.Element[] => {
+    const kids = childrenByParent[m.id] || [];
+    const hasKids = kids.length > 0;
+    const isCollapsed = collapsed[m.id];
+    const AddChildIcon = depth === 0 ? Plus : CornerDownRight;
+    const accent = DEPTH_ACCENTS[depth % DEPTH_ACCENTS.length];
+    const rows: JSX.Element[] = [
+      <tr key={m.id} className={cn("border-b hover:bg-muted/40", m.at_risk && "bg-amber-50/40 dark:bg-amber-950/10")}>
+        <td className="py-2 px-2 text-xs">
+          <div className="flex items-center gap-1" style={{ paddingLeft: depth * 16 }}>
+            {hasKids ? (
+              <button type="button" onClick={() => toggle(m.id)} className="text-muted-foreground hover:text-foreground">
+                {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+            ) : (
+              <span className="w-3.5" />
+            )}
+            <Target className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="font-medium truncate">{m.name}</span>
+          </div>
+        </td>
+        <td className="py-2 px-2 text-xs">
+          <Badge variant={STATUS_VARIANT[m.status] || "secondary"} className="text-[10px] px-1.5 py-0">
+            {milestoneStatusLabel(m.status)}
+          </Badge>
+        </td>
+        <td className="py-2 px-2 text-xs text-center">
+          {m.at_risk ? <AlertTriangle className="h-3.5 w-3.5 text-amber-500 inline" /> : <span className="text-muted-foreground">—</span>}
+        </td>
+        <td className="py-2 px-2 text-xs tabular-nums">{m.percent_complete ?? 0}%</td>
+        <td className="py-2 px-2 text-[11px] whitespace-nowrap">{fmt(m.start_date)} – {fmt(m.end_date)}</td>
+        <td className="py-2 px-2 text-[11px] whitespace-nowrap">{fmt(m.actual_start_date)} – {fmt(m.actual_end_date)}</td>
+        <td className="py-2 px-2 text-xs text-center">{activityCount[m.id] || 0}</td>
+        <td className="py-2 px-2 text-xs text-center">{commentsCount[m.id] || 0}</td>
+        <td className="py-2 px-2">
+          <div className="flex items-center gap-1 justify-end">
+            {onEditMilestone && (
+              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onEditMilestone(m)} title="Edit">
+                <Pencil className="h-3 w-3" />
+              </Button>
+            )}
+            {onAddSubMilestone && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className={cn("h-6 w-6", accent)}
+                onClick={() => onAddSubMilestone(m.id, m.name)}
+                title={depth === 0 ? "Add sub-milestone" : "Add nested sub-milestone"}
+              >
+                <AddChildIcon className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        </td>
+      </tr>,
+    ];
+    if (!isCollapsed && hasKids) {
+      kids.forEach((k) => rows.push(...renderRow(k, depth + 1)));
+    }
+    return rows;
+  };
+
+  return (
+    <div className="rounded-lg border overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground">
+          <tr>
+            <th className="text-left py-2 px-2 font-medium">Name</th>
+            <th className="text-left py-2 px-2 font-medium">Status</th>
+            <th className="text-center py-2 px-2 font-medium">Risk</th>
+            <th className="text-left py-2 px-2 font-medium">Progress</th>
+            <th className="text-left py-2 px-2 font-medium">Planned</th>
+            <th className="text-left py-2 px-2 font-medium">Actual</th>
+            <th className="text-center py-2 px-2 font-medium">Acts</th>
+            <th className="text-center py-2 px-2 font-medium">Cmts</th>
+            <th className="text-right py-2 px-2 font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {parents.flatMap((p) => renderRow(p, 0))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -522,8 +740,8 @@ function MilestoneCard({
 export default function SiteMilestoneList({ milestones, activities = [], onChanged, onAddSubMilestone, onEditMilestone }: Props) {
   const { user } = useCurrentUser();
   const [comments, setComments] = useState<Comment[]>([]);
+  const [view, setView] = useState<"card" | "table">("card");
 
-  // Group into parents + children
   const { parents, childrenByParent } = useMemo(() => {
     const parents = milestones.filter((m) => !m.parent_id);
     const childrenByParent: Record<string, HubMilestone[]> = {};
@@ -535,7 +753,6 @@ export default function SiteMilestoneList({ milestones, activities = [], onChang
     return { parents, childrenByParent };
   }, [milestones]);
 
-  // Progress: only count parent milestones (children roll up into parent)
   const avgProgress = parents.length
     ? Math.round(parents.reduce((s, m) => s + (m.percent_complete || 0), 0) / parents.length)
     : 0;
@@ -550,6 +767,12 @@ export default function SiteMilestoneList({ milestones, activities = [], onChang
       (activitiesById[a.milestone_id] ||= []).push(a);
     }
   });
+
+  const commentsCount = useMemo(() => {
+    const counts: Record<string, number> = {};
+    comments.forEach((c) => { counts[c.milestone_id] = (counts[c.milestone_id] || 0) + 1; });
+    return counts;
+  }, [comments]);
 
   const fetchComments = useCallback(async () => {
     const ids = milestones.map((m) => m.id);
@@ -580,16 +803,13 @@ export default function SiteMilestoneList({ milestones, activities = [], onChang
 
   return (
     <div className="space-y-5">
-      {/* Summary */}
       <div className="grid grid-cols-4 gap-3">
         <div className="rounded-xl border bg-card p-4 shadow-card text-center">
           <p className="text-2xl font-bold">{avgProgress}%</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">Overall completion</p>
         </div>
         <div className="rounded-xl border bg-card p-4 shadow-card text-center">
-          <p className="text-2xl font-bold">
-            {completedMs}/{parents.length}
-          </p>
+          <p className="text-2xl font-bold">{completedMs}/{parents.length}</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">Milestones completed</p>
         </div>
         <div className="rounded-xl border bg-card p-4 shadow-card text-center">
@@ -619,28 +839,62 @@ export default function SiteMilestoneList({ milestones, activities = [], onChang
         </div>
       </div>
 
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {parents.length} milestone{parents.length === 1 ? "" : "s"}
+        </p>
+        <div className="inline-flex rounded-lg border p-0.5 bg-muted/40">
+          <Button
+            size="sm"
+            variant={view === "card" ? "default" : "ghost"}
+            className="h-7 px-2.5 text-xs"
+            onClick={() => setView("card")}
+          >
+            <LayoutGrid className="h-3.5 w-3.5 mr-1" /> Cards
+          </Button>
+          <Button
+            size="sm"
+            variant={view === "table" ? "default" : "ghost"}
+            className="h-7 px-2.5 text-xs"
+            onClick={() => setView("table")}
+          >
+            <Rows3 className="h-3.5 w-3.5 mr-1" /> Table
+          </Button>
+        </div>
+      </div>
+
       {parents.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">No milestones added yet.</p>
-      ) : (
+      ) : view === "card" ? (
         <div className="space-y-3">
           {parents.map((m) => (
             <MilestoneCard
               key={m.id}
               m={m}
-              children={childrenByParent[m.id] || []}
-              linked={activityCount[m.id] || 0}
-              linkedActivities={activitiesById[m.id] || []}
-              linkedByChild={activityCount}
-              activityCountForChild={activitiesById}
+              childrenList={childrenByParent[m.id] || []}
+              childrenByParent={childrenByParent}
+              activityCount={activityCount}
+              activitiesById={activitiesById}
               comments={comments}
               onCommentAdded={fetchComments}
               onChanged={onChanged}
               currentUserId={user?.id}
               onAddSubMilestone={onAddSubMilestone}
               onEditMilestone={onEditMilestone}
+              depth={0}
+              ancestorPath={[]}
             />
           ))}
         </div>
+      ) : (
+        <TableView
+          parents={parents}
+          childrenByParent={childrenByParent}
+          activityCount={activityCount}
+          commentsCount={commentsCount}
+          onEditMilestone={onEditMilestone}
+          onAddSubMilestone={onAddSubMilestone}
+        />
       )}
     </div>
   );
