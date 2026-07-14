@@ -259,14 +259,15 @@ export default function ProcurementDetail({
   const fetchSub = useCallback(async () => {
     const [g, inv] = await Promise.all([
       supabase.from("procurement_grns").select("*, procurement_grn_items(*)").eq("po_id", order.id).order("created_at"),
-      supabase.from("procurement_invoices").select("*, procurement_invoice_items(*)").eq("po_id", order.id).order("created_at"),
+      supabase.from("procurement_invoices").select("*, procurement_invoice_items(*), procurement_invoice_payments(*)").eq("po_id", order.id).order("created_at"),
     ]);
     const gRows = (g.data || []) as any[];
-    setGrns(gRows.map((r) => ({ id: r.id, grn_number: r.grn_number, receipt_date: r.receipt_date, status: r.status, received_by: r.received_by, remarks: r.remarks })));
+    setGrns(gRows.map((r) => ({ id: r.id, grn_number: r.grn_number, receipt_date: r.receipt_date, status: r.status, received_by: r.received_by, remarks: r.remarks, vendor_id: r.vendor_id ?? null })));
     setGrnItems(gRows.flatMap((r) => (r.procurement_grn_items || []) as GrnItemRow[]));
     const iRows = (inv.data || []) as any[];
-    setInvoices(iRows.map((r) => ({ id: r.id, invoice_number: r.invoice_number, invoice_date: r.invoice_date, invoice_amount: r.invoice_amount })));
+    setInvoices(iRows.map((r) => ({ id: r.id, invoice_number: r.invoice_number, invoice_date: r.invoice_date, invoice_amount: r.invoice_amount, vendor_id: r.vendor_id ?? null })));
     setInvItems(iRows.flatMap((r) => (r.procurement_invoice_items || []) as InvItemRow[]));
+    setInvPayments(iRows.flatMap((r) => (r.procurement_invoice_payments || []).map((p: any) => ({ invoice_id: r.id, amount: Number(p.amount || 0), payment_date: p.payment_date, reference_number: p.reference_number }))));
   }, [order.id]);
 
   useEffect(() => { if (open) fetchSub(); }, [open, fetchSub]);
