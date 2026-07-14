@@ -176,8 +176,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
     const pct = Math.min(100, Math.max(0, Number(msForm.percent_complete) || 0));
     setSavingMilestone(true);
     try {
-      const { error } = await supabase.from("site_milestones").insert({
-        site_id: site.id,
+      const payload = {
         name: msForm.name.trim(),
         start_date: msForm.start_date,
         end_date: msForm.end_date,
@@ -188,11 +187,19 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
         status: msForm.status || (pct >= 100 ? "completed" : pct > 0 ? "in_progress" : "not_started"),
         is_active: msForm.is_active,
         parent_id: msForm.parent_id || null,
-      });
-      if (error) throw error;
-      toast.success(msForm.parent_id ? "Sub-milestone added" : "Milestone added");
+      };
+      if (editingMilestoneId) {
+        const { error } = await supabase.from("site_milestones").update(payload).eq("id", editingMilestoneId);
+        if (error) throw error;
+        toast.success("Milestone updated");
+      } else {
+        const { error } = await supabase.from("site_milestones").insert({ site_id: site.id, ...payload });
+        if (error) throw error;
+        toast.success(msForm.parent_id ? "Sub-milestone added" : "Milestone added");
+      }
       setShowAddMilestone(false);
       setSubParentName("");
+      setEditingMilestoneId(null);
       setMsForm({
         name: "",
         start_date: new Date().toISOString().split("T")[0],
@@ -207,7 +214,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
       });
       reload();
     } catch (err: any) {
-      toast.error(err.message || "Failed to add milestone");
+      toast.error(err.message || "Failed to save milestone");
     } finally {
       setSavingMilestone(false);
     }
