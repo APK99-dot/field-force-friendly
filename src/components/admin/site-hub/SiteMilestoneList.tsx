@@ -118,6 +118,7 @@ function MilestoneCard({
   const [togglingRisk, setTogglingRisk] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showActivities, setShowActivities] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [newComment, setNewComment] = useState("");
   const [postingComment, setPostingComment] = useState(false);
