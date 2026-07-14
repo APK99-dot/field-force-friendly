@@ -70,6 +70,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
   const [activeTab, setActiveTab] = useState("overview");
   const [showAddMilestone, setShowAddMilestone] = useState(false);
   const [subParentName, setSubParentName] = useState<string>("");
+  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
   const [msForm, setMsForm] = useState({
     name: "",
     start_date: new Date().toISOString().split("T")[0],
@@ -85,6 +86,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
   const [savingMilestone, setSavingMilestone] = useState(false);
 
   const openAddSubMilestone = (parentId: string, parentName: string) => {
+    setEditingMilestoneId(null);
     setSubParentName(parentName);
     setMsForm({
       name: "",
@@ -102,8 +104,28 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
   };
 
   const openAddTopMilestone = () => {
+    setEditingMilestoneId(null);
     setSubParentName("");
     setMsForm((f) => ({ ...f, parent_id: "" }));
+    setShowAddMilestone(true);
+  };
+
+  const openEditMilestone = (m: import("@/hooks/useSiteHub").HubMilestone) => {
+    setEditingMilestoneId(m.id);
+    const parent = m.parent_id ? milestones.find((x) => x.id === m.parent_id) : null;
+    setSubParentName(parent?.name || "");
+    setMsForm({
+      name: m.name,
+      start_date: m.start_date,
+      end_date: m.end_date,
+      actual_start_date: m.actual_start_date || "",
+      actual_end_date: m.actual_end_date || "",
+      notes: m.notes || "",
+      percent_complete: m.percent_complete ?? 0,
+      status: m.status,
+      is_active: m.is_active,
+      parent_id: m.parent_id || "",
+    });
     setShowAddMilestone(true);
   };
 
