@@ -116,6 +116,7 @@ const DEPTH_ACCENTS = [
 ];
 
 interface MilestoneCardProps {
+  siteId: string;
   m: HubMilestone;
   childrenList: HubMilestone[];
   childrenByParent: Record<string, HubMilestone[]>;
