@@ -263,8 +263,8 @@ function MilestoneCard({
         m.at_risk && "border-amber-400 bg-amber-50/60 dark:bg-amber-950/20"
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           {hasChildren && (
             <button
               type="button"
@@ -276,16 +276,16 @@ function MilestoneCard({
             </button>
           )}
           <Target className="h-4 w-4 text-primary shrink-0" />
-          <span className="font-medium text-sm truncate">{m.name}</span>
+          <span className="font-medium text-sm truncate flex-1 min-w-0">{m.name}</span>
           {m.at_risk && (
             <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300 gap-1 shrink-0">
               <AlertTriangle className="h-3 w-3" /> At Risk
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap sm:shrink-0">
           <Select value={m.status} onValueChange={changeStatus} disabled={savingStatus}>
-            <SelectTrigger className="h-7 w-[130px] text-xs px-2">
+            <SelectTrigger className="h-7 flex-1 sm:flex-none sm:w-[130px] text-xs px-2 min-w-[110px]">
               <SelectValue>
                 <Badge variant={STATUS_VARIANT[m.status] || "secondary"} className="text-[10px] px-1.5 py-0">
                   {milestoneStatusLabel(m.status)}
@@ -303,7 +303,7 @@ function MilestoneCard({
           <Button
             size="icon"
             variant={m.at_risk ? "default" : "outline"}
-            className={cn("h-7 w-7", m.at_risk && "bg-amber-500 hover:bg-amber-600 text-white border-amber-500")}
+            className={cn("h-7 w-7 shrink-0", m.at_risk && "bg-amber-500 hover:bg-amber-600 text-white border-amber-500")}
             title={m.at_risk ? "Clear At Risk flag" : "Flag as At Risk"}
             onClick={toggleAtRisk}
             disabled={togglingRisk}
@@ -314,7 +314,7 @@ function MilestoneCard({
             <Button
               size="icon"
               variant="outline"
-              className="h-7 w-7"
+              className="h-7 w-7 shrink-0"
               title="Edit milestone"
               onClick={() => onEditMilestone(m)}
             >
@@ -324,7 +324,7 @@ function MilestoneCard({
           <Button
             size="icon"
             variant="outline"
-            className="h-7 w-7 text-destructive hover:text-destructive"
+            className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
             title="Delete milestone"
             onClick={() => setConfirmDelete(true)}
           >
@@ -332,6 +332,7 @@ function MilestoneCard({
           </Button>
         </div>
       </div>
+
 
       <div className="flex items-center gap-3 pt-0.5">
         <Slider
