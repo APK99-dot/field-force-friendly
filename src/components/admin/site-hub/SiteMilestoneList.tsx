@@ -966,6 +966,7 @@ export default function SiteMilestoneList({ siteId, milestones, activities = [],
           {parents.map((m) => (
             <MilestoneCard
               key={m.id}
+              siteId={siteId}
               m={m}
               childrenList={childrenByParent[m.id] || []}
               childrenByParent={childrenByParent}
