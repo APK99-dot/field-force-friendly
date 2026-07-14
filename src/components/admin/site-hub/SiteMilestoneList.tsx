@@ -519,16 +519,28 @@ function MilestoneCard({
 
       {showActivities && linkedActivities.length > 0 && (
         <div className="border-t pt-2 space-y-1.5">
-          {linkedActivities.map((a) => (
-            <div key={a.id} className="text-[11px] rounded bg-muted/40 px-2 py-1.5">
-              <div className="font-medium truncate">{a.activity_name}</div>
-              <div className="flex items-center gap-2 text-muted-foreground mt-0.5">
-                <span className="flex items-center gap-1"><User className="h-3 w-3" />{a.user_full_name}</span>
-                <span>·</span>
-                <span>{a.activity_date ? format(new Date(a.activity_date), "dd MMM yy") : ""}</span>
-              </div>
-            </div>
-          ))}
+          {linkedActivities.map((a) => {
+            const clickable = !!onOpenActivity;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                disabled={!clickable}
+                onClick={() => onOpenActivity?.(a)}
+                className={cn(
+                  "w-full text-left text-[11px] rounded bg-muted/40 px-2 py-1.5 transition-colors",
+                  clickable && "cursor-pointer hover:bg-muted focus:outline-none focus:ring-1 focus:ring-primary/40"
+                )}
+              >
+                <div className="font-medium truncate">{a.activity_name}</div>
+                <div className="flex items-center gap-2 text-muted-foreground mt-0.5">
+                  <span className="flex items-center gap-1"><User className="h-3 w-3" />{a.user_full_name}</span>
+                  <span>·</span>
+                  <span>{a.activity_date ? format(new Date(a.activity_date), "dd MMM yy") : ""}</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
 
