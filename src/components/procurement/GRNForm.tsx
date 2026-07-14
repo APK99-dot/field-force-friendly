@@ -121,11 +121,11 @@ export default function GRNForm({
   const balance = (it: POItem) => Math.max(0, it.qty - (alreadyReceived[it.id] || 0));
 
   const totals = useMemo(() => {
-    const ordered = items.reduce((s, it) => s + it.qty, 0);
-    const priorReceived = items.reduce((s, it) => s + (alreadyReceived[it.id] || 0), 0);
-    const thisReceipt = items.reduce((s, it) => s + (parseFloat(recv[it.id]) || 0), 0);
+    const ordered = visibleItems.reduce((s, it) => s + it.qty, 0);
+    const priorReceived = visibleItems.reduce((s, it) => s + (alreadyReceived[it.id] || 0), 0);
+    const thisReceipt = visibleItems.reduce((s, it) => s + (parseFloat(recv[it.id]) || 0), 0);
     return { ordered, priorReceived, thisReceipt, cumulative: priorReceived + thisReceipt };
-  }, [items, alreadyReceived, recv]);
+  }, [visibleItems, alreadyReceived, recv]);
 
   const progressPct = totals.ordered > 0
     ? Math.min(100, Math.round((totals.cumulative / totals.ordered) * 100))
