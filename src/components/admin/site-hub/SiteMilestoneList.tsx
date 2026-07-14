@@ -531,7 +531,7 @@ function MilestoneCard({
 
       {m.notes && <p className="text-[11px] text-muted-foreground border-t pt-1.5">{m.notes}</p>}
 
-      {hasChildren && expanded && (
+      {(hasChildren || inlineDraft) && expanded && (
         <div
           className={cn(
             "mt-3 space-y-2 pl-4 border-l-2",
@@ -544,6 +544,7 @@ function MilestoneCard({
           {childrenList.map((c) => (
             <MilestoneCard
               key={c.id}
+              siteId={siteId}
               m={c}
               childrenList={childrenByParent[c.id] || []}
               childrenByParent={childrenByParent}
@@ -559,6 +560,53 @@ function MilestoneCard({
               ancestorPath={[...ancestorPath, m.name]}
             />
           ))}
+          {inlineDraft && (
+            <div className="rounded-lg border border-dashed bg-muted/30 p-2.5">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  autoFocus
+                  className="flex-1 min-w-0 h-8 rounded-md border bg-background px-2 text-sm"
+                  placeholder="Sub-milestone name"
+                  value={inlineDraft.name}
+                  onChange={(e) => setInlineDraft({ ...inlineDraft, name: e.target.value })}
+                />
+                <input
+                  type="date"
+                  className="h-8 rounded-md border bg-background px-2 text-xs"
+                  value={inlineDraft.start_date}
+                  onChange={(e) => setInlineDraft({ ...inlineDraft, start_date: e.target.value })}
+                />
+                <input
+                  type="date"
+                  className="h-8 rounded-md border bg-background px-2 text-xs"
+                  value={inlineDraft.end_date}
+                  min={inlineDraft.start_date || undefined}
+                  onChange={(e) => setInlineDraft({ ...inlineDraft, end_date: e.target.value })}
+                />
+                <Select
+                  value={inlineDraft.status}
+                  onValueChange={(v) => setInlineDraft({ ...inlineDraft, status: v })}
+                >
+                  <SelectTrigger className="h-8 w-full sm:w-[130px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MILESTONE_STATUSES.map((s) => (
+                      <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-1.5 sm:shrink-0">
+                  <Button size="sm" className="h-8 px-3" onClick={saveInline} disabled={savingInline}>
+                    {savingInline ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setInlineDraft(null)} disabled={savingInline}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
