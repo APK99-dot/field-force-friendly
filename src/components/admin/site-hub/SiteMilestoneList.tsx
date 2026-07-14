@@ -324,7 +324,7 @@ function MilestoneCard({
           className="flex items-center gap-1 text-muted-foreground hover:text-foreground justify-end"
         >
           <MessageSquare className="h-3 w-3" />
-          {comments.length} {comments.length === 1 ? "comment" : "comments"}
+          {comments.filter((c) => c.milestone_id === m.id).length} {comments.filter((c) => c.milestone_id === m.id).length === 1 ? "comment" : "comments"}
         </button>
       </div>
 
