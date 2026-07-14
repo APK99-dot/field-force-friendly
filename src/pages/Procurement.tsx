@@ -641,6 +641,16 @@ export default function Procurement() {
                         <Input type="number" inputMode="decimal" value={l.qty} onChange={(e) => updateLine(i, { qty: e.target.value })} placeholder="0" className="h-8" />
                       </div>
                     </div>
+                    {form.source_type !== "internal_transfer" && (
+                      <div>
+                        <Label className="text-[10px] text-muted-foreground">Vendor(s)</Label>
+                        <LineVendorMultiSelect
+                          vendors={vendors}
+                          selectedIds={l.vendor_ids}
+                          onChange={(ids) => updateLine(i, { vendor_ids: ids })}
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
