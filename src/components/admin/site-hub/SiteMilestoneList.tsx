@@ -123,8 +123,41 @@ function MilestoneCard({
   onChanged,
   currentUserId,
   onAddSubMilestone,
+  onEditMilestone,
   isChild,
 }: MilestoneCardProps) {
+  const hasChildren = children.length > 0;
+  const [draft, setDraft] = useState<number>(m.percent_complete ?? 0);
+  const [saving, setSaving] = useState(false);
+  const [togglingRisk, setTogglingRisk] = useState(false);
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [showActivities, setShowActivities] = useState(false);
+  const [expanded, setExpanded] = useState(true);
+  const [newComment, setNewComment] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      if (hasChildren) {
+        const childIds = children.map((c) => c.id);
+        const { error: cErr } = await supabase.from("site_milestones").delete().in("id", childIds);
+        if (cErr) throw cErr;
+      }
+      const { error } = await supabase.from("site_milestones").delete().eq("id", m.id);
+      if (error) throw error;
+      toast.success(hasChildren ? "Milestone and sub-milestones deleted" : "Milestone deleted");
+      setConfirmDelete(false);
+      onChanged?.();
+    } catch (err: any) {
+      toast.error(err.message || "Could not delete milestone");
+    } finally {
+      setDeleting(false);
+    }
+  };
   const hasChildren = children.length > 0;
   const [draft, setDraft] = useState<number>(m.percent_complete ?? 0);
   const [saving, setSaving] = useState(false);
