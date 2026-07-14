@@ -720,7 +720,8 @@ export default function ProcurementDetail({
                           setAddVendorId("");
                           setAddVendorScope("all");
                           setAddVendorLineIds(rateLines.map((l) => l.id));
-                          setAddVendorOpen(true);
+                          setShowAddVendor(true);
+                          setTimeout(() => lineItemsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
                         }}>
                           <Plus className="h-3 w-3 mr-1" /> Add Vendor
                         </Button>
