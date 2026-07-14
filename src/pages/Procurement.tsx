@@ -33,7 +33,48 @@ interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
 interface Category { id: string; category_name: string; sub_category_name?: string | null }
 interface Product { id: string; product_name: string; default_uom: string | null; category_id?: string | null; category_name?: string | null; product_description?: string | null; code?: string | null }
-interface LineItem { id?: string; product_id: string; category_id: string; rate: string; qty: string; uom: string }
+interface LineItem { id?: string; product_id: string; category_id: string; rate: string; qty: string; uom: string; vendor_ids: string[] }
+
+// Reusable vendor multi-select for line items (mirrors the one on the detail screen)
+function LineVendorMultiSelect({
+  vendors, selectedIds, onChange, placeholder = "Select vendors (optional)",
+}: {
+  vendors: { id: string; name: string }[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  placeholder?: string;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className="h-8 w-full justify-between font-normal text-xs">
+          <span className="truncate text-left">
+            {selectedIds.length === 0
+              ? <span className="text-muted-foreground">{placeholder}</span>
+              : vendors.filter((v) => selectedIds.includes(v.id)).map((v) => v.name).join(", ")}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-2 max-h-64 overflow-y-auto" align="start">
+        {vendors.length === 0 ? (
+          <p className="text-xs text-muted-foreground p-2">No vendors found.</p>
+        ) : vendors.map((v) => {
+          const checked = selectedIds.includes(v.id);
+          return (
+            <label key={v.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted cursor-pointer text-sm">
+              <Checkbox
+                checked={checked}
+                onCheckedChange={(c) => onChange(c ? [...selectedIds, v.id] : selectedIds.filter((id) => id !== v.id))}
+              />
+              <span>{v.name}</span>
+            </label>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 const DRAFT_KEY = "procurement_requisition_draft";
 
