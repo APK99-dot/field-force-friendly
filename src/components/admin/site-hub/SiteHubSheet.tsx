@@ -226,6 +226,8 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
 
   
 
+  if (open && !site) return null;
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
