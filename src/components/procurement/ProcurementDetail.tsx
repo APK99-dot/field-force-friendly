@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -179,8 +179,9 @@ export default function ProcurementDetail({
   const [vendors, setVendors] = useState<{ id: string; name: string; phone: string | null; contact_person: string | null; email: string | null }[]>([]);
   const [vendorQuotes, setVendorQuotes] = useState<VendorQuoteRow[]>([]);
   const [genLinks, setGenLinks] = useState(false);
-  // Add-vendor bulk assignment dialog
-  const [addVendorOpen, setAddVendorOpen] = useState(false);
+  // Inline Add Vendor panel (rendered at top of Line Items card)
+  const lineItemsRef = useRef<HTMLDivElement>(null);
+  const [showAddVendor, setShowAddVendor] = useState(false);
   const [addVendorId, setAddVendorId] = useState<string>("");
   const [addVendorScope, setAddVendorScope] = useState<"all" | "specific">("all");
   const [addVendorLineIds, setAddVendorLineIds] = useState<string[]>([]);
@@ -719,7 +720,8 @@ export default function ProcurementDetail({
                           setAddVendorId("");
                           setAddVendorScope("all");
                           setAddVendorLineIds(rateLines.map((l) => l.id));
-                          setAddVendorOpen(true);
+                          setShowAddVendor(true);
+                          setTimeout(() => lineItemsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
                         }}>
                           <Plus className="h-3 w-3 mr-1" /> Add Vendor
                         </Button>
@@ -815,10 +817,93 @@ export default function ProcurementDetail({
           )}
 
 
-          {/* Line items */}
-          <Card>
+          <Card ref={lineItemsRef}>
             <CardHeader className="pb-2"><CardTitle className="text-base">{isTransfer ? "Transfer Items" : "Line Items"}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
+
+              {/* Inline Add Vendor panel — triggered by the "Add Vendor" button in the header card */}
+              {showAddVendor && !isTransfer && poUnlocked && (
+                <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">Assign a vendor to line items</p>
+                    <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowAddVendor(false)}>Close</Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Vendor</Label>
+                      <select
+                        className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                        value={addVendorId}
+                        onChange={(e) => setAddVendorId(e.target.value)}
+                      >
+                        <option value="">— Select vendor —</option>
+                        {vendors.map((v) => (
+                          <option key={v.id} value={v.id}>{v.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Apply to</Label>
+                      <div className="flex gap-2 mt-1">
+                        <Button
+                          type="button" size="sm"
+                          variant={addVendorScope === "all" ? "default" : "outline"}
+                          onClick={() => { setAddVendorScope("all"); setAddVendorLineIds(rateLines.map((l) => l.id)); }}
+                        >All line items</Button>
+                        <Button
+                          type="button" size="sm"
+                          variant={addVendorScope === "specific" ? "default" : "outline"}
+                          onClick={() => setAddVendorScope("specific")}
+                        >Specific line items</Button>
+                      </div>
+                    </div>
+                  </div>
+                  {addVendorScope === "specific" && (
+                    <div className="max-h-56 overflow-y-auto rounded border bg-background p-2 space-y-1">
+                      {rateLines.map((l) => (
+                        <label key={l.id} className="flex items-start gap-2 text-sm cursor-pointer p-1 hover:bg-muted rounded">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={addVendorLineIds.includes(l.id)}
+                            onChange={(e) => setAddVendorLineIds((prev) =>
+                              e.target.checked ? [...prev, l.id] : prev.filter((x) => x !== l.id)
+                            )}
+                          />
+                          <span className="flex-1">
+                            <span className="font-medium">{productName(l.product_id)}</span>
+                            <span className="text-muted-foreground text-xs"> · Qty {l.qty}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-muted-foreground">
+                    Assigning a vendor here does <strong>not</strong> send them a quote request. Use "Generate Quote Links" on the line item to invite them to quote.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => setShowAddVendor(false)}>Cancel</Button>
+                    <Button
+                      className="flex-1"
+                      disabled={!addVendorId || (addVendorScope === "specific" && addVendorLineIds.length === 0)}
+                      onClick={() => {
+                        const targetIds = addVendorScope === "all"
+                          ? rateLines.map((l) => l.id)
+                          : addVendorLineIds;
+                        setRateLines((prev) => prev.map((l) => {
+                          if (!targetIds.includes(l.id)) return l;
+                          if ((l.vendor_ids || []).includes(addVendorId)) return l;
+                          return { ...l, vendor_ids: [...(l.vendor_ids || []), addVendorId] };
+                        }));
+                        setShowAddVendor(false);
+                        toast.success("Vendor assigned — remember to Save PO Details.");
+                      }}
+                    >Apply</Button>
+                  </div>
+                </div>
+              )}
+
+
 
 
 
@@ -1113,83 +1198,6 @@ export default function ProcurementDetail({
           />
         )}
 
-        {/* Add Vendor bulk assignment dialog */}
-        <Dialog open={addVendorOpen} onOpenChange={setAddVendorOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Add Vendor to Line Items</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs">Vendor</Label>
-                <select
-                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-                  value={addVendorId}
-                  onChange={(e) => setAddVendorId(e.target.value)}
-                >
-                  <option value="">— Select vendor —</option>
-                  {vendors.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label className="text-xs">Apply to</Label>
-                <div className="flex gap-2 mt-1">
-                  <Button
-                    type="button" size="sm"
-                    variant={addVendorScope === "all" ? "default" : "outline"}
-                    onClick={() => { setAddVendorScope("all"); setAddVendorLineIds(rateLines.map((l) => l.id)); }}
-                  >All line items</Button>
-                  <Button
-                    type="button" size="sm"
-                    variant={addVendorScope === "specific" ? "default" : "outline"}
-                    onClick={() => setAddVendorScope("specific")}
-                  >Specific line items</Button>
-                </div>
-              </div>
-              {addVendorScope === "specific" && (
-                <div className="max-h-64 overflow-y-auto rounded border p-2 space-y-1">
-                  {rateLines.map((l) => (
-                    <label key={l.id} className="flex items-start gap-2 text-sm cursor-pointer p-1 hover:bg-muted rounded">
-                      <input
-                        type="checkbox"
-                        className="mt-0.5"
-                        checked={addVendorLineIds.includes(l.id)}
-                        onChange={(e) => setAddVendorLineIds((prev) =>
-                          e.target.checked ? [...prev, l.id] : prev.filter((x) => x !== l.id)
-                        )}
-                      />
-                      <span className="flex-1">
-                        <span className="font-medium">{productName(l.product_id)}</span>
-                        <span className="text-muted-foreground text-xs"> · Qty {l.qty}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              )}
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => setAddVendorOpen(false)}>Cancel</Button>
-                <Button
-                  className="flex-1"
-                  disabled={!addVendorId || (addVendorScope === "specific" && addVendorLineIds.length === 0)}
-                  onClick={() => {
-                    const targetIds = addVendorScope === "all"
-                      ? rateLines.map((l) => l.id)
-                      : addVendorLineIds;
-                    setRateLines((prev) => prev.map((l) => {
-                      if (!targetIds.includes(l.id)) return l;
-                      if ((l.vendor_ids || []).includes(addVendorId)) return l;
-                      return { ...l, vendor_ids: [...(l.vendor_ids || []), addVendorId] };
-                    }));
-                    setAddVendorOpen(false);
-                    toast.success("Vendor assigned — remember to Save PO Details.");
-                  }}
-                >Apply</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </DialogContent>
     </Dialog>
   );
