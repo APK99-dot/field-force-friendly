@@ -133,6 +133,7 @@ interface MilestoneCardProps {
 }
 
 function MilestoneCard({
+  siteId,
   m,
   childrenList,
   childrenByParent,
@@ -163,6 +164,53 @@ function MilestoneCard({
   const [deleting, setDeleting] = useState(false);
   const [riskReason, setRiskReason] = useState("");
   const [showRiskDialog, setShowRiskDialog] = useState(false);
+  const [inlineDraft, setInlineDraft] = useState<null | {
+    name: string;
+    start_date: string;
+    end_date: string;
+    status: string;
+  }>(null);
+  const [savingInline, setSavingInline] = useState(false);
+
+  const openInlineAdd = () => {
+    setExpanded(true);
+    setInlineDraft({
+      name: "",
+      start_date: m.start_date || new Date().toISOString().split("T")[0],
+      end_date: m.end_date || "",
+      status: "not_started",
+    });
+  };
+
+  const saveInline = async () => {
+    if (!inlineDraft) return;
+    const name = inlineDraft.name.trim();
+    if (!name) { toast.error("Name is required"); return; }
+    if (!inlineDraft.start_date) { toast.error("Start date is required"); return; }
+    if (!inlineDraft.end_date) { toast.error("End date is required"); return; }
+    if (inlineDraft.end_date < inlineDraft.start_date) { toast.error("End cannot be before Start"); return; }
+    setSavingInline(true);
+    try {
+      const { error } = await supabase.from("site_milestones").insert({
+        site_id: siteId,
+        parent_id: m.id,
+        name,
+        start_date: inlineDraft.start_date,
+        end_date: inlineDraft.end_date,
+        status: inlineDraft.status,
+        percent_complete: 0,
+        is_active: true,
+      });
+      if (error) throw error;
+      toast.success("Sub-milestone added");
+      setInlineDraft(null);
+      onChanged?.();
+    } catch (err: any) {
+      toast.error(err.message || "Could not add sub-milestone");
+    } finally {
+      setSavingInline(false);
+    }
+  };
 
   const collectDescendantIds = (id: string): string[] => {
     const kids = childrenByParent[id] || [];
