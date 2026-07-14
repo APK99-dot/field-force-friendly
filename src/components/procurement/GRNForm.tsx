@@ -196,13 +196,13 @@ export default function GRNForm({
 
       // Optional vendor feedback — save together with the GRN
       const anyRating = fbDelivery || fbQuality || fbQuantity || fbOverall;
-      if (anyRating && vendorId) {
+      if (anyRating && selectedVendorId) {
         if (!fbDelivery || !fbQuality || !fbQuantity || !fbOverall) {
           toast.warning("Skipped rating — please rate all four categories");
         } else {
           const { error: fe } = await supabase.from("procurement_vendor_feedback").insert({
             grn_id: grn.id,
-            vendor_id: vendorId,
+            vendor_id: selectedVendorId,
             po_id: poId,
             delivery_timeliness: fbDelivery,
             material_quality: fbQuality,
