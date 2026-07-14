@@ -347,7 +347,11 @@ export default function Procurement() {
       const itemRows = validLines.map((l) => {
         const rate = isTransfer ? 0 : (parseFloat(l.rate) || 0);
         const qty = parseFloat(l.qty) || 0;
-        return { procurement_id: orderId, product_id: l.product_id, rate, qty, amount: rate * qty, uom: l.uom || null };
+        return {
+          procurement_id: orderId, product_id: l.product_id, rate, qty, amount: rate * qty,
+          uom: l.uom || null,
+          vendor_ids: isTransfer ? [] : (l.vendor_ids || []),
+        };
       });
       const { error: itemErr } = await supabase.from("procurement_items").insert(itemRows);
       if (itemErr) throw itemErr;
