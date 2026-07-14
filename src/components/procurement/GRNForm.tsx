@@ -426,7 +426,7 @@ export default function GRNForm({
             )}
 
             {/* Vendor Feedback (optional) */}
-            {vendorId && cfgVendorRating && (
+            {selectedVendorId && cfgVendorRating && (
               <div className="rounded-lg border p-3 space-y-3">
                 <div className="flex items-center gap-2">
                   <Star className="h-4 w-4 text-amber-400" />
