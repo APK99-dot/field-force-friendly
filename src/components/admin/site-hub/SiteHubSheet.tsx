@@ -250,7 +250,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                     size="sm"
                     variant="secondary"
                     className="h-9"
-                    onClick={() => setShowAddMilestone(true)}
+                    onClick={openAddTopMilestone}
                   >
                     <Plus className="h-3.5 w-3.5 mr-1" /> Add Milestone
                   </Button>
