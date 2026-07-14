@@ -202,11 +202,11 @@ function MilestoneCard({
         is_active: true,
       });
       if (error) throw error;
-      toast.success("Sub-milestone added");
+      toast.success("Sub-task added");
       setInlineDraft(null);
       onChanged?.();
     } catch (err: any) {
-      toast.error(err.message || "Could not add sub-milestone");
+      toast.error(err.message || "Could not add sub-task");
     } finally {
       setSavingInline(false);
     }
@@ -229,7 +229,7 @@ function MilestoneCard({
       }
       const { error } = await supabase.from("site_milestones").delete().eq("id", m.id);
       if (error) throw error;
-      toast.success(ids.length ? "Milestone and sub-milestones deleted" : "Milestone deleted");
+      toast.success(ids.length ? "Milestone and sub-tasks deleted" : "Milestone deleted");
       setConfirmDelete(false);
       onChanged?.();
     } catch (err: any) {
@@ -444,7 +444,7 @@ function MilestoneCard({
             size="icon"
             variant="outline"
             className={cn("h-7 w-7 shrink-0", addChildAccent)}
-            title={depth === 0 ? "Add sub-milestone" : "Add nested sub-milestone"}
+            title={depth === 0 ? "Add sub-task" : "Add nested sub-task"}
             onClick={openInlineAdd}
           >
             <AddChildIcon className="h-3.5 w-3.5" />
@@ -477,7 +477,7 @@ function MilestoneCard({
         </span>
       </div>
       {hasChildren && (
-        <p className="text-[10px] text-muted-foreground -mt-1">Auto-calculated from sub-milestones</p>
+        <p className="text-[10px] text-muted-foreground -mt-1">Auto-calculated from sub-tasks</p>
       )}
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
@@ -566,7 +566,7 @@ function MilestoneCard({
                 <input
                   autoFocus
                   className="flex-1 min-w-0 h-8 rounded-md border bg-background px-2 text-sm"
-                  placeholder="Sub-milestone name"
+                  placeholder="Sub-task name"
                   value={inlineDraft.name}
                   onChange={(e) => setInlineDraft({ ...inlineDraft, name: e.target.value })}
                 />
@@ -667,7 +667,7 @@ function MilestoneCard({
             <AlertDialogTitle>Delete "{m.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
               {descendantCount > 0
-                ? `This will also permanently delete ${descendantCount} nested sub-milestone${descendantCount === 1 ? "" : "s"}. Activities linked to any of these milestones will lose the milestone link. This action cannot be undone.`
+                ? `This will also permanently delete ${descendantCount} nested sub-task${descendantCount === 1 ? "" : "s"}. Activities linked to any of these milestones will lose the milestone link. This action cannot be undone.`
                 : "This will permanently delete the milestone. Activities linked to it will lose the milestone link. This action cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -794,7 +794,7 @@ function TableView({
                 variant="ghost"
                 className={cn("h-6 w-6", accent)}
                 onClick={() => onAddSubMilestone(m.id, m.name)}
-                title={depth === 0 ? "Add sub-milestone" : "Add nested sub-milestone"}
+                title={depth === 0 ? "Add sub-task" : "Add nested sub-task"}
               >
                 <AddChildIcon className="h-3 w-3" />
               </Button>
