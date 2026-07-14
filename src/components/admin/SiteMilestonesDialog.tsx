@@ -44,6 +44,8 @@ export interface MilestoneRow {
   status: string;
   notes: string | null;
   is_active: boolean;
+  at_risk: boolean;
+  parent_id: string | null;
 }
 
 export const MILESTONE_STATUSES: { value: string; label: string }[] = [
@@ -76,6 +78,8 @@ interface FormState {
   status: string;
   notes: string;
   is_active: boolean;
+  at_risk: boolean;
+  parent_id: string;
 }
 
 const emptyForm: FormState = {
@@ -88,6 +92,8 @@ const emptyForm: FormState = {
   status: "not_started",
   notes: "",
   is_active: true,
+  at_risk: false,
+  parent_id: "",
 };
 
 interface Props {
