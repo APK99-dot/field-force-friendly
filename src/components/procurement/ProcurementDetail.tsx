@@ -681,22 +681,52 @@ export default function ProcurementDetail({
               ) : (
                 <>
                   <div>
-                    <Label className="text-xs">Vendor(s)</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs">Vendor(s)</Label>
+                      {poUnlocked && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => {
+                          setAddVendorId("");
+                          setAddVendorScope("all");
+                          setAddVendorLineIds(rateLines.map((l) => l.id));
+                          setAddVendorOpen(true);
+                        }}>
+                          <Plus className="h-3 w-3 mr-1" /> Add Vendor
+                        </Button>
+                      )}
+                    </div>
                     <p className="text-sm font-medium">
                       {derivedVendorIds.length === 0
-                        ? <span className="text-muted-foreground font-normal">None assigned yet — assign vendors per line item below.</span>
+                        ? <span className="text-muted-foreground font-normal">None assigned yet — use "Add Vendor" or assign per line item below.</span>
                         : derivedVendorIds.map((id) => vendorName(id)).join(", ")}
                     </p>
                   </div>
-
-
 
                   <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
                   {order.po_number && <div className="text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}
                   {order.expected_delivery_date && <div className="text-muted-foreground">Expected Delivery: {order.expected_delivery_date}</div>}
                   {order.payment_terms && <div className="text-muted-foreground">Payment Terms: {order.payment_terms}</div>}
-                  {order.bill_to && <div className="text-muted-foreground">Bill To: <span className="whitespace-pre-wrap">{order.bill_to}</span>{order.bill_to_gst && <span className="block">GST: {order.bill_to_gst}</span>}</div>}
-                  {order.ship_to && <div className="text-muted-foreground">Ship To: <span className="whitespace-pre-wrap">{order.ship_to}</span>{order.ship_to_gst && <span className="block">GST: {order.ship_to_gst}</span>}</div>}
+                  {(order.bill_to || order.ship_to) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t mt-2">
+                      <div className="text-muted-foreground">
+                        <div className="text-xs font-semibold text-foreground mb-1">Bill To</div>
+                        {order.bill_to ? (
+                          <>
+                            <span className="whitespace-pre-wrap">{order.bill_to}</span>
+                            {order.bill_to_gst && <span className="block">GST: {order.bill_to_gst}</span>}
+                          </>
+                        ) : <span className="italic">—</span>}
+                      </div>
+                      <div className="text-muted-foreground">
+                        <div className="text-xs font-semibold text-foreground mb-1">Ship To</div>
+                        {order.ship_to ? (
+                          <>
+                            <span className="whitespace-pre-wrap">{order.ship_to}</span>
+                            {order.ship_to_gst && <span className="block">GST: {order.ship_to_gst}</span>}
+                          </>
+                        ) : <span className="italic">—</span>}
+                      </div>
+                    </div>
+                  )}
                   {order.requisition_notes && <div className="text-muted-foreground">Reason: <span className="whitespace-pre-wrap">{order.requisition_notes}</span></div>}
 
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t mt-2">
