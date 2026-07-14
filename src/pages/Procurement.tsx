@@ -255,6 +255,7 @@ export default function Procurement() {
       id: it.id, product_id: it.product_id || "",
       category_id: products.find((p) => p.id === it.product_id)?.category_id || "",
       rate: String(it.rate ?? ""), qty: String(it.qty ?? ""), uom: it.uom || "",
+      vendor_ids: Array.isArray(it.vendor_ids) ? it.vendor_ids : [],
     }));
     setLines(items.length ? items : [{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
     setIsFormOpen(true);
