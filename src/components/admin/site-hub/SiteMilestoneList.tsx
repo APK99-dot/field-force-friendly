@@ -849,7 +849,7 @@ function TableView({
   );
 }
 
-export default function SiteMilestoneList({ siteId, milestones, activities = [], onChanged, onAddSubMilestone, onEditMilestone }: Props) {
+export default function SiteMilestoneList({ siteId, milestones, activities = [], onChanged, onAddSubMilestone, onEditMilestone, onOpenActivity }: Props) {
   const { user } = useCurrentUser();
   const [comments, setComments] = useState<Comment[]>([]);
   const [view, setView] = useState<"card" | "table">("card");
