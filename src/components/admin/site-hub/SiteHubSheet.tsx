@@ -386,7 +386,8 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
         <DialogContent className="sm:max-w-[520px] max-h-[88vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" /> Add Milestone
+              <Target className="h-5 w-5" />
+              {msForm.parent_id ? `Add Sub-Milestone${subParentName ? ` — under ${subParentName}` : ""}` : "Add Milestone"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 overflow-y-auto max-h-[70vh] pr-1">
