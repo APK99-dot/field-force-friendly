@@ -20,6 +20,10 @@ interface Props {
   productName: (id: string | null) => string;
   createdBy?: string;
   onSaved: () => void;
+  /** Vendors assigned across this PO's line items — enables per-vendor invoice */
+  poVendors?: { id: string; name: string }[];
+  /** Map procurement_item_id -> vendor_ids assigned to that line */
+  itemVendorMap?: Record<string, string[]>;
 }
 
 interface AttachedFile {
@@ -53,6 +57,7 @@ const newPayment = (): PaymentLine => ({
 
 export default function InvoiceForm({
   open, onOpenChange, poId, poNumber, vendorNameStr, items, productName, createdBy, onSaved,
+  poVendors, itemVendorMap,
 }: Props) {
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
@@ -60,11 +65,19 @@ export default function InvoiceForm({
   const [uploading, setUploading] = useState(false);
   const [payments, setPayments] = useState<PaymentLine[]>([newPayment()]);
   const [saving, setSaving] = useState(false);
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(
+    poVendors && poVendors.length === 1 ? poVendors[0].id : null,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const visibleItems = useMemo(() => {
+    if (!selectedVendorId || !itemVendorMap) return items;
+    return items.filter((it) => (itemVendorMap[it.id] || []).includes(selectedVendorId));
+  }, [items, selectedVendorId, itemVendorMap]);
+
   const amount = useMemo(
-    () => items.reduce((s, it) => s + it.rate * it.qty, 0),
-    [items]
+    () => visibleItems.reduce((s, it) => s + it.rate * it.qty, 0),
+    [visibleItems]
   );
 
   const totalPaid = useMemo(
