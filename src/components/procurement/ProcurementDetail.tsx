@@ -179,7 +179,14 @@ export default function ProcurementDetail({
   const [vendors, setVendors] = useState<{ id: string; name: string; phone: string | null; contact_person: string | null; email: string | null }[]>([]);
   const [vendorQuotes, setVendorQuotes] = useState<VendorQuoteRow[]>([]);
   const [genLinks, setGenLinks] = useState(false);
-  // Bulk invite state: which line items + which vendors to invite in one action
+  // Add-vendor bulk assignment dialog
+  const [addVendorOpen, setAddVendorOpen] = useState(false);
+  const [addVendorId, setAddVendorId] = useState<string>("");
+  const [addVendorScope, setAddVendorScope] = useState<"all" | "specific">("all");
+  const [addVendorLineIds, setAddVendorLineIds] = useState<string[]>([]);
+  // Vendor picker for GRN / Invoice creation (which vendor is this receipt / bill for?)
+  const [grnVendorId, setGrnVendorId] = useState<string | null>(null);
+  const [invVendorId, setInvVendorId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
