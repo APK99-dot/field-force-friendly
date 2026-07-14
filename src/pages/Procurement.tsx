@@ -308,11 +308,13 @@ export default function Procurement() {
     try {
       const billAddr = !isTransfer && form.bill_to_id ? findAddr(form.bill_to_id) : null;
       const shipAddr = !isTransfer && form.ship_to_id ? findAddr(form.ship_to_id) : null;
+      // Derive PO-level vendor list from the per-line vendor assignments
+      const derivedVendorIds = Array.from(new Set(validLines.flatMap((l) => l.vendor_ids || [])));
       const orderPayload = {
         source_type: form.source_type,
         order_date: form.order_date,
-        vendor_id: isTransfer ? null : (form.vendor_ids[0] || null),
-        vendor_ids: isTransfer ? null : (form.vendor_ids.length ? form.vendor_ids : null),
+        vendor_id: isTransfer ? null : (derivedVendorIds[0] || null),
+        vendor_ids: isTransfer ? null : (derivedVendorIds.length ? derivedVendorIds : null),
         site_id: form.site_id || null,
         transfer_from_site_id: isTransfer ? (form.transfer_from_site_id || null) : null,
         status: form.status,
