@@ -20,10 +20,21 @@ import {
   Send,
   Trash2,
   Plus,
+  Pencil,
   User,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { MILESTONE_STATUSES, milestoneStatusLabel } from "@/components/admin/SiteMilestonesDialog";
@@ -59,6 +70,7 @@ interface Props {
   activities?: Activity[];
   onChanged?: () => void;
   onAddSubMilestone?: (parentId: string, parentName: string) => void;
+  onEditMilestone?: (m: HubMilestone) => void;
 }
 
 interface MilestoneCardProps {
@@ -73,6 +85,7 @@ interface MilestoneCardProps {
   onChanged?: () => void;
   currentUserId?: string;
   onAddSubMilestone?: (parentId: string, parentName: string) => void;
+  onEditMilestone?: (m: HubMilestone) => void;
   isChild?: boolean;
 }
 
@@ -110,6 +123,7 @@ function MilestoneCard({
   onChanged,
   currentUserId,
   onAddSubMilestone,
+  onEditMilestone,
   isChild,
 }: MilestoneCardProps) {
   const hasChildren = children.length > 0;
@@ -122,6 +136,30 @@ function MilestoneCard({
   const [expanded, setExpanded] = useState(true);
   const [newComment, setNewComment] = useState("");
   const [postingComment, setPostingComment] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      if (hasChildren) {
+        const childIds = children.map((c) => c.id);
+        const { error: cErr } = await supabase.from("site_milestones").delete().in("id", childIds);
+        if (cErr) throw cErr;
+      }
+      const { error } = await supabase.from("site_milestones").delete().eq("id", m.id);
+      if (error) throw error;
+      toast.success(hasChildren ? "Milestone and sub-milestones deleted" : "Milestone deleted");
+      setConfirmDelete(false);
+      onChanged?.();
+    } catch (err: any) {
+      toast.error(err.message || "Could not delete milestone");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+
 
   // If children exist, derived progress = avg; slider disabled
   useEffect(() => {
@@ -272,6 +310,26 @@ function MilestoneCard({
           >
             <AlertTriangle className="h-3.5 w-3.5" />
           </Button>
+          {onEditMilestone && (
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-7 w-7"
+              title="Edit milestone"
+              onClick={() => onEditMilestone(m)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          <Button
+            size="icon"
+            variant="outline"
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            title="Delete milestone"
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
 
@@ -373,6 +431,7 @@ function MilestoneCard({
               onCommentAdded={onCommentAdded}
               onChanged={onChanged}
               currentUserId={currentUserId}
+              onEditMilestone={onEditMilestone}
               isChild
             />
           ))}
@@ -431,11 +490,35 @@ function MilestoneCard({
           </div>
         </div>
       )}
+
+      <AlertDialog open={confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{m.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {hasChildren
+                ? `This will also permanently delete ${children.length} sub-milestone${children.length === 1 ? "" : "s"}. Activities linked to any of these milestones will lose the milestone link. This action cannot be undone.`
+                : "This will permanently delete the milestone. Activities linked to it will lose the milestone link. This action cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-export default function SiteMilestoneList({ milestones, activities = [], onChanged, onAddSubMilestone }: Props) {
+export default function SiteMilestoneList({ milestones, activities = [], onChanged, onAddSubMilestone, onEditMilestone }: Props) {
   const { user } = useCurrentUser();
   const [comments, setComments] = useState<Comment[]>([]);
 
@@ -553,6 +636,7 @@ export default function SiteMilestoneList({ milestones, activities = [], onChang
               onChanged={onChanged}
               currentUserId={user?.id}
               onAddSubMilestone={onAddSubMilestone}
+              onEditMilestone={onEditMilestone}
             />
           ))}
         </div>
