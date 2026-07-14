@@ -20,10 +20,21 @@ import {
   Send,
   Trash2,
   Plus,
+  Pencil,
   User,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { MILESTONE_STATUSES, milestoneStatusLabel } from "@/components/admin/SiteMilestonesDialog";
