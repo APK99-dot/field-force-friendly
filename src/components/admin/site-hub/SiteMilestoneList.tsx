@@ -545,11 +545,14 @@ export default function SiteMilestoneList({ milestones, activities = [], onChang
               m={m}
               children={childrenByParent[m.id] || []}
               linked={activityCount[m.id] || 0}
+              linkedActivities={activitiesById[m.id] || []}
               linkedByChild={activityCount}
+              activityCountForChild={activitiesById}
               comments={comments}
               onCommentAdded={fetchComments}
               onChanged={onChanged}
               currentUserId={user?.id}
+              onAddSubMilestone={onAddSubMilestone}
             />
           ))}
         </div>
