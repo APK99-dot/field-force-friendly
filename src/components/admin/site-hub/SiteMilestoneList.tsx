@@ -58,17 +58,22 @@ interface Props {
   milestones: HubMilestone[];
   activities?: Activity[];
   onChanged?: () => void;
+  onAddSubMilestone?: (parentId: string, parentName: string) => void;
 }
 
 interface MilestoneCardProps {
   m: HubMilestone;
   children: HubMilestone[];
   linked: number;
+  linkedActivities: Activity[];
   linkedByChild: Record<string, number>;
+  activityCountForChild: Record<string, Activity[]>;
   comments: Comment[];
   onCommentAdded: () => void;
   onChanged?: () => void;
   currentUserId?: string;
+  onAddSubMilestone?: (parentId: string, parentName: string) => void;
+  isChild?: boolean;
 }
 
 async function saveMilestoneProgress(id: string, pct: number, currentStatus?: string | null) {
