@@ -40,10 +40,15 @@ interface Props {
   productName: (id: string | null) => string;
   createdBy?: string;
   onSaved: () => void;
+  /** Vendors assigned across this PO's line items — enables per-vendor GRN */
+  poVendors?: { id: string; name: string }[];
+  /** Map procurement_item_id -> vendor_ids assigned to that line */
+  itemVendorMap?: Record<string, string[]>;
 }
 
 export default function GRNForm({
   open, onOpenChange, poId, poNumber, vendorId, sourceType, transferFromSiteName, items, alreadyReceived, productName, createdBy, onSaved,
+  poVendors, itemVendorMap,
 }: Props) {
   const isTransfer = sourceType === "internal_transfer";
   const queryClient = useQueryClient();
