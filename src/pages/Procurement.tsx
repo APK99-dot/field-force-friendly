@@ -115,7 +115,7 @@ export default function Procurement() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<DetailOrder | null>(null);
   const [form, setForm] = useState(emptyForm);
-  const [lines, setLines] = useState<LineItem[]>([{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
+  const [lines, setLines] = useState<LineItem[]>([{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailOrder | null>(null);
@@ -232,7 +232,7 @@ export default function Procurement() {
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm);
-    setLines([{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
+    setLines([{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
     setIsFormOpen(true);
   };
 
@@ -256,7 +256,7 @@ export default function Procurement() {
       category_id: products.find((p) => p.id === it.product_id)?.category_id || "",
       rate: String(it.rate ?? ""), qty: String(it.qty ?? ""), uom: it.uom || "",
     }));
-    setLines(items.length ? items : [{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
+    setLines(items.length ? items : [{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
     setIsFormOpen(true);
   };
 
@@ -276,9 +276,9 @@ export default function Procurement() {
       return { ...l, category_id: categoryId, product_id: keepProduct ? l.product_id : "" };
     }));
   };
-  const addLine = () => setLines((prev) => [...prev, { product_id: "", category_id: "", rate: "", qty: "", uom: "" }]);
+  const addLine = () => setLines((prev) => [...prev, { product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
   const removeLine = (i: number) =>
-    setLines((prev) => (prev.length <= 1 ? [{ product_id: "", category_id: "", rate: "", qty: "", uom: "" }] : prev.filter((_, idx) => idx !== i)));
+    setLines((prev) => (prev.length <= 1 ? [{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }] : prev.filter((_, idx) => idx !== i)));
 
   // Persist the in-progress requisition and jump to a master screen to add a new
   // Product/Category, then return to this exact form (see restore effect on mount).
