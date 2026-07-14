@@ -147,6 +147,7 @@ function MilestoneCard({
   currentUserId,
   onAddSubMilestone,
   onEditMilestone,
+  onOpenActivity,
   depth,
   ancestorPath,
 }: MilestoneCardProps) {
