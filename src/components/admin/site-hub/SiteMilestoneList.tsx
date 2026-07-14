@@ -490,6 +490,30 @@ function MilestoneCard({
           </div>
         </div>
       )}
+
+      <AlertDialog open={confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{m.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {hasChildren
+                ? `This will also permanently delete ${children.length} sub-milestone${children.length === 1 ? "" : "s"}. Activities linked to any of these milestones will lose the milestone link. This action cannot be undone.`
+                : "This will permanently delete the milestone. Activities linked to it will lose the milestone link. This action cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
