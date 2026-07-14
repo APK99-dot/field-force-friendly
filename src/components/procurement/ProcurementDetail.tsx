@@ -179,8 +179,9 @@ export default function ProcurementDetail({
   const [vendors, setVendors] = useState<{ id: string; name: string; phone: string | null; contact_person: string | null; email: string | null }[]>([]);
   const [vendorQuotes, setVendorQuotes] = useState<VendorQuoteRow[]>([]);
   const [genLinks, setGenLinks] = useState(false);
-  // Add-vendor bulk assignment dialog
-  const [addVendorOpen, setAddVendorOpen] = useState(false);
+  // Inline Add Vendor panel (rendered at top of Line Items card)
+  const lineItemsRef = useRef<HTMLDivElement>(null);
+  const [showAddVendor, setShowAddVendor] = useState(false);
   const [addVendorId, setAddVendorId] = useState<string>("");
   const [addVendorScope, setAddVendorScope] = useState<"all" | "specific">("all");
   const [addVendorLineIds, setAddVendorLineIds] = useState<string[]>([]);
