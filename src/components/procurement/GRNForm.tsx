@@ -262,6 +262,23 @@ export default function GRNForm({
                   <Label className="text-xs font-medium">Transferred From Site</Label>
                   <Input value={transferFromSiteName || "—"} readOnly disabled className="h-9 bg-background" />
                 </div>
+              {!isTransfer && poVendors && poVendors.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Vendor (receipt from)</Label>
+                  <select
+                    className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                    value={selectedVendorId || ""}
+                    onChange={(e) => setSelectedVendorId(e.target.value || null)}
+                  >
+                    <option value="">— Select vendor —</option>
+                    {poVendors.map((v) => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </select>
+                  {selectedVendorId && itemVendorMap && (
+                    <p className="text-[11px] text-muted-foreground">Showing only line items assigned to this vendor ({visibleItems.length} of {items.length}).</p>
+                  )}
+                </div>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
