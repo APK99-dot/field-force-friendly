@@ -178,6 +178,8 @@ export default function SiteMilestonesDialog({ siteId, siteName, open, onOpenCha
         status: form.status,
         notes: form.notes.trim() || null,
         is_active: form.is_active,
+        at_risk: form.at_risk,
+        parent_id: form.parent_id || null,
       };
       if (editing) {
         const { error } = await supabase.from("site_milestones").update(payload).eq("id", editing.id);
