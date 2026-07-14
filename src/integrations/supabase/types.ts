@@ -2906,6 +2906,7 @@ export type Database = {
           remarks: string | null
           status: string
           updated_at: string
+          vendor_id: string | null
         }
         Insert: {
           created_at?: string
@@ -2919,6 +2920,7 @@ export type Database = {
           remarks?: string | null
           status?: string
           updated_at?: string
+          vendor_id?: string | null
         }
         Update: {
           created_at?: string
@@ -2932,6 +2934,7 @@ export type Database = {
           remarks?: string | null
           status?: string
           updated_at?: string
+          vendor_id?: string | null
         }
         Relationships: [
           {
@@ -2939,6 +2942,13 @@ export type Database = {
             columns: ["po_id"]
             isOneToOne: false
             referencedRelation: "procurement_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_grns_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
             referencedColumns: ["id"]
           },
         ]
@@ -3077,6 +3087,7 @@ export type Database = {
           invoice_number: string | null
           po_id: string
           updated_at: string
+          vendor_id: string | null
         }
         Insert: {
           created_at?: string
@@ -3087,6 +3098,7 @@ export type Database = {
           invoice_number?: string | null
           po_id: string
           updated_at?: string
+          vendor_id?: string | null
         }
         Update: {
           created_at?: string
@@ -3097,6 +3109,7 @@ export type Database = {
           invoice_number?: string | null
           po_id?: string
           updated_at?: string
+          vendor_id?: string | null
         }
         Relationships: [
           {
@@ -3104,6 +3117,13 @@ export type Database = {
             columns: ["po_id"]
             isOneToOne: false
             referencedRelation: "procurement_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_invoices_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
             referencedColumns: ["id"]
           },
         ]
