@@ -164,6 +164,7 @@ export default function ProcurementDetail({
   const [grnItems, setGrnItems] = useState<GrnItemRow[]>([]);
   const [invoices, setInvoices] = useState<InvRow[]>([]);
   const [invItems, setInvItems] = useState<InvItemRow[]>([]);
+  const [invPayments, setInvPayments] = useState<InvPaymentRow[]>([]);
   const [grnOpen, setGrnOpen] = useState(false);
   const [invOpen, setInvOpen] = useState(false);
   const [busy, setBusy] = useState(false);
