@@ -940,6 +940,44 @@ export default function ProcurementDetail({
 
           </Card>
 
+          {/* Per-vendor financial summary (vendor POs only) */}
+          {!isTransfer && vendorSummaries.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Vendor Financial Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {vendorSummaries.map((v) => (
+                  <div key={v.vendor_id} className="rounded border p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{v.vendor_name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        Order: <span className="font-medium text-foreground">{fmtAmt(v.line_amount)}</span>
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-[11px]">
+                      <div><span className="text-muted-foreground">Invoiced: </span><span className="font-medium">{fmtAmt(v.invoiced_total)}</span></div>
+                      <div><span className="text-muted-foreground">Paid: </span><span className="font-medium">{fmtAmt(v.paid_total)}</span></div>
+                      <div><span className="text-muted-foreground">Balance Due: </span>
+                        <span className={`font-semibold ${v.balance_due > 0.005 ? "text-red-600" : "text-green-600"}`}>{fmtAmt(v.balance_due)}</span>
+                      </div>
+                    </div>
+                    {v.payments.length > 0 && (
+                      <div className="pt-1 border-t space-y-0.5">
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Payment Schedule</div>
+                        {v.payments.map((p, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-[11px]">
+                            <span>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</span>
+                            <span className="font-medium">{fmtAmt(p.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {/* GRN list */}
           <Card>
@@ -954,7 +992,11 @@ export default function ProcurementDetail({
                 <div key={g.id} className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5">
                   <div>
                     <div className="font-medium">{g.grn_number}</div>
-                    <div className="text-[11px] text-muted-foreground">{g.receipt_date}{g.received_by ? ` · ${g.received_by}` : ""}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {g.receipt_date}
+                      {g.received_by ? ` · ${g.received_by}` : ""}
+                      {g.vendor_id ? ` · ${vendorName(g.vendor_id)}` : ""}
+                    </div>
                   </div>
                   <Badge variant="outline" className={`text-[10px] ${statusColor(g.status)}`}>{g.status}</Badge>
                 </div>
@@ -976,7 +1018,10 @@ export default function ProcurementDetail({
                 <div key={i.id} className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5">
                   <div>
                     <div className="font-medium">{i.invoice_number}</div>
-                    <div className="text-[11px] text-muted-foreground">{i.invoice_date}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {i.invoice_date}
+                      {i.vendor_id ? ` · ${vendorName(i.vendor_id)}` : ""}
+                    </div>
                   </div>
                   <div className="font-medium">{fmtAmt(i.invoice_amount)}</div>
                 </div>
