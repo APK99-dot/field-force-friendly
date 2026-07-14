@@ -129,6 +129,7 @@ interface MilestoneCardProps {
   currentUserId?: string;
   onAddSubMilestone?: (parentId: string, parentName: string) => void;
   onEditMilestone?: (m: HubMilestone) => void;
+  onOpenActivity?: (a: Activity) => void;
   depth: number;
   ancestorPath: string[];
 }
