@@ -77,6 +77,7 @@ interface Comment {
 }
 
 interface Props {
+  siteId: string;
   milestones: HubMilestone[];
   activities?: Activity[];
   onChanged?: () => void;
