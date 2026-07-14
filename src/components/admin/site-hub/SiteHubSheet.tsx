@@ -411,7 +411,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showAddMilestone} onOpenChange={setShowAddMilestone}>
+      <Dialog open={showAddMilestone} onOpenChange={(o) => { setShowAddMilestone(o); if (!o) setEditingMilestoneId(null); }}>
         <DialogContent className="sm:max-w-[520px] max-h-[88vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
