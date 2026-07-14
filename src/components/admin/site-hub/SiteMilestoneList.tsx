@@ -440,17 +440,15 @@ function MilestoneCard({
               <Pencil className="h-3.5 w-3.5" />
             </Button>
           )}
-          {onAddSubMilestone && (
-            <Button
-              size="icon"
-              variant="outline"
-              className={cn("h-7 w-7 shrink-0", addChildAccent)}
-              title={depth === 0 ? "Add sub-milestone" : "Add nested sub-milestone"}
-              onClick={() => onAddSubMilestone(m.id, m.name)}
-            >
-              <AddChildIcon className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          <Button
+            size="icon"
+            variant="outline"
+            className={cn("h-7 w-7 shrink-0", addChildAccent)}
+            title={depth === 0 ? "Add sub-milestone" : "Add nested sub-milestone"}
+            onClick={openInlineAdd}
+          >
+            <AddChildIcon className="h-3.5 w-3.5" />
+          </Button>
           <Button
             size="icon"
             variant="outline"
