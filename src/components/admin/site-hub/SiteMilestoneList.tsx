@@ -77,6 +77,7 @@ interface Comment {
 }
 
 interface Props {
+  siteId: string;
   milestones: HubMilestone[];
   activities?: Activity[];
   onChanged?: () => void;
@@ -115,6 +116,7 @@ const DEPTH_ACCENTS = [
 ];
 
 interface MilestoneCardProps {
+  siteId: string;
   m: HubMilestone;
   childrenList: HubMilestone[];
   childrenByParent: Record<string, HubMilestone[]>;
@@ -131,6 +133,7 @@ interface MilestoneCardProps {
 }
 
 function MilestoneCard({
+  siteId,
   m,
   childrenList,
   childrenByParent,
@@ -161,6 +164,53 @@ function MilestoneCard({
   const [deleting, setDeleting] = useState(false);
   const [riskReason, setRiskReason] = useState("");
   const [showRiskDialog, setShowRiskDialog] = useState(false);
+  const [inlineDraft, setInlineDraft] = useState<null | {
+    name: string;
+    start_date: string;
+    end_date: string;
+    status: string;
+  }>(null);
+  const [savingInline, setSavingInline] = useState(false);
+
+  const openInlineAdd = () => {
+    setExpanded(true);
+    setInlineDraft({
+      name: "",
+      start_date: m.start_date || new Date().toISOString().split("T")[0],
+      end_date: m.end_date || "",
+      status: "not_started",
+    });
+  };
+
+  const saveInline = async () => {
+    if (!inlineDraft) return;
+    const name = inlineDraft.name.trim();
+    if (!name) { toast.error("Name is required"); return; }
+    if (!inlineDraft.start_date) { toast.error("Start date is required"); return; }
+    if (!inlineDraft.end_date) { toast.error("End date is required"); return; }
+    if (inlineDraft.end_date < inlineDraft.start_date) { toast.error("End cannot be before Start"); return; }
+    setSavingInline(true);
+    try {
+      const { error } = await supabase.from("site_milestones").insert({
+        site_id: siteId,
+        parent_id: m.id,
+        name,
+        start_date: inlineDraft.start_date,
+        end_date: inlineDraft.end_date,
+        status: inlineDraft.status,
+        percent_complete: 0,
+        is_active: true,
+      });
+      if (error) throw error;
+      toast.success("Sub-milestone added");
+      setInlineDraft(null);
+      onChanged?.();
+    } catch (err: any) {
+      toast.error(err.message || "Could not add sub-milestone");
+    } finally {
+      setSavingInline(false);
+    }
+  };
 
   const collectDescendantIds = (id: string): string[] => {
     const kids = childrenByParent[id] || [];
@@ -390,17 +440,15 @@ function MilestoneCard({
               <Pencil className="h-3.5 w-3.5" />
             </Button>
           )}
-          {onAddSubMilestone && (
-            <Button
-              size="icon"
-              variant="outline"
-              className={cn("h-7 w-7 shrink-0", addChildAccent)}
-              title={depth === 0 ? "Add sub-milestone" : "Add nested sub-milestone"}
-              onClick={() => onAddSubMilestone(m.id, m.name)}
-            >
-              <AddChildIcon className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          <Button
+            size="icon"
+            variant="outline"
+            className={cn("h-7 w-7 shrink-0", addChildAccent)}
+            title={depth === 0 ? "Add sub-milestone" : "Add nested sub-milestone"}
+            onClick={openInlineAdd}
+          >
+            <AddChildIcon className="h-3.5 w-3.5" />
+          </Button>
           <Button
             size="icon"
             variant="outline"
@@ -483,7 +531,7 @@ function MilestoneCard({
 
       {m.notes && <p className="text-[11px] text-muted-foreground border-t pt-1.5">{m.notes}</p>}
 
-      {hasChildren && expanded && (
+      {(hasChildren || inlineDraft) && expanded && (
         <div
           className={cn(
             "mt-3 space-y-2 pl-4 border-l-2",
@@ -496,6 +544,7 @@ function MilestoneCard({
           {childrenList.map((c) => (
             <MilestoneCard
               key={c.id}
+              siteId={siteId}
               m={c}
               childrenList={childrenByParent[c.id] || []}
               childrenByParent={childrenByParent}
@@ -511,6 +560,53 @@ function MilestoneCard({
               ancestorPath={[...ancestorPath, m.name]}
             />
           ))}
+          {inlineDraft && (
+            <div className="rounded-lg border border-dashed bg-muted/30 p-2.5">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  autoFocus
+                  className="flex-1 min-w-0 h-8 rounded-md border bg-background px-2 text-sm"
+                  placeholder="Sub-milestone name"
+                  value={inlineDraft.name}
+                  onChange={(e) => setInlineDraft({ ...inlineDraft, name: e.target.value })}
+                />
+                <input
+                  type="date"
+                  className="h-8 rounded-md border bg-background px-2 text-xs"
+                  value={inlineDraft.start_date}
+                  onChange={(e) => setInlineDraft({ ...inlineDraft, start_date: e.target.value })}
+                />
+                <input
+                  type="date"
+                  className="h-8 rounded-md border bg-background px-2 text-xs"
+                  value={inlineDraft.end_date}
+                  min={inlineDraft.start_date || undefined}
+                  onChange={(e) => setInlineDraft({ ...inlineDraft, end_date: e.target.value })}
+                />
+                <Select
+                  value={inlineDraft.status}
+                  onValueChange={(v) => setInlineDraft({ ...inlineDraft, status: v })}
+                >
+                  <SelectTrigger className="h-8 w-full sm:w-[130px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MILESTONE_STATUSES.map((s) => (
+                      <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-1.5 sm:shrink-0">
+                  <Button size="sm" className="h-8 px-3" onClick={saveInline} disabled={savingInline}>
+                    {savingInline ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setInlineDraft(null)} disabled={savingInline}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -737,7 +833,7 @@ function TableView({
   );
 }
 
-export default function SiteMilestoneList({ milestones, activities = [], onChanged, onAddSubMilestone, onEditMilestone }: Props) {
+export default function SiteMilestoneList({ siteId, milestones, activities = [], onChanged, onAddSubMilestone, onEditMilestone }: Props) {
   const { user } = useCurrentUser();
   const [comments, setComments] = useState<Comment[]>([]);
   const [view, setView] = useState<"card" | "table">("card");
@@ -870,6 +966,7 @@ export default function SiteMilestoneList({ milestones, activities = [], onChang
           {parents.map((m) => (
             <MilestoneCard
               key={m.id}
+              siteId={siteId}
               m={m}
               childrenList={childrenByParent[m.id] || []}
               childrenByParent={childrenByParent}
