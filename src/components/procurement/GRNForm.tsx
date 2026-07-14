@@ -65,6 +65,13 @@ export default function GRNForm({
   const [statusManuallySet, setStatusManuallySet] = useState(false);
   const [recv, setRecv] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(
+    vendorId || (poVendors && poVendors.length === 1 ? poVendors[0].id : null),
+  );
+  const visibleItems = useMemo(() => {
+    if (!selectedVendorId || !itemVendorMap) return items;
+    return items.filter((it) => (itemVendorMap[it.id] || []).includes(selectedVendorId));
+  }, [items, selectedVendorId, itemVendorMap]);
   const [photos, setPhotos] = useState<{ path: string; preview: string }[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   // vendor feedback (optional)
