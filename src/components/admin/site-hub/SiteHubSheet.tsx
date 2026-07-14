@@ -165,10 +165,12 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
         percent_complete: pct,
         status: msForm.status || (pct >= 100 ? "completed" : pct > 0 ? "in_progress" : "not_started"),
         is_active: msForm.is_active,
+        parent_id: msForm.parent_id || null,
       });
       if (error) throw error;
-      toast.success("Milestone added");
+      toast.success(msForm.parent_id ? "Sub-milestone added" : "Milestone added");
       setShowAddMilestone(false);
+      setSubParentName("");
       setMsForm({
         name: "",
         start_date: new Date().toISOString().split("T")[0],
@@ -179,6 +181,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
         percent_complete: 0,
         status: "not_started",
         is_active: true,
+        parent_id: "",
       });
       reload();
     } catch (err: any) {
