@@ -222,6 +222,37 @@ export default function ProcurementDetail({
     return [...s];
   }, [rateLines]);
 
+  // Map procurement_item_id -> vendor_ids currently assigned to that line
+  const itemVendorMap = useMemo(() => {
+    const m: Record<string, string[]> = {};
+    rateLines.forEach((l) => { m[l.id] = [...(l.vendor_ids || [])]; });
+    return m;
+  }, [rateLines]);
+
+  // Per-vendor financial summary: line-item totals, invoice totals, payments, balance
+  const vendorSummaries = useMemo(() => {
+    return derivedVendorIds.map((vid) => {
+      const lineAmount = rateLines
+        .filter((l) => (l.vendor_ids || []).includes(vid))
+        .reduce((s, l) => s + (parseFloat(l.rate) || 0) * (l.qty || 0), 0);
+      const vInvoices = invoices.filter((i) => i.vendor_id === vid);
+      const invoicedTotal = vInvoices.reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
+      const invoiceIds = new Set(vInvoices.map((i) => i.id));
+      const vPayments = invPayments.filter((p) => invoiceIds.has(p.invoice_id));
+      const paidTotal = vPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+      return {
+        vendor_id: vid,
+        vendor_name: vendorName(vid),
+        line_amount: lineAmount,
+        invoiced_total: invoicedTotal,
+        paid_total: paidTotal,
+        balance_due: invoicedTotal - paidTotal,
+        payments: vPayments,
+        invoices: vInvoices,
+      };
+    });
+  }, [derivedVendorIds, rateLines, invoices, invPayments, vendorName]);
+
   const savePoDetails = async () => {
     setPoSaving(true);
     try {
