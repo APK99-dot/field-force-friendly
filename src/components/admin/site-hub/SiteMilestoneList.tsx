@@ -19,6 +19,8 @@ import {
   MessageSquare,
   Send,
   Trash2,
+  Plus,
+  User,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
