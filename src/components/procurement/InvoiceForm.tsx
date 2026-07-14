@@ -125,12 +125,13 @@ export default function InvoiceForm({
           invoice_date: invoiceDate,
           invoice_amount: amount,
           created_by: createdBy,
+          vendor_id: selectedVendorId,
         })
         .select("id")
         .single();
       if (error) throw error;
 
-      const itemRows = items.map((it) => ({
+      const itemRows = visibleItems.map((it) => ({
         invoice_id: inv.id,
         procurement_item_id: it.id,
         product_id: it.product_id,
