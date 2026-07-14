@@ -459,8 +459,12 @@ export default function SiteMilestoneList({ milestones, activities = [], onChang
   const atRiskMs = milestones.filter((m) => m.at_risk).length;
 
   const activityCount: Record<string, number> = {};
+  const activitiesById: Record<string, Activity[]> = {};
   activities.forEach((a) => {
-    if (a.milestone_id) activityCount[a.milestone_id] = (activityCount[a.milestone_id] || 0) + 1;
+    if (a.milestone_id) {
+      activityCount[a.milestone_id] = (activityCount[a.milestone_id] || 0) + 1;
+      (activitiesById[a.milestone_id] ||= []).push(a);
+    }
   });
 
   const fetchComments = useCallback(async () => {
