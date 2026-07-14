@@ -17,7 +17,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, Save, ArrowRight, Undo2, Download, MessageCircle, Link2, Copy } from "lucide-react";
+import { CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, Save, ArrowRight, Undo2, Download, MessageCircle, Link2, Copy, Plus } from "lucide-react";
 import {
   STATUS_FLOW, allowedTransitions, statusColor, fmtAmt, PAYMENT_TERMS, statusFlowFor, type ProcStatus,
 } from "@/lib/procurement";
@@ -74,10 +74,11 @@ interface Props {
   onChanged: () => void;
 }
 
-interface GrnRow { id: string; grn_number: string | null; receipt_date: string; status: string; received_by: string | null; remarks: string | null; }
+interface GrnRow { id: string; grn_number: string | null; receipt_date: string; status: string; received_by: string | null; remarks: string | null; vendor_id: string | null; }
 interface GrnItemRow { grn_id: string; procurement_item_id: string | null; received_qty: number; }
-interface InvRow { id: string; invoice_number: string | null; invoice_date: string; invoice_amount: number; }
+interface InvRow { id: string; invoice_number: string | null; invoice_date: string; invoice_amount: number; vendor_id: string | null; }
 interface InvItemRow { invoice_id: string; procurement_item_id: string | null; invoiced_rate: number; }
+interface InvPaymentRow { invoice_id: string; amount: number; payment_date: string | null; reference_number: string | null; }
 
 interface VendorQuoteItemRow {
   procurement_item_id: string | null;
@@ -163,6 +164,7 @@ export default function ProcurementDetail({
   const [grnItems, setGrnItems] = useState<GrnItemRow[]>([]);
   const [invoices, setInvoices] = useState<InvRow[]>([]);
   const [invItems, setInvItems] = useState<InvItemRow[]>([]);
+  const [invPayments, setInvPayments] = useState<InvPaymentRow[]>([]);
   const [grnOpen, setGrnOpen] = useState(false);
   const [invOpen, setInvOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -177,7 +179,14 @@ export default function ProcurementDetail({
   const [vendors, setVendors] = useState<{ id: string; name: string; phone: string | null; contact_person: string | null; email: string | null }[]>([]);
   const [vendorQuotes, setVendorQuotes] = useState<VendorQuoteRow[]>([]);
   const [genLinks, setGenLinks] = useState(false);
-  // Bulk invite state: which line items + which vendors to invite in one action
+  // Add-vendor bulk assignment dialog
+  const [addVendorOpen, setAddVendorOpen] = useState(false);
+  const [addVendorId, setAddVendorId] = useState<string>("");
+  const [addVendorScope, setAddVendorScope] = useState<"all" | "specific">("all");
+  const [addVendorLineIds, setAddVendorLineIds] = useState<string[]>([]);
+  // Vendor picker for GRN / Invoice creation (which vendor is this receipt / bill for?)
+  const [grnVendorId, setGrnVendorId] = useState<string | null>(null);
+  const [invVendorId, setInvVendorId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
@@ -212,6 +221,37 @@ export default function ProcurementDetail({
     rateLines.forEach((l) => (l.vendor_ids || []).forEach((v) => s.add(v)));
     return [...s];
   }, [rateLines]);
+
+  // Map procurement_item_id -> vendor_ids currently assigned to that line
+  const itemVendorMap = useMemo(() => {
+    const m: Record<string, string[]> = {};
+    rateLines.forEach((l) => { m[l.id] = [...(l.vendor_ids || [])]; });
+    return m;
+  }, [rateLines]);
+
+  // Per-vendor financial summary: line-item totals, invoice totals, payments, balance
+  const vendorSummaries = useMemo(() => {
+    return derivedVendorIds.map((vid) => {
+      const lineAmount = rateLines
+        .filter((l) => (l.vendor_ids || []).includes(vid))
+        .reduce((s, l) => s + (parseFloat(l.rate) || 0) * (l.qty || 0), 0);
+      const vInvoices = invoices.filter((i) => i.vendor_id === vid);
+      const invoicedTotal = vInvoices.reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
+      const invoiceIds = new Set(vInvoices.map((i) => i.id));
+      const vPayments = invPayments.filter((p) => invoiceIds.has(p.invoice_id));
+      const paidTotal = vPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+      return {
+        vendor_id: vid,
+        vendor_name: vendorName(vid),
+        line_amount: lineAmount,
+        invoiced_total: invoicedTotal,
+        paid_total: paidTotal,
+        balance_due: invoicedTotal - paidTotal,
+        payments: vPayments,
+        invoices: vInvoices,
+      };
+    });
+  }, [derivedVendorIds, rateLines, invoices, invPayments, vendorName]);
 
   const savePoDetails = async () => {
     setPoSaving(true);
@@ -257,14 +297,15 @@ export default function ProcurementDetail({
   const fetchSub = useCallback(async () => {
     const [g, inv] = await Promise.all([
       supabase.from("procurement_grns").select("*, procurement_grn_items(*)").eq("po_id", order.id).order("created_at"),
-      supabase.from("procurement_invoices").select("*, procurement_invoice_items(*)").eq("po_id", order.id).order("created_at"),
+      supabase.from("procurement_invoices").select("*, procurement_invoice_items(*), procurement_invoice_payments(*)").eq("po_id", order.id).order("created_at"),
     ]);
     const gRows = (g.data || []) as any[];
-    setGrns(gRows.map((r) => ({ id: r.id, grn_number: r.grn_number, receipt_date: r.receipt_date, status: r.status, received_by: r.received_by, remarks: r.remarks })));
+    setGrns(gRows.map((r) => ({ id: r.id, grn_number: r.grn_number, receipt_date: r.receipt_date, status: r.status, received_by: r.received_by, remarks: r.remarks, vendor_id: r.vendor_id ?? null })));
     setGrnItems(gRows.flatMap((r) => (r.procurement_grn_items || []) as GrnItemRow[]));
     const iRows = (inv.data || []) as any[];
-    setInvoices(iRows.map((r) => ({ id: r.id, invoice_number: r.invoice_number, invoice_date: r.invoice_date, invoice_amount: r.invoice_amount })));
+    setInvoices(iRows.map((r) => ({ id: r.id, invoice_number: r.invoice_number, invoice_date: r.invoice_date, invoice_amount: r.invoice_amount, vendor_id: r.vendor_id ?? null })));
     setInvItems(iRows.flatMap((r) => (r.procurement_invoice_items || []) as InvItemRow[]));
+    setInvPayments(iRows.flatMap((r) => (r.procurement_invoice_payments || []).map((p: any) => ({ invoice_id: r.id, amount: Number(p.amount || 0), payment_date: p.payment_date, reference_number: p.reference_number }))));
   }, [order.id]);
 
   useEffect(() => { if (open) fetchSub(); }, [open, fetchSub]);
@@ -671,22 +712,52 @@ export default function ProcurementDetail({
               ) : (
                 <>
                   <div>
-                    <Label className="text-xs">Vendor(s)</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs">Vendor(s)</Label>
+                      {poUnlocked && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => {
+                          setAddVendorId("");
+                          setAddVendorScope("all");
+                          setAddVendorLineIds(rateLines.map((l) => l.id));
+                          setAddVendorOpen(true);
+                        }}>
+                          <Plus className="h-3 w-3 mr-1" /> Add Vendor
+                        </Button>
+                      )}
+                    </div>
                     <p className="text-sm font-medium">
                       {derivedVendorIds.length === 0
-                        ? <span className="text-muted-foreground font-normal">None assigned yet — assign vendors per line item below.</span>
+                        ? <span className="text-muted-foreground font-normal">None assigned yet — use "Add Vendor" or assign per line item below.</span>
                         : derivedVendorIds.map((id) => vendorName(id)).join(", ")}
                     </p>
                   </div>
-
-
 
                   <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
                   {order.po_number && <div className="text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}
                   {order.expected_delivery_date && <div className="text-muted-foreground">Expected Delivery: {order.expected_delivery_date}</div>}
                   {order.payment_terms && <div className="text-muted-foreground">Payment Terms: {order.payment_terms}</div>}
-                  {order.bill_to && <div className="text-muted-foreground">Bill To: <span className="whitespace-pre-wrap">{order.bill_to}</span>{order.bill_to_gst && <span className="block">GST: {order.bill_to_gst}</span>}</div>}
-                  {order.ship_to && <div className="text-muted-foreground">Ship To: <span className="whitespace-pre-wrap">{order.ship_to}</span>{order.ship_to_gst && <span className="block">GST: {order.ship_to_gst}</span>}</div>}
+                  {(order.bill_to || order.ship_to) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t mt-2">
+                      <div className="text-muted-foreground">
+                        <div className="text-xs font-semibold text-foreground mb-1">Bill To</div>
+                        {order.bill_to ? (
+                          <>
+                            <span className="whitespace-pre-wrap">{order.bill_to}</span>
+                            {order.bill_to_gst && <span className="block">GST: {order.bill_to_gst}</span>}
+                          </>
+                        ) : <span className="italic">—</span>}
+                      </div>
+                      <div className="text-muted-foreground">
+                        <div className="text-xs font-semibold text-foreground mb-1">Ship To</div>
+                        {order.ship_to ? (
+                          <>
+                            <span className="whitespace-pre-wrap">{order.ship_to}</span>
+                            {order.ship_to_gst && <span className="block">GST: {order.ship_to_gst}</span>}
+                          </>
+                        ) : <span className="italic">—</span>}
+                      </div>
+                    </div>
+                  )}
                   {order.requisition_notes && <div className="text-muted-foreground">Reason: <span className="whitespace-pre-wrap">{order.requisition_notes}</span></div>}
 
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t mt-2">
@@ -869,6 +940,44 @@ export default function ProcurementDetail({
 
           </Card>
 
+          {/* Per-vendor financial summary (vendor POs only) */}
+          {!isTransfer && vendorSummaries.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Vendor Financial Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {vendorSummaries.map((v) => (
+                  <div key={v.vendor_id} className="rounded border p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{v.vendor_name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        Order: <span className="font-medium text-foreground">{fmtAmt(v.line_amount)}</span>
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-[11px]">
+                      <div><span className="text-muted-foreground">Invoiced: </span><span className="font-medium">{fmtAmt(v.invoiced_total)}</span></div>
+                      <div><span className="text-muted-foreground">Paid: </span><span className="font-medium">{fmtAmt(v.paid_total)}</span></div>
+                      <div><span className="text-muted-foreground">Balance Due: </span>
+                        <span className={`font-semibold ${v.balance_due > 0.005 ? "text-red-600" : "text-green-600"}`}>{fmtAmt(v.balance_due)}</span>
+                      </div>
+                    </div>
+                    {v.payments.length > 0 && (
+                      <div className="pt-1 border-t space-y-0.5">
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Payment Schedule</div>
+                        {v.payments.map((p, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-[11px]">
+                            <span>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</span>
+                            <span className="font-medium">{fmtAmt(p.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {/* GRN list */}
           <Card>
@@ -883,7 +992,11 @@ export default function ProcurementDetail({
                 <div key={g.id} className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5">
                   <div>
                     <div className="font-medium">{g.grn_number}</div>
-                    <div className="text-[11px] text-muted-foreground">{g.receipt_date}{g.received_by ? ` · ${g.received_by}` : ""}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {g.receipt_date}
+                      {g.received_by ? ` · ${g.received_by}` : ""}
+                      {g.vendor_id ? ` · ${vendorName(g.vendor_id)}` : ""}
+                    </div>
                   </div>
                   <Badge variant="outline" className={`text-[10px] ${statusColor(g.status)}`}>{g.status}</Badge>
                 </div>
@@ -905,7 +1018,10 @@ export default function ProcurementDetail({
                 <div key={i.id} className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5">
                   <div>
                     <div className="font-medium">{i.invoice_number}</div>
-                    <div className="text-[11px] text-muted-foreground">{i.invoice_date}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {i.invoice_date}
+                      {i.vendor_id ? ` · ${vendorName(i.vendor_id)}` : ""}
+                    </div>
                   </div>
                   <div className="font-medium">{fmtAmt(i.invoice_amount)}</div>
                 </div>
@@ -980,6 +1096,8 @@ export default function ProcurementDetail({
             transferFromSiteName={isTransfer ? siteName(order.transfer_from_site_id) : undefined}
             items={items} alreadyReceived={receivedByItem}
             productName={productName} createdBy={currentUserId}
+            poVendors={derivedVendorIds.map((id) => ({ id, name: vendorName(id) }))}
+            itemVendorMap={itemVendorMap}
             onSaved={() => { fetchSub(); onChanged(); }}
           />
         )}
@@ -989,9 +1107,89 @@ export default function ProcurementDetail({
             poId={order.id} poNumber={order.po_number || "(No PO #)"}
             vendorNameStr={vendorName(order.vendor_id)}
             items={items} productName={productName} createdBy={currentUserId}
+            poVendors={derivedVendorIds.map((id) => ({ id, name: vendorName(id) }))}
+            itemVendorMap={itemVendorMap}
             onSaved={() => { fetchSub(); onChanged(); }}
           />
         )}
+
+        {/* Add Vendor bulk assignment dialog */}
+        <Dialog open={addVendorOpen} onOpenChange={setAddVendorOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add Vendor to Line Items</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Vendor</Label>
+                <select
+                  className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                  value={addVendorId}
+                  onChange={(e) => setAddVendorId(e.target.value)}
+                >
+                  <option value="">— Select vendor —</option>
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs">Apply to</Label>
+                <div className="flex gap-2 mt-1">
+                  <Button
+                    type="button" size="sm"
+                    variant={addVendorScope === "all" ? "default" : "outline"}
+                    onClick={() => { setAddVendorScope("all"); setAddVendorLineIds(rateLines.map((l) => l.id)); }}
+                  >All line items</Button>
+                  <Button
+                    type="button" size="sm"
+                    variant={addVendorScope === "specific" ? "default" : "outline"}
+                    onClick={() => setAddVendorScope("specific")}
+                  >Specific line items</Button>
+                </div>
+              </div>
+              {addVendorScope === "specific" && (
+                <div className="max-h-64 overflow-y-auto rounded border p-2 space-y-1">
+                  {rateLines.map((l) => (
+                    <label key={l.id} className="flex items-start gap-2 text-sm cursor-pointer p-1 hover:bg-muted rounded">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={addVendorLineIds.includes(l.id)}
+                        onChange={(e) => setAddVendorLineIds((prev) =>
+                          e.target.checked ? [...prev, l.id] : prev.filter((x) => x !== l.id)
+                        )}
+                      />
+                      <span className="flex-1">
+                        <span className="font-medium">{productName(l.product_id)}</span>
+                        <span className="text-muted-foreground text-xs"> · Qty {l.qty}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setAddVendorOpen(false)}>Cancel</Button>
+                <Button
+                  className="flex-1"
+                  disabled={!addVendorId || (addVendorScope === "specific" && addVendorLineIds.length === 0)}
+                  onClick={() => {
+                    const targetIds = addVendorScope === "all"
+                      ? rateLines.map((l) => l.id)
+                      : addVendorLineIds;
+                    setRateLines((prev) => prev.map((l) => {
+                      if (!targetIds.includes(l.id)) return l;
+                      if ((l.vendor_ids || []).includes(addVendorId)) return l;
+                      return { ...l, vendor_ids: [...(l.vendor_ids || []), addVendorId] };
+                    }));
+                    setAddVendorOpen(false);
+                    toast.success("Vendor assigned — remember to Save PO Details.");
+                  }}
+                >Apply</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );

@@ -40,10 +40,15 @@ interface Props {
   productName: (id: string | null) => string;
   createdBy?: string;
   onSaved: () => void;
+  /** Vendors assigned across this PO's line items — enables per-vendor GRN */
+  poVendors?: { id: string; name: string }[];
+  /** Map procurement_item_id -> vendor_ids assigned to that line */
+  itemVendorMap?: Record<string, string[]>;
 }
 
 export default function GRNForm({
   open, onOpenChange, poId, poNumber, vendorId, sourceType, transferFromSiteName, items, alreadyReceived, productName, createdBy, onSaved,
+  poVendors, itemVendorMap,
 }: Props) {
   const isTransfer = sourceType === "internal_transfer";
   const queryClient = useQueryClient();
@@ -60,6 +65,13 @@ export default function GRNForm({
   const [statusManuallySet, setStatusManuallySet] = useState(false);
   const [recv, setRecv] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(
+    vendorId || (poVendors && poVendors.length === 1 ? poVendors[0].id : null),
+  );
+  const visibleItems = useMemo(() => {
+    if (!selectedVendorId || !itemVendorMap) return items;
+    return items.filter((it) => (itemVendorMap[it.id] || []).includes(selectedVendorId));
+  }, [items, selectedVendorId, itemVendorMap]);
   const [photos, setPhotos] = useState<{ path: string; preview: string }[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   // vendor feedback (optional)
@@ -109,11 +121,11 @@ export default function GRNForm({
   const balance = (it: POItem) => Math.max(0, it.qty - (alreadyReceived[it.id] || 0));
 
   const totals = useMemo(() => {
-    const ordered = items.reduce((s, it) => s + it.qty, 0);
-    const priorReceived = items.reduce((s, it) => s + (alreadyReceived[it.id] || 0), 0);
-    const thisReceipt = items.reduce((s, it) => s + (parseFloat(recv[it.id]) || 0), 0);
+    const ordered = visibleItems.reduce((s, it) => s + it.qty, 0);
+    const priorReceived = visibleItems.reduce((s, it) => s + (alreadyReceived[it.id] || 0), 0);
+    const thisReceipt = visibleItems.reduce((s, it) => s + (parseFloat(recv[it.id]) || 0), 0);
     return { ordered, priorReceived, thisReceipt, cumulative: priorReceived + thisReceipt };
-  }, [items, alreadyReceived, recv]);
+  }, [visibleItems, alreadyReceived, recv]);
 
   const progressPct = totals.ordered > 0
     ? Math.min(100, Math.round((totals.cumulative / totals.ordered) * 100))
@@ -137,7 +149,7 @@ export default function GRNForm({
   };
 
   const handleSave = async () => {
-    const rows = items
+    const rows = visibleItems
       .map((it) => ({ it, received: parseFloat(recv[it.id]) || 0 }))
       .filter((r) => r.received > 0);
     if (status !== "Rejected" && rows.length === 0) {
@@ -156,6 +168,7 @@ export default function GRNForm({
           status,
           photos: photos.map((p) => p.path),
           created_by: createdBy,
+          vendor_id: selectedVendorId,
         })
         .select("id")
         .single();
@@ -183,13 +196,13 @@ export default function GRNForm({
 
       // Optional vendor feedback — save together with the GRN
       const anyRating = fbDelivery || fbQuality || fbQuantity || fbOverall;
-      if (anyRating && vendorId) {
+      if (anyRating && selectedVendorId) {
         if (!fbDelivery || !fbQuality || !fbQuantity || !fbOverall) {
           toast.warning("Skipped rating — please rate all four categories");
         } else {
           const { error: fe } = await supabase.from("procurement_vendor_feedback").insert({
             grn_id: grn.id,
-            vendor_id: vendorId,
+            vendor_id: selectedVendorId,
             po_id: poId,
             delivery_timeliness: fbDelivery,
             material_quality: fbQuality,
@@ -250,6 +263,24 @@ export default function GRNForm({
                   <Input value={transferFromSiteName || "—"} readOnly disabled className="h-9 bg-background" />
                 </div>
               )}
+              {!isTransfer && poVendors && poVendors.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Vendor (receipt from)</Label>
+                  <select
+                    className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                    value={selectedVendorId || ""}
+                    onChange={(e) => setSelectedVendorId(e.target.value || null)}
+                  >
+                    <option value="">— Select vendor —</option>
+                    {poVendors.map((v) => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </select>
+                  {selectedVendorId && itemVendorMap && (
+                    <p className="text-[11px] text-muted-foreground">Showing only line items assigned to this vendor ({visibleItems.length} of {items.length}).</p>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Date of Receipt</Label>
@@ -279,7 +310,7 @@ export default function GRNForm({
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map((it) => {
+                      {visibleItems.map((it) => {
                         const bal = balance(it);
                         const prev = alreadyReceived[it.id] || 0;
                         return (
@@ -413,7 +444,7 @@ export default function GRNForm({
             )}
 
             {/* Vendor Feedback (optional) */}
-            {vendorId && cfgVendorRating && (
+            {selectedVendorId && cfgVendorRating && (
               <div className="rounded-lg border p-3 space-y-3">
                 <div className="flex items-center gap-2">
                   <Star className="h-4 w-4 text-amber-400" />

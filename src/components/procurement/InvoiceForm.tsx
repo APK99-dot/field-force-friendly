@@ -20,6 +20,10 @@ interface Props {
   productName: (id: string | null) => string;
   createdBy?: string;
   onSaved: () => void;
+  /** Vendors assigned across this PO's line items — enables per-vendor invoice */
+  poVendors?: { id: string; name: string }[];
+  /** Map procurement_item_id -> vendor_ids assigned to that line */
+  itemVendorMap?: Record<string, string[]>;
 }
 
 interface AttachedFile {
@@ -53,6 +57,7 @@ const newPayment = (): PaymentLine => ({
 
 export default function InvoiceForm({
   open, onOpenChange, poId, poNumber, vendorNameStr, items, productName, createdBy, onSaved,
+  poVendors, itemVendorMap,
 }: Props) {
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
@@ -60,11 +65,19 @@ export default function InvoiceForm({
   const [uploading, setUploading] = useState(false);
   const [payments, setPayments] = useState<PaymentLine[]>([newPayment()]);
   const [saving, setSaving] = useState(false);
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(
+    poVendors && poVendors.length === 1 ? poVendors[0].id : null,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const visibleItems = useMemo(() => {
+    if (!selectedVendorId || !itemVendorMap) return items;
+    return items.filter((it) => (itemVendorMap[it.id] || []).includes(selectedVendorId));
+  }, [items, selectedVendorId, itemVendorMap]);
+
   const amount = useMemo(
-    () => items.reduce((s, it) => s + it.rate * it.qty, 0),
-    [items]
+    () => visibleItems.reduce((s, it) => s + it.rate * it.qty, 0),
+    [visibleItems]
   );
 
   const totalPaid = useMemo(
@@ -112,12 +125,13 @@ export default function InvoiceForm({
           invoice_date: invoiceDate,
           invoice_amount: amount,
           created_by: createdBy,
+          vendor_id: selectedVendorId,
         })
         .select("id")
         .single();
       if (error) throw error;
 
-      const itemRows = items.map((it) => ({
+      const itemRows = visibleItems.map((it) => ({
         invoice_id: inv.id,
         procurement_item_id: it.id,
         product_id: it.product_id,
@@ -188,6 +202,27 @@ export default function InvoiceForm({
             </div>
           </div>
 
+          {poVendors && poVendors.length > 0 && (
+            <div>
+              <Label className="text-xs">Vendor (invoice from)</Label>
+              <select
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                value={selectedVendorId || ""}
+                onChange={(e) => setSelectedVendorId(e.target.value || null)}
+              >
+                <option value="">— Select vendor —</option>
+                {poVendors.map((v) => (
+                  <option key={v.id} value={v.id}>{v.name}</option>
+                ))}
+              </select>
+              {selectedVendorId && itemVendorMap && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Showing only line items assigned to this vendor ({visibleItems.length} of {items.length}).
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Invoice Number</Label>
@@ -214,7 +249,7 @@ export default function InvoiceForm({
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((it) => (
+                    {visibleItems.map((it) => (
                       <tr key={it.id} className="border-t">
                         <td className="px-3 py-2 font-medium">{productName(it.product_id)}</td>
                         <td className="px-3 py-2 text-right text-muted-foreground">{fmtAmt(it.rate)}</td>
