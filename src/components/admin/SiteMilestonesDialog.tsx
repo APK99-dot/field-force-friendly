@@ -44,6 +44,8 @@ export interface MilestoneRow {
   status: string;
   notes: string | null;
   is_active: boolean;
+  at_risk: boolean;
+  parent_id: string | null;
 }
 
 export const MILESTONE_STATUSES: { value: string; label: string }[] = [
@@ -76,6 +78,8 @@ interface FormState {
   status: string;
   notes: string;
   is_active: boolean;
+  at_risk: boolean;
+  parent_id: string;
 }
 
 const emptyForm: FormState = {
@@ -88,6 +92,8 @@ const emptyForm: FormState = {
   status: "not_started",
   notes: "",
   is_active: true,
+  at_risk: false,
+  parent_id: "",
 };
 
 interface Props {
@@ -144,6 +150,8 @@ export default function SiteMilestonesDialog({ siteId, siteName, open, onOpenCha
       status: m.status,
       notes: m.notes || "",
       is_active: m.is_active,
+      at_risk: !!m.at_risk,
+      parent_id: m.parent_id || "",
     });
     setShowForm(true);
   };
@@ -170,6 +178,8 @@ export default function SiteMilestonesDialog({ siteId, siteName, open, onOpenCha
         status: form.status,
         notes: form.notes.trim() || null,
         is_active: form.is_active,
+        at_risk: form.at_risk,
+        parent_id: form.parent_id || null,
       };
       if (editing) {
         const { error } = await supabase.from("site_milestones").update(payload).eq("id", editing.id);
@@ -248,12 +258,33 @@ export default function SiteMilestonesDialog({ siteId, siteName, open, onOpenCha
               </div>
             </div>
             <div>
+              <Label className="text-xs">Parent Milestone (leave empty for top-level)</Label>
+              <Select
+                value={form.parent_id || "__none__"}
+                onValueChange={(v) => setForm({ ...form, parent_id: v === "__none__" ? "" : v })}
+              >
+                <SelectTrigger><SelectValue placeholder="None (top-level milestone)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None (top-level milestone)</SelectItem>
+                  {milestones
+                    .filter((m) => !m.parent_id && (!editing || m.id !== editing.id))
+                    .map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label className="text-xs">Notes</Label>
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes..." rows={2} />
             </div>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
               Active (available for selection in Activities)
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={form.at_risk} onChange={(e) => setForm({ ...form, at_risk: e.target.checked })} />
+              Flag as At Risk
             </label>
             <div className="flex gap-2 pt-1">
               <Button variant="outline" className="flex-1" onClick={() => setShowForm(false)} disabled={saving}>Cancel</Button>
