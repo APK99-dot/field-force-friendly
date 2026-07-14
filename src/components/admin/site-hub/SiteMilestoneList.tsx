@@ -19,6 +19,8 @@ import {
   MessageSquare,
   Send,
   Trash2,
+  Plus,
+  User,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -56,17 +58,22 @@ interface Props {
   milestones: HubMilestone[];
   activities?: Activity[];
   onChanged?: () => void;
+  onAddSubMilestone?: (parentId: string, parentName: string) => void;
 }
 
 interface MilestoneCardProps {
   m: HubMilestone;
   children: HubMilestone[];
   linked: number;
+  linkedActivities: Activity[];
   linkedByChild: Record<string, number>;
+  activityCountForChild: Record<string, Activity[]>;
   comments: Comment[];
   onCommentAdded: () => void;
   onChanged?: () => void;
   currentUserId?: string;
+  onAddSubMilestone?: (parentId: string, parentName: string) => void;
+  isChild?: boolean;
 }
 
 async function saveMilestoneProgress(id: string, pct: number, currentStatus?: string | null) {
@@ -95,11 +102,15 @@ function MilestoneCard({
   m,
   children,
   linked,
+  linkedActivities,
   linkedByChild,
+  activityCountForChild,
   comments,
   onCommentAdded,
   onChanged,
   currentUserId,
+  onAddSubMilestone,
+  isChild,
 }: MilestoneCardProps) {
   const hasChildren = children.length > 0;
   const [draft, setDraft] = useState<number>(m.percent_complete ?? 0);
@@ -107,6 +118,7 @@ function MilestoneCard({
   const [togglingRisk, setTogglingRisk] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showActivities, setShowActivities] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [newComment, setNewComment] = useState("");
   const [postingComment, setPostingComment] = useState(false);
@@ -291,19 +303,58 @@ function MilestoneCard({
           <span className="text-muted-foreground">Actual: </span>
           {fmt(m.actual_start_date)} – {fmt(m.actual_end_date)}
         </div>
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <ActivityIcon className="h-3 w-3" />
-          {linked} linked {linked === 1 ? "activity" : "activities"}
-        </div>
+        {linked > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowActivities((v) => !v)}
+            className="flex items-center gap-1 text-primary hover:underline text-left"
+          >
+            <ActivityIcon className="h-3 w-3" />
+            {linked} linked {linked === 1 ? "activity" : "activities"}
+          </button>
+        ) : (
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <ActivityIcon className="h-3 w-3" />
+            0 linked activities
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setShowComments((v) => !v)}
           className="flex items-center gap-1 text-muted-foreground hover:text-foreground justify-end"
         >
           <MessageSquare className="h-3 w-3" />
-          {comments.length} {comments.length === 1 ? "comment" : "comments"}
+          {comments.filter((c) => c.milestone_id === m.id).length} {comments.filter((c) => c.milestone_id === m.id).length === 1 ? "comment" : "comments"}
         </button>
       </div>
+
+      {showActivities && linkedActivities.length > 0 && (
+        <div className="border-t pt-2 space-y-1.5">
+          {linkedActivities.map((a) => (
+            <div key={a.id} className="text-[11px] rounded bg-muted/40 px-2 py-1.5">
+              <div className="font-medium truncate">{a.activity_name}</div>
+              <div className="flex items-center gap-2 text-muted-foreground mt-0.5">
+                <span className="flex items-center gap-1"><User className="h-3 w-3" />{a.user_full_name}</span>
+                <span>·</span>
+                <span>{a.activity_date ? format(new Date(a.activity_date), "dd MMM yy") : ""}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!isChild && onAddSubMilestone && (
+        <div className="pt-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs w-full"
+            onClick={() => onAddSubMilestone(m.id, m.name)}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Sub-Milestone
+          </Button>
+        </div>
+      )}
 
       {m.notes && <p className="text-[11px] text-muted-foreground border-t pt-1.5">{m.notes}</p>}
 
@@ -315,11 +366,14 @@ function MilestoneCard({
               m={c}
               children={[]}
               linked={linkedByChild[c.id] || 0}
+              linkedActivities={activityCountForChild[c.id] || []}
               linkedByChild={{}}
-              comments={comments.filter((cm) => cm.milestone_id === c.id)}
+              activityCountForChild={{}}
+              comments={comments}
               onCommentAdded={onCommentAdded}
               onChanged={onChanged}
               currentUserId={currentUserId}
+              isChild
             />
           ))}
         </div>
@@ -381,7 +435,7 @@ function MilestoneCard({
   );
 }
 
-export default function SiteMilestoneList({ milestones, activities = [], onChanged }: Props) {
+export default function SiteMilestoneList({ milestones, activities = [], onChanged, onAddSubMilestone }: Props) {
   const { user } = useCurrentUser();
   const [comments, setComments] = useState<Comment[]>([]);
 
@@ -405,8 +459,12 @@ export default function SiteMilestoneList({ milestones, activities = [], onChang
   const atRiskMs = milestones.filter((m) => m.at_risk).length;
 
   const activityCount: Record<string, number> = {};
+  const activitiesById: Record<string, Activity[]> = {};
   activities.forEach((a) => {
-    if (a.milestone_id) activityCount[a.milestone_id] = (activityCount[a.milestone_id] || 0) + 1;
+    if (a.milestone_id) {
+      activityCount[a.milestone_id] = (activityCount[a.milestone_id] || 0) + 1;
+      (activitiesById[a.milestone_id] ||= []).push(a);
+    }
   });
 
   const fetchComments = useCallback(async () => {
@@ -487,11 +545,14 @@ export default function SiteMilestoneList({ milestones, activities = [], onChang
               m={m}
               children={childrenByParent[m.id] || []}
               linked={activityCount[m.id] || 0}
+              linkedActivities={activitiesById[m.id] || []}
               linkedByChild={activityCount}
+              activityCountForChild={activitiesById}
               comments={comments}
               onCommentAdded={fetchComments}
               onChanged={onChanged}
               currentUserId={user?.id}
+              onAddSubMilestone={onAddSubMilestone}
             />
           ))}
         </div>

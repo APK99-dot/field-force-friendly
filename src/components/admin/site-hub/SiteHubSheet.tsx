@@ -69,6 +69,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
   const [savingStatus, setSavingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [subParentName, setSubParentName] = useState<string>("");
   const [msForm, setMsForm] = useState({
     name: "",
     start_date: new Date().toISOString().split("T")[0],
@@ -79,8 +80,32 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
     percent_complete: 0,
     status: "not_started",
     is_active: true,
+    parent_id: "" as string,
   });
   const [savingMilestone, setSavingMilestone] = useState(false);
+
+  const openAddSubMilestone = (parentId: string, parentName: string) => {
+    setSubParentName(parentName);
+    setMsForm({
+      name: "",
+      start_date: new Date().toISOString().split("T")[0],
+      end_date: "",
+      actual_start_date: "",
+      actual_end_date: "",
+      notes: "",
+      percent_complete: 0,
+      status: "not_started",
+      is_active: true,
+      parent_id: parentId,
+    });
+    setShowAddMilestone(true);
+  };
+
+  const openAddTopMilestone = () => {
+    setSubParentName("");
+    setMsForm((f) => ({ ...f, parent_id: "" }));
+    setShowAddMilestone(true);
+  };
 
   const currentStatus = status ?? site?.status ?? "planned";
 
@@ -140,10 +165,12 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
         percent_complete: pct,
         status: msForm.status || (pct >= 100 ? "completed" : pct > 0 ? "in_progress" : "not_started"),
         is_active: msForm.is_active,
+        parent_id: msForm.parent_id || null,
       });
       if (error) throw error;
-      toast.success("Milestone added");
+      toast.success(msForm.parent_id ? "Sub-milestone added" : "Milestone added");
       setShowAddMilestone(false);
+      setSubParentName("");
       setMsForm({
         name: "",
         start_date: new Date().toISOString().split("T")[0],
@@ -154,6 +181,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
         percent_complete: 0,
         status: "not_started",
         is_active: true,
+        parent_id: "",
       });
       reload();
     } catch (err: any) {
@@ -222,7 +250,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                     size="sm"
                     variant="secondary"
                     className="h-9"
-                    onClick={() => setShowAddMilestone(true)}
+                    onClick={openAddTopMilestone}
                   >
                     <Plus className="h-3.5 w-3.5 mr-1" /> Add Milestone
                   </Button>
@@ -318,7 +346,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                   </TabsContent>
 
                   <TabsContent value="milestones" className="mt-0">
-                    <SiteMilestoneList milestones={milestones} activities={activities} onChanged={reload} />
+                    <SiteMilestoneList milestones={milestones} activities={activities} onChanged={reload} onAddSubMilestone={openAddSubMilestone} />
                   </TabsContent>
 
 
@@ -358,7 +386,8 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
         <DialogContent className="sm:max-w-[520px] max-h-[88vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" /> Add Milestone
+              <Target className="h-5 w-5" />
+              {msForm.parent_id ? `Add Sub-Milestone${subParentName ? ` — under ${subParentName}` : ""}` : "Add Milestone"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 overflow-y-auto max-h-[70vh] pr-1">
