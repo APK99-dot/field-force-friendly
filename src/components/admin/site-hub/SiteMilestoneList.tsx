@@ -70,6 +70,7 @@ interface Props {
   activities?: Activity[];
   onChanged?: () => void;
   onAddSubMilestone?: (parentId: string, parentName: string) => void;
+  onEditMilestone?: (m: HubMilestone) => void;
 }
 
 interface MilestoneCardProps {
@@ -84,6 +85,7 @@ interface MilestoneCardProps {
   onChanged?: () => void;
   currentUserId?: string;
   onAddSubMilestone?: (parentId: string, parentName: string) => void;
+  onEditMilestone?: (m: HubMilestone) => void;
   isChild?: boolean;
 }
 
