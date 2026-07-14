@@ -435,7 +435,7 @@ function MilestoneCard({
   );
 }
 
-export default function SiteMilestoneList({ milestones, activities = [], onChanged }: Props) {
+export default function SiteMilestoneList({ milestones, activities = [], onChanged, onAddSubMilestone }: Props) {
   const { user } = useCurrentUser();
   const [comments, setComments] = useState<Comment[]>([]);
 
