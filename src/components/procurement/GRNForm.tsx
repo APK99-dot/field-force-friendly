@@ -292,7 +292,7 @@ export default function GRNForm({
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map((it) => {
+                      {visibleItems.map((it) => {
                         const bal = balance(it);
                         const prev = alreadyReceived[it.id] || 0;
                         return (
