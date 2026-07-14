@@ -303,10 +303,21 @@ function MilestoneCard({
           <span className="text-muted-foreground">Actual: </span>
           {fmt(m.actual_start_date)} – {fmt(m.actual_end_date)}
         </div>
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <ActivityIcon className="h-3 w-3" />
-          {linked} linked {linked === 1 ? "activity" : "activities"}
-        </div>
+        {linked > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowActivities((v) => !v)}
+            className="flex items-center gap-1 text-primary hover:underline text-left"
+          >
+            <ActivityIcon className="h-3 w-3" />
+            {linked} linked {linked === 1 ? "activity" : "activities"}
+          </button>
+        ) : (
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <ActivityIcon className="h-3 w-3" />
+            0 linked activities
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setShowComments((v) => !v)}
@@ -316,6 +327,34 @@ function MilestoneCard({
           {comments.length} {comments.length === 1 ? "comment" : "comments"}
         </button>
       </div>
+
+      {showActivities && linkedActivities.length > 0 && (
+        <div className="border-t pt-2 space-y-1.5">
+          {linkedActivities.map((a) => (
+            <div key={a.id} className="text-[11px] rounded bg-muted/40 px-2 py-1.5">
+              <div className="font-medium truncate">{a.activity_name}</div>
+              <div className="flex items-center gap-2 text-muted-foreground mt-0.5">
+                <span className="flex items-center gap-1"><User className="h-3 w-3" />{a.user_full_name}</span>
+                <span>·</span>
+                <span>{a.activity_date ? format(new Date(a.activity_date), "dd MMM yy") : ""}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!isChild && onAddSubMilestone && (
+        <div className="pt-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs w-full"
+            onClick={() => onAddSubMilestone(m.id, m.name)}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Sub-Milestone
+          </Button>
+        </div>
+      )}
 
       {m.notes && <p className="text-[11px] text-muted-foreground border-t pt-1.5">{m.notes}</p>}
 
@@ -327,11 +366,14 @@ function MilestoneCard({
               m={c}
               children={[]}
               linked={linkedByChild[c.id] || 0}
+              linkedActivities={activityCountForChild[c.id] || []}
               linkedByChild={{}}
-              comments={comments.filter((cm) => cm.milestone_id === c.id)}
+              activityCountForChild={{}}
+              comments={comments}
               onCommentAdded={onCommentAdded}
               onChanged={onChanged}
               currentUserId={currentUserId}
+              isChild
             />
           ))}
         </div>
