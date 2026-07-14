@@ -14,6 +14,8 @@ export interface HubMilestone {
   status: string;
   notes: string | null;
   is_active: boolean;
+  at_risk: boolean;
+  parent_id: string | null;
 }
 
 export interface HubAssignedUser {
