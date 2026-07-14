@@ -69,6 +69,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
   const [savingStatus, setSavingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [subParentName, setSubParentName] = useState<string>("");
   const [msForm, setMsForm] = useState({
     name: "",
     start_date: new Date().toISOString().split("T")[0],
@@ -79,8 +80,32 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
     percent_complete: 0,
     status: "not_started",
     is_active: true,
+    parent_id: "" as string,
   });
   const [savingMilestone, setSavingMilestone] = useState(false);
+
+  const openAddSubMilestone = (parentId: string, parentName: string) => {
+    setSubParentName(parentName);
+    setMsForm({
+      name: "",
+      start_date: new Date().toISOString().split("T")[0],
+      end_date: "",
+      actual_start_date: "",
+      actual_end_date: "",
+      notes: "",
+      percent_complete: 0,
+      status: "not_started",
+      is_active: true,
+      parent_id: parentId,
+    });
+    setShowAddMilestone(true);
+  };
+
+  const openAddTopMilestone = () => {
+    setSubParentName("");
+    setMsForm((f) => ({ ...f, parent_id: "" }));
+    setShowAddMilestone(true);
+  };
 
   const currentStatus = status ?? site?.status ?? "planned";
 
