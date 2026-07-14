@@ -150,6 +150,8 @@ export default function SiteMilestonesDialog({ siteId, siteName, open, onOpenCha
       status: m.status,
       notes: m.notes || "",
       is_active: m.is_active,
+      at_risk: !!m.at_risk,
+      parent_id: m.parent_id || "",
     });
     setShowForm(true);
   };
