@@ -994,6 +994,7 @@ export default function SiteMilestoneList({ siteId, milestones, activities = [],
               currentUserId={user?.id}
               onAddSubMilestone={onAddSubMilestone}
               onEditMilestone={onEditMilestone}
+              onOpenActivity={onOpenActivity}
               depth={0}
               ancestorPath={[]}
             />
