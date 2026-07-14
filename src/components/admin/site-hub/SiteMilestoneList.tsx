@@ -571,6 +571,7 @@ function MilestoneCard({
               currentUserId={currentUserId}
               onAddSubMilestone={onAddSubMilestone}
               onEditMilestone={onEditMilestone}
+              onOpenActivity={onOpenActivity}
               depth={depth + 1}
               ancestorPath={[...ancestorPath, m.name]}
             />
