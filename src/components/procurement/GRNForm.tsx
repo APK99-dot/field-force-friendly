@@ -149,7 +149,7 @@ export default function GRNForm({
   };
 
   const handleSave = async () => {
-    const rows = items
+    const rows = visibleItems
       .map((it) => ({ it, received: parseFloat(recv[it.id]) || 0 }))
       .filter((r) => r.received > 0);
     if (status !== "Rejected" && rows.length === 0) {
@@ -168,6 +168,7 @@ export default function GRNForm({
           status,
           photos: photos.map((p) => p.path),
           created_by: createdBy,
+          vendor_id: selectedVendorId,
         })
         .select("id")
         .single();
