@@ -310,6 +310,26 @@ function MilestoneCard({
           >
             <AlertTriangle className="h-3.5 w-3.5" />
           </Button>
+          {onEditMilestone && (
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-7 w-7"
+              title="Edit milestone"
+              onClick={() => onEditMilestone(m)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          <Button
+            size="icon"
+            variant="outline"
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            title="Delete milestone"
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
 
