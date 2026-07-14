@@ -83,6 +83,7 @@ interface Props {
   onChanged?: () => void;
   onAddSubMilestone?: (parentId: string, parentName: string) => void;
   onEditMilestone?: (m: HubMilestone) => void;
+  onOpenActivity?: (a: Activity) => void;
 }
 
 async function saveMilestoneProgress(id: string, pct: number, currentStatus?: string | null) {
