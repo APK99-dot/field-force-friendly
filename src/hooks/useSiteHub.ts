@@ -76,6 +76,8 @@ export function useSiteHub(siteId: string | null) {
         status: m.status,
         notes: m.notes,
         is_active: m.is_active,
+        at_risk: !!m.at_risk,
+        parent_id: m.parent_id ?? null,
       }));
       setMilestones(ms);
 
