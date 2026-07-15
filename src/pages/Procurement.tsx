@@ -299,6 +299,7 @@ export default function Procurement() {
   const handleSave = async () => {
     const isTransfer = form.source_type === "internal_transfer";
     const validLines = lines.filter((l) => l.product_id && (parseFloat(l.qty) || 0) > 0);
+    if (!form.requisition_name.trim()) { toast.error("Requisition name is required"); return; }
     if (validLines.length === 0) { toast.error("Add at least one product line item"); return; }
     if (cfgRequireNotes && !form.requisition_notes.trim()) { toast.error("Notes / reason is required"); return; }
     if (isTransfer) {
