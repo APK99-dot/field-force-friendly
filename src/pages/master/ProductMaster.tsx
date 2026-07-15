@@ -201,6 +201,43 @@ export default function ProductMaster() {
     return r.product_name.toLowerCase().includes(q) || categoryLabel(catById(r.category_id)).toLowerCase().includes(q);
   });
 
+  const filteredIds = filtered.map((r) => r.id);
+  const allVisibleSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected = filteredIds.some((id) => selectedIds.has(id));
+
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleAllVisible = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) filteredIds.forEach((id) => next.add(id));
+      else filteredIds.forEach((id) => next.delete(id));
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase.from("master_products").delete().in("id", ids);
+    setIsBulkDeleting(false);
+    setBulkDeleteConfirm(false);
+    if (error) {
+      if (error.code === "23503") toast.error("Some products are in use and cannot be deleted. Disable them instead.");
+      else toast.error(error.message || "Failed to delete");
+    } else {
+      toast.success(`${ids.length} product${ids.length > 1 ? "s" : ""} deleted`);
+      setSelectedIds(new Set());
+      fetchAll();
+    }
+  };
+
   return (
     <motion.div className="p-4 space-y-6 max-w-6xl mx-auto" variants={container} initial="hidden" animate="show">
       <motion.div variants={item}>
