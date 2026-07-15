@@ -1,0 +1,1 @@
+ALTER TABLE public.procurement_orders ADD COLUMN IF NOT EXISTS requisition_name TEXT;
