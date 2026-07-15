@@ -37,12 +37,24 @@ Deno.serve(async (req) => {
     const { data: order, error: oErr } = await supabase
       .from("procurement_orders")
       .select(
-        "id, po_number, order_date, site_id, expected_delivery_date, payment_terms, bill_to, ship_to, requisition_notes, status",
+        "id, po_number, order_date, site_id, expected_delivery_date, payment_terms, bill_to, ship_to, bill_to_gst, ship_to_gst, requisition_notes, status",
       )
       .eq("id", quote.po_id)
       .maybeSingle();
     if (oErr) throw oErr;
     if (!order) return json({ error: "Requisition not found." }, 404);
+
+    // Load Terms & Conditions from app_configuration
+    const { data: tcRow } = await supabase
+      .from("app_configuration")
+      .select("config_value")
+      .eq("module", "procurement")
+      .eq("config_key", "termsAndConditions")
+      .maybeSingle();
+    const termsAndConditions: string[] = Array.isArray(tcRow?.config_value)
+      ? (tcRow!.config_value as string[]).filter((t) => typeof t === "string" && t.trim())
+      : [];
+
 
     // Requisition title comes from notes' first line fallback to PO number
     const reqTitle = order.po_number || "Requisition";
