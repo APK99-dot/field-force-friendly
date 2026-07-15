@@ -81,6 +81,7 @@ const DRAFT_KEY = "procurement_requisition_draft";
 const emptyForm = {
   source_type: "vendor" as SourceType,
   order_date: new Date().toISOString().slice(0, 10),
+  requisition_name: "",
   vendor_ids: [] as string[],
   site_id: "",
   transfer_from_site_id: "",
@@ -242,6 +243,7 @@ export default function Procurement() {
     setForm({
       source_type: (o.source_type === "internal_transfer" ? "internal_transfer" : "vendor") as SourceType,
       order_date: o.order_date,
+      requisition_name: (o as any).requisition_name || "",
       vendor_ids: o.vendor_ids && o.vendor_ids.length ? o.vendor_ids : (o.vendor_id ? [o.vendor_id] : []),
       site_id: o.site_id || "",
       transfer_from_site_id: o.transfer_from_site_id || "",
@@ -297,6 +299,7 @@ export default function Procurement() {
   const handleSave = async () => {
     const isTransfer = form.source_type === "internal_transfer";
     const validLines = lines.filter((l) => l.product_id && (parseFloat(l.qty) || 0) > 0);
+    if (!form.requisition_name.trim()) { toast.error("Requisition name is required"); return; }
     if (validLines.length === 0) { toast.error("Add at least one product line item"); return; }
     if (cfgRequireNotes && !form.requisition_notes.trim()) { toast.error("Notes / reason is required"); return; }
     if (isTransfer) {
@@ -313,6 +316,7 @@ export default function Procurement() {
       const orderPayload = {
         source_type: form.source_type,
         order_date: form.order_date,
+        requisition_name: form.requisition_name.trim() || null,
         vendor_id: isTransfer ? null : (derivedVendorIds[0] || null),
         vendor_ids: isTransfer ? null : (derivedVendorIds.length ? derivedVendorIds : null),
         site_id: form.site_id || null,
@@ -497,6 +501,16 @@ export default function Procurement() {
               {form.source_type === "internal_transfer"
                 ? <>This is an <strong>Internal Transfer</strong> requisition. Once approved by an admin, the destination site can confirm goods received.</>
                 : <>This is a <strong>Requisition</strong>. Once approved by an admin, PO Number, Bill/Ship To, delivery date, payment terms and rates become available on the PO detail screen.</>}
+            </div>
+
+            <div>
+              <Label className="text-xs">Requisition Name <span className="text-destructive">*</span></Label>
+              <Input
+                value={form.requisition_name}
+                onChange={(e) => setForm((p) => ({ ...p, requisition_name: e.target.value }))}
+                placeholder={form.source_type === "internal_transfer" ? "e.g. Steel transfer — Bharath Mall to Fiza Nexus" : "e.g. Cement for Ground Floor slab"}
+                className="h-9"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">

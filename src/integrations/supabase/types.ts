@@ -3204,6 +3204,7 @@ export type Database = {
           order_date: string
           payment_terms: string | null
           po_number: string | null
+          requisition_name: string | null
           requisition_notes: string | null
           ship_to: string | null
           ship_to_address_id: string | null
@@ -3233,6 +3234,7 @@ export type Database = {
           order_date?: string
           payment_terms?: string | null
           po_number?: string | null
+          requisition_name?: string | null
           requisition_notes?: string | null
           ship_to?: string | null
           ship_to_address_id?: string | null
@@ -3262,6 +3264,7 @@ export type Database = {
           order_date?: string
           payment_terms?: string | null
           po_number?: string | null
+          requisition_name?: string | null
           requisition_notes?: string | null
           ship_to?: string | null
           ship_to_address_id?: string | null
