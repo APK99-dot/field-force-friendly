@@ -262,9 +262,16 @@ export default function ProductMaster() {
                 <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />Add Product</Button>
               </div>
             </div>
-            <div className="relative mt-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search products..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+            <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search products..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+              </div>
+              {selectedIds.size > 0 && (
+                <Button variant="destructive" size="sm" onClick={() => setBulkDeleteConfirm(true)}>
+                  <Trash2 className="h-4 w-4 mr-2" />Delete Selected ({selectedIds.size})
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
