@@ -70,6 +70,9 @@ export default function ProductMaster() {
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [importConfirm, setImportConfirm] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
