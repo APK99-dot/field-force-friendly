@@ -315,6 +315,7 @@ export default function Procurement() {
       const orderPayload = {
         source_type: form.source_type,
         order_date: form.order_date,
+        requisition_name: form.requisition_name.trim() || null,
         vendor_id: isTransfer ? null : (derivedVendorIds[0] || null),
         vendor_ids: isTransfer ? null : (derivedVendorIds.length ? derivedVendorIds : null),
         site_id: form.site_id || null,
