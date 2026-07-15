@@ -283,6 +283,13 @@ export default function ProductMaster() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                        onCheckedChange={(v) => toggleAllVisible(!!v)}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
                     <TableHead>Product Name</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Default UOM</TableHead>
@@ -295,8 +302,12 @@ export default function ProductMaster() {
                 <TableBody>
                   {filtered.map((r) => {
                     const c = catById(r.category_id);
+                    const checked = selectedIds.has(r.id);
                     return (
-                      <TableRow key={r.id} onClick={() => openEdit(r)} className="cursor-pointer">
+                      <TableRow key={r.id} onClick={() => openEdit(r)} className="cursor-pointer" data-state={checked ? "selected" : undefined}>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox checked={checked} onCheckedChange={(v) => toggleOne(r.id, !!v)} aria-label={`Select ${r.product_name}`} />
+                        </TableCell>
                         <TableCell className="font-medium">{r.product_name}</TableCell>
                         <TableCell>{c?.category_name || "—"}</TableCell>
                         <TableCell>{r.default_uom || "—"}</TableCell>
