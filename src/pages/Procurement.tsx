@@ -81,6 +81,7 @@ const DRAFT_KEY = "procurement_requisition_draft";
 const emptyForm = {
   source_type: "vendor" as SourceType,
   order_date: new Date().toISOString().slice(0, 10),
+  requisition_name: "",
   vendor_ids: [] as string[],
   site_id: "",
   transfer_from_site_id: "",
