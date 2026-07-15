@@ -83,17 +83,28 @@ export function ModulePanel({ module, tab }: { module: string; tab: Tab }) {
 
   // ---------------- PROCUREMENT ----------------
   if (module === "procurement") {
-    if (tab === "config")
+    if (tab === "config") {
+      const terms = g<string[]>("termsAndConditions") ?? [];
       return (
-        <ConfigSection title="Procurement settings">
-          <ConfigToggleRow label="Internal Transfer flow" checked={bool("internalTransfer")} onChange={(v) => s("internalTransfer", v)} />
-          <ConfigToggleRow label="Budget field on Requisition" checked={bool("budgetField")} onChange={(v) => s("budgetField", v)} />
-          <ConfigToggleRow label="Bill To / Ship To fields" checked={bool("billShipFields")} onChange={(v) => s("billShipFields", v)} />
-          <ConfigToggleRow label="Require Notes / Reason on Requisition" checked={bool("requireNotes")} onChange={(v) => s("requireNotes", v)} />
-          <ConfigSelectRow label="Who can create Requisition" value={str("createRequisition")} onChange={(v) => s("createRequisition", v)} options={ALL_MANAGER_ADMIN} />
-          <ConfigSelectRow label="Who can edit PO rates after approval" value={str("editRatesAfterApproval")} onChange={(v) => s("editRatesAfterApproval", v)} options={ADMIN_MANAGER} />
-        </ConfigSection>
+        <div className="space-y-6">
+          <ConfigSection title="Procurement settings">
+            <ConfigToggleRow label="Internal Transfer flow" checked={bool("internalTransfer")} onChange={(v) => s("internalTransfer", v)} />
+            <ConfigToggleRow label="Budget field on Requisition" checked={bool("budgetField")} onChange={(v) => s("budgetField", v)} />
+            <ConfigToggleRow label="Bill To / Ship To fields" checked={bool("billShipFields")} onChange={(v) => s("billShipFields", v)} />
+            <ConfigToggleRow label="Require Notes / Reason on Requisition" checked={bool("requireNotes")} onChange={(v) => s("requireNotes", v)} />
+            <ConfigSelectRow label="Who can create Requisition" value={str("createRequisition")} onChange={(v) => s("createRequisition", v)} options={ALL_MANAGER_ADMIN} />
+            <ConfigSelectRow label="Who can edit PO rates after approval" value={str("editRatesAfterApproval")} onChange={(v) => s("editRatesAfterApproval", v)} options={ADMIN_MANAGER} />
+          </ConfigSection>
+          <div className="rounded-lg border border-border/60 p-4 space-y-2">
+            <p className="text-sm font-semibold">Vendor Indent Order — Terms &amp; Conditions</p>
+            <p className="text-xs text-muted-foreground">
+              These terms are shown to vendors on the Indent Order (quote request) page. Vendors must accept them before submitting a quote.
+            </p>
+            <EditableListEditor items={terms} onChange={(v) => s("termsAndConditions", v)} placeholder="New term" />
+          </div>
+        </div>
       );
+    }
     return (
       <div className="space-y-4">
         <ApprovalTransitionEditor title="Requisition → Requisition Approved" value={trans("transition.requisition_approved")} onChange={(v) => s("transition.requisition_approved", v)} />
@@ -103,6 +114,7 @@ export function ModulePanel({ module, tab }: { module: string; tab: Tab }) {
       </div>
     );
   }
+
 
   // ---------------- GOODS RECEIPT ----------------
   if (module === "goods_receipt") {
