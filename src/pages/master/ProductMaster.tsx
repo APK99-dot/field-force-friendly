@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Save, Search, Package, Cloud } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -69,6 +70,9 @@ export default function ProductMaster() {
   const [editing, setEditing] = useState<ProductRow | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [importConfirm, setImportConfirm] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
@@ -197,6 +201,43 @@ export default function ProductMaster() {
     return r.product_name.toLowerCase().includes(q) || categoryLabel(catById(r.category_id)).toLowerCase().includes(q);
   });
 
+  const filteredIds = filtered.map((r) => r.id);
+  const allVisibleSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected = filteredIds.some((id) => selectedIds.has(id));
+
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleAllVisible = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) filteredIds.forEach((id) => next.add(id));
+      else filteredIds.forEach((id) => next.delete(id));
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase.from("master_products").delete().in("id", ids);
+    setIsBulkDeleting(false);
+    setBulkDeleteConfirm(false);
+    if (error) {
+      if (error.code === "23503") toast.error("Some products are in use and cannot be deleted. Disable them instead.");
+      else toast.error(error.message || "Failed to delete");
+    } else {
+      toast.success(`${ids.length} product${ids.length > 1 ? "s" : ""} deleted`);
+      setSelectedIds(new Set());
+      fetchAll();
+    }
+  };
+
   return (
     <motion.div className="p-4 space-y-6 max-w-6xl mx-auto" variants={container} initial="hidden" animate="show">
       <motion.div variants={item}>
@@ -221,9 +262,16 @@ export default function ProductMaster() {
                 <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />Add Product</Button>
               </div>
             </div>
-            <div className="relative mt-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search products..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+            <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search products..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+              </div>
+              {selectedIds.size > 0 && (
+                <Button variant="destructive" size="sm" onClick={() => setBulkDeleteConfirm(true)}>
+                  <Trash2 className="h-4 w-4 mr-2" />Delete Selected ({selectedIds.size})
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -235,6 +283,13 @@ export default function ProductMaster() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                        onCheckedChange={(v) => toggleAllVisible(!!v)}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
                     <TableHead>Product Name</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Default UOM</TableHead>
@@ -247,8 +302,12 @@ export default function ProductMaster() {
                 <TableBody>
                   {filtered.map((r) => {
                     const c = catById(r.category_id);
+                    const checked = selectedIds.has(r.id);
                     return (
-                      <TableRow key={r.id} onClick={() => openEdit(r)} className="cursor-pointer">
+                      <TableRow key={r.id} onClick={() => openEdit(r)} className="cursor-pointer" data-state={checked ? "selected" : undefined}>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox checked={checked} onCheckedChange={(v) => toggleOne(r.id, !!v)} aria-label={`Select ${r.product_name}`} />
+                        </TableCell>
                         <TableCell className="font-medium">{r.product_name}</TableCell>
                         <TableCell>{c?.category_name || "—"}</TableCell>
                         <TableCell>{r.default_uom || "—"}</TableCell>
@@ -363,6 +422,23 @@ export default function ProductMaster() {
             <AlertDialogCancel disabled={isImporting}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={(e) => { e.preventDefault(); handleImport(); }} disabled={isImporting}>
               {isImporting ? "Importing..." : "Import"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteConfirm} onOpenChange={(open) => !open && !isBulkDeleting && setBulkDeleteConfirm(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} product{selectedIds.size > 1 ? "s" : ""}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the selected products. Products already used in procurement cannot be deleted — disable them instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); handleBulkDelete(); }} disabled={isBulkDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isBulkDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
