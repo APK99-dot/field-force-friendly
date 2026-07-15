@@ -97,8 +97,11 @@ interface VendorQuoteRow {
   notes: string | null;
   submitted_at: string | null;
   procurement_item_ids?: string[] | null;
+  change_request_notes?: string | null;
+  attachments?: { name: string; url: string; size: number; type: string }[] | null;
   procurement_vendor_quote_items?: VendorQuoteItemRow[];
 }
+
 
 interface RateLine {
   id: string;
@@ -519,9 +522,9 @@ export default function ProcurementDetail({
   const loadVendorQuotes = useCallback(async () => {
     const { data } = await supabase
       .from("procurement_vendor_quotes")
-      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, procurement_item_ids, procurement_vendor_quote_items(*)")
+      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, procurement_item_ids, change_request_notes, attachments, procurement_vendor_quote_items(*)")
       .eq("po_id", order.id);
-    setVendorQuotes((data || []) as VendorQuoteRow[]);
+    setVendorQuotes((data || []) as unknown as VendorQuoteRow[]);
   }, [order.id]);
 
   useEffect(() => { if (open) loadVendorQuotes(); }, [open, loadVendorQuotes]);
@@ -966,9 +969,14 @@ export default function ProcurementDetail({
                             {lineQuotes.map((q) => (
                               <div key={q.id} className="flex items-center gap-2 text-[11px]">
                                 <span className="flex-1 truncate">{vendorName(q.vendor_id || "")}</span>
-                                <span className={q.status === "submitted" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
-                                  {q.status === "submitted" ? "Submitted" : "Pending"}
+                                <span className={
+                                  q.status === "submitted" ? "text-emerald-600 dark:text-emerald-400"
+                                  : q.status === "changes_requested" ? "text-amber-600 dark:text-amber-400"
+                                  : "text-muted-foreground"
+                                }>
+                                  {q.status === "submitted" ? "Submitted" : q.status === "changes_requested" ? "Changes Requested" : "Pending"}
                                 </span>
+
                                 <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(q.token)} title="Copy link">
                                   <Copy className="h-3 w-3" />
                                 </Button>
@@ -979,6 +987,25 @@ export default function ProcurementDetail({
                             ))}
                           </div>
                         )}
+                        {/* Vendor change requests for this line */}
+                        {lineQuotes.filter((q) => q.status === "changes_requested").map((q) => (
+                          <div key={`cr-${q.id}`} className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-900/20 p-2 text-[11px] space-y-1">
+                            <p className="font-medium text-amber-800 dark:text-amber-300">
+                              {vendorName(q.vendor_id || "")} requested changes
+                            </p>
+                            {q.change_request_notes && (
+                              <p className="text-amber-900/90 dark:text-amber-100/90 whitespace-pre-line">{q.change_request_notes}</p>
+                            )}
+                            {(q.attachments || []).length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-1">
+                                {(q.attachments || []).map((a, i) => (
+                                  <a key={i} href={a.url} target="_blank" rel="noreferrer" className="underline text-amber-800 dark:text-amber-200">{a.name}</a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
 
                         {/* Submitted quote comparison for this line item */}
                         {submittedQuotes.length > 0 && (

@@ -3426,6 +3426,8 @@ export type Database = {
       }
       procurement_vendor_quotes: {
         Row: {
+          attachments: Json
+          change_request_notes: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -3434,12 +3436,15 @@ export type Database = {
           procurement_item_ids: string[] | null
           status: string
           submitted_at: string | null
+          terms_accepted_at: string | null
           token: string
           updated_at: string
           vendor_id: string | null
           vendor_payment_term: string | null
         }
         Insert: {
+          attachments?: Json
+          change_request_notes?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -3448,12 +3453,15 @@ export type Database = {
           procurement_item_ids?: string[] | null
           status?: string
           submitted_at?: string | null
+          terms_accepted_at?: string | null
           token?: string
           updated_at?: string
           vendor_id?: string | null
           vendor_payment_term?: string | null
         }
         Update: {
+          attachments?: Json
+          change_request_notes?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -3462,6 +3470,7 @@ export type Database = {
           procurement_item_ids?: string[] | null
           status?: string
           submitted_at?: string | null
+          terms_accepted_at?: string | null
           token?: string
           updated_at?: string
           vendor_id?: string | null
