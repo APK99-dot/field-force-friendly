@@ -524,7 +524,7 @@ export default function ProcurementDetail({
       .from("procurement_vendor_quotes")
       .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, procurement_item_ids, change_request_notes, attachments, procurement_vendor_quote_items(*)")
       .eq("po_id", order.id);
-    setVendorQuotes((data || []) as VendorQuoteRow[]);
+    setVendorQuotes((data || []) as unknown as VendorQuoteRow[]);
   }, [order.id]);
 
   useEffect(() => { if (open) loadVendorQuotes(); }, [open, loadVendorQuotes]);
