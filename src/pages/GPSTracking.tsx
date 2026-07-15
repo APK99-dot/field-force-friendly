@@ -220,7 +220,15 @@ export default function GPSTracking() {
           .lte("activity_date", to),
       ]);
 
-      setGpsPoints(pointsRes.data || []);
+      // Filter out low-quality GPS points (IP-geolocation fallbacks often
+      // report accuracy in the tens of kilometres and produce phantom trails
+      // to cities the user never visited). Keep null accuracy — some device
+      // providers don't populate it — but drop anything worse than 200m.
+      const cleanedPoints = (pointsRes.data || []).filter((p: any) => {
+        const acc = p.accuracy == null ? null : Number(p.accuracy);
+        return acc == null || acc <= 200;
+      });
+      setGpsPoints(cleanedPoints);
       setGpsStops(stopsRes.data || []);
 
       const markers: ActivityAtLocation[] = [];
