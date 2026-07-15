@@ -987,6 +987,25 @@ export default function ProcurementDetail({
                             ))}
                           </div>
                         )}
+                        {/* Vendor change requests for this line */}
+                        {lineQuotes.filter((q) => q.status === "changes_requested").map((q) => (
+                          <div key={`cr-${q.id}`} className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-900/20 p-2 text-[11px] space-y-1">
+                            <p className="font-medium text-amber-800 dark:text-amber-300">
+                              {vendorName(q.vendor_id || "")} requested changes
+                            </p>
+                            {q.change_request_notes && (
+                              <p className="text-amber-900/90 dark:text-amber-100/90 whitespace-pre-line">{q.change_request_notes}</p>
+                            )}
+                            {(q.attachments || []).length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-1">
+                                {(q.attachments || []).map((a, i) => (
+                                  <a key={i} href={a.url} target="_blank" rel="noreferrer" className="underline text-amber-800 dark:text-amber-200">{a.name}</a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
 
                         {/* Submitted quote comparison for this line item */}
                         {submittedQuotes.length > 0 && (
