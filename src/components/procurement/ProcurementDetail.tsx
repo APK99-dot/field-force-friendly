@@ -969,9 +969,14 @@ export default function ProcurementDetail({
                             {lineQuotes.map((q) => (
                               <div key={q.id} className="flex items-center gap-2 text-[11px]">
                                 <span className="flex-1 truncate">{vendorName(q.vendor_id || "")}</span>
-                                <span className={q.status === "submitted" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
-                                  {q.status === "submitted" ? "Submitted" : "Pending"}
+                                <span className={
+                                  q.status === "submitted" ? "text-emerald-600 dark:text-emerald-400"
+                                  : q.status === "changes_requested" ? "text-amber-600 dark:text-amber-400"
+                                  : "text-muted-foreground"
+                                }>
+                                  {q.status === "submitted" ? "Submitted" : q.status === "changes_requested" ? "Changes Requested" : "Pending"}
                                 </span>
+
                                 <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(q.token)} title="Copy link">
                                   <Copy className="h-3 w-3" />
                                 </Button>
