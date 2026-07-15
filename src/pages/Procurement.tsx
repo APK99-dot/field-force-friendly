@@ -243,6 +243,7 @@ export default function Procurement() {
     setForm({
       source_type: (o.source_type === "internal_transfer" ? "internal_transfer" : "vendor") as SourceType,
       order_date: o.order_date,
+      requisition_name: (o as any).requisition_name || "",
       vendor_ids: o.vendor_ids && o.vendor_ids.length ? o.vendor_ids : (o.vendor_id ? [o.vendor_id] : []),
       site_id: o.site_id || "",
       transfer_from_site_id: o.transfer_from_site_id || "",
