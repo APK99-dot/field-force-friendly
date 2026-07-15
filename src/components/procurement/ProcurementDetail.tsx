@@ -97,8 +97,11 @@ interface VendorQuoteRow {
   notes: string | null;
   submitted_at: string | null;
   procurement_item_ids?: string[] | null;
+  change_request_notes?: string | null;
+  attachments?: { name: string; url: string; size: number; type: string }[] | null;
   procurement_vendor_quote_items?: VendorQuoteItemRow[];
 }
+
 
 interface RateLine {
   id: string;
