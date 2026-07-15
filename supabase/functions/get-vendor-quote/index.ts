@@ -149,6 +149,10 @@ Deno.serve(async (req) => {
       submitted_at: quote.submitted_at,
       vendor_payment_term: quote.vendor_payment_term || "",
       notes: quote.notes || "",
+      change_request_notes: quote.change_request_notes || "",
+      attachments: Array.isArray(quote.attachments) ? quote.attachments : [],
+      terms_and_conditions: termsAndConditions,
+      terms_accepted_at: quote.terms_accepted_at || null,
       requisition: {
         title: reqTitle,
         po_number: order.po_number,
@@ -156,6 +160,8 @@ Deno.serve(async (req) => {
         expected_payment_terms: order.payment_terms || "",
         bill_to: order.bill_to || "",
         ship_to: order.ship_to || "",
+        bill_to_gst: order.bill_to_gst || "",
+        ship_to_gst: order.ship_to_gst || "",
         site_name: siteName,
         site_address: siteAddress,
       },
@@ -167,6 +173,7 @@ Deno.serve(async (req) => {
         : null,
       items: lineItems,
     });
+
   } catch (err) {
     console.error("get-vendor-quote error:", err);
     return json({ error: "Failed to load quote", details: String(err) }, 500);
