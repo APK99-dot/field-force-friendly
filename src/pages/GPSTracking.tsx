@@ -286,7 +286,15 @@ export default function GPSTracking() {
           Math.cos((prev.latitude * Math.PI) / 180) *
             Math.cos((p.latitude * Math.PI) / 180) *
             Math.sin(dLon / 2) ** 2;
-        return acc + R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const segKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        // Skip implausible jumps (>200 km/h implied speed, or >50km single
+        // hop) — these are stray outliers, not real travel.
+        const dtHours = Math.max(
+          (new Date(p.timestamp).getTime() - new Date(prev.timestamp).getTime()) / 3_600_000,
+          1 / 3600, // guard against 0
+        );
+        if (segKm > 50 || segKm / dtHours > 200) return acc;
+        return acc + segKm;
       }, 0)
     : 0;
 
