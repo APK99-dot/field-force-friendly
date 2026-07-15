@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Save, Search, Package, Cloud } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
