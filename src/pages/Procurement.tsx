@@ -501,6 +501,16 @@ export default function Procurement() {
                 : <>This is a <strong>Requisition</strong>. Once approved by an admin, PO Number, Bill/Ship To, delivery date, payment terms and rates become available on the PO detail screen.</>}
             </div>
 
+            <div>
+              <Label className="text-xs">Requisition Name <span className="text-destructive">*</span></Label>
+              <Input
+                value={form.requisition_name}
+                onChange={(e) => setForm((p) => ({ ...p, requisition_name: e.target.value }))}
+                placeholder={form.source_type === "internal_transfer" ? "e.g. Steel transfer — Bharath Mall to Fiza Nexus" : "e.g. Cement for Ground Floor slab"}
+                className="h-9"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Date</Label>
