@@ -184,11 +184,11 @@ export default function ProcurementDetail({
   const [genLinks, setGenLinks] = useState(false);
   const lineItemsRef = useRef<HTMLDivElement>(null);
   // Vendor assignment table state: one row per vendor
-  const [vendorAssignments, setVendorAssignments] = useState<{ key: string; vendor_id: string; line_ids: string[] }[]>([]);
+  const [vendorAssignments, setVendorAssignments] = useState<{ key: string; vendor_id: string; line_ids: string[]; scope: "all" | "specific" }[]>([]);
   const [scopePickerFor, setScopePickerFor] = useState<string | null>(null);
   const [vendorPickerFor, setVendorPickerFor] = useState<string | null>(null);
   const [vendorSearch, setVendorSearch] = useState("");
-  const [expandedFinVendor, setExpandedFinVendor] = useState<string | null>(null);
+  const [expandedVendorRow, setExpandedVendorRow] = useState<string | null>(null);
   // Vendor picker for GRN / Invoice creation (which vendor is this receipt / bill for?)
   const [grnVendorId, setGrnVendorId] = useState<string | null>(null);
   const [invVendorId, setInvVendorId] = useState<string | null>(null);
