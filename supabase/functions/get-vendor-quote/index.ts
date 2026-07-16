@@ -44,16 +44,21 @@ Deno.serve(async (req) => {
     if (oErr) throw oErr;
     if (!order) return json({ error: "Requisition not found." }, 404);
 
-    // Load Terms & Conditions from app_configuration
-    const { data: tcRow } = await supabase
-      .from("app_configuration")
-      .select("config_value")
-      .eq("module", "procurement")
-      .eq("config_key", "termsAndConditions")
-      .maybeSingle();
-    const termsAndConditions: string[] = Array.isArray(tcRow?.config_value)
-      ? (tcRow!.config_value as string[]).filter((t) => typeof t === "string" && t.trim())
+    // Terms & Conditions: prefer per-requisition terms; fallback to global config
+    let termsAndConditions: string[] = Array.isArray((order as any).terms_and_conditions)
+      ? ((order as any).terms_and_conditions as unknown[]).filter((t) => typeof t === "string" && (t as string).trim()) as string[]
       : [];
+    if (termsAndConditions.length === 0) {
+      const { data: tcRow } = await supabase
+        .from("app_configuration")
+        .select("config_value")
+        .eq("module", "procurement")
+        .eq("config_key", "termsAndConditions")
+        .maybeSingle();
+      if (Array.isArray(tcRow?.config_value)) {
+        termsAndConditions = (tcRow!.config_value as unknown[]).filter((t) => typeof t === "string" && (t as string).trim()) as string[];
+      }
+    }
 
 
     // Requisition title comes from notes' first line fallback to PO number
