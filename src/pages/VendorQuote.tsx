@@ -107,14 +107,22 @@ export default function VendorQuote() {
         if (!res.ok) {
           setError(body.error || "Unable to load this quote.");
         } else {
-          setData(body);
-          setRows(body.items || []);
-          setPaymentTerm(body.vendor_payment_term || "");
-          setNotes(body.notes || "");
-          setAttachments(body.attachments || []);
-          setChangeNotes(body.change_request_notes || "");
-          setSubmitted(body.status === "submitted" || body.status === "changes_requested");
-          if (body.terms_accepted_at) setTermsAccepted(true);
+          const safe = {
+            ...body,
+            attachments: Array.isArray(body.attachments) ? body.attachments : [],
+            terms_and_conditions: Array.isArray(body.terms_and_conditions) ? body.terms_and_conditions : [],
+            change_request_notes: body.change_request_notes || "",
+            terms_accepted_at: body.terms_accepted_at || null,
+            items: Array.isArray(body.items) ? body.items : [],
+          };
+          setData(safe);
+          setRows(safe.items);
+          setPaymentTerm(safe.vendor_payment_term || "");
+          setNotes(safe.notes || "");
+          setAttachments(safe.attachments);
+          setChangeNotes(safe.change_request_notes);
+          setSubmitted(safe.status === "submitted" || safe.status === "changes_requested");
+          if (safe.terms_accepted_at) setTermsAccepted(true);
         }
       } catch {
         if (active) setError("Unable to load this quote. Please check your link.");
