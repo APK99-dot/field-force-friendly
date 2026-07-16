@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -184,11 +184,11 @@ export default function ProcurementDetail({
   const [genLinks, setGenLinks] = useState(false);
   const lineItemsRef = useRef<HTMLDivElement>(null);
   // Vendor assignment table state: one row per vendor
-  const [vendorAssignments, setVendorAssignments] = useState<{ key: string; vendor_id: string; line_ids: string[] }[]>([]);
+  const [vendorAssignments, setVendorAssignments] = useState<{ key: string; vendor_id: string; line_ids: string[]; scope: "all" | "specific" }[]>([]);
   const [scopePickerFor, setScopePickerFor] = useState<string | null>(null);
   const [vendorPickerFor, setVendorPickerFor] = useState<string | null>(null);
   const [vendorSearch, setVendorSearch] = useState("");
-  const [expandedFinVendor, setExpandedFinVendor] = useState<string | null>(null);
+  const [expandedVendorRow, setExpandedVendorRow] = useState<string | null>(null);
   // Vendor picker for GRN / Invoice creation (which vendor is this receipt / bill for?)
   const [grnVendorId, setGrnVendorId] = useState<string | null>(null);
   const [invVendorId, setInvVendorId] = useState<string | null>(null);
@@ -218,7 +218,7 @@ export default function ProcurementDetail({
       map[vid].push(l.id);
     }));
     setVendorAssignments(Object.entries(map).map(([vid, ids]) => ({
-      key: vid, vendor_id: vid, line_ids: ids,
+      key: vid, vendor_id: vid, line_ids: ids, scope: (ids.length === lines.length ? "all" : "specific") as "all" | "specific",
     })));
   }, [order]);
 
@@ -232,17 +232,28 @@ export default function ProcurementDetail({
     }));
   }, []);
 
-  const updateAssignment = (key: string, patch: Partial<{ vendor_id: string; line_ids: string[] }>) => {
+  const updateAssignment = (key: string, patch: Partial<{ vendor_id: string; line_ids: string[]; scope: "all" | "specific" }>) => {
     setVendorAssignments((prev) => {
       const next = prev.map((r) => (r.key === key ? { ...r, ...patch } : r));
       syncLinesFromAssignments(next);
+      // If a quote already exists for this vendor and line_ids changed, persist the new scope
+      const row = next.find((r) => r.key === key);
+      if (row && patch.line_ids && row.vendor_id) {
+        const existing = vendorQuotes.find((q) => q.vendor_id === row.vendor_id);
+        if (existing) {
+          supabase.from("procurement_vendor_quotes")
+            .update({ procurement_item_ids: row.line_ids })
+            .eq("id", existing.id)
+            .then(({ error }) => { if (!error) loadVendorQuotes(); });
+        }
+      }
       return next;
     });
   };
   const addAssignmentRow = () => {
     setVendorAssignments((prev) => [
       ...prev,
-      { key: crypto.randomUUID(), vendor_id: "", line_ids: rateLines.map((l) => l.id) },
+      { key: crypto.randomUUID(), vendor_id: "", line_ids: rateLines.map((l) => l.id), scope: "all" },
     ]);
   };
   const removeAssignmentRow = (key: string) => {
@@ -614,6 +625,18 @@ export default function ProcurementDetail({
 
   useEffect(() => { if (open) loadVendorQuotes(); }, [open, loadVendorQuotes]);
 
+  // Automatic status refresh: pick up vendor submissions without a page reload
+  useEffect(() => {
+    if (!open) return;
+    const onVisible = () => { if (document.visibilityState === "visible") loadVendorQuotes(); };
+    document.addEventListener("visibilitychange", onVisible);
+    const interval = window.setInterval(loadVendorQuotes, 30000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(interval);
+    };
+  }, [open, loadVendorQuotes]);
+
   const quoteUrl = (token: string) => `${window.location.origin}/vendor-quote/${token}`;
 
   // Invite the vendors selected on a single line item to quote on that item.
@@ -720,6 +743,29 @@ export default function ProcurementDetail({
         : l.vendor_ids,
     } : l));
     toast.success("Rate applied. Remember to Save.");
+  };
+
+  // "Select Winner" — apply the vendor's rate to this line AND remove the losing
+  // vendors' assignments for this same line, so only the chosen vendor remains.
+  const selectLineWinner = (lineId: string, quote: VendorQuoteRow) => {
+    if (!quote.vendor_id) return;
+    const winnerVid = quote.vendor_id;
+    applyLineQuote(lineId, quote);
+    setVendorAssignments((prev) => {
+      const next = prev
+        .map((r) =>
+          r.vendor_id && r.vendor_id !== winnerVid && r.line_ids.includes(lineId)
+            ? { ...r, line_ids: r.line_ids.filter((x) => x !== lineId), scope: "specific" as const }
+            : r,
+        )
+        .filter((r) => !r.vendor_id || r.line_ids.length > 0);
+      syncLinesFromAssignments(next);
+      return next;
+    });
+    setRateLines((prev) => prev.map((l) => l.id === lineId
+      ? { ...l, vendor_ids: [winnerVid] }
+      : l));
+    toast.success("Winner selected. Save PO to persist.");
   };
 
   // Update a single line's rate (manual edit clears/flips the source tag).
@@ -939,9 +985,10 @@ export default function ProcurementDetail({
                     <table className="w-full text-xs min-w-[640px]">
                       <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
                         <tr className="text-left">
+                          <th className="p-2 w-8"></th>
                           <th className="p-2 w-8">#</th>
                           <th className="p-2">Vendor</th>
-                          <th className="p-2 w-40">Apply To</th>
+                          <th className="p-2 w-48">Apply To</th>
                           <th className="p-2 w-36">Quote Link</th>
                           <th className="p-2 w-28">Status</th>
                           <th className="p-2 w-8"></th>
@@ -949,7 +996,7 @@ export default function ProcurementDetail({
                       </thead>
                       <tbody>
                         {vendorAssignments.map((row, idx) => {
-                          const isAll = row.line_ids.length === rateLines.length && rateLines.length > 0;
+                          const isSpecific = row.scope === "specific";
                           const quote = vendorQuotes.find((q) => q.vendor_id === row.vendor_id);
                           const qStatus = quote?.status || "";
                           const takenVendorIds = new Set(vendorAssignments.filter((x) => x.key !== row.key && x.vendor_id).map((x) => x.vendor_id));
@@ -957,8 +1004,32 @@ export default function ProcurementDetail({
                           const filteredVendors = vendorPickerFor === row.key
                             ? vendorOptions.filter((v) => v.name.toLowerCase().includes(vendorSearch.toLowerCase()))
                             : vendorOptions;
+                          // Product-name label for "Apply To" (instead of raw counts).
+                          const scopedNames = row.line_ids
+                            .map((id) => productName(rateLines.find((l) => l.id === id)?.product_id || null))
+                            .filter(Boolean);
+                          const applyLabel = row.line_ids.length === 0
+                            ? "Pick items…"
+                            : scopedNames.length === 0
+                              ? `${row.line_ids.length} item${row.line_ids.length === 1 ? "" : "s"}`
+                              : scopedNames.length === 1
+                                ? scopedNames[0]
+                                : `${scopedNames[0]} +${scopedNames.length - 1} more`;
+                          const isExpanded = expandedVendorRow === row.key;
+                          const finSummary = row.vendor_id ? vendorSummaries.find((v) => v.vendor_id === row.vendor_id) : null;
+                          const scopedLines = rateLines.filter((l) => row.line_ids.includes(l.id));
                           return (
-                            <tr key={row.key} className="border-t align-top">
+                            <Fragment key={row.key}>
+                            <tr className="border-t align-top">
+                              <td className="p-2">
+                                <button
+                                  type="button" className="text-muted-foreground hover:text-foreground"
+                                  onClick={() => setExpandedVendorRow(isExpanded ? null : row.key)}
+                                  title={isExpanded ? "Collapse" : "Expand details"}
+                                >
+                                  {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                </button>
+                              </td>
                               <td className="p-2 text-muted-foreground">{idx + 1}</td>
                               <td className="p-2">
                                 <Popover open={vendorPickerFor === row.key} onOpenChange={(o) => { setVendorPickerFor(o ? row.key : null); setVendorSearch(""); }}>
@@ -1007,30 +1078,30 @@ export default function ProcurementDetail({
                               <td className="p-2">
                                 <div className="flex items-center gap-1">
                                   <Select
-                                    value={isAll ? "all" : "specific"}
+                                    value={row.scope}
                                     onValueChange={(v) => {
                                       if (v === "all") {
-                                        updateAssignment(row.key, { line_ids: rateLines.map((l) => l.id) });
+                                        updateAssignment(row.key, { scope: "all", line_ids: rateLines.map((l) => l.id) });
                                       } else {
-                                        // Clear scope so isAll flips to false and the picker anchor renders,
-                                        // then open the picker on the next tick.
-                                        updateAssignment(row.key, { line_ids: [] });
+                                        // Preserve any current selection so the generated link stays scoped.
+                                        // If nothing was selected, start empty and open the picker.
+                                        updateAssignment(row.key, { scope: "specific" });
                                         setTimeout(() => setScopePickerFor(row.key), 0);
                                       }
                                     }}
                                     disabled={!poUnlocked}
                                   >
-                                    <SelectTrigger className="h-8 text-xs w-32"><SelectValue /></SelectTrigger>
+                                    <SelectTrigger className="h-8 text-xs w-28"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="all">All items</SelectItem>
                                       <SelectItem value="specific">Specific…</SelectItem>
                                     </SelectContent>
                                   </Select>
-                                  {!isAll && (
+                                  {isSpecific && (
                                     <Popover open={scopePickerFor === row.key} onOpenChange={(o) => setScopePickerFor(o ? row.key : null)}>
                                       <PopoverTrigger asChild>
-                                        <button type="button" className="text-[11px] text-primary hover:underline whitespace-nowrap" disabled={!poUnlocked}>
-                                          {row.line_ids.length} item{row.line_ids.length === 1 ? "" : "s"}
+                                        <button type="button" className="text-[11px] text-primary hover:underline whitespace-nowrap truncate max-w-[10rem] text-left" disabled={!poUnlocked} title={applyLabel}>
+                                          {applyLabel}
                                         </button>
                                       </PopoverTrigger>
                                       <PopoverContent align="start" className="w-64 p-2 max-h-64 overflow-y-auto">
@@ -1113,6 +1184,71 @@ export default function ProcurementDetail({
                                 </Button>
                               </td>
                             </tr>
+                            {isExpanded && (
+                              <tr className="border-t bg-muted/20">
+                                <td></td>
+                                <td colSpan={6} className="p-3 space-y-3">
+                                  {/* Scoped line items + their submitted rates */}
+                                  <div>
+                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Items in scope</div>
+                                    {scopedLines.length === 0 ? (
+                                      <p className="text-[11px] text-muted-foreground">No items selected.</p>
+                                    ) : (
+                                      <div className="space-y-1">
+                                        {scopedLines.map((l) => {
+                                          const qi = quote?.procurement_vendor_quote_items?.find((x) => x.procurement_item_id === l.id);
+                                          const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
+                                          const competing = quotesForItem(l.id).filter((q) => q.status === "submitted" && q.vendor_id !== row.vendor_id);
+                                          const hasCompetition = competing.length > 0;
+                                          return (
+                                            <div key={l.id} className="flex items-center gap-2 text-[11px] border-b last:border-b-0 pb-1">
+                                              <span className="flex-1 truncate"><span className="font-medium">{productName(l.product_id)}</span> · Qty {l.qty}</span>
+                                              <span className="w-20 text-right">{rate != null ? fmtAmt(rate) : <span className="text-muted-foreground">—</span>}</span>
+                                              {rate != null && quote && (
+                                                <Button
+                                                  type="button" size="sm" variant={hasCompetition ? "default" : "outline"} className="h-6 text-[10px]"
+                                                  disabled={!poUnlocked || ratesLocked}
+                                                  onClick={() => hasCompetition ? selectLineWinner(l.id, quote) : applyLineQuote(l.id, quote)}
+                                                >
+                                                  {hasCompetition ? "Select Winner" : "Apply"}
+                                                </Button>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Financial summary */}
+                                  {!isTransfer && finSummary && (
+                                    <div className="border-t pt-2">
+                                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Financials</div>
+                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                                        <div><span className="text-muted-foreground">Order: </span><span className="font-medium">{fmtAmt(finSummary.line_amount)}</span></div>
+                                        <div><span className="text-muted-foreground">Invoiced: </span><span className="font-medium">{fmtAmt(finSummary.invoiced_total)}</span></div>
+                                        <div><span className="text-muted-foreground">Paid: </span><span className="font-medium">{fmtAmt(finSummary.paid_total)}</span></div>
+                                        <div><span className="text-muted-foreground">Balance: </span>
+                                          <span className={`font-semibold ${finSummary.balance_due > 0.005 ? "text-red-600" : "text-green-600"}`}>{fmtAmt(finSummary.balance_due)}</span>
+                                        </div>
+                                      </div>
+                                      {finSummary.payments.length > 0 && (
+                                        <div className="pt-1 mt-1 border-t space-y-0.5">
+                                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Payment Schedule</div>
+                                          {finSummary.payments.map((p, i) => (
+                                            <div key={i} className="flex items-center justify-between text-[11px]">
+                                              <span>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</span>
+                                              <span className="font-medium">{fmtAmt(p.amount)}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                            </Fragment>
                           );
                         })}
                       </tbody>
@@ -1237,59 +1373,7 @@ export default function ProcurementDetail({
 
           </Card>
 
-          {/* Per-vendor financial summary — compact list, expand on click */}
-          {!isTransfer && vendorSummaries.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Vendors</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                {vendorSummaries.map((v) => {
-                  const isOpen = expandedFinVendor === v.vendor_id;
-                  return (
-                    <div key={v.vendor_id} className="rounded border">
-                      <button
-                        type="button"
-                        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-muted/50"
-                        onClick={() => setExpandedFinVendor(isOpen ? null : v.vendor_id)}
-                      >
-                        <span className="flex items-center gap-2">
-                          {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                          <span className="font-medium">{v.vendor_name}</span>
-                        </span>
-                        {v.balance_due > 0.005 && (
-                          <span className="text-[11px] text-red-600 font-medium">Due {fmtAmt(v.balance_due)}</span>
-                        )}
-                      </button>
-                      {isOpen && (
-                        <div className="border-t p-3 space-y-2 bg-muted/20">
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                            <div><span className="text-muted-foreground">Order: </span><span className="font-medium">{fmtAmt(v.line_amount)}</span></div>
-                            <div><span className="text-muted-foreground">Invoiced: </span><span className="font-medium">{fmtAmt(v.invoiced_total)}</span></div>
-                            <div><span className="text-muted-foreground">Paid: </span><span className="font-medium">{fmtAmt(v.paid_total)}</span></div>
-                            <div><span className="text-muted-foreground">Balance: </span>
-                              <span className={`font-semibold ${v.balance_due > 0.005 ? "text-red-600" : "text-green-600"}`}>{fmtAmt(v.balance_due)}</span>
-                            </div>
-                          </div>
-                          {v.payments.length > 0 && (
-                            <div className="pt-1 border-t space-y-0.5">
-                              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Payment Schedule</div>
-                              {v.payments.map((p, idx) => (
-                                <div key={idx} className="flex items-center justify-between text-[11px]">
-                                  <span>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</span>
-                                  <span className="font-medium">{fmtAmt(p.amount)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )}
+          {/* Vendor financials are now inlined inside the Assign Vendors table (row expand). */}
 
           {/* GRN list */}
           <Card>
