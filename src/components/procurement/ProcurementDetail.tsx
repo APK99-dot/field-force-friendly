@@ -1082,7 +1082,7 @@ export default function ProcurementDetail({
                               </td>
                               <td className="p-2">
                                 <Select
-                                  value={qStatus || "none"}
+                                  value={qStatus || undefined}
                                   onValueChange={(v) => setVendorQuoteStatus(row, v)}
                                   disabled={!poUnlocked || !row.vendor_id}
                                 >
