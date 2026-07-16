@@ -232,17 +232,28 @@ export default function ProcurementDetail({
     }));
   }, []);
 
-  const updateAssignment = (key: string, patch: Partial<{ vendor_id: string; line_ids: string[] }>) => {
+  const updateAssignment = (key: string, patch: Partial<{ vendor_id: string; line_ids: string[]; scope: "all" | "specific" }>) => {
     setVendorAssignments((prev) => {
       const next = prev.map((r) => (r.key === key ? { ...r, ...patch } : r));
       syncLinesFromAssignments(next);
+      // If a quote already exists for this vendor and line_ids changed, persist the new scope
+      const row = next.find((r) => r.key === key);
+      if (row && patch.line_ids && row.vendor_id) {
+        const existing = vendorQuotes.find((q) => q.vendor_id === row.vendor_id);
+        if (existing) {
+          supabase.from("procurement_vendor_quotes")
+            .update({ procurement_item_ids: row.line_ids })
+            .eq("id", existing.id)
+            .then(({ error }) => { if (!error) loadVendorQuotes(); });
+        }
+      }
       return next;
     });
   };
   const addAssignmentRow = () => {
     setVendorAssignments((prev) => [
       ...prev,
-      { key: crypto.randomUUID(), vendor_id: "", line_ids: rateLines.map((l) => l.id) },
+      { key: crypto.randomUUID(), vendor_id: "", line_ids: rateLines.map((l) => l.id), scope: "all" },
     ]);
   };
   const removeAssignmentRow = (key: string) => {
