@@ -604,6 +604,30 @@ export default function ProcurementDetail({
   };
 
 
+  // Invite a single vendor to quote on a chosen set of line items (used by the Assign Vendors table).
+  const inviteVendorToQuote = async (vendorId: string, itemIds: string[]) => {
+    if (!vendorId || itemIds.length === 0) { toast.error("Pick a vendor and at least one line item."); return; }
+    if (vendorQuotes.some((q) => q.vendor_id === vendorId)) { toast.message("A quote link already exists for this vendor."); return; }
+    setGenLinks(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("procurement_vendor_quotes").insert({
+        po_id: order.id,
+        vendor_id: vendorId,
+        token: crypto.randomUUID().replace(/-/g, ""),
+        procurement_item_ids: itemIds,
+        created_by: user?.id ?? null,
+      });
+      if (error) throw error;
+      await loadVendorQuotes();
+      toast.success("Quote link generated.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate quote link");
+    } finally {
+      setGenLinks(false);
+    }
+  };
+
   // Quotes scoped to a given line item
   const quotesForItem = useCallback(
     (itemId: string) => vendorQuotes.filter((q) => Array.isArray(q.procurement_item_ids) && q.procurement_item_ids.includes(itemId)),
