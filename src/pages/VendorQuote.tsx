@@ -394,17 +394,16 @@ export default function VendorQuote() {
           </div>
 
           {/* Terms & notes */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Expected Payment Terms</Label>
-              <Input value={req.expected_payment_terms || "-"} disabled className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Your Payment Term</Label>
-              <Input value={paymentTerm} disabled={readOnly}
-                onChange={(e) => setPaymentTerm(e.target.value)}
-                placeholder="e.g. Net 30, Advance 50%" className="h-9" />
-            </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Vendor Payment Terms</Label>
+            <Input
+              value={paymentTerm}
+              disabled={readOnly}
+              onChange={(e) => setPaymentTerm(e.target.value)}
+              placeholder="e.g. Net 30, Advance 50%"
+              className="h-9"
+            />
+            <p className="text-xs text-muted-foreground">Please enter the payment terms you're proposing for this order.</p>
           </div>
 
           <div className="space-y-1.5">
