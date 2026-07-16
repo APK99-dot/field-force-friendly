@@ -26,6 +26,7 @@ interface LineItem {
   discount_pct: number;
   rate_after_discount: number | null;
   delivery_commitment_date: string | null;
+  quality_notes: string;
   is_selected: boolean;
 }
 
