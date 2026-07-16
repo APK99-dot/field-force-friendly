@@ -1177,41 +1177,56 @@ export default function ProcurementDetail({
 
           </Card>
 
-          {/* Per-vendor financial summary (vendor POs only) */}
+          {/* Per-vendor financial summary — compact list, expand on click */}
           {!isTransfer && vendorSummaries.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Vendor Financial Summary</CardTitle>
+                <CardTitle className="text-base">Vendors</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {vendorSummaries.map((v) => (
-                  <div key={v.vendor_id} className="rounded border p-2.5 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">{v.vendor_name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        Order: <span className="font-medium text-foreground">{fmtAmt(v.line_amount)}</span>
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-[11px]">
-                      <div><span className="text-muted-foreground">Invoiced: </span><span className="font-medium">{fmtAmt(v.invoiced_total)}</span></div>
-                      <div><span className="text-muted-foreground">Paid: </span><span className="font-medium">{fmtAmt(v.paid_total)}</span></div>
-                      <div><span className="text-muted-foreground">Balance Due: </span>
-                        <span className={`font-semibold ${v.balance_due > 0.005 ? "text-red-600" : "text-green-600"}`}>{fmtAmt(v.balance_due)}</span>
-                      </div>
-                    </div>
-                    {v.payments.length > 0 && (
-                      <div className="pt-1 border-t space-y-0.5">
-                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Payment Schedule</div>
-                        {v.payments.map((p, idx) => (
-                          <div key={idx} className="flex items-center justify-between text-[11px]">
-                            <span>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</span>
-                            <span className="font-medium">{fmtAmt(p.amount)}</span>
+              <CardContent className="space-y-1">
+                {vendorSummaries.map((v) => {
+                  const isOpen = expandedFinVendor === v.vendor_id;
+                  return (
+                    <div key={v.vendor_id} className="rounded border">
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-muted/50"
+                        onClick={() => setExpandedFinVendor(isOpen ? null : v.vendor_id)}
+                      >
+                        <span className="flex items-center gap-2">
+                          {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                          <span className="font-medium">{v.vendor_name}</span>
+                        </span>
+                        {v.balance_due > 0.005 && (
+                          <span className="text-[11px] text-red-600 font-medium">Due {fmtAmt(v.balance_due)}</span>
+                        )}
+                      </button>
+                      {isOpen && (
+                        <div className="border-t p-3 space-y-2 bg-muted/20">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                            <div><span className="text-muted-foreground">Order: </span><span className="font-medium">{fmtAmt(v.line_amount)}</span></div>
+                            <div><span className="text-muted-foreground">Invoiced: </span><span className="font-medium">{fmtAmt(v.invoiced_total)}</span></div>
+                            <div><span className="text-muted-foreground">Paid: </span><span className="font-medium">{fmtAmt(v.paid_total)}</span></div>
+                            <div><span className="text-muted-foreground">Balance: </span>
+                              <span className={`font-semibold ${v.balance_due > 0.005 ? "text-red-600" : "text-green-600"}`}>{fmtAmt(v.balance_due)}</span>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                          {v.payments.length > 0 && (
+                            <div className="pt-1 border-t space-y-0.5">
+                              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Payment Schedule</div>
+                              {v.payments.map((p, idx) => (
+                                <div key={idx} className="flex items-center justify-between text-[11px]">
+                                  <span>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</span>
+                                  <span className="font-medium">{fmtAmt(p.amount)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </CardContent>
             </Card>
           )}
