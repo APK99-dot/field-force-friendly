@@ -12,6 +12,7 @@ const ItemSchema = z.object({
   rate: z.number().min(0).max(1_000_000_000),
   discount_pct: z.number().min(0).max(100),
   delivery_commitment_date: z.string().max(20).nullable().optional(),
+  quality_notes: z.string().max(1000).nullable().optional(),
   is_selected: z.boolean(),
 });
 
