@@ -88,6 +88,7 @@ Deno.serve(async (req) => {
         discount_pct: it.discount_pct,
         rate_after_discount: rateAfter,
         delivery_commitment_date: it.delivery_commitment_date || null,
+        quality_notes: it.quality_notes ?? null,
         is_selected: it.is_selected,
       };
       const { error: upErr } = await supabase
