@@ -367,14 +367,27 @@ export default function VendorQuote() {
                         value={r.delivery_commitment_date || ""}
                         onChange={(e) => updateRow(r.procurement_item_id, { delivery_commitment_date: e.target.value })} />
                     </td>
+                    <td className="p-2 max-w-[180px]">
+                      <div className="text-xs text-muted-foreground mb-1">{r.quality_instruction || "—"}</div>
+                      <Textarea rows={2} className="text-xs min-h-[52px]" disabled={readOnly}
+                        placeholder="Your quality notes (optional)"
+                        value={r.quality_notes || ""}
+                        onChange={(e) => updateRow(r.procurement_item_id, { quality_notes: e.target.value })} />
+                    </td>
+                    <td className="p-2">
+                      <Input type="date" className="h-8 w-36" disabled={readOnly}
+                        value={r.delivery_commitment_date || ""}
+                        onChange={(e) => updateRow(r.procurement_item_id, { delivery_commitment_date: e.target.value })} />
+                    </td>
                     <td className="p-2">
                       <Input type="number" min={0} className="h-8 w-24 text-right" disabled={readOnly}
                         value={r.rate ?? ""}
                         onChange={(e) => updateRow(r.procurement_item_id, { rate: e.target.value === "" ? null : Number(e.target.value) })} />
                     </td>
                     <td className="p-2">
-                      <Input type="number" min={0} max={100} className="h-8 w-20 text-right" disabled={readOnly}
-                        value={r.discount_pct ?? 0}
+                      <Input type="number" min={0} max={100} step="0.01" className="h-8 w-20 text-right" disabled={readOnly}
+                        value={r.discount_pct === 0 ? "" : r.discount_pct}
+                        placeholder="0"
                         onChange={(e) => updateRow(r.procurement_item_id, { discount_pct: e.target.value === "" ? 0 : Number(e.target.value) })} />
                     </td>
                     <td className="p-2 text-right font-medium">{fmtAmt(rowAfter(r))}</td>
