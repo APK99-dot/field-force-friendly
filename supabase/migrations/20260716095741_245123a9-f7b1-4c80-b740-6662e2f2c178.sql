@@ -1,0 +1,1 @@
+ALTER TABLE public.master_products ADD COLUMN IF NOT EXISTS default_unit_price numeric NOT NULL DEFAULT 0;
