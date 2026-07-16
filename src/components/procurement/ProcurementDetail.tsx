@@ -926,7 +926,15 @@ export default function ProcurementDetail({
           {/* Header info */}
           <Card>
             <CardContent className="p-3 space-y-1.5 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" />{order.order_date}</div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CalendarDays className="h-3.5 w-3.5" />
+                Requisition Date: <span className="font-medium text-foreground">{order.order_date || "-"}</span>
+              </div>
+              {(order as any).requisition_name && (
+                <div className="text-xl font-bold leading-tight text-foreground pt-1">
+                  {(order as any).requisition_name}
+                </div>
+              )}
               {isTransfer ? (
                 <>
                   <div className="text-muted-foreground">Transfer From: <span className="font-medium text-foreground">{siteName(order.transfer_from_site_id)}</span></div>
@@ -936,19 +944,8 @@ export default function ProcurementDetail({
                 </>
               ) : (
                 <>
-                  <div>
-                    <Label className="text-xs">Vendor(s)</Label>
-                    <p className="text-sm font-medium">
-                      {derivedVendorIds.length === 0
-                        ? <span className="text-muted-foreground font-normal">None assigned yet — add vendors from the "Assign Vendors" table below.</span>
-                        : derivedVendorIds.map((id) => vendorName(id)).join(", ")}
-                    </p>
-                  </div>
-
                   <div className="text-muted-foreground">Site: {siteName(order.site_id)}</div>
                   {order.po_number && <div className="text-muted-foreground">PO Number: <span className="font-medium text-foreground">{order.po_number}</span></div>}
-                  {order.expected_delivery_date && <div className="text-muted-foreground">Expected Delivery: {order.expected_delivery_date}</div>}
-                  {order.payment_terms && <div className="text-muted-foreground">Payment Terms: {order.payment_terms}</div>}
                   {(order.bill_to || order.ship_to) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t mt-2">
                       <div className="text-muted-foreground">
