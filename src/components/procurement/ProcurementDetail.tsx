@@ -757,23 +757,10 @@ export default function ProcurementDetail({
               ) : (
                 <>
                   <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <Label className="text-xs">Vendor(s)</Label>
-                      {poUnlocked && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => {
-                          setAddVendorId("");
-                          setAddVendorScope("all");
-                          setAddVendorLineIds(rateLines.map((l) => l.id));
-                          setShowAddVendor(true);
-                          setTimeout(() => lineItemsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-                        }}>
-                          <Plus className="h-3 w-3 mr-1" /> Add Vendor
-                        </Button>
-                      )}
-                    </div>
+                    <Label className="text-xs">Vendor(s)</Label>
                     <p className="text-sm font-medium">
                       {derivedVendorIds.length === 0
-                        ? <span className="text-muted-foreground font-normal">None assigned yet — use "Add Vendor" or assign per line item below.</span>
+                        ? <span className="text-muted-foreground font-normal">None assigned yet — add vendors from the "Assign Vendors" table below.</span>
                         : derivedVendorIds.map((id) => vendorName(id)).join(", ")}
                     </p>
                   </div>
