@@ -256,12 +256,78 @@ export default function ProcurementDetail({
       { key: crypto.randomUUID(), vendor_id: "", line_ids: rateLines.map((l) => l.id), scope: "all" },
     ]);
   };
-  const removeAssignmentRow = (key: string) => {
-    setVendorAssignments((prev) => {
-      const next = prev.filter((r) => r.key !== key);
-      syncLinesFromAssignments(next);
-      return next;
-    });
+  const removeAssignmentRow = async (key: string) => {
+    const removed = vendorAssignments.find((r) => r.key === key);
+    const removedVendorId = removed?.vendor_id || "";
+    const next = vendorAssignments.filter((r) => r.key !== key);
+    setVendorAssignments(next);
+    syncLinesFromAssignments(next);
+
+    // Clear any "rate came from this vendor's quote" tag on line items,
+    // and drop this vendor from each line's vendor_ids in the DB so the
+    // Line Items section immediately stops attributing rates to a vendor
+    // that is no longer assigned.
+    if (removedVendorId) {
+      const stillAssignedElsewhere = next.some((r) => r.vendor_id === removedVendorId);
+
+      const affectedLines = rateLines.filter(
+        (l) =>
+          (l.vendor_ids || []).includes(removedVendorId) ||
+          l.rate_source_vendor_id === removedVendorId
+      );
+
+      setRateLines((prev) =>
+        prev.map((l) => {
+          const clearedSource = l.rate_source_vendor_id === removedVendorId;
+          return {
+            ...l,
+            vendor_ids: (l.vendor_ids || []).filter((v) => v !== removedVendorId),
+            rate_source: clearedSource ? "manual" : l.rate_source,
+            rate_source_vendor_id: clearedSource ? null : l.rate_source_vendor_id,
+          };
+        })
+      );
+
+      try {
+        await Promise.all(
+          affectedLines.map((l) => {
+            const newVids = (l.vendor_ids || []).filter((v) => v !== removedVendorId);
+            const clearedSource = l.rate_source_vendor_id === removedVendorId;
+            return supabase
+              .from("procurement_items")
+              .update({
+                vendor_ids: newVids.length ? newVids : null,
+                ...(clearedSource
+                  ? { rate_source: "manual", rate_source_vendor_id: null }
+                  : {}),
+              })
+              .eq("id", l.id);
+          })
+        );
+
+        // Delete this vendor's quote(s) for this PO so the "Submitted quotes
+        // for this item" block and rate provenance tag disappear immediately.
+        // (Skip if the same vendor still has another assignment row.)
+        if (!stillAssignedElsewhere) {
+          const toDelete = vendorQuotes
+            .filter((q) => q.vendor_id === removedVendorId)
+            .map((q) => q.id);
+          if (toDelete.length) {
+            await supabase
+              .from("procurement_vendor_quote_items")
+              .delete()
+              .in("quote_id", toDelete);
+            await supabase
+              .from("procurement_vendor_quotes")
+              .delete()
+              .in("id", toDelete);
+          }
+          setVendorQuotes((prev) => prev.filter((q) => q.vendor_id !== removedVendorId));
+        }
+      } catch (err: any) {
+        toast.error(err.message || "Failed to clean up vendor data");
+      }
+    }
   };
 
   const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
