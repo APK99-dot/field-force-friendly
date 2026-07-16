@@ -238,7 +238,7 @@ export default function Procurement() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, terms_and_conditions: defaultTerms });
     setLines([{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
     setIsFormOpen(true);
   };
