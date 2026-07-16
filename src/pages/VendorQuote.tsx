@@ -218,6 +218,7 @@ export default function VendorQuote() {
           rate: Number(r.rate) || 0,
           discount_pct: Number(r.discount_pct) || 0,
           delivery_commitment_date: r.delivery_commitment_date || null,
+          quality_notes: r.quality_notes || null,
           is_selected: !!r.is_selected,
         })),
       };
