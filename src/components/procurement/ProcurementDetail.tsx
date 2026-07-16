@@ -199,19 +199,59 @@ export default function ProcurementDetail({
       .then(({ data }) => setVendors((data || []) as typeof vendors));
   }, []);
 
-  // Sync inline editable fields whenever the order changes
   useEffect(() => {
     setPoForm({
       expected_delivery_date: order.expected_delivery_date || "",
       payment_terms: order.payment_terms || "",
     });
-    setRateLines((order.procurement_items || []).map((it) => ({
+    const lines = (order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, uom: it.uom, qty: it.qty, rate: String(it.rate ?? ""),
       vendor_ids: Array.isArray(it.vendor_ids) ? (it.vendor_ids as string[]) : [],
       rate_source: it.rate_source ?? null,
       rate_source_vendor_id: it.rate_source_vendor_id ?? null,
+    }));
+    setRateLines(lines);
+    // Rebuild the vendor-assignment rows from line items (one row per unique vendor)
+    const map: Record<string, string[]> = {};
+    lines.forEach((l) => (l.vendor_ids || []).forEach((vid) => {
+      if (!map[vid]) map[vid] = [];
+      map[vid].push(l.id);
+    }));
+    setVendorAssignments(Object.entries(map).map(([vid, ids]) => ({
+      key: vid, vendor_id: vid, line_ids: ids,
     })));
   }, [order]);
+
+  // Sync vendorAssignments -> rateLines vendor_ids so Save PO Details persists the change.
+  const syncLinesFromAssignments = useCallback((rows: { vendor_id: string; line_ids: string[] }[]) => {
+    setRateLines((prev) => prev.map((l) => {
+      const vids = rows
+        .filter((r) => r.vendor_id && r.line_ids.includes(l.id))
+        .map((r) => r.vendor_id);
+      return { ...l, vendor_ids: Array.from(new Set(vids)) };
+    }));
+  }, []);
+
+  const updateAssignment = (key: string, patch: Partial<{ vendor_id: string; line_ids: string[] }>) => {
+    setVendorAssignments((prev) => {
+      const next = prev.map((r) => (r.key === key ? { ...r, ...patch } : r));
+      syncLinesFromAssignments(next);
+      return next;
+    });
+  };
+  const addAssignmentRow = () => {
+    setVendorAssignments((prev) => [
+      ...prev,
+      { key: crypto.randomUUID(), vendor_id: "", line_ids: rateLines.map((l) => l.id) },
+    ]);
+  };
+  const removeAssignmentRow = (key: string) => {
+    setVendorAssignments((prev) => {
+      const next = prev.filter((r) => r.key !== key);
+      syncLinesFromAssignments(next);
+      return next;
+    });
+  };
 
   const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
 
