@@ -12,6 +12,7 @@ const ItemSchema = z.object({
   rate: z.number().min(0).max(1_000_000_000),
   discount_pct: z.number().min(0).max(100),
   delivery_commitment_date: z.string().max(20).nullable().optional(),
+  quality_notes: z.string().max(1000).nullable().optional(),
   is_selected: z.boolean(),
 });
 
@@ -87,6 +88,7 @@ Deno.serve(async (req) => {
         discount_pct: it.discount_pct,
         rate_after_discount: rateAfter,
         delivery_commitment_date: it.delivery_commitment_date || null,
+        quality_notes: it.quality_notes ?? null,
         is_selected: it.is_selected,
       };
       const { error: upErr } = await supabase

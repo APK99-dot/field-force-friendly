@@ -4101,6 +4101,7 @@ export type Database = {
           source_type: string
           stage_history: Json
           status: string
+          terms_and_conditions: Json | null
           total_amount: number
           transfer_from_site_id: string | null
           updated_at: string
@@ -4131,6 +4132,7 @@ export type Database = {
           source_type?: string
           stage_history?: Json
           status?: string
+          terms_and_conditions?: Json | null
           total_amount?: number
           transfer_from_site_id?: string | null
           updated_at?: string
@@ -4161,6 +4163,7 @@ export type Database = {
           source_type?: string
           stage_history?: Json
           status?: string
+          terms_and_conditions?: Json | null
           total_amount?: number
           transfer_from_site_id?: string | null
           updated_at?: string
@@ -4266,6 +4269,7 @@ export type Database = {
           id: string
           is_selected: boolean
           procurement_item_id: string | null
+          quality_notes: string | null
           quote_id: string
           rate: number
           rate_after_discount: number
@@ -4278,6 +4282,7 @@ export type Database = {
           id?: string
           is_selected?: boolean
           procurement_item_id?: string | null
+          quality_notes?: string | null
           quote_id: string
           rate?: number
           rate_after_discount?: number
@@ -4290,6 +4295,7 @@ export type Database = {
           id?: string
           is_selected?: boolean
           procurement_item_id?: string | null
+          quality_notes?: string | null
           quote_id?: string
           rate?: number
           rate_after_discount?: number

@@ -28,6 +28,8 @@ import ProcurementDetail, { type DetailOrder } from "@/components/procurement/Pr
 import ProductCombobox from "@/components/procurement/ProductCombobox";
 import CategoryCombobox from "@/components/procurement/CategoryCombobox";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
+import { useAppConfiguration } from "@/hooks/useAppConfiguration";
+import { EditableListEditor } from "@/components/config/EditableListEditor";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
@@ -91,6 +93,7 @@ const emptyForm = {
   bill_to_id: "",
   ship_to_id: "",
   expected_payment_terms: "",
+  terms_and_conditions: [] as string[],
 };
 
 export default function Procurement() {
@@ -104,6 +107,8 @@ export default function Procurement() {
   const cfgRequireNotes = cfg.bool("requireNotes");
   const cfgCanCreateRequisition = cfg.canDo("createRequisition");
   const canApprove = isAdmin || hasPermission("module_procurement", "edit");
+  const appConfig = useAppConfiguration();
+  const defaultTerms = (appConfig.getValue<string[]>("procurement", "termsAndConditions") ?? []) as string[];
 
   const [orders, setOrders] = useState<DetailOrder[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -199,7 +204,7 @@ export default function Procurement() {
   const fetchAll = async () => {
     setIsLoading(true);
     const [ord, ven, sit, prod, cat] = await Promise.all([
-      supabase.from("procurement_orders").select("*, procurement_items(*)").order("order_date", { ascending: false }),
+      supabase.from("procurement_orders").select("*, procurement_items(*)").order("created_at", { ascending: false, nullsFirst: false }),
       supabase.from("vendors").select("id, name").order("name"),
       supabase.from("project_sites").select("id, site_name").is("deleted_at", null).order("site_name"),
       supabase.from("master_products").select("id, product_name, default_uom, category_id, product_description, master_categories(category_name)").eq("is_active", true).order("product_name"),
@@ -233,7 +238,7 @@ export default function Procurement() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, terms_and_conditions: defaultTerms });
     setLines([{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
     setIsFormOpen(true);
   };
@@ -254,6 +259,7 @@ export default function Procurement() {
       bill_to_id: o.bill_to_address_id || "",
       ship_to_id: o.ship_to_address_id || "",
       expected_payment_terms: (o as any).payment_terms || "",
+      terms_and_conditions: Array.isArray((o as any).terms_and_conditions) ? (o as any).terms_and_conditions : defaultTerms,
     });
     const items = (o.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id || "",
@@ -334,6 +340,7 @@ export default function Procurement() {
         ship_to_gst: shipAddr?.gst_number || null,
         total_amount: isTransfer ? 0 : lineTotal,
         payment_terms: !isTransfer && form.expected_payment_terms.trim() ? form.expected_payment_terms.trim() : null,
+        terms_and_conditions: isTransfer ? null : (form.terms_and_conditions.filter((t) => t.trim().length > 0)),
       };
 
 
@@ -603,6 +610,16 @@ export default function Procurement() {
                   <Label className="text-xs">Expected Payment Terms</Label>
                   <Input value={form.expected_payment_terms} onChange={(e) => setForm((p) => ({ ...p, expected_payment_terms: e.target.value }))} placeholder="e.g. Net 30, Advance 50%" className="h-9" />
                   <p className="text-[11px] text-muted-foreground mt-1">Shared with vendors on the Indent Order so they know your preferred terms.</p>
+                </div>
+
+                <div>
+                  <Label className="text-xs">Terms &amp; Conditions</Label>
+                  <p className="text-[11px] text-muted-foreground mb-2">These are shown to vendors on the Indent Order and must be accepted before submitting a quote. Defaults come from Admin → Configuration.</p>
+                  <EditableListEditor
+                    items={form.terms_and_conditions}
+                    onChange={(next) => setForm((p) => ({ ...p, terms_and_conditions: next }))}
+                    placeholder="Add a term (e.g. Payment on receipt of goods)"
+                  />
                 </div>
               </>
             )}
