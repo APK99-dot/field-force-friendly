@@ -361,14 +361,8 @@ export default function VendorQuote() {
                     <td className="p-2 text-muted-foreground">{r.product_description || "-"}</td>
                     <td className="p-2 text-right">{r.qty}</td>
                     <td className="p-2">{r.uom || "-"}</td>
-                    <td className="p-2 text-muted-foreground text-xs max-w-[140px]">{r.quality_instruction || "-"}</td>
-                    <td className="p-2">
-                      <Input type="date" className="h-8 w-36" disabled={readOnly}
-                        value={r.delivery_commitment_date || ""}
-                        onChange={(e) => updateRow(r.procurement_item_id, { delivery_commitment_date: e.target.value })} />
-                    </td>
-                    <td className="p-2 max-w-[180px]">
-                      <div className="text-xs text-muted-foreground mb-1">{r.quality_instruction || "—"}</div>
+                    <td className="p-2 max-w-[200px]">
+                      <div className="text-xs text-muted-foreground mb-1 whitespace-pre-line">{r.quality_instruction || "—"}</div>
                       <Textarea rows={2} className="text-xs min-h-[52px]" disabled={readOnly}
                         placeholder="Your quality notes (optional)"
                         value={r.quality_notes || ""}
