@@ -199,7 +199,7 @@ export default function Procurement() {
   const fetchAll = async () => {
     setIsLoading(true);
     const [ord, ven, sit, prod, cat] = await Promise.all([
-      supabase.from("procurement_orders").select("*, procurement_items(*)").order("order_date", { ascending: false }),
+      supabase.from("procurement_orders").select("*, procurement_items(*)").order("created_at", { ascending: false, nullsFirst: false }),
       supabase.from("vendors").select("id, name").order("name"),
       supabase.from("project_sites").select("id, site_name").is("deleted_at", null).order("site_name"),
       supabase.from("master_products").select("id, product_name, default_uom, category_id, product_description, master_categories(category_name)").eq("is_active", true).order("product_name"),
