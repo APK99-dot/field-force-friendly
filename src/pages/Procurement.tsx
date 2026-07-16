@@ -90,6 +90,7 @@ const emptyForm = {
   requisition_notes: "",
   bill_to_id: "",
   ship_to_id: "",
+  expected_payment_terms: "",
 };
 
 export default function Procurement() {
@@ -252,6 +253,7 @@ export default function Procurement() {
       requisition_notes: o.requisition_notes || "",
       bill_to_id: o.bill_to_address_id || "",
       ship_to_id: o.ship_to_address_id || "",
+      expected_payment_terms: (o as any).payment_terms || "",
     });
     const items = (o.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id || "",
@@ -331,6 +333,7 @@ export default function Procurement() {
         bill_to_gst: billAddr?.gst_number || null,
         ship_to_gst: shipAddr?.gst_number || null,
         total_amount: isTransfer ? 0 : lineTotal,
+        payment_terms: !isTransfer && form.expected_payment_terms.trim() ? form.expected_payment_terms.trim() : null,
       };
 
 
@@ -595,6 +598,12 @@ export default function Procurement() {
                   <Input type="number" inputMode="decimal" value={form.estimated_budget} onChange={(e) => setForm((p) => ({ ...p, estimated_budget: e.target.value }))} placeholder="0" className="h-9" />
                 </div>
                 )}
+
+                <div>
+                  <Label className="text-xs">Expected Payment Terms</Label>
+                  <Input value={form.expected_payment_terms} onChange={(e) => setForm((p) => ({ ...p, expected_payment_terms: e.target.value }))} placeholder="e.g. Net 30, Advance 50%" className="h-9" />
+                  <p className="text-[11px] text-muted-foreground mt-1">Shared with vendors on the Indent Order so they know your preferred terms.</p>
+                </div>
               </>
             )}
 
