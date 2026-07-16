@@ -616,10 +616,9 @@ export default function Procurement() {
                   <Label className="text-xs">Terms &amp; Conditions</Label>
                   <p className="text-[11px] text-muted-foreground mb-2">These are shown to vendors on the Indent Order and must be accepted before submitting a quote. Defaults come from Admin → Configuration.</p>
                   <EditableListEditor
-                    value={form.terms_and_conditions}
+                    items={form.terms_and_conditions}
                     onChange={(next) => setForm((p) => ({ ...p, terms_and_conditions: next }))}
                     placeholder="Add a term (e.g. Payment on receipt of goods)"
-                    addLabel="Add Term"
                   />
                 </div>
               </>
