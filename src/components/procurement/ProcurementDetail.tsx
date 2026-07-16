@@ -274,11 +274,24 @@ export default function ProcurementDetail({
     return m;
   }, [rateLines]);
 
-  // Per-vendor financial summary: line-item totals, invoice totals, payments, balance
+  // Per-vendor financial summary: line-item totals, invoice totals, payments, balance.
+  // Base list on BOTH persisted line vendor_ids AND local assignment rows so vendors
+  // appear immediately after being added, before Save.
+  const summaryVendorIds = useMemo(() => {
+    const s = new Set<string>();
+    rateLines.forEach((l) => (l.vendor_ids || []).forEach((v) => v && s.add(v)));
+    vendorAssignments.forEach((r) => { if (r.vendor_id) s.add(r.vendor_id); });
+    return [...s];
+  }, [rateLines, vendorAssignments]);
+
   const vendorSummaries = useMemo(() => {
-    return derivedVendorIds.map((vid) => {
+    return summaryVendorIds.map((vid) => {
+      const assigned = vendorAssignments.find((r) => r.vendor_id === vid);
+      const scopedLineIds = assigned
+        ? new Set(assigned.line_ids)
+        : new Set(rateLines.filter((l) => (l.vendor_ids || []).includes(vid)).map((l) => l.id));
       const lineAmount = rateLines
-        .filter((l) => (l.vendor_ids || []).includes(vid))
+        .filter((l) => scopedLineIds.has(l.id))
         .reduce((s, l) => s + (parseFloat(l.rate) || 0) * (l.qty || 0), 0);
       const vInvoices = invoices.filter((i) => i.vendor_id === vid);
       const invoicedTotal = vInvoices.reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
@@ -296,7 +309,38 @@ export default function ProcurementDetail({
         invoices: vInvoices,
       };
     });
-  }, [derivedVendorIds, rateLines, invoices, invPayments, vendorName]);
+  }, [summaryVendorIds, vendorAssignments, rateLines, invoices, invPayments, vendorName]);
+
+  // Manual override for a vendor's quote status (upsert quote row if missing)
+  const setVendorQuoteStatus = async (row: { vendor_id: string; line_ids: string[] }, status: string) => {
+    if (!row.vendor_id) { toast.error("Pick a vendor first."); return; }
+    try {
+      const existing = vendorQuotes.find((q) => q.vendor_id === row.vendor_id);
+      if (existing) {
+        const { error } = await supabase.from("procurement_vendor_quotes")
+          .update({ status, submitted_at: status === "submitted" ? new Date().toISOString() : existing.submitted_at ?? null })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { error } = await supabase.from("procurement_vendor_quotes").insert({
+          po_id: order.id,
+          vendor_id: row.vendor_id,
+          token: crypto.randomUUID().replace(/-/g, ""),
+          procurement_item_ids: row.line_ids,
+          status,
+          submitted_at: status === "submitted" ? new Date().toISOString() : null,
+          created_by: user?.id ?? null,
+        });
+        if (error) throw error;
+      }
+      await loadVendorQuotes();
+      toast.success("Status updated");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update status");
+    }
+  };
+
 
   const savePoDetails = async () => {
     setPoSaving(true);
@@ -898,7 +942,7 @@ export default function ProcurementDetail({
                           <th className="p-2 w-8">#</th>
                           <th className="p-2">Vendor</th>
                           <th className="p-2 w-40">Apply To</th>
-                          <th className="p-2 w-52">Quote Link</th>
+                          <th className="p-2 w-36">Quote Link</th>
                           <th className="p-2 w-28">Status</th>
                           <th className="p-2 w-8"></th>
                         </tr>
@@ -965,8 +1009,14 @@ export default function ProcurementDetail({
                                   <Select
                                     value={isAll ? "all" : "specific"}
                                     onValueChange={(v) => {
-                                      if (v === "all") updateAssignment(row.key, { line_ids: rateLines.map((l) => l.id) });
-                                      else setScopePickerFor(row.key);
+                                      if (v === "all") {
+                                        updateAssignment(row.key, { line_ids: rateLines.map((l) => l.id) });
+                                      } else {
+                                        // Clear scope so isAll flips to false and the picker anchor renders,
+                                        // then open the picker on the next tick.
+                                        updateAssignment(row.key, { line_ids: [] });
+                                        setTimeout(() => setScopePickerFor(row.key), 0);
+                                      }
                                     }}
                                     disabled={!poUnlocked}
                                   >
@@ -1010,13 +1060,13 @@ export default function ProcurementDetail({
                               <td className="p-2">
                                 {quote ? (
                                   <div className="flex items-center gap-1">
-                                    <span className="flex-1 truncate text-[11px] text-muted-foreground" title={quoteUrl(quote.token)}>
-                                      {quoteUrl(quote.token)}
-                                    </span>
-                                    <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(quote.token)} title="Copy link">
-                                      <Copy className="h-3 w-3" />
+                                    <Button type="button" size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => copyLink(quote.token)} title={quoteUrl(quote.token)}>
+                                      <Copy className="h-3 w-3" /> Copy
                                     </Button>
-                                    <Button type="button" size="icon" variant="ghost" className="h-6 w-6 text-emerald-700 dark:text-emerald-400" onClick={() => shareLinkWhatsApp(quote.vendor_id || "", quote.token)} title="Share on WhatsApp">
+                                    <Button type="button" size="icon" variant="ghost" className="h-7 w-7" asChild title="Open link">
+                                      <a href={quoteUrl(quote.token)} target="_blank" rel="noreferrer"><Link2 className="h-3 w-3" /></a>
+                                    </Button>
+                                    <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-emerald-700 dark:text-emerald-400" onClick={() => shareLinkWhatsApp(quote.vendor_id || "", quote.token)} title="Share on WhatsApp">
                                       <MessageCircle className="h-3 w-3" />
                                     </Button>
                                   </div>
@@ -1031,16 +1081,26 @@ export default function ProcurementDetail({
                                 )}
                               </td>
                               <td className="p-2">
-                                <span className={`text-[11px] ${
-                                  qStatus === "submitted" ? "text-emerald-600 dark:text-emerald-400"
-                                  : qStatus === "changes_requested" ? "text-amber-600 dark:text-amber-400"
-                                  : quote ? "text-muted-foreground" : "text-muted-foreground/60"
-                                }`}>
-                                  {qStatus === "submitted" ? "Submitted"
-                                    : qStatus === "changes_requested" ? "Changes Requested"
-                                    : quote ? "Pending" : "—"}
-                                </span>
+                                <Select
+                                  value={qStatus || undefined}
+                                  onValueChange={(v) => setVendorQuoteStatus(row, v)}
+                                  disabled={!poUnlocked || !row.vendor_id}
+                                >
+                                  <SelectTrigger className={`h-7 text-[11px] w-full ${
+                                    qStatus === "submitted" ? "text-emerald-600 dark:text-emerald-400"
+                                    : qStatus === "changes_requested" ? "text-amber-600 dark:text-amber-400"
+                                    : ""
+                                  }`}>
+                                    <SelectValue placeholder="—" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="submitted">Submitted</SelectItem>
+                                    <SelectItem value="changes_requested">Changes Requested</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </td>
+
                               <td className="p-2">
                                 <Button
                                   type="button" size="icon" variant="ghost"
