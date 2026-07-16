@@ -625,6 +625,18 @@ export default function ProcurementDetail({
 
   useEffect(() => { if (open) loadVendorQuotes(); }, [open, loadVendorQuotes]);
 
+  // Automatic status refresh: pick up vendor submissions without a page reload
+  useEffect(() => {
+    if (!open) return;
+    const onVisible = () => { if (document.visibilityState === "visible") loadVendorQuotes(); };
+    document.addEventListener("visibilitychange", onVisible);
+    const interval = window.setInterval(loadVendorQuotes, 30000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(interval);
+    };
+  }, [open, loadVendorQuotes]);
+
   const quoteUrl = (token: string) => `${window.location.origin}/vendor-quote/${token}`;
 
   // Invite the vendors selected on a single line item to quote on that item.
