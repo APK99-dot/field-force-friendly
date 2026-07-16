@@ -985,9 +985,10 @@ export default function ProcurementDetail({
                     <table className="w-full text-xs min-w-[640px]">
                       <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
                         <tr className="text-left">
+                          <th className="p-2 w-8"></th>
                           <th className="p-2 w-8">#</th>
                           <th className="p-2">Vendor</th>
-                          <th className="p-2 w-40">Apply To</th>
+                          <th className="p-2 w-48">Apply To</th>
                           <th className="p-2 w-36">Quote Link</th>
                           <th className="p-2 w-28">Status</th>
                           <th className="p-2 w-8"></th>
