@@ -523,7 +523,7 @@ export default function ProcurementDetail({
 
   const moverName = currentProfile?.full_name || currentProfile?.username || "Unknown";
 
-  const changeStatus = async (to: ProcStatus, closeAfter = true) => {
+  const changeStatus = async (to: ProcStatus, closeAfter = false) => {
     setBusy(true);
     const entry: StageHistoryEntry = {
       status: to, moved_by: currentUserId ?? null, moved_by_name: moverName, moved_at: new Date().toISOString(),
