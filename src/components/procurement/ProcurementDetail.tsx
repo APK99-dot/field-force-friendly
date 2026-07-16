@@ -1009,8 +1009,14 @@ export default function ProcurementDetail({
                                   <Select
                                     value={isAll ? "all" : "specific"}
                                     onValueChange={(v) => {
-                                      if (v === "all") updateAssignment(row.key, { line_ids: rateLines.map((l) => l.id) });
-                                      else setScopePickerFor(row.key);
+                                      if (v === "all") {
+                                        updateAssignment(row.key, { line_ids: rateLines.map((l) => l.id) });
+                                      } else {
+                                        // Clear scope so isAll flips to false and the picker anchor renders,
+                                        // then open the picker on the next tick.
+                                        updateAssignment(row.key, { line_ids: [] });
+                                        setTimeout(() => setScopePickerFor(row.key), 0);
+                                      }
                                     }}
                                     disabled={!poUnlocked}
                                   >
@@ -1054,13 +1060,13 @@ export default function ProcurementDetail({
                               <td className="p-2">
                                 {quote ? (
                                   <div className="flex items-center gap-1">
-                                    <span className="flex-1 truncate text-[11px] text-muted-foreground" title={quoteUrl(quote.token)}>
-                                      {quoteUrl(quote.token)}
-                                    </span>
-                                    <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(quote.token)} title="Copy link">
-                                      <Copy className="h-3 w-3" />
+                                    <Button type="button" size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => copyLink(quote.token)} title={quoteUrl(quote.token)}>
+                                      <Copy className="h-3 w-3" /> Copy
                                     </Button>
-                                    <Button type="button" size="icon" variant="ghost" className="h-6 w-6 text-emerald-700 dark:text-emerald-400" onClick={() => shareLinkWhatsApp(quote.vendor_id || "", quote.token)} title="Share on WhatsApp">
+                                    <Button type="button" size="icon" variant="ghost" className="h-7 w-7" asChild title="Open link">
+                                      <a href={quoteUrl(quote.token)} target="_blank" rel="noreferrer"><Link2 className="h-3 w-3" /></a>
+                                    </Button>
+                                    <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-emerald-700 dark:text-emerald-400" onClick={() => shareLinkWhatsApp(quote.vendor_id || "", quote.token)} title="Share on WhatsApp">
                                       <MessageCircle className="h-3 w-3" />
                                     </Button>
                                   </div>
@@ -1075,16 +1081,26 @@ export default function ProcurementDetail({
                                 )}
                               </td>
                               <td className="p-2">
-                                <span className={`text-[11px] ${
-                                  qStatus === "submitted" ? "text-emerald-600 dark:text-emerald-400"
-                                  : qStatus === "changes_requested" ? "text-amber-600 dark:text-amber-400"
-                                  : quote ? "text-muted-foreground" : "text-muted-foreground/60"
-                                }`}>
-                                  {qStatus === "submitted" ? "Submitted"
-                                    : qStatus === "changes_requested" ? "Changes Requested"
-                                    : quote ? "Pending" : "—"}
-                                </span>
+                                <Select
+                                  value={qStatus || "none"}
+                                  onValueChange={(v) => setVendorQuoteStatus(row, v)}
+                                  disabled={!poUnlocked || !row.vendor_id}
+                                >
+                                  <SelectTrigger className={`h-7 text-[11px] w-full ${
+                                    qStatus === "submitted" ? "text-emerald-600 dark:text-emerald-400"
+                                    : qStatus === "changes_requested" ? "text-amber-600 dark:text-amber-400"
+                                    : ""
+                                  }`}>
+                                    <SelectValue placeholder="—" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="submitted">Submitted</SelectItem>
+                                    <SelectItem value="changes_requested">Changes Requested</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </td>
+
                               <td className="p-2">
                                 <Button
                                   type="button" size="icon" variant="ghost"
