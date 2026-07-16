@@ -611,6 +611,17 @@ export default function Procurement() {
                   <Input value={form.expected_payment_terms} onChange={(e) => setForm((p) => ({ ...p, expected_payment_terms: e.target.value }))} placeholder="e.g. Net 30, Advance 50%" className="h-9" />
                   <p className="text-[11px] text-muted-foreground mt-1">Shared with vendors on the Indent Order so they know your preferred terms.</p>
                 </div>
+
+                <div>
+                  <Label className="text-xs">Terms &amp; Conditions</Label>
+                  <p className="text-[11px] text-muted-foreground mb-2">These are shown to vendors on the Indent Order and must be accepted before submitting a quote. Defaults come from Admin → Configuration.</p>
+                  <EditableListEditor
+                    value={form.terms_and_conditions}
+                    onChange={(next) => setForm((p) => ({ ...p, terms_and_conditions: next }))}
+                    placeholder="Add a term (e.g. Payment on receipt of goods)"
+                    addLabel="Add Term"
+                  />
+                </div>
               </>
             )}
 
