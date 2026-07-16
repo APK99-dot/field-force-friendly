@@ -218,7 +218,7 @@ export default function ProcurementDetail({
       map[vid].push(l.id);
     }));
     setVendorAssignments(Object.entries(map).map(([vid, ids]) => ({
-      key: vid, vendor_id: vid, line_ids: ids,
+      key: vid, vendor_id: vid, line_ids: ids, scope: (ids.length === lines.length ? "all" : "specific") as "all" | "specific",
     })));
   }, [order]);
 
