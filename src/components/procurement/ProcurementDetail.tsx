@@ -942,7 +942,7 @@ export default function ProcurementDetail({
                           <th className="p-2 w-8">#</th>
                           <th className="p-2">Vendor</th>
                           <th className="p-2 w-40">Apply To</th>
-                          <th className="p-2 w-52">Quote Link</th>
+                          <th className="p-2 w-36">Quote Link</th>
                           <th className="p-2 w-28">Status</th>
                           <th className="p-2 w-8"></th>
                         </tr>
