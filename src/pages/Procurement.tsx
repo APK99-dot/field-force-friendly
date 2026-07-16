@@ -93,6 +93,7 @@ const emptyForm = {
   bill_to_id: "",
   ship_to_id: "",
   expected_payment_terms: "",
+  terms_and_conditions: [] as string[],
 };
 
 export default function Procurement() {
