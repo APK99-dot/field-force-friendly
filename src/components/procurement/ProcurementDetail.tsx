@@ -745,6 +745,29 @@ export default function ProcurementDetail({
     toast.success("Rate applied. Remember to Save.");
   };
 
+  // "Select Winner" — apply the vendor's rate to this line AND remove the losing
+  // vendors' assignments for this same line, so only the chosen vendor remains.
+  const selectLineWinner = (lineId: string, quote: VendorQuoteRow) => {
+    if (!quote.vendor_id) return;
+    const winnerVid = quote.vendor_id;
+    applyLineQuote(lineId, quote);
+    setVendorAssignments((prev) => {
+      const next = prev
+        .map((r) =>
+          r.vendor_id && r.vendor_id !== winnerVid && r.line_ids.includes(lineId)
+            ? { ...r, line_ids: r.line_ids.filter((x) => x !== lineId), scope: "specific" as const }
+            : r,
+        )
+        .filter((r) => !r.vendor_id || r.line_ids.length > 0);
+      syncLinesFromAssignments(next);
+      return next;
+    });
+    setRateLines((prev) => prev.map((l) => l.id === lineId
+      ? { ...l, vendor_ids: [winnerVid] }
+      : l));
+    toast.success("Winner selected. Save PO to persist.");
+  };
+
   // Update a single line's rate (manual edit clears/flips the source tag).
   const setLineRate = (lineId: string, value: string) => {
     setRateLines((prev) => prev.map((l) => l.id === lineId
