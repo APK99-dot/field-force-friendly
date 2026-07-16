@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Handshake, ListChecks, FolderTree, Package, MapPin, Ruler } from "lucide-react";
+import { Handshake, ListChecks, FolderTree, Package, MapPin, Ruler, UserPlus, Tag, CalendarDays, Target, GaugeCircle, Trophy } from "lucide-react";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 
 const allMasterModules = [
@@ -54,6 +54,13 @@ const allMasterModules = [
     path: "/master-data/uom",
     module: null as string | null,
   },
+  { title: "Lead Sources", description: "Manage lead source options", icon: UserPlus, color: "bg-amber-100 text-amber-600", path: "/master-data/lead-sources", module: null as string | null },
+  { title: "Lead Statuses", description: "Manage lead status pipeline", icon: Tag, color: "bg-orange-100 text-orange-600", path: "/master-data/lead-statuses", module: null as string | null },
+  { title: "Event Types", description: "Manage event type categories", icon: CalendarDays, color: "bg-fuchsia-100 text-fuchsia-600", path: "/master-data/event-types", module: null as string | null },
+  { title: "Opportunity Stages", description: "Manage opportunity pipeline stages", icon: Target, color: "bg-lime-100 text-lime-600", path: "/master-data/opportunity-stages", module: null as string | null },
+  { title: "Opportunity Types", description: "Manage opportunity type categories", icon: Trophy, color: "bg-emerald-100 text-emerald-600", path: "/master-data/opportunity-types", module: null as string | null },
+  { title: "Lead Scoring", description: "Configure lead scoring rules", icon: GaugeCircle, color: "bg-blue-100 text-blue-600", path: "/master-data/lead-scoring", module: null as string | null },
+  { title: "Opportunity Scoring", description: "Configure opportunity scoring & health", icon: GaugeCircle, color: "bg-purple-100 text-purple-600", path: "/master-data/opportunity-scoring", module: null as string | null },
 ];
 
 const container = {
