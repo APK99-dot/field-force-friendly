@@ -1393,31 +1393,111 @@ export default function ProcurementDetail({
                         )}
 
                         {/* Submitted quote comparison for this line item */}
-                        {submittedQuotes.length > 0 && (
-                          <div className="space-y-1.5 rounded-md border p-2">
-                            <p className="text-[11px] font-medium">Submitted quotes for this item</p>
-                            {submittedQuotes.map((q) => {
-                              const qi = (q.procurement_vendor_quote_items || []).find((x) => x.procurement_item_id === l.id);
-                              const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
-                              return (
-                                <div key={q.id} className="flex items-center gap-2 text-[11px] border-t pt-1.5 first:border-t-0 first:pt-0">
-                                  <div className="flex-1">
-                                    <div className="font-medium">{vendorName(q.vendor_id || "")}</div>
-                                    <div className="text-muted-foreground">
-                                      {rate != null ? `Rate: ${fmtAmt(rate)}` : "Not quoted"}
-                                      {qi?.delivery_commitment_date ? ` · By ${qi.delivery_commitment_date}` : ""}
+                        {submittedQuotes.length > 0 && (() => {
+                          const rows = submittedQuotes.map((q) => {
+                            const qi = (q.procurement_vendor_quote_items || []).find((x) => x.procurement_item_id === l.id);
+                            const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
+                            return { q, qi, rate };
+                          });
+                          const priced = rows.filter((r) => r.rate != null && r.qi);
+                          const hasCompare = priced.length >= 2;
+                          const winnerVid = l.rate_source === "quote" ? l.rate_source_vendor_id : null;
+                          const hasWinner = !!winnerVid && priced.some((r) => r.q.vendor_id === winnerVid);
+                          const minRate = hasCompare ? Math.min(...priced.map((r) => r.rate as number)) : null;
+                          const deliveryDates = priced
+                            .map((r) => r.qi?.delivery_commitment_date)
+                            .filter((d): d is string => !!d);
+                          const minDelivery = deliveryDates.length ? deliveryDates.sort()[0] : null;
+
+                          if (!hasCompare) {
+                            return (
+                              <div className="space-y-1.5 rounded-md border p-2">
+                                <p className="text-[11px] font-medium">Submitted quote for this item</p>
+                                {rows.map(({ q, qi, rate }) => (
+                                  <div key={q.id} className="flex items-center gap-2 text-[11px]">
+                                    <div className="flex-1">
+                                      <div className="font-medium">{vendorName(q.vendor_id || "")}</div>
+                                      <div className="text-muted-foreground">
+                                        {rate != null ? `Rate: ${fmtAmt(rate)}` : "Not quoted"}
+                                        {qi?.delivery_commitment_date ? ` · By ${qi.delivery_commitment_date}` : ""}
+                                      </div>
                                     </div>
+                                    {rate != null && (
+                                      <Button type="button" size="sm" variant="outline" className="h-6 text-[11px]" disabled={!poUnlocked || ratesLocked} onClick={() => applyLineQuote(l.id, q)}>
+                                        Select
+                                      </Button>
+                                    )}
                                   </div>
-                                  {rate != null && (
-                                    <Button type="button" size="sm" variant="outline" className="h-6 text-[11px]" disabled={!poUnlocked || ratesLocked} onClick={() => applyLineQuote(l.id, q)}>
-                                      Apply
-                                    </Button>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                                ))}
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="space-y-1.5 rounded-md border p-2 overflow-x-auto">
+                              <p className="text-[11px] font-medium">Compare submitted quotes ({priced.length})</p>
+                              <table className="w-full text-[11px]">
+                                <thead className="text-muted-foreground">
+                                  <tr className="text-left">
+                                    <th className="py-1 pr-2">Vendor</th>
+                                    <th className="py-1 pr-2">Rate</th>
+                                    <th className="py-1 pr-2">Disc %</th>
+                                    <th className="py-1 pr-2">After Disc.</th>
+                                    <th className="py-1 pr-2">Delivery</th>
+                                    <th className="py-1 pr-2">Payment</th>
+                                    <th className="py-1 pr-2 text-right">Action</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {rows.map(({ q, qi, rate }) => {
+                                    const isWinner = hasWinner && q.vendor_id === winnerVid;
+                                    const isLoser = hasWinner && !isWinner;
+                                    const canSelect = rate != null && qi;
+                                    const isMinRate = canSelect && minRate != null && rate === minRate;
+                                    const isMinDelivery = !!qi?.delivery_commitment_date && qi.delivery_commitment_date === minDelivery;
+                                    return (
+                                      <tr key={q.id} className={`border-t ${isLoser ? "opacity-60" : ""}`}>
+                                        <td className="py-1 pr-2 font-medium">
+                                          {vendorName(q.vendor_id || "")}
+                                          {isWinner && <span className="ml-1 text-emerald-600">✓ Selected</span>}
+                                          {isLoser && <span className="ml-1 text-muted-foreground">· Not Selected</span>}
+                                        </td>
+                                        <td className="py-1 pr-2">{qi ? fmtAmt(Number(qi.rate) || 0) : "-"}</td>
+                                        <td className="py-1 pr-2">{qi ? `${Number(qi.discount_pct) || 0}%` : "-"}</td>
+                                        <td className="py-1 pr-2">
+                                          <span className={isMinRate ? "inline-flex items-center gap-1" : ""}>
+                                            {rate != null ? fmtAmt(rate) : "-"}
+                                            {isMinRate && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" title="Lowest rate" />}
+                                          </span>
+                                        </td>
+                                        <td className="py-1 pr-2">
+                                          <span className={isMinDelivery ? "inline-flex items-center gap-1" : ""}>
+                                            {qi?.delivery_commitment_date || "-"}
+                                            {isMinDelivery && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" title="Earliest delivery" />}
+                                          </span>
+                                        </td>
+                                        <td className="py-1 pr-2">{q.vendor_payment_term || "-"}</td>
+                                        <td className="py-1 pr-2 text-right">
+                                          {isLoser ? (
+                                            <Button type="button" size="sm" variant="ghost" className="h-6 text-[11px]" disabled={!poUnlocked || ratesLocked} onClick={() => canSelect && applyLineQuote(l.id, q)}>
+                                              Select
+                                            </Button>
+                                          ) : canSelect ? (
+                                            <Button type="button" size="sm" variant={isWinner ? "secondary" : "outline"} className="h-6 text-[11px]" disabled={!poUnlocked || ratesLocked || isWinner} onClick={() => applyLineQuote(l.id, q)}>
+                                              {isWinner ? "Selected" : "Select"}
+                                            </Button>
+                                          ) : (
+                                            <span className="text-muted-foreground">Not quoted</span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        })()}
                       </>
                     )}
                   </div>
