@@ -90,6 +90,7 @@ const emptyForm = {
   requisition_notes: "",
   bill_to_id: "",
   ship_to_id: "",
+  expected_payment_terms: "",
 };
 
 export default function Procurement() {
