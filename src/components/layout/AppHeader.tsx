@@ -34,6 +34,10 @@ import {
   Search,
   Settings,
   FileBarChart,
+  UserPlus,
+  Contact,
+  CalendarDays,
+  Target,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NavLink } from "@/components/NavLink";
@@ -63,6 +67,10 @@ const allNavigationItems = [
   { icon: Users2, label: "My Team", href: "/my-team", color: "from-indigo-500 to-indigo-600", module: null as string | null },
   { icon: ShoppingCart, label: "Procurement", href: "/procurement", color: "from-rose-500 to-rose-600", module: "module_procurement" },
   { icon: Truck, label: "Goods Receipt", href: "/grn", color: "from-pink-500 to-pink-600", module: "module_procurement" },
+  { icon: Contact, label: "Customers", href: "/customers", color: "from-sky-500 to-sky-600", module: null as string | null },
+  { icon: UserPlus, label: "Leads", href: "/leads", color: "from-amber-500 to-amber-600", module: null as string | null },
+  { icon: CalendarDays, label: "Events", href: "/events", color: "from-fuchsia-500 to-fuchsia-600", module: null as string | null },
+  { icon: Target, label: "Opportunities", href: "/opportunities", color: "from-lime-500 to-lime-600", module: null as string | null },
   { icon: FileBarChart, label: "Reports", href: "/reports", color: "from-teal-500 to-teal-600", module: null as string | null },
 ];
 
