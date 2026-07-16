@@ -107,6 +107,8 @@ export default function Procurement() {
   const cfgRequireNotes = cfg.bool("requireNotes");
   const cfgCanCreateRequisition = cfg.canDo("createRequisition");
   const canApprove = isAdmin || hasPermission("module_procurement", "edit");
+  const appConfig = useAppConfiguration();
+  const defaultTerms = (appConfig.getValue<string[]>("procurement", "termsAndConditions") ?? []) as string[];
 
   const [orders, setOrders] = useState<DetailOrder[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
