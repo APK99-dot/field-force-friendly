@@ -28,6 +28,8 @@ import ProcurementDetail, { type DetailOrder } from "@/components/procurement/Pr
 import ProductCombobox from "@/components/procurement/ProductCombobox";
 import CategoryCombobox from "@/components/procurement/CategoryCombobox";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
+import { useAppConfiguration } from "@/hooks/useAppConfiguration";
+import { EditableListEditor } from "@/components/config/EditableListEditor";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
