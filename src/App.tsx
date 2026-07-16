@@ -40,6 +40,21 @@ const CategoryMaster = lazy(() => import("./pages/master/CategoryMaster"));
 const ProductMaster = lazy(() => import("./pages/master/ProductMaster"));
 const AddressBook = lazy(() => import("./pages/master/AddressBook"));
 const UomMaster = lazy(() => import("./pages/master/UomMaster"));
+const LeadSourcesMaster = lazy(() => import("./pages/master/LeadSourcesMaster"));
+const LeadStatusesMaster = lazy(() => import("./pages/master/LeadStatusesMaster"));
+const EventTypesMaster = lazy(() => import("./pages/master/EventTypesMaster"));
+const OpportunityStagesMaster = lazy(() => import("./pages/master/OpportunityStagesMaster"));
+const OpportunityTypesMaster = lazy(() => import("./pages/master/OpportunityTypesMaster"));
+const LeadScoringMaster = lazy(() => import("./pages/master/LeadScoringMaster"));
+const OpportunityScoringMaster = lazy(() => import("./pages/master/OpportunityScoringMaster"));
+const Customers = lazy(() => import("./pages/Customers"));
+const CustomerDetail = lazy(() => import("./pages/CustomerDetail"));
+const Leads = lazy(() => import("./pages/Leads"));
+const LeadDetail = lazy(() => import("./pages/LeadDetail"));
+const Events = lazy(() => import("./pages/Events"));
+const EventDetail = lazy(() => import("./pages/EventDetail"));
+const Opportunities = lazy(() => import("./pages/Opportunities"));
+const OpportunityDetail = lazy(() => import("./pages/OpportunityDetail"));
 
 const Procurement = lazy(() => import("./pages/Procurement"));
 const GRN = lazy(() => import("./pages/GRN"));
@@ -109,6 +124,22 @@ const App = () => (
             <Route path="/master-data/products" element={<Suspense fallback={<PageFallback />}><ProductMaster /></Suspense>} />
             <Route path="/master-data/addresses" element={<Suspense fallback={<PageFallback />}><AddressBook /></Suspense>} />
             <Route path="/master-data/uom" element={<Suspense fallback={<PageFallback />}><UomMaster /></Suspense>} />
+            <Route path="/master-data/lead-sources" element={<Suspense fallback={<PageFallback />}><LeadSourcesMaster /></Suspense>} />
+            <Route path="/master-data/lead-statuses" element={<Suspense fallback={<PageFallback />}><LeadStatusesMaster /></Suspense>} />
+            <Route path="/master-data/event-types" element={<Suspense fallback={<PageFallback />}><EventTypesMaster /></Suspense>} />
+            <Route path="/master-data/opportunity-stages" element={<Suspense fallback={<PageFallback />}><OpportunityStagesMaster /></Suspense>} />
+            <Route path="/master-data/opportunity-types" element={<Suspense fallback={<PageFallback />}><OpportunityTypesMaster /></Suspense>} />
+            <Route path="/master-data/lead-scoring" element={<Suspense fallback={<PageFallback />}><LeadScoringMaster /></Suspense>} />
+            <Route path="/master-data/opportunity-scoring" element={<Suspense fallback={<PageFallback />}><OpportunityScoringMaster /></Suspense>} />
+            <Route path="/customers" element={<Suspense fallback={<PageFallback />}><Customers /></Suspense>} />
+            <Route path="/customers/:id" element={<Suspense fallback={<PageFallback />}><CustomerDetail /></Suspense>} />
+            <Route path="/leads" element={<Suspense fallback={<PageFallback />}><Leads /></Suspense>} />
+            <Route path="/leads/:id" element={<Suspense fallback={<PageFallback />}><LeadDetail /></Suspense>} />
+            <Route path="/events" element={<Suspense fallback={<PageFallback />}><Events /></Suspense>} />
+            <Route path="/events/:id" element={<Suspense fallback={<PageFallback />}><EventDetail /></Suspense>} />
+            <Route path="/opportunities" element={<Suspense fallback={<PageFallback />}><Opportunities /></Suspense>} />
+            <Route path="/opportunities/:id" element={<Suspense fallback={<PageFallback />}><OpportunityDetail /></Suspense>} />
+            
             
             <Route path="/procurement" element={<Suspense fallback={<PageFallback />}><Procurement /></Suspense>} />
             <Route path="/grn" element={<Suspense fallback={<PageFallback />}><GRN /></Suspense>} />
