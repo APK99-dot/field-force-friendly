@@ -848,104 +848,235 @@ export default function ProcurementDetail({
           )}
 
 
+          {/* Assign Vendors — one row per vendor (vendor POs only) */}
+          {!isTransfer && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center justify-between gap-2">
+                  <span>Assign Vendors</span>
+                  {poUnlocked && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={addAssignmentRow}>
+                      <Plus className="h-3 w-3" /> Add Vendor
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {vendorAssignments.length === 0 ? (
+                  <div className="text-xs text-muted-foreground py-2">
+                    No vendors assigned yet.{poUnlocked ? " Click \"Add Vendor\" to invite one." : ""}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded border">
+                    <table className="w-full text-xs min-w-[640px]">
+                      <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+                        <tr className="text-left">
+                          <th className="p-2 w-8">#</th>
+                          <th className="p-2">Vendor</th>
+                          <th className="p-2 w-40">Apply To</th>
+                          <th className="p-2 w-52">Quote Link</th>
+                          <th className="p-2 w-28">Status</th>
+                          <th className="p-2 w-8"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {vendorAssignments.map((row, idx) => {
+                          const isAll = row.line_ids.length === rateLines.length && rateLines.length > 0;
+                          const quote = vendorQuotes.find((q) => q.vendor_id === row.vendor_id);
+                          const qStatus = quote?.status || "";
+                          const takenVendorIds = new Set(vendorAssignments.filter((x) => x.key !== row.key && x.vendor_id).map((x) => x.vendor_id));
+                          const vendorOptions = vendors.filter((v) => !takenVendorIds.has(v.id));
+                          const filteredVendors = vendorPickerFor === row.key
+                            ? vendorOptions.filter((v) => v.name.toLowerCase().includes(vendorSearch.toLowerCase()))
+                            : vendorOptions;
+                          return (
+                            <tr key={row.key} className="border-t align-top">
+                              <td className="p-2 text-muted-foreground">{idx + 1}</td>
+                              <td className="p-2">
+                                <Popover open={vendorPickerFor === row.key} onOpenChange={(o) => { setVendorPickerFor(o ? row.key : null); setVendorSearch(""); }}>
+                                  <PopoverTrigger asChild>
+                                    <Button type="button" variant="outline" className="h-8 w-full justify-between font-normal text-xs" disabled={!poUnlocked}>
+                                      <span className="truncate text-left">
+                                        {row.vendor_id
+                                          ? vendorName(row.vendor_id)
+                                          : <span className="text-muted-foreground">Select vendor…</span>}
+                                      </span>
+                                      <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[--radix-popover-trigger-width] p-2" align="start">
+                                    <div className="relative mb-2">
+                                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                      <Input
+                                        autoFocus
+                                        placeholder="Search vendors…"
+                                        value={vendorSearch}
+                                        onChange={(e) => setVendorSearch(e.target.value)}
+                                        className="h-8 pl-7 text-xs"
+                                      />
+                                    </div>
+                                    <div className="max-h-56 overflow-y-auto">
+                                      {filteredVendors.length === 0 ? (
+                                        <p className="text-xs text-muted-foreground p-2">No vendors found.</p>
+                                      ) : filteredVendors.map((v) => (
+                                        <button
+                                          key={v.id}
+                                          type="button"
+                                          className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-muted ${row.vendor_id === v.id ? "bg-muted font-medium" : ""}`}
+                                          onClick={() => {
+                                            updateAssignment(row.key, { vendor_id: v.id });
+                                            setVendorPickerFor(null);
+                                            setVendorSearch("");
+                                          }}
+                                        >
+                                          {v.name}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              </td>
+                              <td className="p-2">
+                                <div className="flex items-center gap-1">
+                                  <Select
+                                    value={isAll ? "all" : "specific"}
+                                    onValueChange={(v) => {
+                                      if (v === "all") updateAssignment(row.key, { line_ids: rateLines.map((l) => l.id) });
+                                      else setScopePickerFor(row.key);
+                                    }}
+                                    disabled={!poUnlocked}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs w-32"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="all">All items</SelectItem>
+                                      <SelectItem value="specific">Specific…</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  {!isAll && (
+                                    <Popover open={scopePickerFor === row.key} onOpenChange={(o) => setScopePickerFor(o ? row.key : null)}>
+                                      <PopoverTrigger asChild>
+                                        <button type="button" className="text-[11px] text-primary hover:underline whitespace-nowrap" disabled={!poUnlocked}>
+                                          {row.line_ids.length} item{row.line_ids.length === 1 ? "" : "s"}
+                                        </button>
+                                      </PopoverTrigger>
+                                      <PopoverContent align="start" className="w-64 p-2 max-h-64 overflow-y-auto">
+                                        <p className="text-[11px] font-medium mb-1.5">Line items for this vendor</p>
+                                        {rateLines.map((l) => (
+                                          <label key={l.id} className="flex items-start gap-2 text-xs cursor-pointer p-1 hover:bg-muted rounded">
+                                            <Checkbox
+                                              checked={row.line_ids.includes(l.id)}
+                                              onCheckedChange={(c) => {
+                                                const next = c
+                                                  ? [...row.line_ids, l.id]
+                                                  : row.line_ids.filter((x) => x !== l.id);
+                                                updateAssignment(row.key, { line_ids: next });
+                                              }}
+                                            />
+                                            <span className="flex-1">
+                                              <span className="font-medium">{productName(l.product_id)}</span>
+                                              <span className="text-muted-foreground"> · Qty {l.qty}</span>
+                                            </span>
+                                          </label>
+                                        ))}
+                                      </PopoverContent>
+                                    </Popover>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-2">
+                                {quote ? (
+                                  <div className="flex items-center gap-1">
+                                    <span className="flex-1 truncate text-[11px] text-muted-foreground" title={quoteUrl(quote.token)}>
+                                      {quoteUrl(quote.token)}
+                                    </span>
+                                    <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(quote.token)} title="Copy link">
+                                      <Copy className="h-3 w-3" />
+                                    </Button>
+                                    <Button type="button" size="icon" variant="ghost" className="h-6 w-6 text-emerald-700 dark:text-emerald-400" onClick={() => shareLinkWhatsApp(quote.vendor_id || "", quote.token)} title="Share on WhatsApp">
+                                      <MessageCircle className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    type="button" size="sm" variant="outline" className="h-7 text-[11px] gap-1"
+                                    disabled={!poUnlocked || !row.vendor_id || row.line_ids.length === 0 || genLinks}
+                                    onClick={() => inviteVendorToQuote(row.vendor_id, row.line_ids)}
+                                  >
+                                    <Link2 className="h-3 w-3" /> Generate
+                                  </Button>
+                                )}
+                              </td>
+                              <td className="p-2">
+                                <span className={`text-[11px] ${
+                                  qStatus === "submitted" ? "text-emerald-600 dark:text-emerald-400"
+                                  : qStatus === "changes_requested" ? "text-amber-600 dark:text-amber-400"
+                                  : quote ? "text-muted-foreground" : "text-muted-foreground/60"
+                                }`}>
+                                  {qStatus === "submitted" ? "Submitted"
+                                    : qStatus === "changes_requested" ? "Changes Requested"
+                                    : quote ? "Pending" : "—"}
+                                </span>
+                              </td>
+                              <td className="p-2">
+                                <Button
+                                  type="button" size="icon" variant="ghost"
+                                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                  disabled={!poUnlocked}
+                                  onClick={() => removeAssignmentRow(row.key)}
+                                  title="Remove"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Change requests surfaced under the table */}
+                {vendorQuotes.filter((q) => q.status === "changes_requested").map((q) => (
+                  <div key={`cr-${q.id}`} className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-900/20 p-2 text-[11px] space-y-1">
+                    <p className="font-medium text-amber-800 dark:text-amber-300">
+                      {vendorName(q.vendor_id || "")} requested changes
+                    </p>
+                    {q.change_request_notes && (
+                      <p className="text-amber-900/90 dark:text-amber-100/90 whitespace-pre-line">{q.change_request_notes}</p>
+                    )}
+                    {(q.attachments || []).length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {(q.attachments || []).map((a, i) => (
+                          <a key={i} href={a.url} target="_blank" rel="noreferrer" className="underline text-amber-800 dark:text-amber-200">{a.name}</a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+
           <Card ref={lineItemsRef}>
             <CardHeader className="pb-2"><CardTitle className="text-base">{isTransfer ? "Transfer Items" : "Line Items"}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-
-              {/* Inline Add Vendor panel — triggered by the "Add Vendor" button in the header card */}
-              {showAddVendor && !isTransfer && poUnlocked && (
-                <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Assign a vendor to line items</p>
-                    <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowAddVendor(false)}>Close</Button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs">Vendor</Label>
-                      <select
-                        className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-                        value={addVendorId}
-                        onChange={(e) => setAddVendorId(e.target.value)}
-                      >
-                        <option value="">— Select vendor —</option>
-                        {vendors.map((v) => (
-                          <option key={v.id} value={v.id}>{v.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <Label className="text-xs">Apply to</Label>
-                      <div className="flex gap-2 mt-1">
-                        <Button
-                          type="button" size="sm"
-                          variant={addVendorScope === "all" ? "default" : "outline"}
-                          onClick={() => { setAddVendorScope("all"); setAddVendorLineIds(rateLines.map((l) => l.id)); }}
-                        >All line items</Button>
-                        <Button
-                          type="button" size="sm"
-                          variant={addVendorScope === "specific" ? "default" : "outline"}
-                          onClick={() => setAddVendorScope("specific")}
-                        >Specific line items</Button>
-                      </div>
-                    </div>
-                  </div>
-                  {addVendorScope === "specific" && (
-                    <div className="max-h-56 overflow-y-auto rounded border bg-background p-2 space-y-1">
-                      {rateLines.map((l) => (
-                        <label key={l.id} className="flex items-start gap-2 text-sm cursor-pointer p-1 hover:bg-muted rounded">
-                          <input
-                            type="checkbox"
-                            className="mt-0.5"
-                            checked={addVendorLineIds.includes(l.id)}
-                            onChange={(e) => setAddVendorLineIds((prev) =>
-                              e.target.checked ? [...prev, l.id] : prev.filter((x) => x !== l.id)
-                            )}
-                          />
-                          <span className="flex-1">
-                            <span className="font-medium">{productName(l.product_id)}</span>
-                            <span className="text-muted-foreground text-xs"> · Qty {l.qty}</span>
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-[11px] text-muted-foreground">
-                    Assigning a vendor here does <strong>not</strong> send them a quote request. Use "Generate Quote Links" on the line item to invite them to quote.
-                  </p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1" onClick={() => setShowAddVendor(false)}>Cancel</Button>
-                    <Button
-                      className="flex-1"
-                      disabled={!addVendorId || (addVendorScope === "specific" && addVendorLineIds.length === 0)}
-                      onClick={() => {
-                        const targetIds = addVendorScope === "all"
-                          ? rateLines.map((l) => l.id)
-                          : addVendorLineIds;
-                        setRateLines((prev) => prev.map((l) => {
-                          if (!targetIds.includes(l.id)) return l;
-                          if ((l.vendor_ids || []).includes(addVendorId)) return l;
-                          return { ...l, vendor_ids: [...(l.vendor_ids || []), addVendorId] };
-                        }));
-                        setShowAddVendor(false);
-                        toast.success("Vendor assigned — remember to Save PO Details.");
-                      }}
-                    >Apply</Button>
-                  </div>
-                </div>
-              )}
-
-
-
-
-
-              {rateLines.map((l, i) => {
+              {rateLines.map((l) => {
                 const amt = (parseFloat(l.rate) || 0) * (l.qty || 0);
                 const tag = rateSourceLabel(l);
-                const lineQuotes = quotesForItem(l.id);
-                const submittedQuotes = lineQuotes.filter((q) => q.status === "submitted");
+                const submittedQuotes = quotesForItem(l.id).filter((q) => q.status === "submitted");
+                const lineVendorNames = (l.vendor_ids || []).map((id) => vendorName(id)).filter(Boolean);
                 return (
                   <div key={l.id} className="rounded-lg border p-2.5 bg-muted/30 space-y-2">
-                    <div className="text-sm font-medium">{productName(l.product_id)}</div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-sm font-medium">{productName(l.product_id)}</div>
+                      {!isTransfer && lineVendorNames.length > 0 && (
+                        <span className="text-[10px] text-muted-foreground truncate max-w-[50%]" title={lineVendorNames.join(", ")}>
+                          {lineVendorNames.join(", ")}
+                        </span>
+                      )}
+                    </div>
                     {isTransfer ? (
                       <div>
                         <Label className="text-[10px] text-muted-foreground">Qty</Label>
@@ -953,21 +1084,6 @@ export default function ProcurementDetail({
                       </div>
                     ) : (
                       <>
-                        <div>
-                          <Label className="text-[10px] text-muted-foreground">Vendor(s)</Label>
-                          <VendorMultiSelect
-                            vendors={vendors}
-                            selectedIds={l.vendor_ids}
-                            onChange={(ids) => setLineVendors(l.id, ids)}
-                            disabled={!poUnlocked}
-                          />
-                          {poUnlocked && l.vendor_ids.length > 0 && (
-                            <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-xs mt-2" onClick={() => inviteLineToQuote(l.id)} disabled={genLinks}>
-                              <Link2 className="h-3.5 w-3.5" /> {genLinks ? "Generating..." : "Generate Quote Links"}
-                            </Button>
-                          )}
-                        </div>
-
                         <div className="grid grid-cols-3 gap-2 items-end">
                           <div>
                             <Label className="text-[10px] text-muted-foreground">Qty</Label>
@@ -989,51 +1105,6 @@ export default function ProcurementDetail({
                         {tag && (
                           <Badge variant="outline" className="text-[10px] font-normal">{tag}</Badge>
                         )}
-
-                        {/* Quote links for this line item */}
-                        {lineQuotes.length > 0 && (
-                          <div className="space-y-1.5 rounded-md border p-2 bg-background">
-                            <p className="text-[11px] font-medium">Quote requests</p>
-                            {lineQuotes.map((q) => (
-                              <div key={q.id} className="flex items-center gap-2 text-[11px]">
-                                <span className="flex-1 truncate">{vendorName(q.vendor_id || "")}</span>
-                                <span className={
-                                  q.status === "submitted" ? "text-emerald-600 dark:text-emerald-400"
-                                  : q.status === "changes_requested" ? "text-amber-600 dark:text-amber-400"
-                                  : "text-muted-foreground"
-                                }>
-                                  {q.status === "submitted" ? "Submitted" : q.status === "changes_requested" ? "Changes Requested" : "Pending"}
-                                </span>
-
-                                <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyLink(q.token)} title="Copy link">
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-                                <Button type="button" size="icon" variant="ghost" className="h-6 w-6 text-emerald-700 dark:text-emerald-400" onClick={() => shareLinkWhatsApp(q.vendor_id || "", q.token)} title="Share on WhatsApp">
-                                  <MessageCircle className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {/* Vendor change requests for this line */}
-                        {lineQuotes.filter((q) => q.status === "changes_requested").map((q) => (
-                          <div key={`cr-${q.id}`} className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-900/20 p-2 text-[11px] space-y-1">
-                            <p className="font-medium text-amber-800 dark:text-amber-300">
-                              {vendorName(q.vendor_id || "")} requested changes
-                            </p>
-                            {q.change_request_notes && (
-                              <p className="text-amber-900/90 dark:text-amber-100/90 whitespace-pre-line">{q.change_request_notes}</p>
-                            )}
-                            {(q.attachments || []).length > 0 && (
-                              <div className="flex flex-wrap gap-1 pt-1">
-                                {(q.attachments || []).map((a, i) => (
-                                  <a key={i} href={a.url} target="_blank" rel="noreferrer" className="underline text-amber-800 dark:text-amber-200">{a.name}</a>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-
 
                         {/* Submitted quote comparison for this line item */}
                         {submittedQuotes.length > 0 && (
@@ -1077,6 +1148,8 @@ export default function ProcurementDetail({
                 </Button>
               )}
             </CardContent>
+
+
 
           </Card>
 
