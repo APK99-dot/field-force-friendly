@@ -253,6 +253,7 @@ export default function Procurement() {
       requisition_notes: o.requisition_notes || "",
       bill_to_id: o.bill_to_address_id || "",
       ship_to_id: o.ship_to_address_id || "",
+      expected_payment_terms: (o as any).payment_terms || "",
     });
     const items = (o.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id || "",
