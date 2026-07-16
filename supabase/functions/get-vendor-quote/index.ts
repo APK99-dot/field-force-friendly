@@ -145,6 +145,7 @@ Deno.serve(async (req) => {
         discount_pct: saved ? Number(saved.discount_pct) : 0,
         rate_after_discount: saved ? Number(saved.rate_after_discount) : null,
         delivery_commitment_date: saved?.delivery_commitment_date || null,
+        quality_notes: saved?.quality_notes || "",
         is_selected: saved ? saved.is_selected : true,
       };
     });
