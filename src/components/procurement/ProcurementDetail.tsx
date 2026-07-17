@@ -1721,7 +1721,14 @@ export default function ProcurementDetail({
               {grns.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No receipts yet.</p>
               ) : grns.map((g) => (
-                <div key={g.id} className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5">
+                <div
+                  key={g.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedGrn(g)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedGrn(g); } }}
+                  className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5 -mx-2 px-2 rounded cursor-pointer hover:bg-muted/60 transition-colors"
+                >
                   <div>
                     <div className="font-medium">{g.grn_number}</div>
                     <div className="text-[11px] text-muted-foreground">
