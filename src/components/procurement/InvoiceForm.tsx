@@ -60,7 +60,7 @@ const newPayment = (): PaymentLine => ({
 
 export default function InvoiceForm({
   open, onOpenChange, poId, poNumber, vendorNameStr, items, productName, createdBy, onSaved,
-  poVendors, itemVendorMap,
+  poVendors, itemVendorMap, existingInvoices,
 }: Props) {
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
