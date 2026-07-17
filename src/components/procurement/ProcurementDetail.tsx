@@ -1409,27 +1409,46 @@ export default function ProcurementDetail({
                                         {scopedLines.map((l) => {
                                           const qi = quote?.procurement_vendor_quote_items?.find((x) => x.procurement_item_id === l.id);
                                           const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
-                                          const competing = quotesForItem(l.id).filter((q) => q.status === "submitted" && q.vendor_id !== row.vendor_id);
-                                          const hasCompetition = competing.length > 0;
                                           return (
                                             <div key={l.id} className="flex items-center gap-2 text-[11px] border-b last:border-b-0 pb-1">
                                               <span className="flex-1 truncate"><span className="font-medium">{productName(l.product_id)}</span> · Qty {l.qty}</span>
                                               <span className="w-20 text-right">{rate != null ? fmtAmt(rate) : <span className="text-muted-foreground">—</span>}</span>
-                                              {rate != null && quote && (
-                                                <Button
-                                                  type="button" size="sm" variant={hasCompetition ? "default" : "outline"} className="h-6 text-[10px]"
-                                                  disabled={!poUnlocked || ratesLocked}
-                                                  onClick={() => hasCompetition ? selectLineWinner(l.id, quote) : applyLineQuote(l.id, quote)}
-                                                >
-                                                  {hasCompetition ? "Select Winner" : "Apply"}
-                                                </Button>
-                                              )}
                                             </div>
                                           );
                                         })}
                                       </div>
                                     )}
                                   </div>
+
+                                  {/* Vendor's submitted remarks & attachments */}
+                                  {quote && (quote.notes?.trim() || (quote.attachments && quote.attachments.length > 0)) && (
+                                    <div className="border-t pt-2 space-y-2">
+                                      {quote.notes?.trim() && (
+                                        <div>
+                                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Vendor Remarks</div>
+                                          <p className="text-[11px] whitespace-pre-line">{quote.notes}</p>
+                                        </div>
+                                      )}
+                                      {quote.attachments && quote.attachments.length > 0 && (
+                                        <div>
+                                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Attachments</div>
+                                          <ul className="space-y-0.5">
+                                            {quote.attachments.map((a, i) => (
+                                              <li key={i} className="text-[11px]">
+                                                <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80 break-all">
+                                                  {a.name || `Attachment ${i + 1}`}
+                                                </a>
+                                                {typeof a.size === "number" && a.size > 0 && (
+                                                  <span className="text-muted-foreground"> · {(a.size / 1024).toFixed(0)} KB</span>
+                                                )}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
 
                                   {/* Financial summary */}
                                   {!isTransfer && finSummary && (
