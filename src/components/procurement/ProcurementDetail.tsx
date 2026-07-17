@@ -33,6 +33,8 @@ export interface StageHistoryEntry {
   moved_by?: string | null;
   moved_by_name?: string | null;
   moved_at: string;
+  note?: string | null;
+  auto?: boolean;
 }
 
 export interface DetailOrder {
@@ -545,22 +547,108 @@ export default function ProcurementDetail({
 
   const moverName = currentProfile?.full_name || currentProfile?.username || "Unknown";
 
-  const changeStatus = async (to: ProcStatus, closeAfter = false) => {
+  const changeStatus = async (
+    to: ProcStatus,
+    closeAfter = false,
+    opts?: { note?: string; actorName?: string; auto?: boolean },
+  ) => {
     setBusy(true);
     const entry: StageHistoryEntry = {
-      status: to, moved_by: currentUserId ?? null, moved_by_name: moverName, moved_at: new Date().toISOString(),
+      status: to,
+      moved_by: currentUserId ?? null,
+      moved_by_name: opts?.actorName || moverName,
+      moved_at: new Date().toISOString(),
+      note: opts?.note ?? null,
+      auto: !!opts?.auto,
     };
     const nextHistory = [...stageHistory, entry];
     const { error } = await supabase.from("procurement_orders")
       .update({ status: to, stage_history: nextHistory as any }).eq("id", order.id);
     setBusy(false);
     if (error) { toast.error(error.message || "Failed to update status"); return; }
-    toast.success(`Status changed to ${to}`);
+    if (!opts?.auto) toast.success(`Status changed to ${to}`);
     onChanged();
     if (closeAfter) onOpenChange(false);
   };
 
   const applyTransition = (to: ProcStatus) => changeStatus(to);
+
+  // ---- Automatic stage progression -----------------------------------------
+  // Any state that satisfies a later stage's condition auto-advances the PO,
+  // regardless of whether the trigger was a vendor submission or a manual edit.
+  // Requisition -> Requisition Approved is intentionally excluded (manual approval).
+  // Closed is never auto-set.
+  const autoAdvancingRef = useRef(false);
+  const computeAutoTarget = useCallback((): { target: ProcStatus; note: string; actorName?: string } | null => {
+    if (isTransfer) return null;
+    const curIdx = STATUS_FLOW.indexOf(order.status as ProcStatus);
+    if (curIdx < 0) return null;
+    // Do not touch the initial approval step, and never auto-close.
+    if (order.status === "Requisition" || order.status === "Closed" || order.status === "Rejected") return null;
+
+    const hasAssignedVendors = vendorAssignments.some((r) => r.vendor_id);
+    const hasQuoteLinks = vendorQuotes.length > 0;
+    // Use persisted line rates (from the DB) — not unsaved local edits — so we don't
+    // auto-advance on transient typing that hasn't been saved yet.
+    const persistedItems = order.procurement_items || [];
+    const lineHasRate = persistedItems.some((it) => Number(it.rate || 0) > 0);
+    const allLinesHaveRate = persistedItems.length > 0 && persistedItems.every((it) => Number(it.rate || 0) > 0);
+    const anyFullyReceived = grns.some((g) => g.status === "Fully Received");
+    const hasInvoice = invoices.length > 0;
+    const invoicedTotal = invoices.reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
+    const paidTotal = invPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const fullyPaid = hasInvoice && invoicedTotal > 0 && paidTotal >= invoicedTotal - 0.01;
+
+    type Cand = { stage: ProcStatus; note: string; actorName?: string };
+    const cands: Cand[] = [];
+    if (hasAssignedVendors && hasQuoteLinks) {
+      cands.push({ stage: "Quote Requested", note: "Quote link generated" });
+    }
+    if (lineHasRate) {
+      // Prefer to attribute to a vendor if a persisted rate was sourced from a quote
+      const sourced = persistedItems.find((it) => it.rate_source === "quote" && it.rate_source_vendor_id && Number(it.rate || 0) > 0);
+      if (sourced && sourced.rate_source_vendor_id) {
+        const vname = vendorName(sourced.rate_source_vendor_id) || "Vendor";
+        cands.push({ stage: "Quote Received", note: `${vname} submitted a quote`, actorName: vname });
+      } else {
+        cands.push({ stage: "Quote Received", note: "Rate entered manually" });
+      }
+    }
+    if (allLinesHaveRate && hasAssignedVendors) {
+      cands.push({ stage: "PO Issued", note: "All line rates finalized" });
+    }
+    if (anyFullyReceived) {
+      cands.push({ stage: "Goods Received", note: "GRN marked Fully Received" });
+    }
+    if (hasInvoice) {
+      cands.push({ stage: "Invoice Received", note: "Invoice recorded" });
+    }
+    if (fullyPaid) {
+      cands.push({ stage: "Paid", note: "Payment covers invoice total" });
+    }
+
+    // Pick the furthest satisfied stage that is strictly ahead of current.
+    let best: Cand | null = null;
+    let bestIdx = curIdx;
+    for (const c of cands) {
+      const idx = STATUS_FLOW.indexOf(c.stage);
+      if (idx > bestIdx) { best = c; bestIdx = idx; }
+    }
+    if (!best) return null;
+    return { target: best.stage, note: best.note, actorName: best.actorName };
+  }, [isTransfer, order.status, order.procurement_items, vendorAssignments, vendorQuotes, grns, invoices, invPayments, vendorName]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (autoAdvancingRef.current || busy) return;
+    const next = computeAutoTarget();
+    if (!next) return;
+    autoAdvancingRef.current = true;
+    changeStatus(next.target, false, { note: next.note, actorName: next.actorName, auto: true })
+      .finally(() => { autoAdvancingRef.current = false; });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, computeAutoTarget]);
+
 
   const stepFlow = statusFlowFor(order.source_type);
   const stepIndex = stepFlow.indexOf(order.status as ProcStatus);
@@ -945,6 +1033,7 @@ export default function ProcurementDetail({
                         {i <= stepIndex && h && (
                           <span className="text-[9px] text-muted-foreground text-center leading-tight">
                             {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
+                            {h.note ? <><br/><span className="italic">{h.note}</span></> : null}
                           </span>
                         )}
                       </div>
