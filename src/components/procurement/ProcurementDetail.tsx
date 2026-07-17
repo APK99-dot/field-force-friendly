@@ -605,8 +605,8 @@ export default function ProcurementDetail({
       cands.push({ stage: "Quote Requested", note: "Quote link generated" });
     }
     if (lineHasRate) {
-      // Prefer to attribute to a vendor if the rate came from a submitted quote
-      const sourced = rateLines.find((l) => l.rate_source === "quote" && l.rate_source_vendor_id && (parseFloat(l.rate) || 0) > 0);
+      // Prefer to attribute to a vendor if a persisted rate was sourced from a quote
+      const sourced = persistedItems.find((it) => it.rate_source === "quote" && it.rate_source_vendor_id && Number(it.rate || 0) > 0);
       if (sourced && sourced.rate_source_vendor_id) {
         const vname = vendorName(sourced.rate_source_vendor_id) || "Vendor";
         cands.push({ stage: "Quote Received", note: `${vname} submitted a quote`, actorName: vname });
