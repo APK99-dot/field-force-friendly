@@ -977,6 +977,16 @@ export default function ProcurementDetail({
         ? [...l.vendor_ids, quote.vendor_id]
         : l.vendor_ids,
     } : l));
+    // Auto-fill expected delivery date from the vendor's commitment when empty,
+    // or pull it earlier if this vendor commits sooner.
+    if (qi.delivery_commitment_date) {
+      setPoForm((p) => {
+        if (!p.expected_delivery_date || qi.delivery_commitment_date! < p.expected_delivery_date) {
+          return { ...p, expected_delivery_date: qi.delivery_commitment_date! };
+        }
+        return p;
+      });
+    }
     toast.success("Rate applied. Remember to Save.");
   };
 
