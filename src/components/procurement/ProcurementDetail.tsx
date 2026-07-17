@@ -1870,6 +1870,85 @@ export default function ProcurementDetail({
           />
         )}
 
+        {selectedGrn && (
+          <GRNDetail
+            open={!!selectedGrn}
+            onOpenChange={(o) => { if (!o) setSelectedGrn(null); }}
+            grn={{
+              id: selectedGrn.id,
+              grn_number: selectedGrn.grn_number,
+              receipt_date: selectedGrn.receipt_date,
+              status: selectedGrn.status,
+              received_by: selectedGrn.received_by,
+              remarks: selectedGrn.remarks,
+              po_id: order.id,
+              photos: selectedGrn.photos ?? null,
+              po: { po_number: order.po_number ?? null, vendor_id: order.vendor_id ?? null, site_id: order.site_id ?? null },
+            }}
+            vendorName={selectedGrn.vendor_id ? vendorName(selectedGrn.vendor_id) : vendorName(order.vendor_id)}
+            onSaved={() => { fetchSub(); onChanged(); }}
+          />
+        )}
+
+        {selectedInvoiceId && (() => {
+          const inv = invoices.find((x) => x.id === selectedInvoiceId);
+          if (!inv) return null;
+          const lineItems = invItems.filter((ii) => (ii as any).invoice_id === inv.id);
+          const payments = invPayments.filter((p) => p.invoice_id === inv.id);
+          const paidTotal = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+          const balance = Number(inv.invoice_amount || 0) - paidTotal;
+          return (
+            <Dialog open={!!selectedInvoiceId} onOpenChange={(o) => { if (!o) setSelectedInvoiceId(null); }}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    {inv.invoice_number || "Invoice"}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 text-sm">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><div className="text-xs text-muted-foreground">Invoice Date</div><div className="font-medium">{inv.invoice_date || "—"}</div></div>
+                    <div><div className="text-xs text-muted-foreground">Vendor</div><div className="font-medium">{inv.vendor_id ? vendorName(inv.vendor_id) : "—"}</div></div>
+                    <div><div className="text-xs text-muted-foreground">Invoice Amount</div><div className="font-medium">{fmtAmt(inv.invoice_amount)}</div></div>
+                    <div><div className="text-xs text-muted-foreground">Paid / Balance</div><div className="font-medium">{fmtAmt(paidTotal)} <span className="text-muted-foreground">/</span> {fmtAmt(balance)}</div></div>
+                  </div>
+                  {lineItems.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold mb-1">Line Items</div>
+                      <div className="border rounded divide-y">
+                        {lineItems.map((li, idx) => {
+                          const it = items.find((x) => x.id === li.procurement_item_id);
+                          return (
+                            <div key={idx} className="flex items-center justify-between px-2 py-1.5">
+                              <div className="text-xs">{it ? productName(it.product_id) : "—"}</div>
+                              <div className="text-xs font-medium">{fmtAmt(li.invoiced_rate)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {payments.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold mb-1">Payments</div>
+                      <div className="border rounded divide-y">
+                        {payments.map((p, idx) => (
+                          <div key={idx} className="flex items-center justify-between px-2 py-1.5 text-xs">
+                            <div>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</div>
+                            <div className="font-medium">{fmtAmt(p.amount)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          );
+        })()}
+
+
       </DialogContent>
     </Dialog>
   );
