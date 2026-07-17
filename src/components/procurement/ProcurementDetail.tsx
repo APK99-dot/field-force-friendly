@@ -1754,7 +1754,14 @@ export default function ProcurementDetail({
               {invoices.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No invoices yet.</p>
               ) : invoices.map((i) => (
-                <div key={i.id} className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5">
+                <div
+                  key={i.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedInvoiceId(i.id)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedInvoiceId(i.id); } }}
+                  className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5 -mx-2 px-2 rounded cursor-pointer hover:bg-muted/60 transition-colors"
+                >
                   <div>
                     <div className="font-medium">{i.invoice_number}</div>
                     <div className="text-[11px] text-muted-foreground">
