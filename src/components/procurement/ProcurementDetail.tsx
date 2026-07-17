@@ -33,6 +33,8 @@ export interface StageHistoryEntry {
   moved_by?: string | null;
   moved_by_name?: string | null;
   moved_at: string;
+  note?: string | null;
+  auto?: boolean;
 }
 
 export interface DetailOrder {
