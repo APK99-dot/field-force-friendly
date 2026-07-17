@@ -25,6 +25,7 @@ import jsPDF from "jspdf";
 import { downloadPDF } from "@/utils/nativeDownload";
 import GRNForm, { type POItem } from "./GRNForm";
 import InvoiceForm from "./InvoiceForm";
+import GRNDetail from "./GRNDetail";
 import ThreeWayMatch from "./ThreeWayMatch";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 
@@ -76,7 +77,7 @@ interface Props {
   onChanged: () => void;
 }
 
-interface GrnRow { id: string; grn_number: string | null; receipt_date: string; status: string; received_by: string | null; remarks: string | null; vendor_id: string | null; }
+interface GrnRow { id: string; grn_number: string | null; receipt_date: string; status: string; received_by: string | null; remarks: string | null; vendor_id: string | null; photos?: string[] | null; }
 interface GrnItemRow { grn_id: string; procurement_item_id: string | null; received_qty: number; }
 interface InvRow { id: string; invoice_number: string | null; invoice_date: string; invoice_amount: number; vendor_id: string | null; }
 interface InvItemRow { invoice_id: string; procurement_item_id: string | null; invoiced_rate: number; }
@@ -172,6 +173,8 @@ export default function ProcurementDetail({
   const [invPayments, setInvPayments] = useState<InvPaymentRow[]>([]);
   const [grnOpen, setGrnOpen] = useState(false);
   const [invOpen, setInvOpen] = useState(false);
+  const [selectedGrn, setSelectedGrn] = useState<GrnRow | null>(null);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [revertOpen, setRevertOpen] = useState(false);
@@ -507,7 +510,7 @@ export default function ProcurementDetail({
       supabase.from("procurement_invoices").select("*, procurement_invoice_items(*), procurement_invoice_payments(*)").eq("po_id", order.id).order("created_at"),
     ]);
     const gRows = (g.data || []) as any[];
-    setGrns(gRows.map((r) => ({ id: r.id, grn_number: r.grn_number, receipt_date: r.receipt_date, status: r.status, received_by: r.received_by, remarks: r.remarks, vendor_id: r.vendor_id ?? null })));
+    setGrns(gRows.map((r) => ({ id: r.id, grn_number: r.grn_number, receipt_date: r.receipt_date, status: r.status, received_by: r.received_by, remarks: r.remarks, vendor_id: r.vendor_id ?? null, photos: r.photos ?? null })));
     setGrnItems(gRows.flatMap((r) => (r.procurement_grn_items || []) as GrnItemRow[]));
     const iRows = (inv.data || []) as any[];
     setInvoices(iRows.map((r) => ({ id: r.id, invoice_number: r.invoice_number, invoice_date: r.invoice_date, invoice_amount: r.invoice_amount, vendor_id: r.vendor_id ?? null })));
@@ -1718,7 +1721,14 @@ export default function ProcurementDetail({
               {grns.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No receipts yet.</p>
               ) : grns.map((g) => (
-                <div key={g.id} className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5">
+                <div
+                  key={g.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedGrn(g)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedGrn(g); } }}
+                  className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5 -mx-2 px-2 rounded cursor-pointer hover:bg-muted/60 transition-colors"
+                >
                   <div>
                     <div className="font-medium">{g.grn_number}</div>
                     <div className="text-[11px] text-muted-foreground">
@@ -1744,7 +1754,14 @@ export default function ProcurementDetail({
               {invoices.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No invoices yet.</p>
               ) : invoices.map((i) => (
-                <div key={i.id} className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5">
+                <div
+                  key={i.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedInvoiceId(i.id)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedInvoiceId(i.id); } }}
+                  className="flex items-center justify-between text-sm border-b last:border-b-0 py-1.5 -mx-2 px-2 rounded cursor-pointer hover:bg-muted/60 transition-colors"
+                >
                   <div>
                     <div className="font-medium">{i.invoice_number}</div>
                     <div className="text-[11px] text-muted-foreground">
@@ -1852,6 +1869,85 @@ export default function ProcurementDetail({
             onSaved={() => { fetchSub(); onChanged(); }}
           />
         )}
+
+        {selectedGrn && (
+          <GRNDetail
+            open={!!selectedGrn}
+            onOpenChange={(o) => { if (!o) setSelectedGrn(null); }}
+            grn={{
+              id: selectedGrn.id,
+              grn_number: selectedGrn.grn_number,
+              receipt_date: selectedGrn.receipt_date,
+              status: selectedGrn.status,
+              received_by: selectedGrn.received_by,
+              remarks: selectedGrn.remarks,
+              po_id: order.id,
+              photos: selectedGrn.photos ?? null,
+              po: { po_number: order.po_number ?? null, vendor_id: order.vendor_id ?? null, site_id: order.site_id ?? null },
+            }}
+            vendorName={selectedGrn.vendor_id ? vendorName(selectedGrn.vendor_id) : vendorName(order.vendor_id)}
+            onSaved={() => { fetchSub(); onChanged(); }}
+          />
+        )}
+
+        {selectedInvoiceId && (() => {
+          const inv = invoices.find((x) => x.id === selectedInvoiceId);
+          if (!inv) return null;
+          const lineItems = invItems.filter((ii) => (ii as any).invoice_id === inv.id);
+          const payments = invPayments.filter((p) => p.invoice_id === inv.id);
+          const paidTotal = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+          const balance = Number(inv.invoice_amount || 0) - paidTotal;
+          return (
+            <Dialog open={!!selectedInvoiceId} onOpenChange={(o) => { if (!o) setSelectedInvoiceId(null); }}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    {inv.invoice_number || "Invoice"}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 text-sm">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><div className="text-xs text-muted-foreground">Invoice Date</div><div className="font-medium">{inv.invoice_date || "—"}</div></div>
+                    <div><div className="text-xs text-muted-foreground">Vendor</div><div className="font-medium">{inv.vendor_id ? vendorName(inv.vendor_id) : "—"}</div></div>
+                    <div><div className="text-xs text-muted-foreground">Invoice Amount</div><div className="font-medium">{fmtAmt(inv.invoice_amount)}</div></div>
+                    <div><div className="text-xs text-muted-foreground">Paid / Balance</div><div className="font-medium">{fmtAmt(paidTotal)} <span className="text-muted-foreground">/</span> {fmtAmt(balance)}</div></div>
+                  </div>
+                  {lineItems.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold mb-1">Line Items</div>
+                      <div className="border rounded divide-y">
+                        {lineItems.map((li, idx) => {
+                          const it = items.find((x) => x.id === li.procurement_item_id);
+                          return (
+                            <div key={idx} className="flex items-center justify-between px-2 py-1.5">
+                              <div className="text-xs">{it ? productName(it.product_id) : "—"}</div>
+                              <div className="text-xs font-medium">{fmtAmt(li.invoiced_rate)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {payments.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold mb-1">Payments</div>
+                      <div className="border rounded divide-y">
+                        {payments.map((p, idx) => (
+                          <div key={idx} className="flex items-center justify-between px-2 py-1.5 text-xs">
+                            <div>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</div>
+                            <div className="font-medium">{fmtAmt(p.amount)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          );
+        })()}
+
 
       </DialogContent>
     </Dialog>
