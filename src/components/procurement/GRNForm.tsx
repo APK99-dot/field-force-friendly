@@ -505,6 +505,12 @@ export default function GRNForm({
           </div>
         </div>
       </DialogContent>
+      <CameraCapture
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={handleCapturedBlob}
+        title="Capture Goods Photo"
+      />
     </Dialog>
   );
 }
