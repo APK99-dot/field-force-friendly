@@ -201,11 +201,28 @@ export default function ProcurementDetail({
       .then(({ data }) => setVendors((data || []) as typeof vendors));
   }, []);
 
+  const lastServerPoRef = useRef<{ expected_delivery_date: string; payment_terms: string; order_id: string | null }>({
+    expected_delivery_date: "", payment_terms: "", order_id: null,
+  });
   useEffect(() => {
-    setPoForm({
-      expected_delivery_date: order.expected_delivery_date || "",
-      payment_terms: order.payment_terms || "",
+    // Case-normalize payment_terms against the canonical PAYMENT_TERMS options
+    // so a stored "net 30" matches the "Net 30" Select option instead of rendering blank.
+    const rawPt = (order.payment_terms || "").trim();
+    const normalizedPt = PAYMENT_TERMS.find((t) => t.toLowerCase() === rawPt.toLowerCase()) || rawPt;
+    const serverDate = order.expected_delivery_date || "";
+    const prev = lastServerPoRef.current;
+    setPoForm((cur) => {
+      // Preserve user edits that haven't been saved yet: only overwrite a field
+      // when the local value still equals the previously-seen server value
+      // (i.e. the user hasn't touched it since the last sync).
+      const sameOrder = prev.order_id === order.id;
+      const nextDate = !sameOrder || cur.expected_delivery_date === prev.expected_delivery_date
+        ? serverDate : cur.expected_delivery_date;
+      const nextPt = !sameOrder || cur.payment_terms === prev.payment_terms
+        ? normalizedPt : cur.payment_terms;
+      return { expected_delivery_date: nextDate, payment_terms: nextPt };
     });
+    lastServerPoRef.current = { expected_delivery_date: serverDate, payment_terms: normalizedPt, order_id: order.id };
     const lines = (order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, uom: it.uom, qty: it.qty, rate: String(it.rate ?? ""),
       vendor_ids: Array.isArray(it.vendor_ids) ? (it.vendor_ids as string[]) : [],
