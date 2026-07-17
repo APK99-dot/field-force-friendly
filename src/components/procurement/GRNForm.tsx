@@ -114,6 +114,22 @@ export default function GRNForm({
     }
   };
 
+  const handleCapturedBlob = async (blob: Blob) => {
+    if (photos.length >= maxPhotos) {
+      toast.error(`Maximum ${maxPhotos} photos allowed`);
+      return;
+    }
+    setUploadingPhoto(true);
+    try {
+      const path = await uploadGrnPhoto(blob);
+      setPhotos((p) => [...p, { path, preview: URL.createObjectURL(blob) }]);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to upload photo");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const removePhoto = async (idx: number) => {
     const photo = photos[idx];
     setPhotos((p) => p.filter((_, i) => i !== idx));
