@@ -950,7 +950,7 @@ export default function ProcurementDetail({
             <CardContent className="p-3 space-y-1.5 text-sm">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <CalendarDays className="h-3.5 w-3.5" />
-                Requisition Date: <span className="font-medium text-foreground">{order.order_date || "-"}</span>
+                Requisition Date: <span className="font-medium text-foreground">{order.order_date ? (() => { const d = new Date(order.order_date); return isNaN(d.getTime()) ? order.order_date : d.toLocaleDateString("en-GB"); })() : "-"}</span>
               </div>
               {(order as any).requisition_name && (
                 <div className="text-xl font-bold leading-tight text-foreground pt-1">
