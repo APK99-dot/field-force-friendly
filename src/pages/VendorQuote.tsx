@@ -345,6 +345,7 @@ export default function VendorQuote() {
                   <th className="p-2 font-semibold text-right">Rate/Unit</th>
                   <th className="p-2 font-semibold text-right">Discount %</th>
                   <th className="p-2 font-semibold text-right">Rate After Disc.</th>
+                  <th className="p-2 font-semibold text-right">Amount</th>
                   <th className="p-2 font-semibold text-center">Supply?</th>
                 </tr>
               </thead>
@@ -356,9 +357,8 @@ export default function VendorQuote() {
                     <td className="p-2 text-right">{r.qty}</td>
                     <td className="p-2">{r.uom || "-"}</td>
                     <td className="p-2 max-w-[200px]">
-                      <div className="text-xs text-muted-foreground mb-1 whitespace-pre-line">{r.quality_instruction || "—"}</div>
                       <Textarea rows={2} className="text-xs min-h-[52px]" disabled={readOnly}
-                        placeholder="Your quality notes (optional)"
+                        placeholder="Enter quality instructions"
                         value={r.quality_notes || ""}
                         onChange={(e) => updateRow(r.procurement_item_id, { quality_notes: e.target.value })} />
                     </td>
@@ -379,6 +379,7 @@ export default function VendorQuote() {
                         onChange={(e) => updateRow(r.procurement_item_id, { discount_pct: e.target.value === "" ? 0 : Number(e.target.value) })} />
                     </td>
                     <td className="p-2 text-right font-medium">{fmtAmt(rowAfter(r))}</td>
+                    <td className="p-2 text-right font-medium">{fmtAmt(rowAfter(r) * (r.qty || 0))}</td>
                     <td className="p-2 text-center">
                       <Checkbox checked={r.is_selected} disabled={readOnly}
                         onCheckedChange={(v) => updateRow(r.procurement_item_id, { is_selected: !!v })} />
@@ -388,7 +389,7 @@ export default function VendorQuote() {
               </tbody>
               <tfoot>
                 <tr className="border-t bg-muted/40 font-semibold">
-                  <td className="p-2" colSpan={8}>Total (selected items)</td>
+                  <td className="p-2" colSpan={10}>Total (selected items)</td>
                   <td className="p-2 text-right" colSpan={2}>₹{fmtAmt(total)}</td>
                 </tr>
               </tfoot>
