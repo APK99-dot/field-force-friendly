@@ -175,6 +175,8 @@ export default function ProcurementDetail({
   const [invOpen, setInvOpen] = useState(false);
   const [selectedGrn, setSelectedGrn] = useState<GrnRow | null>(null);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const [payForm, setPayForm] = useState<{ open: boolean; payment_date: string; amount: string; reference: string; notes: string }>({ open: false, payment_date: new Date().toISOString().slice(0, 10), amount: "", reference: "", notes: "" });
+  const [paySaving, setPaySaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [revertOpen, setRevertOpen] = useState(false);
