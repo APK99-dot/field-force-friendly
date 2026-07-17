@@ -423,7 +423,7 @@ export default function GRNForm({
                   type="button"
                   variant="outline"
                   disabled={uploadingPhoto || photos.length >= maxPhotos}
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={() => setCameraOpen(true)}
                 >
                   <Camera className="h-4 w-4 mr-2" />
                   {uploadingPhoto ? "Uploading..." : "Take Photo"}
