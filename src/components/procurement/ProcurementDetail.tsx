@@ -633,7 +633,7 @@ export default function ProcurementDetail({
     }
     if (!best) return null;
     return { target: best.stage, note: best.note, actorName: best.actorName };
-  }, [isTransfer, order.status, vendorAssignments, vendorQuotes, rateLines, grns, invoices, invPayments, vendorNameById]);
+  }, [isTransfer, order.status, vendorAssignments, vendorQuotes, rateLines, grns, invoices, invPayments, vendorName]);
 
   useEffect(() => {
     if (!open) return;
