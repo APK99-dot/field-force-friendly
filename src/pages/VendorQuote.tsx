@@ -298,18 +298,11 @@ export default function VendorQuote() {
           </div>
 
           {/* From / To */}
-          <div className="grid sm:grid-cols-2 gap-4 text-sm">
-            <div>
-              <div className="font-semibold">From:</div>
-              <div>{company?.company_name || "-"}</div>
-              {company?.address && <div className="text-muted-foreground">{company.address}</div>}
-            </div>
-            <div>
-              <div className="font-semibold">To:</div>
-              <div>{vendor?.name || "-"}</div>
-              {vendor?.contact_person && <div className="text-muted-foreground">Attn: {vendor.contact_person}</div>}
-              {vendor?.address && <div className="text-muted-foreground">{vendor.address}</div>}
-            </div>
+          <div className="text-sm">
+            <div className="font-semibold">To:</div>
+            <div>{vendor?.name || "-"}</div>
+            {vendor?.contact_person && <div className="text-muted-foreground">Attn: {vendor.contact_person}</div>}
+            {vendor?.address && <div className="text-muted-foreground">{vendor.address}</div>}
           </div>
 
           {/* Bill To / Ship To */}
