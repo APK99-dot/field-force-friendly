@@ -508,7 +508,7 @@ export default function ProcurementDetail({
       supabase.from("procurement_invoices").select("*, procurement_invoice_items(*), procurement_invoice_payments(*)").eq("po_id", order.id).order("created_at"),
     ]);
     const gRows = (g.data || []) as any[];
-    setGrns(gRows.map((r) => ({ id: r.id, grn_number: r.grn_number, receipt_date: r.receipt_date, status: r.status, received_by: r.received_by, remarks: r.remarks, vendor_id: r.vendor_id ?? null })));
+    setGrns(gRows.map((r) => ({ id: r.id, grn_number: r.grn_number, receipt_date: r.receipt_date, status: r.status, received_by: r.received_by, remarks: r.remarks, vendor_id: r.vendor_id ?? null, photos: r.photos ?? null })));
     setGrnItems(gRows.flatMap((r) => (r.procurement_grn_items || []) as GrnItemRow[]));
     const iRows = (inv.data || []) as any[];
     setInvoices(iRows.map((r) => ({ id: r.id, invoice_number: r.invoice_number, invoice_date: r.invoice_date, invoice_amount: r.invoice_amount, vendor_id: r.vendor_id ?? null })));
