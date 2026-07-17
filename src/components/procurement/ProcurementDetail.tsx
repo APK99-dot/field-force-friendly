@@ -81,7 +81,7 @@ interface GrnRow { id: string; grn_number: string | null; receipt_date: string; 
 interface GrnItemRow { grn_id: string; procurement_item_id: string | null; received_qty: number; }
 interface InvRow { id: string; invoice_number: string | null; invoice_date: string; invoice_amount: number; vendor_id: string | null; }
 interface InvItemRow { invoice_id: string; procurement_item_id: string | null; invoiced_rate: number; }
-interface InvPaymentRow { invoice_id: string; amount: number; payment_date: string | null; reference_number: string | null; }
+interface InvPaymentRow { invoice_id: string; amount: number; payment_date: string | null; reference_number: string | null; notes?: string | null; }
 
 interface VendorQuoteItemRow {
   procurement_item_id: string | null;
