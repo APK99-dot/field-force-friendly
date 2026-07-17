@@ -83,6 +83,7 @@ export default function GRNForm({
   const [fbComments, setFbComments] = useState("");
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   useEffect(() => {
     if (profile?.full_name) {
