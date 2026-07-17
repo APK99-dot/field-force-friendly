@@ -233,22 +233,44 @@ export default function ProcurementDetail({
   }, []);
 
   const updateAssignment = (key: string, patch: Partial<{ vendor_id: string; line_ids: string[]; scope: "all" | "specific" }>) => {
-    setVendorAssignments((prev) => {
-      const next = prev.map((r) => (r.key === key ? { ...r, ...patch } : r));
-      syncLinesFromAssignments(next);
-      // If a quote already exists for this vendor and line_ids changed, persist the new scope
-      const row = next.find((r) => r.key === key);
-      if (row && patch.line_ids && row.vendor_id) {
-        const existing = vendorQuotes.find((q) => q.vendor_id === row.vendor_id);
-        if (existing) {
-          supabase.from("procurement_vendor_quotes")
-            .update({ procurement_item_ids: row.line_ids })
-            .eq("id", existing.id)
-            .then(({ error }) => { if (!error) loadVendorQuotes(); });
-        }
-      }
-      return next;
+    const nextAssign = vendorAssignments.map((r) => (r.key === key ? { ...r, ...patch } : r));
+    setVendorAssignments(nextAssign);
+
+    // Compute new rateLines from assignments and persist any vendor_ids changes to DB
+    const nextLines = rateLines.map((l) => {
+      const vids = nextAssign
+        .filter((r) => r.vendor_id && r.line_ids.includes(l.id))
+        .map((r) => r.vendor_id);
+      return { ...l, vendor_ids: Array.from(new Set(vids)) };
     });
+    setRateLines(nextLines);
+    const affected = nextLines.filter((nl, i) => {
+      const prev = rateLines[i]?.vendor_ids || [];
+      const a = [...prev].sort().join(",");
+      const b = [...nl.vendor_ids].sort().join(",");
+      return a !== b;
+    });
+    if (affected.length) {
+      Promise.all(
+        affected.map((l) =>
+          supabase.from("procurement_items")
+            .update({ vendor_ids: l.vendor_ids.length ? l.vendor_ids : null })
+            .eq("id", l.id)
+        )
+      ).catch(() => {});
+    }
+
+    // If a quote already exists for this vendor and line_ids changed, persist the new scope
+    const row = nextAssign.find((r) => r.key === key);
+    if (row && patch.line_ids && row.vendor_id) {
+      const existing = vendorQuotes.find((q) => q.vendor_id === row.vendor_id);
+      if (existing) {
+        supabase.from("procurement_vendor_quotes")
+          .update({ procurement_item_ids: row.line_ids })
+          .eq("id", existing.id)
+          .then(({ error }) => { if (!error) loadVendorQuotes(); });
+      }
+    }
   };
   const addAssignmentRow = () => {
     setVendorAssignments((prev) => [
