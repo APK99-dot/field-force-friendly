@@ -117,6 +117,51 @@ Deno.serve(async (req) => {
       .eq("id", quote.id);
     if (updErr) throw updErr;
 
+    // Auto-advance PO stage on vendor submission (Quote Requested -> Quote Received),
+    // attributing the transition to the vendor in the stage history.
+    if (mode === "accept") {
+      try {
+        const STATUS_FLOW = [
+          "Requisition", "Requisition Approved", "Quote Requested", "Quote Received",
+          "PO Issued", "Goods Received", "Invoice Received", "Paid", "Closed",
+        ];
+        const { data: po } = await supabase
+          .from("procurement_orders")
+          .select("id, status, source_type, stage_history")
+          .eq("id", quote.po_id)
+          .maybeSingle();
+        if (po && po.source_type !== "internal_transfer") {
+          const curIdx = STATUS_FLOW.indexOf(po.status as string);
+          // Vendor submission implies at least Quote Requested + Quote Received.
+          const targets: { stage: string; idx: number }[] = [
+            { stage: "Quote Requested", idx: STATUS_FLOW.indexOf("Quote Requested") },
+            { stage: "Quote Received", idx: STATUS_FLOW.indexOf("Quote Received") },
+          ].filter((t) => t.idx > curIdx);
+          if (targets.length && po.status !== "Closed" && po.status !== "Rejected" && po.status !== "Requisition") {
+            const target = targets[targets.length - 1];
+            const { data: vendorRow } = quote.vendor_id
+              ? await supabase.from("vendors").select("name").eq("id", quote.vendor_id).maybeSingle()
+              : { data: null as any };
+            const actor = vendorRow?.name || "Vendor";
+            const history = Array.isArray(po.stage_history) ? [...(po.stage_history as any[])] : [];
+            history.push({
+              status: target.stage,
+              moved_by: null,
+              moved_by_name: actor,
+              moved_at: new Date().toISOString(),
+              note: `${actor} submitted a quote`,
+              auto: true,
+            });
+            await supabase.from("procurement_orders")
+              .update({ status: target.stage, stage_history: history })
+              .eq("id", po.id);
+          }
+        }
+      } catch (e) {
+        console.error("auto-advance on quote submit failed", e);
+      }
+    }
+
     // Notify requisition owner on change request
     if (mode === "request_changes") {
       try {
