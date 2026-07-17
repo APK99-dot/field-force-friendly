@@ -173,6 +173,8 @@ export default function ProcurementDetail({
   const [invPayments, setInvPayments] = useState<InvPaymentRow[]>([]);
   const [grnOpen, setGrnOpen] = useState(false);
   const [invOpen, setInvOpen] = useState(false);
+  const [selectedGrn, setSelectedGrn] = useState<GrnRow | null>(null);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [revertOpen, setRevertOpen] = useState(false);
