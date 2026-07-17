@@ -1,0 +1,1 @@
+ALTER TABLE public.procurement_invoice_payments ADD COLUMN IF NOT EXISTS notes text;
