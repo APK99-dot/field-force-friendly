@@ -81,7 +81,7 @@ interface GrnRow { id: string; grn_number: string | null; receipt_date: string; 
 interface GrnItemRow { grn_id: string; procurement_item_id: string | null; received_qty: number; }
 interface InvRow { id: string; invoice_number: string | null; invoice_date: string; invoice_amount: number; vendor_id: string | null; }
 interface InvItemRow { invoice_id: string; procurement_item_id: string | null; invoiced_rate: number; }
-interface InvPaymentRow { invoice_id: string; amount: number; payment_date: string | null; reference_number: string | null; }
+interface InvPaymentRow { invoice_id: string; amount: number; payment_date: string | null; reference_number: string | null; notes?: string | null; }
 
 interface VendorQuoteItemRow {
   procurement_item_id: string | null;
@@ -175,6 +175,8 @@ export default function ProcurementDetail({
   const [invOpen, setInvOpen] = useState(false);
   const [selectedGrn, setSelectedGrn] = useState<GrnRow | null>(null);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const [payForm, setPayForm] = useState<{ open: boolean; payment_date: string; amount: string; reference: string; notes: string }>({ open: false, payment_date: new Date().toISOString().slice(0, 10), amount: "", reference: "", notes: "" });
+  const [paySaving, setPaySaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [revertOpen, setRevertOpen] = useState(false);
@@ -515,7 +517,7 @@ export default function ProcurementDetail({
     const iRows = (inv.data || []) as any[];
     setInvoices(iRows.map((r) => ({ id: r.id, invoice_number: r.invoice_number, invoice_date: r.invoice_date, invoice_amount: r.invoice_amount, vendor_id: r.vendor_id ?? null })));
     setInvItems(iRows.flatMap((r) => (r.procurement_invoice_items || []) as InvItemRow[]));
-    setInvPayments(iRows.flatMap((r) => (r.procurement_invoice_payments || []).map((p: any) => ({ invoice_id: r.id, amount: Number(p.amount || 0), payment_date: p.payment_date, reference_number: p.reference_number }))));
+    setInvPayments(iRows.flatMap((r) => (r.procurement_invoice_payments || []).map((p: any) => ({ invoice_id: r.id, amount: Number(p.amount || 0), payment_date: p.payment_date, reference_number: p.reference_number, notes: p.notes ?? null }))));
   }, [order.id]);
 
   useEffect(() => { if (open) fetchSub(); }, [open, fetchSub]);
@@ -1929,19 +1931,124 @@ export default function ProcurementDetail({
                       </div>
                     </div>
                   )}
-                  {payments.length > 0 && (
-                    <div>
-                      <div className="text-xs font-semibold mb-1">Payments</div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-xs font-semibold">Payments</div>
+                      {balance > 0.005 && !payForm.open && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => setPayForm({ open: true, payment_date: new Date().toISOString().slice(0, 10), amount: balance.toFixed(2), reference: "", notes: "" })}
+                        >
+                          <Plus className="h-3 w-3 mr-1" />Record Payment
+                        </Button>
+                      )}
+                    </div>
+                    {payments.length === 0 && !payForm.open ? (
+                      <p className="text-xs text-muted-foreground">No payments recorded yet.</p>
+                    ) : payments.length > 0 && (
                       <div className="border rounded divide-y">
                         {payments.map((p, idx) => (
                           <div key={idx} className="flex items-center justify-between px-2 py-1.5 text-xs">
-                            <div>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</div>
+                            <div>
+                              <div>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</div>
+                              {p.notes && <div className="text-muted-foreground text-[11px] mt-0.5">{p.notes}</div>}
+                            </div>
                             <div className="font-medium">{fmtAmt(p.amount)}</div>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    )}
+                    {payForm.open && (
+                      <div className="mt-2 border rounded-md p-3 space-y-2 bg-muted/30">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-[11px]">Payment Date</Label>
+                            <Input
+                              type="date"
+                              className="h-8 text-xs"
+                              value={payForm.payment_date}
+                              onChange={(e) => setPayForm((f) => ({ ...f, payment_date: e.target.value }))}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[11px]">Amount</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              className="h-8 text-xs"
+                              value={payForm.amount}
+                              onChange={(e) => setPayForm((f) => ({ ...f, amount: e.target.value }))}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[11px]">Reference / Number</Label>
+                            <Input
+                              className="h-8 text-xs"
+                              value={payForm.reference}
+                              onChange={(e) => setPayForm((f) => ({ ...f, reference: e.target.value }))}
+                              placeholder="UTR, cheque #, etc."
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[11px]">Notes</Label>
+                            <Input
+                              className="h-8 text-xs"
+                              value={payForm.notes}
+                              onChange={(e) => setPayForm((f) => ({ ...f, notes: e.target.value }))}
+                              placeholder="Optional"
+                            />
+                          </div>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Remaining balance: <span className="font-medium">{fmtAmt(balance)}</span>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs"
+                            disabled={paySaving}
+                            onClick={() => setPayForm((f) => ({ ...f, open: false }))}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs"
+                            disabled={paySaving}
+                            onClick={async () => {
+                              const amt = Number(payForm.amount);
+                              if (!isFinite(amt) || amt <= 0) { toast.error("Enter a valid amount"); return; }
+                              if (amt > balance + 0.005) {
+                                const ok = window.confirm(`Amount ${fmtAmt(amt)} exceeds remaining balance ${fmtAmt(balance)}. Continue?`);
+                                if (!ok) return;
+                              }
+                              setPaySaving(true);
+                              const { error } = await supabase.from("procurement_invoice_payments").insert({
+                                invoice_id: inv.id,
+                                amount: amt,
+                                payment_date: payForm.payment_date || null,
+                                reference_number: payForm.reference || null,
+                                notes: payForm.notes || null,
+                                created_by: currentUserId ?? null,
+                              });
+                              setPaySaving(false);
+                              if (error) { toast.error(error.message); return; }
+                              toast.success("Payment recorded");
+                              setPayForm({ open: false, payment_date: new Date().toISOString().slice(0, 10), amount: "", reference: "", notes: "" });
+                              await fetchSub();
+                              onChanged();
+                            }}
+                          >
+                            <Save className="h-3 w-3 mr-1" />{paySaving ? "Saving..." : "Save Payment"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
