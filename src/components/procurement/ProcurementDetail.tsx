@@ -25,6 +25,7 @@ import jsPDF from "jspdf";
 import { downloadPDF } from "@/utils/nativeDownload";
 import GRNForm, { type POItem } from "./GRNForm";
 import InvoiceForm from "./InvoiceForm";
+import GRNDetail from "./GRNDetail";
 import ThreeWayMatch from "./ThreeWayMatch";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 
