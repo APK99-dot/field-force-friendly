@@ -588,8 +588,11 @@ export default function ProcurementDetail({
 
     const hasAssignedVendors = vendorAssignments.some((r) => r.vendor_id);
     const hasQuoteLinks = vendorQuotes.length > 0;
-    const lineHasRate = rateLines.some((l) => (parseFloat(l.rate) || 0) > 0);
-    const allLinesHaveRate = rateLines.length > 0 && rateLines.every((l) => (parseFloat(l.rate) || 0) > 0);
+    // Use persisted line rates (from the DB) — not unsaved local edits — so we don't
+    // auto-advance on transient typing that hasn't been saved yet.
+    const persistedItems = order.procurement_items || [];
+    const lineHasRate = persistedItems.some((it) => Number(it.rate || 0) > 0);
+    const allLinesHaveRate = persistedItems.length > 0 && persistedItems.every((it) => Number(it.rate || 0) > 0);
     const anyFullyReceived = grns.some((g) => g.status === "Fully Received");
     const hasInvoice = invoices.length > 0;
     const invoicedTotal = invoices.reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
