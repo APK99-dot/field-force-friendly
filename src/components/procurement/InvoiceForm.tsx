@@ -116,8 +116,26 @@ export default function InvoiceForm({
   const removePayment = (id: string) =>
     setPayments((p) => p.filter((pl) => pl.id !== id));
 
+  const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false);
+
   const handleSave = async () => {
     if (!invoiceNumber.trim()) { toast.error("Invoice number is required"); return; }
+
+    // Duplicate detection: same invoice number (case-insensitive) OR near-identical amount
+    if (!duplicateAcknowledged && existingInvoices && existingInvoices.length) {
+      const num = invoiceNumber.trim().toLowerCase();
+      const dup = existingInvoices.find((e) => {
+        const sameNumber = (e.invoice_number || "").trim().toLowerCase() === num;
+        const sameAmt = Math.abs(Number(e.invoice_amount || 0) - amount) < 0.01 && amount > 0;
+        return sameNumber || sameAmt;
+      });
+      if (dup) {
+        const msg = `An invoice with ${(dup.invoice_number || "").trim().toLowerCase() === num ? `number "${dup.invoice_number}"` : `amount ${dup.invoice_amount}`} already exists on this PO. Add anyway?`;
+        if (!window.confirm(msg)) return;
+        setDuplicateAcknowledged(true);
+      }
+    }
+
     setSaving(true);
     try {
       const { data: inv, error } = await supabase
