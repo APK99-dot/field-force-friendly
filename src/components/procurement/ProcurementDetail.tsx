@@ -725,6 +725,43 @@ export default function ProcurementDetail({
     };
   }, [open, loadVendorQuotes]);
 
+  // Auto-apply the rate when a line item has exactly ONE submitted quote and
+  // the buyer hasn't already picked/adjusted a rate. Manual "Select" is only
+  // required when 2+ vendors have submitted competing quotes for the same line.
+  useEffect(() => {
+    if (!open || vendorQuotes.length === 0 || rateLines.length === 0) return;
+    setRateLines((prev) => {
+      let changed = false;
+      const next = prev.map((l) => {
+        // Skip if buyer has already made an explicit choice/edit.
+        if (l.rate_source === "quote" || l.rate_source === "manual_adjusted") return l;
+        if (Number(l.rate) > 0) return l;
+        const submitted = vendorQuotes.filter(
+          (q) => q.status === "submitted" &&
+                 (q.procurement_vendor_quote_items || []).some(
+                   (x) => x.procurement_item_id === l.id && (x.rate_after_discount ?? x.rate) != null,
+                 ),
+        );
+        if (submitted.length !== 1) return l;
+        const q = submitted[0];
+        const qi = (q.procurement_vendor_quote_items || []).find((x) => x.procurement_item_id === l.id)!;
+        const rate = Number(qi.rate_after_discount ?? qi.rate) || 0;
+        if (rate <= 0) return l;
+        changed = true;
+        return {
+          ...l,
+          rate: String(rate),
+          rate_source: "quote",
+          rate_source_vendor_id: q.vendor_id,
+          vendor_ids: q.vendor_id && !l.vendor_ids.includes(q.vendor_id)
+            ? [...l.vendor_ids, q.vendor_id]
+            : l.vendor_ids,
+        };
+      });
+      return changed ? next : prev;
+    });
+  }, [open, vendorQuotes, rateLines.length]);
+
   const quoteUrl = (token: string) => `${window.location.origin}/vendor-quote/${token}`;
 
   // Invite the vendors selected on a single line item to quote on that item.
