@@ -1755,6 +1755,12 @@ export default function ProcurementDetail({
                   <div className="font-medium">{fmtAmt(i.invoice_amount)}</div>
                 </div>
               ))}
+              {order.status === "Invoice Received" && (
+                <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-3 py-2 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                  <span className="font-semibold">Awaiting payment —</span>
+                  <span>record a payment against an invoice to mark this PO as <strong>Paid</strong>. Adding another invoice will not advance the stage.</span>
+                </div>
+              )}
             </CardContent>
           </Card>
           )}
