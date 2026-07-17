@@ -24,7 +24,10 @@ interface Props {
   poVendors?: { id: string; name: string }[];
   /** Map procurement_item_id -> vendor_ids assigned to that line */
   itemVendorMap?: Record<string, string[]>;
+  /** Existing invoices already on this PO — used for duplicate detection */
+  existingInvoices?: { invoice_number: string | null; invoice_amount: number; vendor_id?: string | null }[];
 }
+
 
 interface AttachedFile {
   path: string;
@@ -57,7 +60,7 @@ const newPayment = (): PaymentLine => ({
 
 export default function InvoiceForm({
   open, onOpenChange, poId, poNumber, vendorNameStr, items, productName, createdBy, onSaved,
-  poVendors, itemVendorMap,
+  poVendors, itemVendorMap, existingInvoices,
 }: Props) {
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
@@ -113,8 +116,26 @@ export default function InvoiceForm({
   const removePayment = (id: string) =>
     setPayments((p) => p.filter((pl) => pl.id !== id));
 
+  const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false);
+
   const handleSave = async () => {
     if (!invoiceNumber.trim()) { toast.error("Invoice number is required"); return; }
+
+    // Duplicate detection: same invoice number (case-insensitive) OR near-identical amount
+    if (!duplicateAcknowledged && existingInvoices && existingInvoices.length) {
+      const num = invoiceNumber.trim().toLowerCase();
+      const dup = existingInvoices.find((e) => {
+        const sameNumber = (e.invoice_number || "").trim().toLowerCase() === num;
+        const sameAmt = Math.abs(Number(e.invoice_amount || 0) - amount) < 0.01 && amount > 0;
+        return sameNumber || sameAmt;
+      });
+      if (dup) {
+        const msg = `An invoice with ${(dup.invoice_number || "").trim().toLowerCase() === num ? `number "${dup.invoice_number}"` : `amount ${dup.invoice_amount}`} already exists on this PO. Add anyway?`;
+        if (!window.confirm(msg)) return;
+        setDuplicateAcknowledged(true);
+      }
+    }
+
     setSaving(true);
     try {
       const { data: inv, error } = await supabase
