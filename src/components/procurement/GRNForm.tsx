@@ -15,6 +15,7 @@ import { receiptDrivenStatus, GRN_STATUSES, GrnStatus } from "@/lib/procurement"
 import { uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
 import { StarRating } from "./VendorRating";
 import { cn } from "@/lib/utils";
+import CameraCapture from "@/components/CameraCapture";
 
 const MAX_PHOTOS = 20;
 
