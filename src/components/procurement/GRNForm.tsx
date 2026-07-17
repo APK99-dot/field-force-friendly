@@ -15,6 +15,7 @@ import { receiptDrivenStatus, GRN_STATUSES, GrnStatus } from "@/lib/procurement"
 import { uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
 import { StarRating } from "./VendorRating";
 import { cn } from "@/lib/utils";
+import CameraCapture from "@/components/CameraCapture";
 
 const MAX_PHOTOS = 20;
 
@@ -82,6 +83,7 @@ export default function GRNForm({
   const [fbComments, setFbComments] = useState("");
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   useEffect(() => {
     if (profile?.full_name) {
@@ -109,6 +111,22 @@ export default function GRNForm({
       setUploadingPhoto(false);
       if (cameraInputRef.current) cameraInputRef.current.value = "";
       if (galleryInputRef.current) galleryInputRef.current.value = "";
+    }
+  };
+
+  const handleCapturedBlob = async (blob: Blob) => {
+    if (photos.length >= maxPhotos) {
+      toast.error(`Maximum ${maxPhotos} photos allowed`);
+      return;
+    }
+    setUploadingPhoto(true);
+    try {
+      const path = await uploadGrnPhoto(blob);
+      setPhotos((p) => [...p, { path, preview: URL.createObjectURL(blob) }]);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to upload photo");
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -405,7 +423,7 @@ export default function GRNForm({
                   type="button"
                   variant="outline"
                   disabled={uploadingPhoto || photos.length >= maxPhotos}
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={() => setCameraOpen(true)}
                 >
                   <Camera className="h-4 w-4 mr-2" />
                   {uploadingPhoto ? "Uploading..." : "Take Photo"}
@@ -487,6 +505,12 @@ export default function GRNForm({
           </div>
         </div>
       </DialogContent>
+      <CameraCapture
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={handleCapturedBlob}
+        title="Capture Goods Photo"
+      />
     </Dialog>
   );
 }
