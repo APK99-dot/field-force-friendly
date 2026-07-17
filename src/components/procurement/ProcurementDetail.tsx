@@ -1030,6 +1030,7 @@ export default function ProcurementDetail({
                         {i <= stepIndex && h && (
                           <span className="text-[9px] text-muted-foreground text-center leading-tight">
                             {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
+                            {h.note ? <><br/><span className="italic">{h.note}</span></> : null}
                           </span>
                         )}
                       </div>
