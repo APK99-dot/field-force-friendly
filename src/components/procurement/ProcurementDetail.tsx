@@ -1844,6 +1844,11 @@ export default function ProcurementDetail({
             items={items} productName={productName} createdBy={currentUserId}
             poVendors={derivedVendorIds.map((id) => ({ id, name: vendorName(id) }))}
             itemVendorMap={itemVendorMap}
+            existingInvoices={invoices.map((i) => ({
+              invoice_number: i.invoice_number,
+              invoice_amount: Number(i.invoice_amount || 0),
+              vendor_id: i.vendor_id,
+            }))}
             onSaved={() => { fetchSub(); onChanged(); }}
           />
         )}
