@@ -27,14 +27,7 @@ interface Props {
   /** Existing invoices already on this PO — used for duplicate detection */
   existingInvoices?: { invoice_number: string | null; invoice_amount: number; vendor_id?: string | null }[];
 }
-  productName: (id: string | null) => string;
-  createdBy?: string;
-  onSaved: () => void;
-  /** Vendors assigned across this PO's line items — enables per-vendor invoice */
-  poVendors?: { id: string; name: string }[];
-  /** Map procurement_item_id -> vendor_ids assigned to that line */
-  itemVendorMap?: Record<string, string[]>;
-}
+
 
 interface AttachedFile {
   path: string;
