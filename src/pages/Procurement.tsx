@@ -432,6 +432,17 @@ export default function Procurement() {
       if (itemErr) throw itemErr;
 
       toast.success(editing ? "Saved" : (isTransfer ? "Internal transfer created" : "Procurement created"));
+      // Prompt to save any typed-in UOMs that aren't in the master
+      const knownUom = new Set(uomOptions.map((u) => u.toLowerCase()));
+      const custom = Array.from(new Set(
+        validLines
+          .map((l) => (l.uom || "").trim())
+          .filter((u) => u && !knownUom.has(u.toLowerCase()))
+      ));
+      if (custom.length) {
+        setPendingUomChoices(Object.fromEntries(custom.map((u) => [u, true])));
+        setPendingUoms(custom);
+      }
       setIsFormOpen(false);
       fetchAll();
     } catch (err: any) {
@@ -439,6 +450,19 @@ export default function Procurement() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const persistCustomUoms = async () => {
+    const toSave = pendingUoms.filter((u) => pendingUomChoices[u]);
+    if (!toSave.length) { setPendingUoms([]); return; }
+    const rows = toSave.map((u) => ({ uom_name: u, is_active: true, created_by: profile?.id ?? null }));
+    const { error } = await supabase.from("master_uom").insert(rows);
+    if (error) toast.error(error.message || "Could not save UOMs");
+    else {
+      toast.success(`${toSave.length} UOM${toSave.length > 1 ? "s" : ""} added to master`);
+      refetchUoms();
+    }
+    setPendingUoms([]);
   };
 
   const handleDelete = async (id: string) => {
