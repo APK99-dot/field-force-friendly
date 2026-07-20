@@ -96,12 +96,14 @@ export function ModulePanel({ module, tab }: { module: string; tab: Tab }) {
             <ConfigSelectRow label="Who can edit PO rates after approval" value={str("editRatesAfterApproval")} onChange={(v) => s("editRatesAfterApproval", v)} options={ADMIN_MANAGER} />
           </ConfigSection>
           <div className="rounded-lg border border-border/60 p-4 space-y-2">
-            <p className="text-sm font-semibold">Vendor Indent Order — Terms &amp; Conditions</p>
+            <p className="text-sm font-semibold">Generic Terms &amp; Conditions</p>
             <p className="text-xs text-muted-foreground">
-              These terms are shown to vendors on the Indent Order (quote request) page. Vendors must accept them before submitting a quote.
+              Applied to every new requisition by default. Shown to vendors on the Indent Order and must be accepted before submitting a quote.
             </p>
             <EditableListEditor items={terms} onChange={(v) => s("termsAndConditions", v)} placeholder="New term" />
           </div>
+          <ScopedTermsEditor scope="category" title="Category-wise Terms & Conditions" description="Auto-added when any product from the selected category is on the requisition." />
+          <ScopedTermsEditor scope="material" title="Material-wise Terms & Conditions" description="Auto-added when the selected product/material is on the requisition. Shown before category terms." />
         </div>
       );
     }
