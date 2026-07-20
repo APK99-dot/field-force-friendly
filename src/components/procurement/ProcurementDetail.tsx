@@ -1500,6 +1500,22 @@ export default function ProcurementDetail({
                               <tr className="border-t bg-muted/20">
                                 <td></td>
                                 <td colSpan={6} className="p-3 space-y-3">
+                                  {/* Audit trail for the vendor quote */}
+                                  {quote && (quote.first_submitted_at || quote.last_resubmitted_at || quote.reopened_at) && (
+                                    <div className="rounded-md border bg-background p-2 text-[11px] space-y-0.5">
+                                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Quote Audit Trail</div>
+                                      {quote.first_submitted_at && (
+                                        <div><span className="text-muted-foreground">First submitted: </span><span className="font-medium">{new Date(quote.first_submitted_at).toLocaleString("en-GB")}</span></div>
+                                      )}
+                                      {quote.reopened_at && (
+                                        <div><span className="text-muted-foreground">Reopened by buyer: </span><span className="font-medium">{new Date(quote.reopened_at).toLocaleString("en-GB")}</span></div>
+                                      )}
+                                      {quote.last_resubmitted_at && (
+                                        <div><span className="text-muted-foreground">Last resubmitted: </span><span className="font-medium">{new Date(quote.last_resubmitted_at).toLocaleString("en-GB")}</span></div>
+                                      )}
+                                    </div>
+                                  )}
+
                                   {/* Scoped line items + their submitted rates */}
                                   <div>
                                     <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Items in scope</div>
