@@ -667,6 +667,12 @@ export default function ProcurementDetail({
   useEffect(() => {
     if (!open) return;
     if (autoAdvancingRef.current || busy) return;
+    // Clear the revert guard once the user moves off the reverted-to stage.
+    if (revertGuardRef.current && order.status !== revertGuardRef.current) {
+      revertGuardRef.current = null;
+    }
+    // Suppress auto-advance while sitting on a manually-reverted stage.
+    if (revertGuardRef.current && order.status === revertGuardRef.current) return;
     const next = computeAutoTarget();
     if (!next) return;
     autoAdvancingRef.current = true;
