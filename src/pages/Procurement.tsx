@@ -723,12 +723,21 @@ export default function Procurement() {
 
                 <div>
                   <Label className="text-xs">Terms &amp; Conditions</Label>
-                  <p className="text-[11px] text-muted-foreground mb-2">These are shown to vendors on the Indent Order and must be accepted before submitting a quote. Defaults come from Admin → Configuration.</p>
+                  <p className="text-[11px] text-muted-foreground mb-2">Auto-populated in order: Material-wise → Category-wise → Generic (from Admin → Configuration). Add or remove terms as needed before submitting.</p>
                   <EditableListEditor
                     items={form.terms_and_conditions}
-                    onChange={(next) => setForm((p) => ({ ...p, terms_and_conditions: next }))}
+                    onChange={(next) => { setTermsUserEdited(true); setForm((p) => ({ ...p, terms_and_conditions: next })); }}
                     placeholder="Add a term (e.g. Payment on receipt of goods)"
                   />
+                  {termsUserEdited && (
+                    <button
+                      type="button"
+                      onClick={() => { setTermsUserEdited(false); setForm((p) => ({ ...p, terms_and_conditions: mergedTerms })); }}
+                      className="mt-2 text-[11px] text-primary hover:underline"
+                    >
+                      Reset to auto-populated terms
+                    </button>
+                  )}
                 </div>
               </>
             )}
