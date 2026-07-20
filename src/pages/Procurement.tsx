@@ -115,6 +115,7 @@ export default function Procurement() {
   const [sites, setSites] = useState<Site[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [ownerNames, setOwnerNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -222,6 +223,18 @@ export default function Procurement() {
       category_name: p.master_categories?.category_name ?? null,
     })) as Product[]);
     setCategories((cat.data || []) as Category[]);
+
+    // Load requisition owner names
+    const ownerIds = Array.from(new Set(((ord.data || []) as any[]).map((o) => o.created_by).filter(Boolean)));
+    if (ownerIds.length) {
+      const { data: profs } = await supabase.from("profiles").select("id, full_name, username").in("id", ownerIds);
+      const map: Record<string, string> = {};
+      (profs || []).forEach((p: any) => { map[p.id] = p.full_name || p.username || "—"; });
+      setOwnerNames(map);
+    } else {
+      setOwnerNames({});
+    }
+
     setIsLoading(false);
     // keep open detail fresh
     setDetail((d) => (d ? ((ord.data || []) as DetailOrder[]).find((o) => o.id === d.id) || null : null));
@@ -396,21 +409,32 @@ export default function Procurement() {
       list = list.filter(
         (o) =>
           (o.po_number || "").toLowerCase().includes(q) ||
-          vName(o.vendor_id).toLowerCase().includes(q) ||
-          sName(o.site_id).toLowerCase().includes(q)
+          ((o as any).requisition_number || "").toLowerCase().includes(q) ||
+          ((o as any).requisition_name || "").toLowerCase().includes(q) ||
+          sName(o.site_id).toLowerCase().includes(q) ||
+          (ownerNames[o.created_by || ""] || "").toLowerCase().includes(q)
       );
     }
     if (filterStatus !== "all") list = list.filter((o) => o.status === filterStatus);
     return list;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders, search, filterStatus, vendors, sites]);
+  }, [orders, search, filterStatus, sites, ownerNames]);
+
+  const fmtDMY = (d?: string | null) => {
+    if (!d) return "—";
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return d;
+    const dd = String(dt.getDate()).padStart(2, "0");
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    return `${dd}/${mm}/${dt.getFullYear()}`;
+  };
 
   return (
     <motion.div className="space-y-4 p-4 pb-24 w-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2"><ShoppingCart className="h-5 w-5" />Procurement</h1>
-          <p className="text-xs text-muted-foreground">{orders.length} purchase orders</p>
+          <p className="text-xs text-muted-foreground">{orders.length} requisitions</p>
         </div>
         {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New Requisition</Button>}
       </div>
@@ -418,7 +442,7 @@ export default function Procurement() {
       <div className="space-y-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search PO number, vendor, site..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+          <Input placeholder="Search REQ #, name, PO, site, owner..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
@@ -439,23 +463,38 @@ export default function Procurement() {
         <div className="space-y-2">
           {filtered.map((o) => {
             const isTransfer = o.source_type === "internal_transfer";
+            const reqNo = (o as any).requisition_number || "—";
+            const reqName = (o as any).requisition_name || "";
+            const owner = ownerNames[o.created_by || ""] || "—";
             return (
             <Card key={o.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDetail(o)}>
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <h3 className="font-semibold text-sm truncate">{o.po_number || (isTransfer ? "(No TRF #)" : "(No PO #)")}</h3>
-                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${isTransfer ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"}`}>{isTransfer ? "Internal Transfer" : "Vendor PO"}</Badge>
+                      <h3 className="font-semibold text-sm truncate">{reqNo}</h3>
+                      {isTransfer && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Internal Transfer</Badge>
+                      )}
                       <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColor(o.status)}`}>{o.status}</Badge>
                     </div>
+                    {reqName && (
+                      <p className="text-xs font-medium text-foreground/80 truncate mb-0.5">{reqName}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
+                      <CalendarDays className="h-3 w-3" />{fmtDMY(o.order_date)}
+                      <span className="opacity-50">·</span>
+                      <span className="truncate">Owner: {owner}</span>
+                    </p>
                     {isTransfer ? (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap"><CalendarDays className="h-3 w-3" />{o.order_date} · {sName(o.transfer_from_site_id)} <ArrowRight className="h-3 w-3" /> {sName(o.site_id)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate flex items-center gap-1 flex-wrap">
+                        Site: {sName(o.transfer_from_site_id)} <ArrowRight className="h-3 w-3" /> {sName(o.site_id)}
+                      </p>
                     ) : (
-                      <>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1"><CalendarDays className="h-3 w-3" />{o.order_date} · {vName(o.vendor_id)}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">Site: {sName(o.site_id)}</p>
-                      </>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        Site: {sName(o.site_id)}
+                        {o.po_number && <span className="ml-1 opacity-70">· PO: {o.po_number}</span>}
+                      </p>
                     )}
                   </div>
                   <div className="text-right shrink-0">

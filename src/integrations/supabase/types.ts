@@ -4097,6 +4097,7 @@ export type Database = {
           po_number: string | null
           requisition_name: string | null
           requisition_notes: string | null
+          requisition_number: string | null
           ship_to: string | null
           ship_to_address_id: string | null
           ship_to_gst: string | null
@@ -4128,6 +4129,7 @@ export type Database = {
           po_number?: string | null
           requisition_name?: string | null
           requisition_notes?: string | null
+          requisition_number?: string | null
           ship_to?: string | null
           ship_to_address_id?: string | null
           ship_to_gst?: string | null
@@ -4159,6 +4161,7 @@ export type Database = {
           po_number?: string | null
           requisition_name?: string | null
           requisition_notes?: string | null
+          requisition_number?: string | null
           ship_to?: string | null
           ship_to_address_id?: string | null
           ship_to_gst?: string | null
