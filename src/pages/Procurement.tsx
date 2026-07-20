@@ -223,6 +223,18 @@ export default function Procurement() {
       category_name: p.master_categories?.category_name ?? null,
     })) as Product[]);
     setCategories((cat.data || []) as Category[]);
+
+    // Load requisition owner names
+    const ownerIds = Array.from(new Set(((ord.data || []) as any[]).map((o) => o.created_by).filter(Boolean)));
+    if (ownerIds.length) {
+      const { data: profs } = await supabase.from("profiles").select("id, full_name, username").in("id", ownerIds);
+      const map: Record<string, string> = {};
+      (profs || []).forEach((p: any) => { map[p.id] = p.full_name || p.username || "—"; });
+      setOwnerNames(map);
+    } else {
+      setOwnerNames({});
+    }
+
     setIsLoading(false);
     // keep open detail fresh
     setDetail((d) => (d ? ((ord.data || []) as DetailOrder[]).find((o) => o.id === d.id) || null : null));
