@@ -272,7 +272,52 @@ export default function VendorQuote() {
   const { requisition: req, vendor, company, terms_and_conditions } = data;
   const readOnly = submitted;
   const hasTerms = terms_and_conditions.length > 0;
-  const acceptDisabled = readOnly || saving || (hasTerms && !termsAccepted);
+  const acceptDisabled = readOnly || saving || !paymentTerm.trim() || (hasTerms && !termsAccepted);
+
+  // Success screen — shown once vendor has submitted their quote.
+  if (submitted && data.status === "submitted") {
+    const submittedOn = fmtDate(data.submitted_at) || fmtDate(new Date().toISOString());
+    return (
+      <div className="min-h-screen bg-muted/20 py-6 px-3 sm:px-6 flex items-center justify-center">
+        <div className="mx-auto w-full max-w-lg bg-background rounded-2xl shadow-lg border overflow-hidden">
+          <div className="flex items-center gap-4 p-5 border-b">
+            <div className="w-14 h-14 rounded-lg border flex items-center justify-center overflow-hidden bg-white shrink-0">
+              {company?.logo_url ? (
+                <img src={company.logo_url} alt="Company logo" className="w-full h-full object-contain p-1" />
+              ) : (
+                <Building2 className="h-7 w-7 text-muted-foreground/50" />
+              )}
+            </div>
+            <div>
+              <div className="text-base font-bold">{company?.company_name || "Company"}</div>
+              {req.title && <div className="text-xs text-muted-foreground">{req.title}</div>}
+            </div>
+          </div>
+          <div className="p-8 sm:p-10 text-center">
+            <div className="relative mx-auto mb-6 flex h-24 w-24 items-center justify-center">
+              <span className="absolute inset-0 rounded-full bg-emerald-500/15 animate-ping" />
+              <span className="absolute inset-2 rounded-full bg-emerald-500/25" />
+              <CheckCircle2 className="relative h-16 w-16 text-emerald-600 dark:text-emerald-400 drop-shadow-sm" strokeWidth={2.2} />
+            </div>
+            <h1 className="text-2xl font-bold mb-2">Thank you!</h1>
+            <p className="text-base text-foreground">
+              Your quote has been submitted on{" "}
+              <span className="font-semibold">{submittedOn}</span>.
+            </p>
+            <p className="text-sm text-muted-foreground mt-3">
+              We've received your quotation and will get back to you shortly. This link is now read-only.
+            </p>
+            {vendor?.name && (
+              <div className="mt-6 inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
+                <Building2 className="h-3.5 w-3.5" />
+                {vendor.name}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/20 py-6 px-3 sm:px-6">
