@@ -35,6 +35,9 @@ interface Attachment { name: string; url: string; size: number; type: string; }
 interface QuoteData {
   status: string;
   submitted_at: string | null;
+  first_submitted_at: string | null;
+  last_resubmitted_at: string | null;
+  reopened_at: string | null;
   vendor_payment_term: string;
   notes: string;
   change_request_notes: string;
@@ -122,7 +125,8 @@ export default function VendorQuote() {
           setNotes(safe.notes || "");
           setAttachments(safe.attachments);
           setChangeNotes(safe.change_request_notes);
-          setSubmitted(safe.status === "submitted" || safe.status === "changes_requested");
+            setSubmitted(safe.status === "submitted" || safe.status === "changes_requested");
+            // note: 'reopened' is intentionally editable — treat like draft.
           if (safe.terms_accepted_at) setTermsAccepted(true);
         }
       } catch {
@@ -233,7 +237,17 @@ export default function VendorQuote() {
       }
       const nowIso = new Date().toISOString();
       if (mode === "accept") {
-        setData((prev) => prev ? { ...prev, status: "submitted", submitted_at: prev.submitted_at || nowIso } : prev);
+        setData((prev) => {
+          if (!prev) return prev;
+          const isResubmit = !!prev.first_submitted_at;
+          return {
+            ...prev,
+            status: "submitted",
+            submitted_at: nowIso,
+            first_submitted_at: prev.first_submitted_at || nowIso,
+            last_resubmitted_at: isResubmit ? nowIso : prev.last_resubmitted_at,
+          };
+        });
         setSubmitted(true);
         toast.success("Quote submitted. Thank you!");
       } else if (mode === "request_changes") {
@@ -304,6 +318,11 @@ export default function VendorQuote() {
               Your quote has been submitted on{" "}
               <span className="font-semibold">{submittedOn}</span>.
             </p>
+            {data.last_resubmitted_at && data.first_submitted_at && data.last_resubmitted_at !== data.first_submitted_at && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Originally submitted on {fmtDate(data.first_submitted_at)} · Resubmitted on {fmtDate(data.last_resubmitted_at)}
+              </p>
+            )}
             <p className="text-sm text-muted-foreground mt-3">
               We've received your quotation and will get back to you shortly. This link is now read-only.
             </p>
@@ -377,6 +396,26 @@ export default function VendorQuote() {
                 : `Your quote has been submitted${data.submitted_at ? ` on ${fmtDate(data.submitted_at)}` : ""}. Thank you.`}
             </div>
           )}
+
+          {data.status === "reopened" && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 px-4 py-2.5 text-sm text-amber-800 dark:text-amber-300 space-y-1">
+              <div className="flex items-center gap-2 font-medium">
+                <AlertCircle className="h-4 w-4" /> This quotation has been reopened by the buyer for revision.
+              </div>
+              <div className="text-xs text-amber-700/90 dark:text-amber-200/90 pl-6">
+                Your previous values are preserved. Update the required fields and resubmit.
+                {data.first_submitted_at && <> Originally submitted on <span className="font-medium">{fmtDate(data.first_submitted_at)}</span>.</>}
+                {data.reopened_at && <> Reopened on <span className="font-medium">{fmtDate(data.reopened_at)}</span>.</>}
+              </div>
+            </div>
+          )}
+
+          {data.status === "draft" && data.first_submitted_at && (
+            <div className="text-xs text-muted-foreground">
+              Draft in progress. Last resubmission: {fmtDate(data.last_resubmitted_at || data.first_submitted_at)}.
+            </div>
+          )}
+
 
           {/* Line items */}
           <div className="overflow-x-auto border rounded-lg">
@@ -558,7 +597,7 @@ export default function VendorQuote() {
                   </Button>
                   <Button disabled={acceptDisabled} onClick={() => send("accept")}>
                     {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Accept &amp; Submit Quote
+                    {data.status === "reopened" ? "Resubmit Quote" : "Accept & Submit Quote"}
                   </Button>
                 </>
               ) : (

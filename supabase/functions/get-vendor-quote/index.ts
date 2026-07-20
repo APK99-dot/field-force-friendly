@@ -153,6 +153,9 @@ Deno.serve(async (req) => {
     return json({
       status: quote.status,
       submitted_at: quote.submitted_at,
+      first_submitted_at: quote.first_submitted_at || null,
+      last_resubmitted_at: quote.last_resubmitted_at || null,
+      reopened_at: quote.reopened_at || null,
       vendor_payment_term: quote.vendor_payment_term || "",
       notes: quote.notes || "",
       change_request_notes: quote.change_request_notes || "",

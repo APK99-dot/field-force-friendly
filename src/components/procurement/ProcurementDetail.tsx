@@ -99,6 +99,9 @@ interface VendorQuoteRow {
   vendor_payment_term: string | null;
   notes: string | null;
   submitted_at: string | null;
+  first_submitted_at?: string | null;
+  last_resubmitted_at?: string | null;
+  reopened_at?: string | null;
   procurement_item_ids?: string[] | null;
   change_request_notes?: string | null;
   attachments?: { name: string; url: string; size: number; type: string }[] | null;
@@ -434,35 +437,55 @@ export default function ProcurementDetail({
     });
   }, [summaryVendorIds, vendorAssignments, rateLines, invoices, invPayments, vendorName]);
 
-  // Manual override for a vendor's quote status (upsert quote row if missing)
+  // Manual override for a vendor's quote status (upsert quote row if missing).
+  // Handles Draft/Submitted/Reopened workflow with audit-trail timestamps.
   const setVendorQuoteStatus = async (row: { vendor_id: string; line_ids: string[] }, status: string) => {
     if (!row.vendor_id) { toast.error("Pick a vendor first."); return; }
     try {
+      const nowIso = new Date().toISOString();
       const existing = vendorQuotes.find((q) => q.vendor_id === row.vendor_id);
       if (existing) {
+        const patch: Record<string, any> = { status };
+        if (status === "submitted") {
+          patch.submitted_at = nowIso;
+          if (!(existing as any).first_submitted_at) {
+            patch.first_submitted_at = nowIso;
+          } else {
+            patch.last_resubmitted_at = nowIso;
+          }
+        } else if (status === "reopened") {
+          patch.reopened_at = nowIso;
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.id) patch.reopened_by = user.id;
+        }
         const { error } = await supabase.from("procurement_vendor_quotes")
-          .update({ status, submitted_at: status === "submitted" ? new Date().toISOString() : existing.submitted_at ?? null })
+          .update(patch)
           .eq("id", existing.id);
         if (error) throw error;
       } else {
         const { data: { user } } = await supabase.auth.getUser();
-        const { error } = await supabase.from("procurement_vendor_quotes").insert({
+        const insertRow: Record<string, any> = {
           po_id: order.id,
           vendor_id: row.vendor_id,
           token: crypto.randomUUID().replace(/-/g, ""),
           procurement_item_ids: row.line_ids,
           status,
-          submitted_at: status === "submitted" ? new Date().toISOString() : null,
           created_by: user?.id ?? null,
-        });
+        };
+        if (status === "submitted") {
+          insertRow.submitted_at = nowIso;
+          insertRow.first_submitted_at = nowIso;
+        }
+        const { error } = await supabase.from("procurement_vendor_quotes").insert(insertRow as any);
         if (error) throw error;
       }
       await loadVendorQuotes();
-      toast.success("Status updated");
+      toast.success(status === "reopened" ? "Quote reopened for vendor" : "Status updated");
     } catch (err: any) {
       toast.error(err.message || "Failed to update status");
     }
   };
+
 
 
   const savePoDetails = async () => {
@@ -826,7 +849,7 @@ export default function ProcurementDetail({
   const loadVendorQuotes = useCallback(async () => {
     const { data } = await supabase
       .from("procurement_vendor_quotes")
-      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, procurement_item_ids, change_request_notes, attachments, procurement_vendor_quote_items(*)")
+      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, first_submitted_at, last_resubmitted_at, reopened_at, procurement_item_ids, change_request_notes, attachments, procurement_vendor_quote_items(*)")
       .eq("po_id", order.id);
     setVendorQuotes((data || []) as unknown as VendorQuoteRow[]);
   }, [order.id]);
@@ -1445,18 +1468,21 @@ export default function ProcurementDetail({
                                 >
                                   <SelectTrigger className={`h-7 text-[11px] w-full ${
                                     qStatus === "submitted" ? "text-emerald-600 dark:text-emerald-400"
+                                    : qStatus === "reopened" ? "text-amber-600 dark:text-amber-400"
                                     : qStatus === "changes_requested" ? "text-amber-600 dark:text-amber-400"
                                     : ""
                                   }`}>
                                     <SelectValue placeholder="—" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="draft">Draft</SelectItem>
                                     <SelectItem value="submitted">Submitted</SelectItem>
+                                    <SelectItem value="reopened">Reopened</SelectItem>
                                     <SelectItem value="changes_requested">Changes Requested</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </td>
+
 
                               <td className="p-2">
                                 <Button
@@ -1474,6 +1500,22 @@ export default function ProcurementDetail({
                               <tr className="border-t bg-muted/20">
                                 <td></td>
                                 <td colSpan={6} className="p-3 space-y-3">
+                                  {/* Audit trail for the vendor quote */}
+                                  {quote && (quote.first_submitted_at || quote.last_resubmitted_at || quote.reopened_at) && (
+                                    <div className="rounded-md border bg-background p-2 text-[11px] space-y-0.5">
+                                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Quote Audit Trail</div>
+                                      {quote.first_submitted_at && (
+                                        <div><span className="text-muted-foreground">First submitted: </span><span className="font-medium">{new Date(quote.first_submitted_at).toLocaleString("en-GB")}</span></div>
+                                      )}
+                                      {quote.reopened_at && (
+                                        <div><span className="text-muted-foreground">Reopened by buyer: </span><span className="font-medium">{new Date(quote.reopened_at).toLocaleString("en-GB")}</span></div>
+                                      )}
+                                      {quote.last_resubmitted_at && (
+                                        <div><span className="text-muted-foreground">Last resubmitted: </span><span className="font-medium">{new Date(quote.last_resubmitted_at).toLocaleString("en-GB")}</span></div>
+                                      )}
+                                    </div>
+                                  )}
+
                                   {/* Scoped line items + their submitted rates */}
                                   <div>
                                     <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Items in scope</div>
