@@ -208,8 +208,8 @@ export default function Procurement() {
       supabase.from("procurement_orders").select("*, procurement_items(*)").order("created_at", { ascending: false, nullsFirst: false }),
       supabase.from("vendors").select("id, name").order("name"),
       supabase.from("project_sites").select("id, site_name").is("deleted_at", null).order("site_name"),
-      supabase.from("master_products").select("id, product_name, default_uom, category_id, product_description, master_categories(category_name)").eq("is_active", true).order("product_name"),
-      supabase.from("master_categories").select("id, category_name, sub_category_name").eq("is_active", true).order("category_name"),
+      supabase.from("master_products").select("id, product_name, default_uom, category_id, product_description, terms_and_conditions, master_categories(category_name)").eq("is_active", true).order("product_name"),
+      supabase.from("master_categories").select("id, category_name, sub_category_name, terms_and_conditions").eq("is_active", true).order("category_name"),
     ]);
     setOrders((ord.data || []) as DetailOrder[]);
     setVendors((ven.data || []) as Vendor[]);
@@ -221,6 +221,7 @@ export default function Procurement() {
       category_id: p.category_id ?? null,
       product_description: p.product_description,
       category_name: p.master_categories?.category_name ?? null,
+      terms_and_conditions: Array.isArray(p.terms_and_conditions) ? p.terms_and_conditions : null,
     })) as Product[]);
     setCategories((cat.data || []) as Category[]);
 
