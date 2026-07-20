@@ -597,7 +597,7 @@ export default function VendorQuote() {
                   </Button>
                   <Button disabled={acceptDisabled} onClick={() => send("accept")}>
                     {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Accept &amp; Submit Quote
+                    {data.status === "reopened" ? "Resubmit Quote" : "Accept & Submit Quote"}
                   </Button>
                 </>
               ) : (
