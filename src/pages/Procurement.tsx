@@ -325,6 +325,8 @@ export default function Procurement() {
       vendor_ids: Array.isArray(it.vendor_ids) ? it.vendor_ids : [],
     }));
     setLines(items.length ? items : [{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
+    // When editing, treat the persisted list as user-authored so we don't overwrite it.
+    setTermsUserEdited(true);
     setIsFormOpen(true);
   };
 
