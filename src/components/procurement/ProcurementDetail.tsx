@@ -434,35 +434,55 @@ export default function ProcurementDetail({
     });
   }, [summaryVendorIds, vendorAssignments, rateLines, invoices, invPayments, vendorName]);
 
-  // Manual override for a vendor's quote status (upsert quote row if missing)
+  // Manual override for a vendor's quote status (upsert quote row if missing).
+  // Handles Draft/Submitted/Reopened workflow with audit-trail timestamps.
   const setVendorQuoteStatus = async (row: { vendor_id: string; line_ids: string[] }, status: string) => {
     if (!row.vendor_id) { toast.error("Pick a vendor first."); return; }
     try {
+      const nowIso = new Date().toISOString();
       const existing = vendorQuotes.find((q) => q.vendor_id === row.vendor_id);
       if (existing) {
+        const patch: Record<string, any> = { status };
+        if (status === "submitted") {
+          patch.submitted_at = nowIso;
+          if (!(existing as any).first_submitted_at) {
+            patch.first_submitted_at = nowIso;
+          } else {
+            patch.last_resubmitted_at = nowIso;
+          }
+        } else if (status === "reopened") {
+          patch.reopened_at = nowIso;
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.id) patch.reopened_by = user.id;
+        }
         const { error } = await supabase.from("procurement_vendor_quotes")
-          .update({ status, submitted_at: status === "submitted" ? new Date().toISOString() : existing.submitted_at ?? null })
+          .update(patch)
           .eq("id", existing.id);
         if (error) throw error;
       } else {
         const { data: { user } } = await supabase.auth.getUser();
-        const { error } = await supabase.from("procurement_vendor_quotes").insert({
+        const insertRow: Record<string, any> = {
           po_id: order.id,
           vendor_id: row.vendor_id,
           token: crypto.randomUUID().replace(/-/g, ""),
           procurement_item_ids: row.line_ids,
           status,
-          submitted_at: status === "submitted" ? new Date().toISOString() : null,
           created_by: user?.id ?? null,
-        });
+        };
+        if (status === "submitted") {
+          insertRow.submitted_at = nowIso;
+          insertRow.first_submitted_at = nowIso;
+        }
+        const { error } = await supabase.from("procurement_vendor_quotes").insert(insertRow);
         if (error) throw error;
       }
       await loadVendorQuotes();
-      toast.success("Status updated");
+      toast.success(status === "reopened" ? "Quote reopened for vendor" : "Status updated");
     } catch (err: any) {
       toast.error(err.message || "Failed to update status");
     }
   };
+
 
 
   const savePoDetails = async () => {
