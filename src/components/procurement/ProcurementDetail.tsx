@@ -1880,7 +1880,7 @@ export default function ProcurementDetail({
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction disabled={busy} onClick={() => { if (prevStage) changeStatus(prevStage, false); }}>
+              <AlertDialogAction disabled={busy} onClick={() => { if (prevStage) { revertGuardRef.current = prevStage; changeStatus(prevStage, false); } }}>
                 Revert
               </AlertDialogAction>
             </AlertDialogFooter>
