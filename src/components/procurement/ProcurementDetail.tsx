@@ -601,6 +601,10 @@ export default function ProcurementDetail({
   // Requisition -> Requisition Approved is intentionally excluded (manual approval).
   // Closed is never auto-set.
   const autoAdvancingRef = useRef(false);
+  // When an admin manually reverts, remember the target stage so the auto-advance
+  // effect doesn't immediately snap the PO back forward on the next refetch.
+  // Cleared once the status moves away from the reverted-to stage.
+  const revertGuardRef = useRef<ProcStatus | null>(null);
   const computeAutoTarget = useCallback((): { target: ProcStatus; note: string; actorName?: string } | null => {
     if (isTransfer) return null;
     const curIdx = STATUS_FLOW.indexOf(order.status as ProcStatus);
@@ -663,6 +667,12 @@ export default function ProcurementDetail({
   useEffect(() => {
     if (!open) return;
     if (autoAdvancingRef.current || busy) return;
+    // Clear the revert guard once the user moves off the reverted-to stage.
+    if (revertGuardRef.current && order.status !== revertGuardRef.current) {
+      revertGuardRef.current = null;
+    }
+    // Suppress auto-advance while sitting on a manually-reverted stage.
+    if (revertGuardRef.current && order.status === revertGuardRef.current) return;
     const next = computeAutoTarget();
     if (!next) return;
     autoAdvancingRef.current = true;
@@ -1870,7 +1880,7 @@ export default function ProcurementDetail({
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction disabled={busy} onClick={() => { if (prevStage) changeStatus(prevStage, false); }}>
+              <AlertDialogAction disabled={busy} onClick={() => { if (prevStage) { revertGuardRef.current = prevStage; changeStatus(prevStage, false); } }}>
                 Revert
               </AlertDialogAction>
             </AlertDialogFooter>
