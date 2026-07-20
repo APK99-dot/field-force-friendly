@@ -1465,18 +1465,21 @@ export default function ProcurementDetail({
                                 >
                                   <SelectTrigger className={`h-7 text-[11px] w-full ${
                                     qStatus === "submitted" ? "text-emerald-600 dark:text-emerald-400"
+                                    : qStatus === "reopened" ? "text-amber-600 dark:text-amber-400"
                                     : qStatus === "changes_requested" ? "text-amber-600 dark:text-amber-400"
                                     : ""
                                   }`}>
                                     <SelectValue placeholder="—" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="draft">Draft</SelectItem>
                                     <SelectItem value="submitted">Submitted</SelectItem>
+                                    <SelectItem value="reopened">Reopened</SelectItem>
                                     <SelectItem value="changes_requested">Changes Requested</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </td>
+
 
                               <td className="p-2">
                                 <Button
