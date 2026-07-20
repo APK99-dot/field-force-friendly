@@ -601,6 +601,10 @@ export default function ProcurementDetail({
   // Requisition -> Requisition Approved is intentionally excluded (manual approval).
   // Closed is never auto-set.
   const autoAdvancingRef = useRef(false);
+  // When an admin manually reverts, remember the target stage so the auto-advance
+  // effect doesn't immediately snap the PO back forward on the next refetch.
+  // Cleared once the status moves away from the reverted-to stage.
+  const revertGuardRef = useRef<ProcStatus | null>(null);
   const computeAutoTarget = useCallback((): { target: ProcStatus; note: string; actorName?: string } | null => {
     if (isTransfer) return null;
     const curIdx = STATUS_FLOW.indexOf(order.status as ProcStatus);
