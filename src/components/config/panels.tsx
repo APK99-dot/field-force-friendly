@@ -280,3 +280,112 @@ function RegularisationApproval() {
     </div>
   );
 }
+
+/**
+ * Edits per-category or per-material T&C stored directly on the master tables
+ * (master_categories.terms_and_conditions / master_products.terms_and_conditions).
+ */
+function ScopedTermsEditor({
+  scope,
+  title,
+  description,
+}: {
+  scope: "category" | "material";
+  title: string;
+  description: string;
+}) {
+  const table = scope === "category" ? "master_categories" : "master_products";
+  const [rows, setRows] = useState<{ id: string; name: string; terms: string[] }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      if (scope === "category") {
+        const { data } = await supabase
+          .from("master_categories")
+          .select("id, category_name, sub_category_name, terms_and_conditions")
+          .eq("is_active", true)
+          .order("category_name");
+        setRows(
+          (data || []).map((r: any) => ({
+            id: r.id,
+            name: r.sub_category_name ? `${r.category_name} — ${r.sub_category_name}` : r.category_name,
+            terms: Array.isArray(r.terms_and_conditions) ? r.terms_and_conditions : [],
+          })),
+        );
+      } else {
+        const { data } = await supabase
+          .from("master_products")
+          .select("id, product_name, terms_and_conditions")
+          .eq("is_active", true)
+          .order("product_name");
+        setRows(
+          (data || []).map((r: any) => ({
+            id: r.id,
+            name: r.product_name,
+            terms: Array.isArray(r.terms_and_conditions) ? r.terms_and_conditions : [],
+          })),
+        );
+      }
+      setLoading(false);
+    })();
+  }, [scope]);
+
+  const selected = rows.find((r) => r.id === selectedId);
+
+  const saveTerms = async (next: string[]) => {
+    if (!selected) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from(table)
+      .update({ terms_and_conditions: next.length ? next : null })
+      .eq("id", selected.id);
+    setSaving(false);
+    if (error) {
+      toast.error(error.message || "Failed to save terms");
+      return;
+    }
+    setRows((prev) => prev.map((r) => (r.id === selected.id ? { ...r, terms: next } : r)));
+    toast.success("Terms saved");
+  };
+
+  return (
+    <div className="rounded-lg border border-border/60 p-4 space-y-3">
+      <div>
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+      <div>
+        <Select value={selectedId} onValueChange={setSelectedId} disabled={loading}>
+          <SelectTrigger className="h-9">
+            <SelectValue placeholder={loading ? "Loading…" : scope === "category" ? "Select a category" : "Select a material"} />
+          </SelectTrigger>
+          <SelectContent className="max-h-72">
+            {rows.map((r) => (
+              <SelectItem key={r.id} value={r.id}>
+                {r.name}
+                {r.terms.length > 0 && <span className="ml-1 text-[10px] text-primary">({r.terms.length})</span>}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {selected ? (
+        <div className={saving ? "opacity-70 pointer-events-none" : ""}>
+          <EditableListEditor
+            items={selected.terms}
+            onChange={saveTerms}
+            placeholder={`Term for ${selected.name}`}
+          />
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Pick a {scope} above to edit its terms.
+        </p>
+      )}
+    </div>
+  );
+}
