@@ -789,10 +789,12 @@ export default function Procurement() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <Label className="text-[10px] text-muted-foreground">UOM</Label>
-                        <Select value={l.uom} onValueChange={(v) => updateLine(i, { uom: v })}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="UOM" /></SelectTrigger>
-                          <SelectContent>{(l.uom && !uomOptions.includes(l.uom) ? [l.uom, ...uomOptions] : uomOptions).map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}</SelectContent>
-                        </Select>
+                        <UomComboInput
+                          options={uomOptions}
+                          value={l.uom}
+                          onChange={(v) => updateLine(i, { uom: v })}
+                          placeholder="Type or select UOM"
+                        />
                       </div>
                       <div>
                         <Label className="text-[10px] text-muted-foreground">Qty</Label>
