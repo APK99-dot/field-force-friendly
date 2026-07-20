@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   ConfigSection,
   ConfigToggleRow,
@@ -9,6 +10,9 @@ import {
 import { EditableListEditor, LeaveTypeEditor, LeaveTypeItem } from "./EditableListEditor";
 import { ApprovalTransitionEditor } from "./ApprovalTransitionEditor";
 import { useAppConfiguration, ApprovalTransition } from "@/hooks/useAppConfiguration";
+import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 
 const ADMIN_MANAGER = [
   { value: "admin", label: "Admin only" },
