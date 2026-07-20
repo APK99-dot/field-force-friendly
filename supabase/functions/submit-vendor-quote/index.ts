@@ -110,9 +110,15 @@ Deno.serve(async (req) => {
       attachments,
     };
     if (mode === "accept") {
+      const nowIso = new Date().toISOString();
       update.status = "submitted";
-      update.submitted_at = new Date().toISOString();
-      update.terms_accepted_at = new Date().toISOString();
+      update.submitted_at = nowIso;
+      update.terms_accepted_at = nowIso;
+      if (quote.first_submitted_at) {
+        update.last_resubmitted_at = nowIso;
+      } else {
+        update.first_submitted_at = nowIso;
+      }
     } else if (mode === "request_changes") {
       update.status = "changes_requested";
       update.submitted_at = new Date().toISOString();
