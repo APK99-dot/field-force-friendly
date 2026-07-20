@@ -125,7 +125,8 @@ export default function VendorQuote() {
           setNotes(safe.notes || "");
           setAttachments(safe.attachments);
           setChangeNotes(safe.change_request_notes);
-          setSubmitted(safe.status === "submitted" || safe.status === "changes_requested");
+            setSubmitted(safe.status === "submitted" || safe.status === "changes_requested");
+            // note: 'reopened' is intentionally editable — treat like draft.
           if (safe.terms_accepted_at) setTermsAccepted(true);
         }
       } catch {
