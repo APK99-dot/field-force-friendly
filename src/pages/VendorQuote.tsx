@@ -447,7 +447,7 @@ export default function VendorQuote() {
               </div>
             )}
             <div className="space-y-1.5">
-              <Label className="text-xs">Vendor Payment Terms</Label>
+              <Label className="text-xs">Vendor Payment Terms <span className="text-destructive">*</span></Label>
               <Input
                 value={paymentTerm}
                 disabled={readOnly}
