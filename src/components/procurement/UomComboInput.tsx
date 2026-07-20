@@ -55,7 +55,7 @@ export default function UomComboInput({
         </div>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0 max-h-64 overflow-y-auto"
+        className="w-[--radix-popover-trigger-width] p-0 z-50"
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
@@ -64,16 +64,23 @@ export default function UomComboInput({
             No matching UOM. Press Enter to use "<span className="font-medium text-foreground">{value}</span>".
           </div>
         ) : (
-          filtered.map((o) => (
-            <div
-              key={o}
-              onClick={() => { onChange(o); setQuery(""); setOpen(false); }}
-              className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent"
-            >
-              <Check className={cn("h-3.5 w-3.5", o.toLowerCase() === value.trim().toLowerCase() ? "opacity-100" : "opacity-0")} />
-              <span>{o}</span>
-            </div>
-          ))
+          <div
+            className="max-h-[280px] overflow-y-auto overscroll-contain py-1"
+            onWheel={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+          >
+            {filtered.map((o) => (
+              <div
+                key={o}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { onChange(o); setQuery(""); setOpen(false); }}
+                className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent"
+              >
+                <Check className={cn("h-3.5 w-3.5", o.toLowerCase() === value.trim().toLowerCase() ? "opacity-100" : "opacity-0")} />
+                <span>{o}</span>
+              </div>
+            ))}
+          </div>
         )}
       </PopoverContent>
     </Popover>
