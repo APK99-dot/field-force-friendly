@@ -27,14 +27,16 @@ import { useUomOptions } from "@/hooks/useUomOptions";
 import ProcurementDetail, { type DetailOrder } from "@/components/procurement/ProcurementDetail";
 import ProductCombobox from "@/components/procurement/ProductCombobox";
 import CategoryCombobox from "@/components/procurement/CategoryCombobox";
+import UomComboInput from "@/components/procurement/UomComboInput";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 import { useAppConfiguration } from "@/hooks/useAppConfiguration";
 import { EditableListEditor } from "@/components/config/EditableListEditor";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
-interface Category { id: string; category_name: string; sub_category_name?: string | null }
-interface Product { id: string; product_name: string; default_uom: string | null; category_id?: string | null; category_name?: string | null; product_description?: string | null; code?: string | null }
+interface Category { id: string; category_name: string; sub_category_name?: string | null; terms_and_conditions?: string[] | null }
+interface Product { id: string; product_name: string; default_uom: string | null; category_id?: string | null; category_name?: string | null; product_description?: string | null; code?: string | null; terms_and_conditions?: string[] | null }
 interface LineItem { id?: string; product_id: string; category_id: string; rate: string; qty: string; uom: string; vendor_ids: string[] }
 
 // Reusable vendor multi-select for line items (mirrors the one on the detail screen)
@@ -98,7 +100,7 @@ const emptyForm = {
 
 export default function Procurement() {
   const { profile, isAdmin } = useUserProfile();
-  const { options: uomOptions } = useUomOptions();
+  const { options: uomOptions, refetch: refetchUoms } = useUomOptions();
   const { hasPermission } = useProfilePermissions();
   const cfg = useModuleConfig("procurement");
   const cfgInternalTransfer = cfg.bool("internalTransfer");
@@ -128,6 +130,9 @@ export default function Procurement() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailOrder | null>(null);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
+  const [termsUserEdited, setTermsUserEdited] = useState(false);
+  const [pendingUoms, setPendingUoms] = useState<string[]>([]);
+  const [pendingUomChoices, setPendingUomChoices] = useState<Record<string, boolean>>({});
 
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -141,6 +146,43 @@ export default function Procurement() {
 
 
   useEffect(() => { fetchAll(); }, []);
+
+  // Auto-merge Terms & Conditions from Material → Category → Generic whenever
+  // line items change, unless the user has manually edited the term list.
+  const mergedTerms = useMemo(() => {
+    const productMap = new Map(products.map((p) => [p.id, p]));
+    const categoryMap = new Map(categories.map((c) => [c.id, c]));
+    const materialT: string[] = [];
+    const categoryT: string[] = [];
+    lines.forEach((l) => {
+      const prod = productMap.get(l.product_id);
+      if (prod?.terms_and_conditions?.length) materialT.push(...prod.terms_and_conditions);
+      const cid = l.category_id || prod?.category_id || "";
+      const cat = cid ? categoryMap.get(cid) : undefined;
+      if (cat?.terms_and_conditions?.length) categoryT.push(...cat.terms_and_conditions);
+    });
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const push = (arr: string[]) => arr.forEach((t) => {
+      const trimmed = (t || "").trim();
+      if (!trimmed) return;
+      const k = trimmed.toLowerCase();
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push(trimmed);
+    });
+    push(materialT);
+    push(categoryT);
+    push(defaultTerms);
+    return out;
+  }, [lines, products, categories, defaultTerms]);
+
+  useEffect(() => {
+    if (termsUserEdited) return;
+    if (!isFormOpen) return;
+    setForm((p) => ({ ...p, terms_and_conditions: mergedTerms }));
+  }, [mergedTerms, termsUserEdited, isFormOpen]);
+
 
   // Restore an in-progress requisition after returning from a master screen.
   useEffect(() => {
@@ -208,8 +250,8 @@ export default function Procurement() {
       supabase.from("procurement_orders").select("*, procurement_items(*)").order("created_at", { ascending: false, nullsFirst: false }),
       supabase.from("vendors").select("id, name").order("name"),
       supabase.from("project_sites").select("id, site_name").is("deleted_at", null).order("site_name"),
-      supabase.from("master_products").select("id, product_name, default_uom, category_id, product_description, master_categories(category_name)").eq("is_active", true).order("product_name"),
-      supabase.from("master_categories").select("id, category_name, sub_category_name").eq("is_active", true).order("category_name"),
+      supabase.from("master_products").select("id, product_name, default_uom, category_id, product_description, terms_and_conditions, master_categories(category_name)").eq("is_active", true).order("product_name"),
+      supabase.from("master_categories").select("id, category_name, sub_category_name, terms_and_conditions").eq("is_active", true).order("category_name"),
     ]);
     setOrders((ord.data || []) as DetailOrder[]);
     setVendors((ven.data || []) as Vendor[]);
@@ -221,6 +263,7 @@ export default function Procurement() {
       category_id: p.category_id ?? null,
       product_description: p.product_description,
       category_name: p.master_categories?.category_name ?? null,
+      terms_and_conditions: Array.isArray(p.terms_and_conditions) ? p.terms_and_conditions : null,
     })) as Product[]);
     setCategories((cat.data || []) as Category[]);
 
@@ -253,6 +296,7 @@ export default function Procurement() {
     setEditing(null);
     setForm({ ...emptyForm, terms_and_conditions: defaultTerms });
     setLines([{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
+    setTermsUserEdited(false);
     setIsFormOpen(true);
   };
 
@@ -281,6 +325,8 @@ export default function Procurement() {
       vendor_ids: Array.isArray(it.vendor_ids) ? it.vendor_ids : [],
     }));
     setLines(items.length ? items : [{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
+    // When editing, treat the persisted list as user-authored so we don't overwrite it.
+    setTermsUserEdited(true);
     setIsFormOpen(true);
   };
 
@@ -386,6 +432,17 @@ export default function Procurement() {
       if (itemErr) throw itemErr;
 
       toast.success(editing ? "Saved" : (isTransfer ? "Internal transfer created" : "Procurement created"));
+      // Prompt to save any typed-in UOMs that aren't in the master
+      const knownUom = new Set(uomOptions.map((u) => u.toLowerCase()));
+      const custom = Array.from(new Set(
+        validLines
+          .map((l) => (l.uom || "").trim())
+          .filter((u) => u && !knownUom.has(u.toLowerCase()))
+      ));
+      if (custom.length) {
+        setPendingUomChoices(Object.fromEntries(custom.map((u) => [u, true])));
+        setPendingUoms(custom);
+      }
       setIsFormOpen(false);
       fetchAll();
     } catch (err: any) {
@@ -393,6 +450,19 @@ export default function Procurement() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const persistCustomUoms = async () => {
+    const toSave = pendingUoms.filter((u) => pendingUomChoices[u]);
+    if (!toSave.length) { setPendingUoms([]); return; }
+    const rows = toSave.map((u) => ({ uom_name: u, is_active: true, created_by: profile?.id ?? null }));
+    const { error } = await supabase.from("master_uom").insert(rows);
+    if (error) toast.error(error.message || "Could not save UOMs");
+    else {
+      toast.success(`${toSave.length} UOM${toSave.length > 1 ? "s" : ""} added to master`);
+      refetchUoms();
+    }
+    setPendingUoms([]);
   };
 
   const handleDelete = async (id: string) => {
@@ -564,7 +634,7 @@ export default function Procurement() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Date</Label>
+                <Label className="text-xs">Requisition Date</Label>
                 <Input type="date" value={form.order_date} onChange={(e) => setForm((p) => ({ ...p, order_date: e.target.value }))} className="h-9" />
               </div>
               <div>
@@ -653,12 +723,21 @@ export default function Procurement() {
 
                 <div>
                   <Label className="text-xs">Terms &amp; Conditions</Label>
-                  <p className="text-[11px] text-muted-foreground mb-2">These are shown to vendors on the Indent Order and must be accepted before submitting a quote. Defaults come from Admin → Configuration.</p>
+                  <p className="text-[11px] text-muted-foreground mb-2">Auto-populated in order: Material-wise → Category-wise → Generic (from Admin → Configuration). Add or remove terms as needed before submitting.</p>
                   <EditableListEditor
                     items={form.terms_and_conditions}
-                    onChange={(next) => setForm((p) => ({ ...p, terms_and_conditions: next }))}
+                    onChange={(next) => { setTermsUserEdited(true); setForm((p) => ({ ...p, terms_and_conditions: next })); }}
                     placeholder="Add a term (e.g. Payment on receipt of goods)"
                   />
+                  {termsUserEdited && (
+                    <button
+                      type="button"
+                      onClick={() => { setTermsUserEdited(false); setForm((p) => ({ ...p, terms_and_conditions: mergedTerms })); }}
+                      className="mt-2 text-[11px] text-primary hover:underline"
+                    >
+                      Reset to auto-populated terms
+                    </button>
+                  )}
                 </div>
               </>
             )}
@@ -710,10 +789,12 @@ export default function Procurement() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <Label className="text-[10px] text-muted-foreground">UOM</Label>
-                        <Select value={l.uom} onValueChange={(v) => updateLine(i, { uom: v })}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="UOM" /></SelectTrigger>
-                          <SelectContent>{(l.uom && !uomOptions.includes(l.uom) ? [l.uom, ...uomOptions] : uomOptions).map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}</SelectContent>
-                        </Select>
+                        <UomComboInput
+                          options={uomOptions}
+                          value={l.uom}
+                          onChange={(v) => updateLine(i, { uom: v })}
+                          placeholder="Type or select UOM"
+                        />
                       </div>
                       <div>
                         <Label className="text-[10px] text-muted-foreground">Qty</Label>
@@ -761,6 +842,33 @@ export default function Procurement() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Prompt to save typed-in UOMs to master */}
+      <AlertDialog open={pendingUoms.length > 0} onOpenChange={(o) => !o && setPendingUoms([])}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save new UOM to master?</AlertDialogTitle>
+            <AlertDialogDescription>
+              These units of measurement aren't in the UOM Master yet. Select which ones to save for future requisitions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2 max-h-60 overflow-y-auto">
+            {pendingUoms.map((u) => (
+              <label key={u} className="flex items-center gap-2 text-sm cursor-pointer rounded-md border p-2 hover:bg-muted/50">
+                <Checkbox
+                  checked={!!pendingUomChoices[u]}
+                  onCheckedChange={(c) => setPendingUomChoices((prev) => ({ ...prev, [u]: !!c }))}
+                />
+                <span className="font-medium">{u}</span>
+              </label>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingUoms([])}>Skip</AlertDialogCancel>
+            <AlertDialogAction onClick={persistCustomUoms}>Save selected</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

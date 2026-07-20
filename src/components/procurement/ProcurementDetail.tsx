@@ -721,7 +721,7 @@ export default function ProcurementDetail({
     };
     line("Requisition", reqName);
     line("Site", siteName(order.site_id) || "-");
-    line("Raised Date", order.order_date || "-");
+    line("Requisition Date", order.order_date || "-");
     if (order.expected_delivery_date) line("Expected Delivery", order.expected_delivery_date);
     if (order.payment_terms) line("Payment Terms", order.payment_terms);
     if (order.bill_to) line("Bill To", String(order.bill_to).replace(/\n/g, ", "));
