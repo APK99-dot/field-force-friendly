@@ -296,6 +296,7 @@ export default function Procurement() {
     setEditing(null);
     setForm({ ...emptyForm, terms_and_conditions: defaultTerms });
     setLines([{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
+    setTermsUserEdited(false);
     setIsFormOpen(true);
   };
 
