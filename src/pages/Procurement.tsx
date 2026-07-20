@@ -842,6 +842,33 @@ export default function Procurement() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Prompt to save typed-in UOMs to master */}
+      <AlertDialog open={pendingUoms.length > 0} onOpenChange={(o) => !o && setPendingUoms([])}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save new UOM to master?</AlertDialogTitle>
+            <AlertDialogDescription>
+              These units of measurement aren't in the UOM Master yet. Select which ones to save for future requisitions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2 max-h-60 overflow-y-auto">
+            {pendingUoms.map((u) => (
+              <label key={u} className="flex items-center gap-2 text-sm cursor-pointer rounded-md border p-2 hover:bg-muted/50">
+                <Checkbox
+                  checked={!!pendingUomChoices[u]}
+                  onCheckedChange={(c) => setPendingUomChoices((prev) => ({ ...prev, [u]: !!c }))}
+                />
+                <span className="font-medium">{u}</span>
+              </label>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingUoms([])}>Skip</AlertDialogCancel>
+            <AlertDialogAction onClick={persistCustomUoms}>Save selected</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }
