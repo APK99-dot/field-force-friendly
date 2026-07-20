@@ -147,6 +147,43 @@ export default function Procurement() {
 
   useEffect(() => { fetchAll(); }, []);
 
+  // Auto-merge Terms & Conditions from Material → Category → Generic whenever
+  // line items change, unless the user has manually edited the term list.
+  const mergedTerms = useMemo(() => {
+    const productMap = new Map(products.map((p) => [p.id, p]));
+    const categoryMap = new Map(categories.map((c) => [c.id, c]));
+    const materialT: string[] = [];
+    const categoryT: string[] = [];
+    lines.forEach((l) => {
+      const prod = productMap.get(l.product_id);
+      if (prod?.terms_and_conditions?.length) materialT.push(...prod.terms_and_conditions);
+      const cid = l.category_id || prod?.category_id || "";
+      const cat = cid ? categoryMap.get(cid) : undefined;
+      if (cat?.terms_and_conditions?.length) categoryT.push(...cat.terms_and_conditions);
+    });
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const push = (arr: string[]) => arr.forEach((t) => {
+      const trimmed = (t || "").trim();
+      if (!trimmed) return;
+      const k = trimmed.toLowerCase();
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push(trimmed);
+    });
+    push(materialT);
+    push(categoryT);
+    push(defaultTerms);
+    return out;
+  }, [lines, products, categories, defaultTerms]);
+
+  useEffect(() => {
+    if (termsUserEdited) return;
+    if (!isFormOpen) return;
+    setForm((p) => ({ ...p, terms_and_conditions: mergedTerms }));
+  }, [mergedTerms, termsUserEdited, isFormOpen]);
+
+
   // Restore an in-progress requisition after returning from a master screen.
   useEffect(() => {
     let draft: any = null;
