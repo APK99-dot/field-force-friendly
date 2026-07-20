@@ -634,7 +634,7 @@ export default function Procurement() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Date</Label>
+                <Label className="text-xs">Requisition Date</Label>
                 <Input type="date" value={form.order_date} onChange={(e) => setForm((p) => ({ ...p, order_date: e.target.value }))} className="h-9" />
               </div>
               <div>
