@@ -130,6 +130,9 @@ export default function Procurement() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailOrder | null>(null);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
+  const [termsUserEdited, setTermsUserEdited] = useState(false);
+  const [pendingUoms, setPendingUoms] = useState<string[]>([]);
+  const [pendingUomChoices, setPendingUomChoices] = useState<Record<string, boolean>>({});
 
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
