@@ -308,6 +308,11 @@ export default function VendorQuote() {
               Your quote has been submitted on{" "}
               <span className="font-semibold">{submittedOn}</span>.
             </p>
+            {data.last_resubmitted_at && data.first_submitted_at && data.last_resubmitted_at !== data.first_submitted_at && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Originally submitted on {fmtDate(data.first_submitted_at)} · Resubmitted on {fmtDate(data.last_resubmitted_at)}
+              </p>
+            )}
             <p className="text-sm text-muted-foreground mt-3">
               We've received your quotation and will get back to you shortly. This link is now read-only.
             </p>
