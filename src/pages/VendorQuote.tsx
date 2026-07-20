@@ -144,7 +144,7 @@ export default function VendorQuote() {
   };
 
   const total = useMemo(
-    () => rows.filter((r) => r.is_selected).reduce((s, r) => s + rowAfter(r) * (r.qty || 0), 0),
+    () => rows.reduce((s, r) => s + rowAfter(r) * (r.qty || 0), 0),
     [rows]
   );
 
