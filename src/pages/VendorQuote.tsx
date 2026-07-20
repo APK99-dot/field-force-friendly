@@ -348,7 +348,6 @@ export default function VendorQuote() {
                   <th className="p-2 font-semibold text-right">Discount %</th>
                   <th className="p-2 font-semibold text-right">Rate After Disc.</th>
                   <th className="p-2 font-semibold text-right">Amount</th>
-                  <th className="p-2 font-semibold text-center">Supply?</th>
                 </tr>
               </thead>
               <tbody>
@@ -382,17 +381,13 @@ export default function VendorQuote() {
                     </td>
                     <td className="p-2 text-right font-medium">{fmtAmt(rowAfter(r))}</td>
                     <td className="p-2 text-right font-medium">{fmtAmt(rowAfter(r) * (r.qty || 0))}</td>
-                    <td className="p-2 text-center">
-                      <Checkbox checked={r.is_selected} disabled={readOnly}
-                        onCheckedChange={(v) => updateRow(r.procurement_item_id, { is_selected: !!v })} />
-                    </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="border-t bg-muted/40 font-semibold">
-                  <td className="p-2" colSpan={10}>Total (selected items)</td>
-                  <td className="p-2 text-right" colSpan={2}>₹{fmtAmt(total)}</td>
+                  <td className="p-2" colSpan={9}>Total</td>
+                  <td className="p-2 text-right">₹{fmtAmt(total)}</td>
                 </tr>
               </tfoot>
             </table>
