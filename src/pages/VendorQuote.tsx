@@ -35,6 +35,9 @@ interface Attachment { name: string; url: string; size: number; type: string; }
 interface QuoteData {
   status: string;
   submitted_at: string | null;
+  first_submitted_at: string | null;
+  last_resubmitted_at: string | null;
+  reopened_at: string | null;
   vendor_payment_term: string;
   notes: string;
   change_request_notes: string;
