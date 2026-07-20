@@ -387,6 +387,26 @@ export default function VendorQuote() {
             </div>
           )}
 
+          {data.status === "reopened" && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 px-4 py-2.5 text-sm text-amber-800 dark:text-amber-300 space-y-1">
+              <div className="flex items-center gap-2 font-medium">
+                <AlertCircle className="h-4 w-4" /> This quotation has been reopened by the buyer for revision.
+              </div>
+              <div className="text-xs text-amber-700/90 dark:text-amber-200/90 pl-6">
+                Your previous values are preserved. Update the required fields and resubmit.
+                {data.first_submitted_at && <> Originally submitted on <span className="font-medium">{fmtDate(data.first_submitted_at)}</span>.</>}
+                {data.reopened_at && <> Reopened on <span className="font-medium">{fmtDate(data.reopened_at)}</span>.</>}
+              </div>
+            </div>
+          )}
+
+          {data.status === "draft" && data.first_submitted_at && (
+            <div className="text-xs text-muted-foreground">
+              Draft in progress. Last resubmission: {fmtDate(data.last_resubmitted_at || data.first_submitted_at)}.
+            </div>
+          )}
+
+
           {/* Line items */}
           <div className="overflow-x-auto border rounded-lg">
             <table className="w-full text-sm min-w-[900px]">
