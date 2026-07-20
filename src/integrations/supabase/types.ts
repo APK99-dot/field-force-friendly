@@ -1739,6 +1739,7 @@ export type Database = {
           id: string
           is_active: boolean
           sub_category_name: string | null
+          terms_and_conditions: Json | null
           updated_at: string
         }
         Insert: {
@@ -1748,6 +1749,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           sub_category_name?: string | null
+          terms_and_conditions?: Json | null
           updated_at?: string
         }
         Update: {
@@ -1757,6 +1759,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           sub_category_name?: string | null
+          terms_and_conditions?: Json | null
           updated_at?: string
         }
         Relationships: []
@@ -1966,6 +1969,7 @@ export type Database = {
           product_name: string
           quality_instruction: string | null
           salesforce_id: string | null
+          terms_and_conditions: Json | null
           updated_at: string
         }
         Insert: {
@@ -1983,6 +1987,7 @@ export type Database = {
           product_name: string
           quality_instruction?: string | null
           salesforce_id?: string | null
+          terms_and_conditions?: Json | null
           updated_at?: string
         }
         Update: {
@@ -2000,6 +2005,7 @@ export type Database = {
           product_name?: string
           quality_instruction?: string | null
           salesforce_id?: string | null
+          terms_and_conditions?: Json | null
           updated_at?: string
         }
         Relationships: [
