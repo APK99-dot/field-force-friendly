@@ -237,7 +237,17 @@ export default function VendorQuote() {
       }
       const nowIso = new Date().toISOString();
       if (mode === "accept") {
-        setData((prev) => prev ? { ...prev, status: "submitted", submitted_at: prev.submitted_at || nowIso } : prev);
+        setData((prev) => {
+          if (!prev) return prev;
+          const isResubmit = !!prev.first_submitted_at;
+          return {
+            ...prev,
+            status: "submitted",
+            submitted_at: nowIso,
+            first_submitted_at: prev.first_submitted_at || nowIso,
+            last_resubmitted_at: isResubmit ? nowIso : prev.last_resubmitted_at,
+          };
+        });
         setSubmitted(true);
         toast.success("Quote submitted. Thank you!");
       } else if (mode === "request_changes") {
