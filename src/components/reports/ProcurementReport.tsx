@@ -204,7 +204,7 @@ export default function ProcurementReport() {
         ],
         columns: [
           { header: "PO Number", width: 1.5 },
-          { header: "Date", width: 1.4 },
+          { header: "Requisition Date", width: 1.6 },
           { header: "Vendor", width: 2.2 },
           { header: "Site", width: 1.8 },
           { header: "Items", width: 0.8, align: "right" },
