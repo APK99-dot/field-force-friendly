@@ -473,7 +473,7 @@ export default function ProcurementDetail({
           insertRow.submitted_at = nowIso;
           insertRow.first_submitted_at = nowIso;
         }
-        const { error } = await supabase.from("procurement_vendor_quotes").insert(insertRow);
+        const { error } = await supabase.from("procurement_vendor_quotes").insert(insertRow as any);
         if (error) throw error;
       }
       await loadVendorQuotes();
