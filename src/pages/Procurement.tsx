@@ -463,23 +463,38 @@ export default function Procurement() {
         <div className="space-y-2">
           {filtered.map((o) => {
             const isTransfer = o.source_type === "internal_transfer";
+            const reqNo = (o as any).requisition_number || "—";
+            const reqName = (o as any).requisition_name || "";
+            const owner = ownerNames[o.created_by || ""] || "—";
             return (
             <Card key={o.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDetail(o)}>
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <h3 className="font-semibold text-sm truncate">{o.po_number || (isTransfer ? "(No TRF #)" : "(No PO #)")}</h3>
-                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${isTransfer ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"}`}>{isTransfer ? "Internal Transfer" : "Vendor PO"}</Badge>
+                      <h3 className="font-semibold text-sm truncate">{reqNo}</h3>
+                      {isTransfer && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Internal Transfer</Badge>
+                      )}
                       <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColor(o.status)}`}>{o.status}</Badge>
                     </div>
+                    {reqName && (
+                      <p className="text-xs font-medium text-foreground/80 truncate mb-0.5">{reqName}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
+                      <CalendarDays className="h-3 w-3" />{fmtDMY(o.order_date)}
+                      <span className="opacity-50">·</span>
+                      <span className="truncate">Owner: {owner}</span>
+                    </p>
                     {isTransfer ? (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap"><CalendarDays className="h-3 w-3" />{o.order_date} · {sName(o.transfer_from_site_id)} <ArrowRight className="h-3 w-3" /> {sName(o.site_id)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate flex items-center gap-1 flex-wrap">
+                        Site: {sName(o.transfer_from_site_id)} <ArrowRight className="h-3 w-3" /> {sName(o.site_id)}
+                      </p>
                     ) : (
-                      <>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1"><CalendarDays className="h-3 w-3" />{o.order_date} · {vName(o.vendor_id)}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">Site: {sName(o.site_id)}</p>
-                      </>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        Site: {sName(o.site_id)}
+                        {o.po_number && <span className="ml-1 opacity-70">· PO: {o.po_number}</span>}
+                      </p>
                     )}
                   </div>
                   <div className="text-right shrink-0">
