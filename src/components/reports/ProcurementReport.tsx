@@ -295,7 +295,7 @@ export default function ProcurementReport() {
           <TableHeader>
             <TableRow>
               <TableHead>PO Number</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead>Requisition Date</TableHead>
               <TableHead>Vendor</TableHead>
               <TableHead>Site</TableHead>
               <TableHead className="text-right">Items</TableHead>
