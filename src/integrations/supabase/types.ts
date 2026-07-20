@@ -4336,10 +4336,14 @@ export type Database = {
           change_request_notes: string | null
           created_at: string
           created_by: string | null
+          first_submitted_at: string | null
           id: string
+          last_resubmitted_at: string | null
           notes: string | null
           po_id: string
           procurement_item_ids: string[] | null
+          reopened_at: string | null
+          reopened_by: string | null
           status: string
           submitted_at: string | null
           terms_accepted_at: string | null
@@ -4353,10 +4357,14 @@ export type Database = {
           change_request_notes?: string | null
           created_at?: string
           created_by?: string | null
+          first_submitted_at?: string | null
           id?: string
+          last_resubmitted_at?: string | null
           notes?: string | null
           po_id: string
           procurement_item_ids?: string[] | null
+          reopened_at?: string | null
+          reopened_by?: string | null
           status?: string
           submitted_at?: string | null
           terms_accepted_at?: string | null
@@ -4370,10 +4378,14 @@ export type Database = {
           change_request_notes?: string | null
           created_at?: string
           created_by?: string | null
+          first_submitted_at?: string | null
           id?: string
+          last_resubmitted_at?: string | null
           notes?: string | null
           po_id?: string
           procurement_item_ids?: string[] | null
+          reopened_at?: string | null
+          reopened_by?: string | null
           status?: string
           submitted_at?: string | null
           terms_accepted_at?: string | null
