@@ -409,21 +409,32 @@ export default function Procurement() {
       list = list.filter(
         (o) =>
           (o.po_number || "").toLowerCase().includes(q) ||
-          vName(o.vendor_id).toLowerCase().includes(q) ||
-          sName(o.site_id).toLowerCase().includes(q)
+          ((o as any).requisition_number || "").toLowerCase().includes(q) ||
+          ((o as any).requisition_name || "").toLowerCase().includes(q) ||
+          sName(o.site_id).toLowerCase().includes(q) ||
+          (ownerNames[o.created_by || ""] || "").toLowerCase().includes(q)
       );
     }
     if (filterStatus !== "all") list = list.filter((o) => o.status === filterStatus);
     return list;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders, search, filterStatus, vendors, sites]);
+  }, [orders, search, filterStatus, sites, ownerNames]);
+
+  const fmtDMY = (d?: string | null) => {
+    if (!d) return "—";
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return d;
+    const dd = String(dt.getDate()).padStart(2, "0");
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    return `${dd}/${mm}/${dt.getFullYear()}`;
+  };
 
   return (
     <motion.div className="space-y-4 p-4 pb-24 w-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2"><ShoppingCart className="h-5 w-5" />Procurement</h1>
-          <p className="text-xs text-muted-foreground">{orders.length} purchase orders</p>
+          <p className="text-xs text-muted-foreground">{orders.length} requisitions</p>
         </div>
         {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New Requisition</Button>}
       </div>
