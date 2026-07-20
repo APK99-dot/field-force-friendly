@@ -144,7 +144,7 @@ export default function VendorQuote() {
   };
 
   const total = useMemo(
-    () => rows.filter((r) => r.is_selected).reduce((s, r) => s + rowAfter(r) * (r.qty || 0), 0),
+    () => rows.reduce((s, r) => s + rowAfter(r) * (r.qty || 0), 0),
     [rows]
   );
 
@@ -185,17 +185,16 @@ export default function VendorQuote() {
 
   const send = async (mode: "draft" | "accept" | "request_changes") => {
     if (mode === "accept") {
-      if (!termsAccepted) {
+      if (!paymentTerm.trim()) {
+        toast.error("Please enter your Vendor Payment Terms before submitting.");
+        return;
+      }
+      if (hasTerms && !termsAccepted) {
         toast.error("Please accept the Terms & Conditions to submit.");
         return;
       }
-      const selected = rows.filter((r) => r.is_selected);
-      if (selected.length === 0) {
-        toast.error("Select at least one item you can supply.");
-        return;
-      }
-      if (selected.some((r) => !r.rate || Number(r.rate) <= 0)) {
-        toast.error("Enter a rate for every selected item.");
+      if (rows.some((r) => !r.rate || Number(r.rate) <= 0)) {
+        toast.error("Enter a rate for every item.");
         return;
       }
     }
@@ -219,7 +218,7 @@ export default function VendorQuote() {
           discount_pct: Number(r.discount_pct) || 0,
           delivery_commitment_date: r.delivery_commitment_date || null,
           quality_notes: r.quality_notes || null,
-          is_selected: !!r.is_selected,
+          is_selected: true,
         })),
       };
       const res = await fetch(`${FN_BASE}/submit-vendor-quote`, {
@@ -232,10 +231,13 @@ export default function VendorQuote() {
         toast.error(body.error || "Failed to save.");
         return;
       }
+      const nowIso = new Date().toISOString();
       if (mode === "accept") {
+        setData((prev) => prev ? { ...prev, status: "submitted", submitted_at: prev.submitted_at || nowIso } : prev);
         setSubmitted(true);
         toast.success("Quote submitted. Thank you!");
       } else if (mode === "request_changes") {
+        setData((prev) => prev ? { ...prev, status: "changes_requested", submitted_at: prev.submitted_at || nowIso } : prev);
         setSubmitted(true);
         toast.success("Change request sent to the buyer.");
       } else {
@@ -270,7 +272,52 @@ export default function VendorQuote() {
   const { requisition: req, vendor, company, terms_and_conditions } = data;
   const readOnly = submitted;
   const hasTerms = terms_and_conditions.length > 0;
-  const acceptDisabled = readOnly || saving || (hasTerms && !termsAccepted);
+  const acceptDisabled = readOnly || saving || !paymentTerm.trim() || (hasTerms && !termsAccepted);
+
+  // Success screen — shown once vendor has submitted their quote.
+  if (submitted && data.status === "submitted") {
+    const submittedOn = fmtDate(data.submitted_at) || fmtDate(new Date().toISOString());
+    return (
+      <div className="min-h-screen bg-muted/20 py-6 px-3 sm:px-6 flex items-center justify-center">
+        <div className="mx-auto w-full max-w-lg bg-background rounded-2xl shadow-lg border overflow-hidden">
+          <div className="flex items-center gap-4 p-5 border-b">
+            <div className="w-14 h-14 rounded-lg border flex items-center justify-center overflow-hidden bg-white shrink-0">
+              {company?.logo_url ? (
+                <img src={company.logo_url} alt="Company logo" className="w-full h-full object-contain p-1" />
+              ) : (
+                <Building2 className="h-7 w-7 text-muted-foreground/50" />
+              )}
+            </div>
+            <div>
+              <div className="text-base font-bold">{company?.company_name || "Company"}</div>
+              {req.title && <div className="text-xs text-muted-foreground">{req.title}</div>}
+            </div>
+          </div>
+          <div className="p-8 sm:p-10 text-center">
+            <div className="relative mx-auto mb-6 flex h-24 w-24 items-center justify-center">
+              <span className="absolute inset-0 rounded-full bg-emerald-500/15 animate-ping" />
+              <span className="absolute inset-2 rounded-full bg-emerald-500/25" />
+              <CheckCircle2 className="relative h-16 w-16 text-emerald-600 dark:text-emerald-400 drop-shadow-sm" strokeWidth={2.2} />
+            </div>
+            <h1 className="text-2xl font-bold mb-2">Thank you!</h1>
+            <p className="text-base text-foreground">
+              Your quote has been submitted on{" "}
+              <span className="font-semibold">{submittedOn}</span>.
+            </p>
+            <p className="text-sm text-muted-foreground mt-3">
+              We've received your quotation and will get back to you shortly. This link is now read-only.
+            </p>
+            {vendor?.name && (
+              <div className="mt-6 inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
+                <Building2 className="h-3.5 w-3.5" />
+                {vendor.name}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/20 py-6 px-3 sm:px-6">
@@ -346,7 +393,6 @@ export default function VendorQuote() {
                   <th className="p-2 font-semibold text-right">Discount %</th>
                   <th className="p-2 font-semibold text-right">Rate After Disc.</th>
                   <th className="p-2 font-semibold text-right">Amount</th>
-                  <th className="p-2 font-semibold text-center">Supply?</th>
                 </tr>
               </thead>
               <tbody>
@@ -380,17 +426,13 @@ export default function VendorQuote() {
                     </td>
                     <td className="p-2 text-right font-medium">{fmtAmt(rowAfter(r))}</td>
                     <td className="p-2 text-right font-medium">{fmtAmt(rowAfter(r) * (r.qty || 0))}</td>
-                    <td className="p-2 text-center">
-                      <Checkbox checked={r.is_selected} disabled={readOnly}
-                        onCheckedChange={(v) => updateRow(r.procurement_item_id, { is_selected: !!v })} />
-                    </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="border-t bg-muted/40 font-semibold">
-                  <td className="p-2" colSpan={10}>Total (selected items)</td>
-                  <td className="p-2 text-right" colSpan={2}>₹{fmtAmt(total)}</td>
+                  <td className="p-2" colSpan={9}>Total</td>
+                  <td className="p-2 text-right">₹{fmtAmt(total)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -405,7 +447,7 @@ export default function VendorQuote() {
               </div>
             )}
             <div className="space-y-1.5">
-              <Label className="text-xs">Vendor Payment Terms</Label>
+              <Label className="text-xs">Vendor Payment Terms <span className="text-destructive">*</span></Label>
               <Input
                 value={paymentTerm}
                 disabled={readOnly}
