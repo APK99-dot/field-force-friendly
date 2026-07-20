@@ -185,17 +185,16 @@ export default function VendorQuote() {
 
   const send = async (mode: "draft" | "accept" | "request_changes") => {
     if (mode === "accept") {
-      if (!termsAccepted) {
+      if (!paymentTerm.trim()) {
+        toast.error("Please enter your Vendor Payment Terms before submitting.");
+        return;
+      }
+      if (hasTerms && !termsAccepted) {
         toast.error("Please accept the Terms & Conditions to submit.");
         return;
       }
-      const selected = rows.filter((r) => r.is_selected);
-      if (selected.length === 0) {
-        toast.error("Select at least one item you can supply.");
-        return;
-      }
-      if (selected.some((r) => !r.rate || Number(r.rate) <= 0)) {
-        toast.error("Enter a rate for every selected item.");
+      if (rows.some((r) => !r.rate || Number(r.rate) <= 0)) {
+        toast.error("Enter a rate for every item.");
         return;
       }
     }
@@ -219,7 +218,7 @@ export default function VendorQuote() {
           discount_pct: Number(r.discount_pct) || 0,
           delivery_commitment_date: r.delivery_commitment_date || null,
           quality_notes: r.quality_notes || null,
-          is_selected: !!r.is_selected,
+          is_selected: true,
         })),
       };
       const res = await fetch(`${FN_BASE}/submit-vendor-quote`, {
@@ -232,10 +231,13 @@ export default function VendorQuote() {
         toast.error(body.error || "Failed to save.");
         return;
       }
+      const nowIso = new Date().toISOString();
       if (mode === "accept") {
+        setData((prev) => prev ? { ...prev, status: "submitted", submitted_at: prev.submitted_at || nowIso } : prev);
         setSubmitted(true);
         toast.success("Quote submitted. Thank you!");
       } else if (mode === "request_changes") {
+        setData((prev) => prev ? { ...prev, status: "changes_requested", submitted_at: prev.submitted_at || nowIso } : prev);
         setSubmitted(true);
         toast.success("Change request sent to the buyer.");
       } else {
