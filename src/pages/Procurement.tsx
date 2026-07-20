@@ -33,8 +33,8 @@ import { EditableListEditor } from "@/components/config/EditableListEditor";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
-interface Category { id: string; category_name: string; sub_category_name?: string | null }
-interface Product { id: string; product_name: string; default_uom: string | null; category_id?: string | null; category_name?: string | null; product_description?: string | null; code?: string | null }
+interface Category { id: string; category_name: string; sub_category_name?: string | null; terms_and_conditions?: string[] | null }
+interface Product { id: string; product_name: string; default_uom: string | null; category_id?: string | null; category_name?: string | null; product_description?: string | null; code?: string | null; terms_and_conditions?: string[] | null }
 interface LineItem { id?: string; product_id: string; category_id: string; rate: string; qty: string; uom: string; vendor_ids: string[] }
 
 // Reusable vendor multi-select for line items (mirrors the one on the detail screen)
