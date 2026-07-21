@@ -516,6 +516,23 @@ export default function ProcurementDetail({
 
 
 
+  // Persist just the Expected Delivery Date on its own (used on blur / auto-fill)
+  // so the value never gets lost if the user forgets to hit "Save PO Details".
+  const persistDeliveryDate = useCallback(async (value: string | null) => {
+    const normalized = value && value.trim() ? value : null;
+    if ((order.expected_delivery_date || null) === normalized) return;
+    try {
+      const { error } = await supabase.from("procurement_orders")
+        .update({ expected_delivery_date: normalized })
+        .eq("id", order.id);
+      if (error) throw error;
+      lastServerPoRef.current = { ...lastServerPoRef.current, expected_delivery_date: normalized || "" };
+      onChanged();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save delivery date");
+    }
+  }, [order.id, order.expected_delivery_date, onChanged]);
+
   const savePoDetails = async () => {
     setPoSaving(true);
     try {
