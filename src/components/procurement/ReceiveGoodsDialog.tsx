@@ -70,7 +70,7 @@ export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUs
       setProducts(pmap);
     }
 
-    const vendorIds = [...vendorIdSet];
+    const vendorIds = [...finalizedVendorSet];
     if (vendorIds.length) {
       const { data: vs } = await supabase.from("vendors").select("id, name").in("id", vendorIds);
       setPoVendors((vs || []).map((v: any) => ({ id: v.id, name: v.name })));
