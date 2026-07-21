@@ -1060,6 +1060,9 @@ export default function ProcurementDetail({
     if (qi.delivery_commitment_date) {
       setPoForm((p) => {
         if (!p.expected_delivery_date || qi.delivery_commitment_date! < p.expected_delivery_date) {
+          // Persist immediately so the value survives a reload even if the
+          // user never clicks "Save PO Details".
+          void persistDeliveryDate(qi.delivery_commitment_date!);
           return { ...p, expected_delivery_date: qi.delivery_commitment_date! };
         }
         return p;
