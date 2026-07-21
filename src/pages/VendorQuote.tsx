@@ -197,13 +197,26 @@ export default function VendorQuote() {
   const removeAttachment = (idx: number) => setAttachments((prev) => prev.filter((_, i) => i !== idx));
 
   const send = async (mode: "draft" | "accept" | "request_changes") => {
+    const terms = data?.terms_and_conditions || [];
+    const responsesList = terms.map((term, i) => ({
+      term,
+      response: (termResponses[i]?.response || "accept") as "accept" | "change",
+      comment: (termResponses[i]?.comment || "").trim(),
+    }));
+    const allTermsAnswered = terms.every((_, i) => termResponses[i]?.response === "accept" || termResponses[i]?.response === "change");
+    const anyMissingComment = responsesList.some((r) => r.response === "change" && !r.comment);
+
     if (mode === "accept") {
       if (!paymentTerm.trim()) {
         toast.error("Please enter your Vendor Payment Terms before submitting.");
         return;
       }
-      if (hasTerms && !termsAccepted) {
-        toast.error("Please accept the Terms & Conditions to submit.");
+      if (terms.length && !allTermsAnswered) {
+        toast.error("Please respond (Accept or Request Change) to every Term & Condition.");
+        return;
+      }
+      if (anyMissingComment) {
+        toast.error("Please add a comment for every term where you requested a change.");
         return;
       }
       if (rows.some((r) => !r.rate || Number(r.rate) <= 0)) {
@@ -222,9 +235,10 @@ export default function VendorQuote() {
         vendor_payment_term: paymentTerm,
         notes,
         mode,
-        terms_accepted: termsAccepted,
+        terms_accepted: mode === "accept" && terms.length > 0 && allTermsAnswered,
         change_request_notes: changeNotes,
         attachments,
+        term_responses: responsesList,
         items: rows.map((r) => ({
           procurement_item_id: r.procurement_item_id,
           rate: Number(r.rate) || 0,
