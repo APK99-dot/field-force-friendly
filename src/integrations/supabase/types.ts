@@ -4338,6 +4338,7 @@ export type Database = {
           created_by: string | null
           first_submitted_at: string | null
           id: string
+          is_latest: boolean
           last_resubmitted_at: string | null
           notes: string | null
           po_id: string
@@ -4352,6 +4353,7 @@ export type Database = {
           updated_at: string
           vendor_id: string | null
           vendor_payment_term: string | null
+          version: number
         }
         Insert: {
           attachments?: Json
@@ -4360,6 +4362,7 @@ export type Database = {
           created_by?: string | null
           first_submitted_at?: string | null
           id?: string
+          is_latest?: boolean
           last_resubmitted_at?: string | null
           notes?: string | null
           po_id: string
@@ -4374,6 +4377,7 @@ export type Database = {
           updated_at?: string
           vendor_id?: string | null
           vendor_payment_term?: string | null
+          version?: number
         }
         Update: {
           attachments?: Json
@@ -4382,6 +4386,7 @@ export type Database = {
           created_by?: string | null
           first_submitted_at?: string | null
           id?: string
+          is_latest?: boolean
           last_resubmitted_at?: string | null
           notes?: string | null
           po_id?: string
@@ -4396,6 +4401,7 @@ export type Database = {
           updated_at?: string
           vendor_id?: string | null
           vendor_payment_term?: string | null
+          version?: number
         }
         Relationships: [
           {

@@ -62,11 +62,14 @@ Deno.serve(async (req) => {
 
     const { data: quote, error: qErr } = await supabase
       .from("procurement_vendor_quotes")
-      .select("id, status, po_id, vendor_id, first_submitted_at")
+      .select("id, status, po_id, vendor_id, first_submitted_at, is_latest, version")
       .eq("token", token)
       .maybeSingle();
     if (qErr) throw qErr;
     if (!quote) return json({ error: "This quote link is not valid." }, 404);
+    if (quote.is_latest === false) {
+      return json({ error: "This quote version has been archived. Use the latest link shared by the buyer." }, 409);
+    }
     // Editable states: draft, reopened, changes_requested (legacy: pending)
     if (quote.status === "submitted") {
       return json({ error: "This quote has already been submitted. Ask the buyer to reopen it if changes are needed." }, 409);

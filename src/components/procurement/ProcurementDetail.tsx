@@ -97,6 +97,8 @@ interface VendorQuoteRow {
   vendor_id: string | null;
   token: string;
   status: string;
+  version?: number | null;
+  is_latest?: boolean | null;
   vendor_payment_term: string | null;
   notes: string | null;
   submitted_at: string | null;
@@ -164,6 +166,9 @@ function VendorMultiSelect({
   );
 }
 
+const fmtDT = (iso?: string | null) => iso ? new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+
+
 export default function ProcurementDetail({
   open, onOpenChange, order, canApprove, currentUserId,
   vendorName, siteName, productName, onEdit, onChanged,
@@ -192,7 +197,33 @@ export default function ProcurementDetail({
   const [poSaving, setPoSaving] = useState(false);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
   const [vendors, setVendors] = useState<{ id: string; name: string; phone: string | null; contact_person: string | null; email: string | null }[]>([]);
-  const [vendorQuotes, setVendorQuotes] = useState<VendorQuoteRow[]>([]);
+  const [allVendorQuotes, setAllVendorQuotes] = useState<VendorQuoteRow[]>([]);
+  const vendorQuotes = useMemo(
+    () => allVendorQuotes.filter((q) => q.is_latest !== false),
+    [allVendorQuotes]
+  );
+  const setVendorQuotes = (updater: React.SetStateAction<VendorQuoteRow[]>) => {
+    setAllVendorQuotes((prev) => {
+      const next = typeof updater === "function" ? (updater as (p: VendorQuoteRow[]) => VendorQuoteRow[])(prev.filter((q) => q.is_latest !== false)) : updater;
+      // Merge back: keep non-latest rows untouched, replace latest set with `next`.
+      const nextIds = new Set(next.map((q) => q.id));
+      const kept = prev.filter((q) => q.is_latest === false || nextIds.has(q.id));
+      // Preserve ordering by version desc if we lost anything
+      const merged = [...next, ...kept.filter((q) => !nextIds.has(q.id))];
+      return merged;
+    });
+  };
+  const vendorQuoteHistoryByVendor = useMemo(() => {
+    const m: Record<string, VendorQuoteRow[]> = {};
+    for (const q of allVendorQuotes) {
+      const k = q.vendor_id || "";
+      if (!k) continue;
+      (m[k] ||= []).push(q);
+    }
+    Object.values(m).forEach((arr) => arr.sort((a, b) => (b.version || 0) - (a.version || 0)));
+    return m;
+  }, [allVendorQuotes]);
+  const [viewQuoteId, setViewQuoteId] = useState<string | null>(null);
   const [genLinks, setGenLinks] = useState(false);
   const lineItemsRef = useRef<HTMLDivElement>(null);
   // Vendor assignment table state: one row per vendor
@@ -363,9 +394,15 @@ export default function ProcurementDetail({
         // for this item" block and rate provenance tag disappear immediately.
         // (Skip if the same vendor still has another assignment row.)
         if (!stillAssignedElsewhere) {
-          const toDelete = vendorQuotes
-            .filter((q) => q.vendor_id === removedVendorId)
-            .map((q) => q.id);
+          // Delete ALL versions of this vendor's quote (audit history included)
+          // so the "Submitted quotes for this item" block and rate provenance
+          // tag disappear immediately.
+          const { data: allForVendor } = await supabase
+            .from("procurement_vendor_quotes")
+            .select("id")
+            .eq("po_id", order.id)
+            .eq("vendor_id", removedVendorId);
+          const toDelete = (allForVendor || []).map((q) => q.id);
           if (toDelete.length) {
             await supabase
               .from("procurement_vendor_quote_items")
@@ -468,11 +505,80 @@ export default function ProcurementDetail({
 
   // Manual override for a vendor's quote status (upsert quote row if missing).
   // Handles Draft/Submitted/Reopened workflow with audit-trail timestamps.
+  // "Reopened" creates a NEW version so the previously submitted quote is
+  // preserved as a read-only historical record.
   const setVendorQuoteStatus = async (row: { vendor_id: string; line_ids: string[] }, status: string) => {
     if (!row.vendor_id) { toast.error("Pick a vendor first."); return; }
     try {
       const nowIso = new Date().toISOString();
       const existing = vendorQuotes.find((q) => q.vendor_id === row.vendor_id);
+
+      // ---------- REOPEN → create a new version ----------
+      if (status === "reopened" && existing) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const prevItems = existing.procurement_vendor_quote_items || [];
+        const oldToken = existing.token;
+        const nextVersion = (existing.version || 1) + 1;
+        const scratchToken = crypto.randomUUID().replace(/-/g, "") + "-v" + (existing.version || 1);
+
+        // 1. Release the token from the old row + mark it archived.
+        const { error: archErr } = await supabase
+          .from("procurement_vendor_quotes")
+          .update({ is_latest: false, token: scratchToken })
+          .eq("id", existing.id);
+        if (archErr) throw archErr;
+
+        // 2. Insert the new (v+1) row inheriting the stable vendor-facing token
+        //    so the previously shared link continues to work.
+        const insertRow: Record<string, any> = {
+          po_id: order.id,
+          vendor_id: existing.vendor_id,
+          token: oldToken,
+          status: "reopened",
+          version: nextVersion,
+          is_latest: true,
+          procurement_item_ids: existing.procurement_item_ids || row.line_ids,
+          vendor_payment_term: existing.vendor_payment_term,
+          notes: existing.notes,
+          attachments: existing.attachments || [],
+          term_responses: existing.term_responses || [],
+          first_submitted_at: existing.first_submitted_at || null,
+          last_resubmitted_at: existing.last_resubmitted_at || null,
+          reopened_at: nowIso,
+          reopened_by: user?.id ?? null,
+          created_by: user?.id ?? null,
+        };
+        const { data: newQuote, error: insErr } = await supabase
+          .from("procurement_vendor_quotes")
+          .insert(insertRow as any)
+          .select("id")
+          .single();
+        if (insErr) throw insErr;
+
+        // 3. Clone prior line-item rates so the vendor edits a pre-filled draft.
+        if (newQuote?.id && prevItems.length) {
+          const clones = prevItems.map((it) => ({
+            quote_id: newQuote.id,
+            procurement_item_id: it.procurement_item_id,
+            rate: it.rate,
+            discount_pct: it.discount_pct,
+            rate_after_discount: it.rate_after_discount,
+            delivery_commitment_date: it.delivery_commitment_date,
+            is_selected: it.is_selected,
+            quality_notes: (it as any).quality_notes ?? null,
+          }));
+          const { error: cloneErr } = await supabase
+            .from("procurement_vendor_quote_items")
+            .insert(clones);
+          if (cloneErr) throw cloneErr;
+        }
+
+        await loadVendorQuotes();
+        toast.success(`Quote reopened as V${nextVersion}. Previous version preserved.`);
+        return;
+      }
+
+      // ---------- All other status changes on the latest row ----------
       if (existing) {
         const patch: Record<string, any> = { status };
         if (status === "submitted") {
@@ -482,10 +588,6 @@ export default function ProcurementDetail({
           } else {
             patch.last_resubmitted_at = nowIso;
           }
-        } else if (status === "reopened") {
-          patch.reopened_at = nowIso;
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user?.id) patch.reopened_by = user.id;
         }
         const { error } = await supabase.from("procurement_vendor_quotes")
           .update(patch)
@@ -499,6 +601,8 @@ export default function ProcurementDetail({
           token: crypto.randomUUID().replace(/-/g, ""),
           procurement_item_ids: row.line_ids,
           status,
+          version: 1,
+          is_latest: true,
           created_by: user?.id ?? null,
         };
         if (status === "submitted") {
@@ -509,7 +613,7 @@ export default function ProcurementDetail({
         if (error) throw error;
       }
       await loadVendorQuotes();
-      toast.success(status === "reopened" ? "Quote reopened for vendor" : "Status updated");
+      toast.success("Status updated");
     } catch (err: any) {
       toast.error(err.message || "Failed to update status");
     }
@@ -894,12 +998,16 @@ export default function ProcurementDetail({
   };
 
   // ---- Vendor quote portal (per line item) ----
+  // Loads ALL versions for the PO. `vendorQuotes` below exposes only the latest
+  // per vendor (drives the active workflow), while `vendorQuoteHistoryByVendor`
+  // exposes every version (drives the Quote History audit view).
   const loadVendorQuotes = useCallback(async () => {
     const { data } = await supabase
       .from("procurement_vendor_quotes")
-      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, first_submitted_at, last_resubmitted_at, reopened_at, procurement_item_ids, change_request_notes, attachments, term_responses, procurement_vendor_quote_items(*)")
-      .eq("po_id", order.id);
-    setVendorQuotes((data || []) as unknown as VendorQuoteRow[]);
+      .select("id, vendor_id, token, status, version, is_latest, vendor_payment_term, notes, submitted_at, first_submitted_at, last_resubmitted_at, reopened_at, procurement_item_ids, change_request_notes, attachments, term_responses, procurement_vendor_quote_items(*)")
+      .eq("po_id", order.id)
+      .order("version", { ascending: false });
+    setAllVendorQuotes((data || []) as unknown as VendorQuoteRow[]);
   }, [order.id]);
 
   useEffect(() => { if (open) loadVendorQuotes(); }, [open, loadVendorQuotes]);
@@ -1871,6 +1979,42 @@ export default function ProcurementDetail({
                                               </ul>
                                             </div>
                                           )}
+
+                                          {/* Quote History — every submitted/reopened version */}
+                                          {row.vendor_id && (vendorQuoteHistoryByVendor[row.vendor_id]?.length || 0) > 0 && (
+                                            <div>
+                                              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Quote History</div>
+                                              <div className="border rounded divide-y max-h-40 overflow-y-auto">
+                                                {vendorQuoteHistoryByVendor[row.vendor_id].map((h) => {
+                                                  const sLabel =
+                                                    h.status === "submitted" ? "Submitted" :
+                                                    h.status === "changes_requested" ? "T&C Changes" :
+                                                    h.status === "reopened" ? "Reopened (Draft)" :
+                                                    h.status === "draft" ? "Draft" : h.status;
+                                                  const sCls =
+                                                    h.status === "submitted" ? "bg-emerald-100 text-emerald-700 border-emerald-300" :
+                                                    h.status === "changes_requested" ? "bg-amber-100 text-amber-700 border-amber-300" :
+                                                    h.status === "reopened" ? "bg-blue-100 text-blue-700 border-blue-300" :
+                                                    "bg-muted text-muted-foreground border-border";
+                                                  const when = h.submitted_at || h.last_resubmitted_at || h.reopened_at || h.first_submitted_at;
+                                                  return (
+                                                    <div key={h.id} className="flex items-center gap-2 px-2 py-1 text-[11px]">
+                                                      <span className="font-semibold w-8">V{h.version || 1}</span>
+                                                      <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${sCls}`}>{sLabel}</span>
+                                                      {h.is_latest && (
+                                                        <span className="inline-flex items-center rounded bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Active</span>
+                                                      )}
+                                                      <span className="text-muted-foreground ml-auto">{when ? fmtDT(when) : "—"}</span>
+                                                      <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => setViewQuoteId(h.id)}>
+                                                        View
+                                                      </Button>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                              <p className="mt-1 text-[10px] text-muted-foreground">Latest version is the active quote used for PO generation. Older versions are read-only.</p>
+                                            </div>
+                                          )}
                                         </AccordionContent>
                                       </AccordionItem>
                                     </Accordion>
@@ -2459,6 +2603,134 @@ export default function ProcurementDetail({
                       </div>
                     )}
                   </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          );
+        })()}
+
+        {/* Historical quote-version viewer (read-only) */}
+        {viewQuoteId && (() => {
+          const q = allVendorQuotes.find((x) => x.id === viewQuoteId);
+          if (!q) return null;
+          const latest = allVendorQuotes.find((x) => x.vendor_id === q.vendor_id && x.is_latest);
+          const items = q.procurement_vendor_quote_items || [];
+          const latestItems = latest?.procurement_vendor_quote_items || [];
+          const compare = latest && latest.id !== q.id;
+          const findLatest = (pid: string | null) => latestItems.find((x) => x.procurement_item_id === pid);
+          return (
+            <Dialog open={!!viewQuoteId} onOpenChange={(o) => { if (!o) setViewQuoteId(null); }}>
+              <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-base">
+                    Quote V{q.version || 1} — {vendorName(q.vendor_id || "")}
+                    <span className="inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium bg-muted">{q.status}</span>
+                    {q.is_latest && <span className="inline-flex items-center rounded bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase">Active</span>}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 text-xs">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div><div className="text-[10px] uppercase text-muted-foreground">Submitted</div><div>{q.submitted_at ? fmtDT(q.submitted_at) : "—"}</div></div>
+                    <div><div className="text-[10px] uppercase text-muted-foreground">First Submitted</div><div>{q.first_submitted_at ? fmtDT(q.first_submitted_at) : "—"}</div></div>
+                    <div><div className="text-[10px] uppercase text-muted-foreground">Reopened</div><div>{q.reopened_at ? fmtDT(q.reopened_at) : "—"}</div></div>
+                    <div><div className="text-[10px] uppercase text-muted-foreground">Payment Terms</div><div>{q.vendor_payment_term || "—"}</div></div>
+                  </div>
+
+                  <div>
+                    <div className="text-[10px] uppercase text-muted-foreground mb-1">Rates{compare ? " (compared with active version)" : ""}</div>
+                    <div className="border rounded overflow-x-auto">
+                      <table className="w-full text-[11px]">
+                        <thead className="bg-muted/50 text-muted-foreground">
+                          <tr>
+                            <th className="p-1.5 text-left">Item</th>
+                            <th className="p-1.5 text-right">Rate</th>
+                            <th className="p-1.5 text-right">Disc %</th>
+                            <th className="p-1.5 text-right">After Disc.</th>
+                            <th className="p-1.5">Delivery</th>
+                            {compare && <th className="p-1.5 text-right">Active After Disc.</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((it) => {
+                            const line = rateLines.find((l) => l.id === it.procurement_item_id);
+                            const l2 = compare ? findLatest(it.procurement_item_id) : null;
+                            const diff = l2 ? Number(l2.rate_after_discount ?? l2.rate) - Number(it.rate_after_discount ?? it.rate) : 0;
+                            return (
+                              <tr key={(it as any).id || `${q.id}-${it.procurement_item_id}`} className="border-t">
+                                <td className="p-1.5">{line ? productName(line.product_id) : it.procurement_item_id}</td>
+                                <td className="p-1.5 text-right">{fmtAmt(Number(it.rate) || 0)}</td>
+                                <td className="p-1.5 text-right">{Number(it.discount_pct) || 0}%</td>
+                                <td className="p-1.5 text-right">{fmtAmt(Number(it.rate_after_discount ?? it.rate) || 0)}</td>
+                                <td className="p-1.5">{it.delivery_commitment_date || "—"}</td>
+                                {compare && (
+                                  <td className="p-1.5 text-right">
+                                    {l2 ? (
+                                      <>
+                                        {fmtAmt(Number(l2.rate_after_discount ?? l2.rate) || 0)}
+                                        {Math.abs(diff) > 0.005 && (
+                                          <span className={`ml-1 text-[10px] ${diff > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                            {diff > 0 ? "▲" : "▼"} {fmtAmt(Math.abs(diff))}
+                                          </span>
+                                        )}
+                                      </>
+                                    ) : "—"}
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {q.notes && (
+                    <div>
+                      <div className="text-[10px] uppercase text-muted-foreground mb-0.5">Vendor Remarks</div>
+                      <p className="whitespace-pre-line">{q.notes}</p>
+                    </div>
+                  )}
+
+                  {q.change_request_notes && (
+                    <div>
+                      <div className="text-[10px] uppercase text-muted-foreground mb-0.5">Change Request Notes</div>
+                      <p className="whitespace-pre-line">{q.change_request_notes}</p>
+                    </div>
+                  )}
+
+                  {Array.isArray(q.term_responses) && q.term_responses.length > 0 && (
+                    <div>
+                      <div className="text-[10px] uppercase text-muted-foreground mb-0.5">Terms & Conditions Responses</div>
+                      <ul className="space-y-1">
+                        {q.term_responses.map((r, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span className={`shrink-0 mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ${r.response === "accept" ? "bg-emerald-100 text-emerald-800" : "bg-amber-200 text-amber-900"}`}>
+                              {r.response === "accept" ? "Accepted" : "Change"}
+                            </span>
+                            <div className="min-w-0">
+                              <div>{i + 1}. {r.term}</div>
+                              {r.response === "change" && r.comment && <div className="text-muted-foreground mt-0.5">Vendor: {r.comment}</div>}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {Array.isArray(q.attachments) && q.attachments.length > 0 && (
+                    <div>
+                      <div className="text-[10px] uppercase text-muted-foreground mb-0.5">Attachments</div>
+                      <ul className="space-y-0.5">
+                        {q.attachments.map((a, i) => (
+                          <li key={i}><a className="text-primary underline break-all" href={a.url} target="_blank" rel="noreferrer">{a.name || `Attachment ${i + 1}`}</a></li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {!q.is_latest && (
+                    <p className="text-[11px] text-muted-foreground italic">This is an archived version kept for audit. The latest submitted version is the active quote used for PO generation.</p>
+                  )}
                 </div>
               </DialogContent>
             </Dialog>
