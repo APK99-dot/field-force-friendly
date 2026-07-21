@@ -114,6 +114,7 @@ Deno.serve(async (req) => {
       vendor_payment_term,
       notes,
       attachments,
+      term_responses,
     };
     if (mode === "accept") {
       const nowIso = new Date().toISOString();
