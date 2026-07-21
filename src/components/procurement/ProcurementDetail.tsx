@@ -1730,6 +1730,37 @@ export default function ProcurementDetail({
                     )}
                   </div>
                 ))}
+
+                {/* Per-term T&C responses surfaced from submitted quotes */}
+                {vendorQuotes
+                  .filter((q) => Array.isArray(q.term_responses) && (q.term_responses || []).length > 0)
+                  .map((q) => {
+                    const responses = q.term_responses || [];
+                    const changes = responses.filter((r) => r.response === "change");
+                    if (changes.length === 0) return null;
+                    return (
+                      <div key={`tr-${q.id}`} className="rounded-md border border-amber-300 bg-amber-50/60 dark:bg-amber-900/10 p-2 text-[11px] space-y-1.5">
+                        <p className="font-medium text-amber-800 dark:text-amber-300">
+                          {vendorName(q.vendor_id || "")} requested changes on {changes.length} of {responses.length} terms
+                        </p>
+                        <ul className="space-y-1.5">
+                          {responses.map((r, i) => (
+                            <li key={i} className="flex gap-2">
+                              <span className={`shrink-0 mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ${r.response === "accept" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" : "bg-amber-200 text-amber-900 dark:bg-amber-800/60 dark:text-amber-100"}`}>
+                                {r.response === "accept" ? "Accepted" : "Change"}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="text-foreground/80 whitespace-pre-line"><span className="text-muted-foreground">{i + 1}.</span> {r.term}</div>
+                                {r.response === "change" && r.comment && (
+                                  <div className="mt-0.5 text-amber-900/90 dark:text-amber-100/90 whitespace-pre-line"><span className="font-medium">Vendor:</span> {r.comment}</div>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
               </CardContent>
             </Card>
           )}
