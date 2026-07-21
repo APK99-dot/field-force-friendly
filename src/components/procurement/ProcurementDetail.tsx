@@ -962,7 +962,14 @@ export default function ProcurementDetail({
 
 
   const stepFlow = statusFlowFor(order.source_type);
-  const stepIndex = stepFlow.indexOf(order.status as ProcStatus);
+  // Map partial rollup statuses to their nearest flow parent so the stepper still highlights.
+  const stepperStatus: ProcStatus = (
+    order.status === "Partially Received" ? "PO Issued" :
+    order.status === "Partially Invoiced" ? "Goods Received" :
+    order.status === "Partially Paid" ? "Invoice Received" :
+    order.status
+  ) as ProcStatus;
+  const stepIndex = stepFlow.indexOf(stepperStatus);
   const nextStage = stepIndex >= 0 && stepIndex < stepFlow.length - 1 ? stepFlow[stepIndex + 1] : null;
   const prevStage = stepIndex > 0 ? stepFlow[stepIndex - 1] : null;
   // The immediate next transition (unfiltered) tells us whether approval rights are needed
