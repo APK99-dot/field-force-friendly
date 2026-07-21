@@ -1387,6 +1387,34 @@ export default function ProcurementDetail({
                           const isExpanded = expandedVendorRow === row.key;
                           const finSummary = row.vendor_id ? vendorSummaries.find((v) => v.vendor_id === row.vendor_id) : null;
                           const scopedLines = rateLines.filter((l) => row.line_ids.includes(l.id));
+                          const vGrns = row.vendor_id ? grns.filter((g) => g.vendor_id === row.vendor_id) : [];
+                          const vInvs = row.vendor_id ? invoices.filter((i) => i.vendor_id === row.vendor_id) : [];
+                          const hasGrn = vGrns.length > 0;
+                          const paidTotal = finSummary?.paid_total || 0;
+                          const balanceDue = finSummary?.balance_due || 0;
+                          const invoicedTotal = finSummary?.invoiced_total || 0;
+                          // Color-coded quote status pill
+                          const qsLabel =
+                            qStatus === "submitted" ? "Quote Submitted" :
+                            qStatus === "changes_requested" ? "T&C Changes Requested" :
+                            qStatus === "reopened" ? "Reopened" :
+                            qStatus === "draft" ? "Draft" : "";
+                          const qsCls =
+                            qStatus === "submitted" ? "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300" :
+                            qStatus === "changes_requested" ? "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300" :
+                            qStatus === "reopened" ? "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300" :
+                            "bg-muted text-muted-foreground border-border";
+                          // Derived progression pill (highest-applicable)
+                          const progressPill = !isTransfer && row.vendor_id ? (
+                            invoicedTotal > 0 && balanceDue <= 0.005
+                              ? { label: "Paid", cls: "bg-emerald-600 text-white border-emerald-700" }
+                              : invoicedTotal > 0
+                                ? { label: "Invoiced", cls: "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300" }
+                                : hasGrn
+                                  ? { label: "Received", cls: "bg-green-700 text-white border-green-800" }
+                                  : null
+                          ) : null;
+                          const fmtDT = (iso?: string | null) => iso ? new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
                           return (
                             <Fragment key={row.key}>
                             <tr className="border-t align-top">
