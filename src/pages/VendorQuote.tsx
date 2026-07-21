@@ -576,22 +576,73 @@ export default function VendorQuote() {
             )}
           </div>
 
-          {/* Terms & Conditions */}
+          {/* Terms & Conditions — per-term response */}
           {hasTerms && (
-            <div className="space-y-2 rounded-lg border p-3 bg-muted/10">
-              <div className="text-sm font-semibold">Terms &amp; Conditions</div>
-              <ol className="list-decimal pl-5 space-y-1 text-sm text-muted-foreground">
-                {terms_and_conditions.map((t, i) => <li key={i}>{t}</li>)}
-              </ol>
-              <label className="flex items-start gap-2 pt-2 text-sm cursor-pointer">
-                <Checkbox
-                  checked={termsAccepted}
-                  disabled={readOnly}
-                  onCheckedChange={(v) => setTermsAccepted(!!v)}
-                  className="mt-0.5"
-                />
-                <span>I accept the Terms &amp; Conditions above</span>
-              </label>
+            <div className="space-y-3 rounded-lg border p-3 bg-muted/10">
+              <div>
+                <div className="text-sm font-semibold">Terms &amp; Conditions</div>
+                <p className="text-xs text-muted-foreground">
+                  Respond to each term individually. Select <span className="font-medium">Accept</span> or{" "}
+                  <span className="font-medium">Request Change</span>. Add a comment for every change request.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {terms_and_conditions.map((t, i) => {
+                  const resp = termResponses[i]?.response || "";
+                  const cmt = termResponses[i]?.comment || "";
+                  const setResp = (r: "accept" | "change") =>
+                    setTermResponses((prev) => ({ ...prev, [i]: { response: r, comment: prev[i]?.comment || "" } }));
+                  const setCmt = (v: string) =>
+                    setTermResponses((prev) => ({ ...prev, [i]: { response: prev[i]?.response || "", comment: v } }));
+                  return (
+                    <div key={i} className="rounded-md border bg-background p-2.5 space-y-2">
+                      <div className="flex gap-2 text-sm">
+                        <span className="font-medium text-muted-foreground shrink-0">{i + 1}.</span>
+                        <span className="whitespace-pre-line">{t}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 pl-5">
+                        <label className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border cursor-pointer transition ${resp === "accept" ? "bg-emerald-50 border-emerald-400 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" : "hover:bg-muted"}`}>
+                          <input
+                            type="radio"
+                            name={`term-${i}`}
+                            className="h-3.5 w-3.5"
+                            checked={resp === "accept"}
+                            disabled={readOnly}
+                            onChange={() => setResp("accept")}
+                          />
+                          Accept
+                        </label>
+                        <label className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border cursor-pointer transition ${resp === "change" ? "bg-amber-50 border-amber-400 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" : "hover:bg-muted"}`}>
+                          <input
+                            type="radio"
+                            name={`term-${i}`}
+                            className="h-3.5 w-3.5"
+                            checked={resp === "change"}
+                            disabled={readOnly}
+                            onChange={() => setResp("change")}
+                          />
+                          Request Change
+                        </label>
+                      </div>
+                      {resp === "change" && (
+                        <div className="pl-5 space-y-1">
+                          <Label className="text-xs">Requested change <span className="text-destructive">*</span></Label>
+                          <Textarea
+                            rows={2}
+                            value={cmt}
+                            disabled={readOnly}
+                            onChange={(e) => setCmt(e.target.value)}
+                            placeholder="Describe the modification you're requesting for this term"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {!readOnly && hasTerms && !allTermsAnswered && (
+                <p className="text-xs text-amber-700 dark:text-amber-400">Please respond to every term before submitting.</p>
+              )}
             </div>
           )}
 
