@@ -1674,49 +1674,33 @@ export default function ProcurementDetail({
                         )}
 
                         {/* Submitted quote comparison for this line item */}
-                        {submittedQuotes.length > 0 && (() => {
+                        {(() => {
                           const rows = submittedQuotes.map((q) => {
                             const qi = (q.procurement_vendor_quote_items || []).find((x) => x.procurement_item_id === l.id);
                             const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
                             return { q, qi, rate };
                           });
                           const priced = rows.filter((r) => r.rate != null && r.qi);
-                          const hasCompare = priced.length >= 2;
+                          if (priced.length === 0) {
+                            return (
+                              <div className="rounded-md border p-2 text-[11px] text-muted-foreground">
+                                No quotations received yet
+                              </div>
+                            );
+                          }
                           const winnerVid = l.rate_source === "quote" ? l.rate_source_vendor_id : null;
                           const hasWinner = !!winnerVid && priced.some((r) => r.q.vendor_id === winnerVid);
-                          const minRate = hasCompare ? Math.min(...priced.map((r) => r.rate as number)) : null;
+                          const minRate = Math.min(...priced.map((r) => r.rate as number));
                           const deliveryDates = priced
                             .map((r) => r.qi?.delivery_commitment_date)
                             .filter((d): d is string => !!d);
                           const minDelivery = deliveryDates.length ? deliveryDates.sort()[0] : null;
 
-                          if (!hasCompare) {
-                            return (
-                              <div className="space-y-1.5 rounded-md border p-2">
-                                <p className="text-[11px] font-medium">Submitted quote for this item</p>
-                                {rows.map(({ q, qi, rate }) => (
-                                  <div key={q.id} className="flex items-center gap-2 text-[11px]">
-                                    <div className="flex-1">
-                                      <div className="font-medium">{vendorName(q.vendor_id || "")}</div>
-                                      <div className="text-muted-foreground">
-                                        {rate != null ? `Rate: ${fmtAmt(rate)}` : "Not quoted"}
-                                        {qi?.delivery_commitment_date ? ` · By ${qi.delivery_commitment_date}` : ""}
-                                      </div>
-                                    </div>
-                                    {rate != null && (
-                                      <Button type="button" size="sm" variant="outline" className="h-6 text-[11px]" disabled={!poUnlocked || ratesLocked} onClick={() => applyLineQuote(l.id, q)}>
-                                        Select
-                                      </Button>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            );
-                          }
-
                           return (
                             <div className="space-y-1.5 rounded-md border p-2 overflow-x-auto">
-                              <p className="text-[11px] font-medium">Compare submitted quotes ({priced.length})</p>
+                              <p className="text-[11px] font-medium">
+                                {priced.length >= 2 ? `Compare submitted quotes (${priced.length})` : "Submitted quote for this item"}
+                              </p>
                               <table className="w-full text-[11px]">
                                 <thead className="text-muted-foreground">
                                   <tr className="text-left">
@@ -1734,8 +1718,8 @@ export default function ProcurementDetail({
                                     const isWinner = hasWinner && q.vendor_id === winnerVid;
                                     const isLoser = hasWinner && !isWinner;
                                     const canSelect = rate != null && qi;
-                                    const isMinRate = canSelect && minRate != null && rate === minRate;
-                                    const isMinDelivery = !!qi?.delivery_commitment_date && qi.delivery_commitment_date === minDelivery;
+                                    const isMinRate = canSelect && priced.length >= 2 && rate === minRate;
+                                    const isMinDelivery = priced.length >= 2 && !!qi?.delivery_commitment_date && qi.delivery_commitment_date === minDelivery;
                                     return (
                                       <tr key={q.id} className={`border-t ${isLoser ? "opacity-60" : ""}`}>
                                         <td className="py-1 pr-2 font-medium">
@@ -1779,6 +1763,7 @@ export default function ProcurementDetail({
                             </div>
                           );
                         })()}
+
                       </>
                     )}
                   </div>
