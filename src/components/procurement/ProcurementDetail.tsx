@@ -1630,21 +1630,49 @@ export default function ProcurementDetail({
           <Card ref={lineItemsRef}>
             <CardHeader className="pb-2"><CardTitle className="text-base">{isTransfer ? "Transfer Items" : "Line Items"}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {rateLines.map((l) => {
+              {(() => {
+                const INITIAL_VISIBLE = 2;
+                const totalLines = rateLines.length;
+                const hiddenCount = Math.max(0, totalLines - INITIAL_VISIBLE);
+                const visibleLines = showAllLines || totalLines <= INITIAL_VISIBLE
+                  ? rateLines
+                  : rateLines.slice(0, INITIAL_VISIBLE);
+                return (<>
+              {visibleLines.map((l) => {
                 const amt = (parseFloat(l.rate) || 0) * (l.qty || 0);
                 const tag = rateSourceLabel(l);
                 const submittedQuotes = quotesForItem(l.id).filter((q) => q.status === "submitted");
                 const lineVendorNames = (l.vendor_ids || []).map((id) => vendorName(id)).filter(Boolean);
+                const shownVendors = lineVendorNames.slice(0, 2);
+                const extraVendors = lineVendorNames.slice(2);
                 return (
                   <div key={l.id} className="rounded-lg border p-2.5 bg-muted/30 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="text-sm font-medium">{productName(l.product_id)}</div>
                       {!isTransfer && lineVendorNames.length > 0 && (
-                        <span className="text-[10px] text-muted-foreground truncate max-w-[50%]" title={lineVendorNames.join(", ")}>
-                          {lineVendorNames.join(", ")}
-                        </span>
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground max-w-[55%]">
+                          <span className="truncate" title={shownVendors.join(", ")}>
+                            {shownVendors.join(", ")}
+                          </span>
+                          {extraVendors.length > 0 && (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button type="button" className="inline-flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium hover:bg-muted-foreground/20" aria-label={`Show ${extraVendors.length} more vendors`}>
+                                  <Info className="h-3 w-3" />+{extraVendors.length}
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent align="end" className="w-56 p-2">
+                                <p className="text-[11px] font-medium mb-1">Selected vendors ({lineVendorNames.length})</p>
+                                <ul className="text-[11px] space-y-0.5 max-h-48 overflow-y-auto">
+                                  {lineVendorNames.map((n, i) => (<li key={i} className="truncate">{n}</li>))}
+                                </ul>
+                              </PopoverContent>
+                            </Popover>
+                          )}
+                        </div>
                       )}
                     </div>
+
                     {isTransfer ? (
                       <div>
                         <Label className="text-[10px] text-muted-foreground">Qty</Label>
