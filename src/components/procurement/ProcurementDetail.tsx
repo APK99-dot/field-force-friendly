@@ -613,11 +613,13 @@ export default function ProcurementDetail({
   const poUnlocked = !isTransfer && canApprove && ["Requisition Approved", "Quote Requested", "Quote Received", "PO Issued"].includes(order.status);
   // Editing rates once the PO has been issued is gated by the editRatesAfterApproval config
   const ratesLocked = order.status === "PO Issued" && !canEditRatesPostApproval;
+  // Per-vendor GRN/Invoice must remain available even after the overall PO status has
+  // advanced (e.g. one vendor fully paid while others still need receipt/billing).
   const canReceive = isTransfer
     ? canApprove && ["Requisition Approved", "Goods Received"].includes(order.status)
-    : canApprove && ["PO Issued", "Goods Received"].includes(order.status);
+    : canApprove && ["PO Issued", "Goods Received", "Invoice Received", "Paid"].includes(order.status);
   const canInvoice =
-    !isTransfer && canApprove && ["Goods Received", "Invoice Received"].includes(order.status);
+    !isTransfer && canApprove && ["Goods Received", "Invoice Received", "Paid"].includes(order.status);
 
   const estBudget = isTransfer ? null : order.estimated_budget;
   const poValue = order.total_amount || 0;
