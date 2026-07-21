@@ -497,18 +497,19 @@ export default function ProcurementDetail({
   // Independent status for each vendor row so one vendor completing GRN /
   // invoicing / payment does not force the whole PO forward.
   type VendorLifecycle =
-    | "Draft" | "Quote Submitted" | "PO Issued"
+    | "Assigned" | "Draft" | "Quote Submitted" | "PO Issued"
     | "Partially Received" | "Fully Received"
     | "Partially Invoiced" | "Fully Invoiced"
     | "Partially Paid" | "Paid";
   const LIFECYCLE_RANK: Record<VendorLifecycle, number> = {
-    "Draft": 0, "Quote Submitted": 1, "PO Issued": 2,
-    "Partially Received": 3, "Fully Received": 4,
-    "Partially Invoiced": 5, "Fully Invoiced": 6,
-    "Partially Paid": 7, "Paid": 8,
+    "Assigned": 0, "Draft": 1, "Quote Submitted": 2, "PO Issued": 3,
+    "Partially Received": 4, "Fully Received": 5,
+    "Partially Invoiced": 6, "Fully Invoiced": 7,
+    "Partially Paid": 8, "Paid": 9,
   };
   const lifecycleColor = (s: VendorLifecycle | ""): string => {
     switch (s) {
+      case "Assigned": return "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300";
       case "Draft": return "bg-muted text-muted-foreground border-border";
       case "Quote Submitted": return "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300";
       case "PO Issued": return "bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-300";
@@ -541,9 +542,13 @@ export default function ProcurementDetail({
       const invoicedTotal = vInvs.reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
       const paidTotal = vPays.reduce((s, p) => s + Number(p.amount || 0), 0);
 
-      let status: VendorLifecycle = "Draft";
-      if (q?.status === "submitted") status = "Quote Submitted";
-      if (finalized.has(vid)) status = "PO Issued";
+      // Assigned = vendor row exists but no quote link generated yet.
+      // Draft    = quote link generated, vendor has not submitted.
+      // Quote Submitted = vendor submitted a quote.
+      // PO Issued only once a submitted quote is finalized (winner picked).
+      let status: VendorLifecycle = "Assigned";
+      if (q) status = q.status === "submitted" ? "Quote Submitted" : "Draft";
+      if (finalized.has(vid) && q?.status === "submitted") status = "PO Issued";
 
       if (vGrns.length > 0) {
         const anyFull = vGrns.some((g) => g.status === "Fully Received");
