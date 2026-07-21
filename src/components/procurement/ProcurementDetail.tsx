@@ -877,7 +877,7 @@ export default function ProcurementDetail({
   const loadVendorQuotes = useCallback(async () => {
     const { data } = await supabase
       .from("procurement_vendor_quotes")
-      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, first_submitted_at, last_resubmitted_at, reopened_at, procurement_item_ids, change_request_notes, attachments, procurement_vendor_quote_items(*)")
+      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, first_submitted_at, last_resubmitted_at, reopened_at, procurement_item_ids, change_request_notes, attachments, term_responses, procurement_vendor_quote_items(*)")
       .eq("po_id", order.id);
     setVendorQuotes((data || []) as unknown as VendorQuoteRow[]);
   }, [order.id]);
