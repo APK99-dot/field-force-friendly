@@ -309,7 +309,9 @@ export default function VendorQuote() {
   const { requisition: req, vendor, company, terms_and_conditions } = data;
   const readOnly = submitted;
   const hasTerms = terms_and_conditions.length > 0;
-  const acceptDisabled = readOnly || saving || !paymentTerm.trim() || (hasTerms && !termsAccepted);
+  const allTermsAnswered = terms_and_conditions.every((_, i) => termResponses[i]?.response === "accept" || termResponses[i]?.response === "change");
+  const anyChangeMissingComment = terms_and_conditions.some((_, i) => termResponses[i]?.response === "change" && !(termResponses[i]?.comment || "").trim());
+  const acceptDisabled = readOnly || saving || !paymentTerm.trim() || (hasTerms && (!allTermsAnswered || anyChangeMissingComment));
 
   // Success screen — shown once vendor has submitted their quote.
   if (submitted && data.status === "submitted") {
