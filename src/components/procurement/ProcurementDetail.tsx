@@ -493,6 +493,78 @@ export default function ProcurementDetail({
     return [...s];
   }, [rateLines]);
 
+  // -------- Per-vendor lifecycle status ---------------------------------
+  // Independent status for each vendor row so one vendor completing GRN /
+  // invoicing / payment does not force the whole PO forward.
+  type VendorLifecycle =
+    | "Draft" | "Quote Submitted" | "PO Issued"
+    | "Partially Received" | "Fully Received"
+    | "Partially Invoiced" | "Fully Invoiced"
+    | "Partially Paid" | "Paid";
+  const LIFECYCLE_RANK: Record<VendorLifecycle, number> = {
+    "Draft": 0, "Quote Submitted": 1, "PO Issued": 2,
+    "Partially Received": 3, "Fully Received": 4,
+    "Partially Invoiced": 5, "Fully Invoiced": 6,
+    "Partially Paid": 7, "Paid": 8,
+  };
+  const lifecycleColor = (s: VendorLifecycle | ""): string => {
+    switch (s) {
+      case "Draft": return "bg-muted text-muted-foreground border-border";
+      case "Quote Submitted": return "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300";
+      case "PO Issued": return "bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-300";
+      case "Partially Received": return "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-300";
+      case "Fully Received": return "bg-teal-600 text-white border-teal-700";
+      case "Partially Invoiced": return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300";
+      case "Fully Invoiced": return "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300";
+      case "Partially Paid": return "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300";
+      case "Paid": return "bg-emerald-600 text-white border-emerald-700";
+      default: return "bg-muted text-muted-foreground border-border";
+    }
+  };
+
+  const vendorLifecycleMap = useMemo(() => {
+    const m: Record<string, VendorLifecycle> = {};
+    const finalized = new Set(finalizedVendorIds);
+    summaryVendorIds.forEach((vid) => {
+      const q = vendorQuotes.find((qq) => qq.vendor_id === vid);
+      const vGrns = grns.filter((g) => g.vendor_id === vid);
+      const vInvs = invoices.filter((i) => i.vendor_id === vid);
+      const invIds = new Set(vInvs.map((i) => i.id));
+      const vPays = invPayments.filter((p) => invIds.has(p.invoice_id));
+      const assigned = vendorAssignments.find((r) => r.vendor_id === vid);
+      const scopedLineIds = assigned
+        ? new Set(assigned.line_ids)
+        : new Set(rateLines.filter((l) => (l.vendor_ids || []).includes(vid)).map((l) => l.id));
+      const lineAmount = rateLines
+        .filter((l) => scopedLineIds.has(l.id))
+        .reduce((s, l) => s + (parseFloat(l.rate) || 0) * (l.qty || 0), 0);
+      const invoicedTotal = vInvs.reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
+      const paidTotal = vPays.reduce((s, p) => s + Number(p.amount || 0), 0);
+
+      let status: VendorLifecycle = "Draft";
+      if (q?.status === "submitted") status = "Quote Submitted";
+      if (finalized.has(vid)) status = "PO Issued";
+
+      if (vGrns.length > 0) {
+        const anyFull = vGrns.some((g) => g.status === "Fully Received");
+        status = anyFull ? "Fully Received" : "Partially Received";
+      }
+      if (invoicedTotal > 0) {
+        status = invoicedTotal >= lineAmount - 0.01 && lineAmount > 0
+          ? "Fully Invoiced"
+          : "Partially Invoiced";
+      }
+      if (paidTotal > 0) {
+        status = paidTotal >= invoicedTotal - 0.01 && invoicedTotal > 0
+          ? "Paid"
+          : "Partially Paid";
+      }
+      m[vid] = status;
+    });
+    return m;
+  }, [summaryVendorIds, finalizedVendorIds, vendorQuotes, grns, invoices, invPayments, vendorAssignments, rateLines]);
+
+
   // items assigned to a given vendor (used to scope GRN/Invoice forms per vendor)
   const scopedItemVendorMap = useMemo(() => {
     if (!scopedVendorId) return itemVendorMap;
@@ -796,9 +868,18 @@ export default function ProcurementDetail({
     const allLinesHaveRate = persistedItems.length > 0 && persistedItems.every((it) => Number(it.rate || 0) > 0);
     const anyFullyReceived = grns.some((g) => g.status === "Fully Received");
     const hasInvoice = invoices.length > 0;
-    const invoicedTotal = invoices.reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
-    const paidTotal = invPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
-    const fullyPaid = hasInvoice && invoicedTotal > 0 && paidTotal >= invoicedTotal - 0.01;
+
+    // ---- Per-vendor aggregation for GRN / Invoice / Payment stages -----
+    // These stages only advance when ALL finalized vendors have reached the
+    // corresponding lifecycle rank. If vendors are in mixed states, surface
+    // a "Partially ..." rollup instead of the fully-completed stage.
+    const finalizedVids = finalizedVendorIds;
+    const lifecycles = finalizedVids.map((vid) => vendorLifecycleMap[vid] || "PO Issued");
+    const hasAnyLifecycle = lifecycles.length > 0;
+    const rankOf = (s: VendorLifecycle) => LIFECYCLE_RANK[s];
+    const minRank = hasAnyLifecycle ? Math.min(...lifecycles.map(rankOf)) : -1;
+    const anyRank = (min: number) => hasAnyLifecycle && lifecycles.some((s) => rankOf(s) >= min);
+    const allRank = (min: number) => hasAnyLifecycle && lifecycles.every((s) => rankOf(s) >= min);
 
     type Cand = { stage: ProcStatus; note: string; actorName?: string };
     const cands: Cand[] = [];
@@ -806,7 +887,6 @@ export default function ProcurementDetail({
       cands.push({ stage: "Quote Requested", note: "Quote link generated" });
     }
     if (lineHasRate) {
-      // Prefer to attribute to a vendor if a persisted rate was sourced from a quote
       const sourced = persistedItems.find((it) => it.rate_source === "quote" && it.rate_source_vendor_id && Number(it.rate || 0) > 0);
       if (sourced && sourced.rate_source_vendor_id) {
         const vname = vendorName(sourced.rate_source_vendor_id) || "Vendor";
@@ -818,26 +898,50 @@ export default function ProcurementDetail({
     if (allLinesHaveRate && hasAssignedVendors) {
       cands.push({ stage: "PO Issued", note: "All line rates finalized" });
     }
-    if (anyFullyReceived) {
+    // GRN aggregation
+    if (allRank(LIFECYCLE_RANK["Fully Received"])) {
+      cands.push({ stage: "Goods Received", note: "All vendors fully received" });
+    } else if (anyRank(LIFECYCLE_RANK["Partially Received"]) && minRank < LIFECYCLE_RANK["Fully Received"]) {
+      cands.push({ stage: "Partially Received" as ProcStatus, note: "Some vendors received; others pending" });
+    } else if (anyFullyReceived && !hasAnyLifecycle) {
       cands.push({ stage: "Goods Received", note: "GRN marked Fully Received" });
     }
-    if (hasInvoice) {
+    // Invoice aggregation
+    if (allRank(LIFECYCLE_RANK["Fully Invoiced"])) {
+      cands.push({ stage: "Invoice Received", note: "All vendors fully invoiced" });
+    } else if (anyRank(LIFECYCLE_RANK["Partially Invoiced"]) && !allRank(LIFECYCLE_RANK["Fully Invoiced"])) {
+      cands.push({ stage: "Partially Invoiced" as ProcStatus, note: "Some vendor invoices pending" });
+    } else if (hasInvoice && !hasAnyLifecycle) {
       cands.push({ stage: "Invoice Received", note: "Invoice recorded" });
     }
-    if (fullyPaid) {
-      cands.push({ stage: "Paid", note: "Payment covers invoice total" });
+    // Payment aggregation
+    if (allRank(LIFECYCLE_RANK["Paid"])) {
+      cands.push({ stage: "Paid", note: "All vendor invoices paid in full" });
+    } else if (anyRank(LIFECYCLE_RANK["Partially Paid"]) && !allRank(LIFECYCLE_RANK["Paid"])) {
+      cands.push({ stage: "Partially Paid" as ProcStatus, note: "Some vendor invoices still have a balance" });
     }
 
-    // Pick the furthest satisfied stage that is strictly ahead of current.
+
+    // Extended flow that includes partial rollups. Higher index = further along.
+    const EXT_FLOW: string[] = [
+      "Requisition", "Requisition Approved", "Quote Requested", "Quote Received",
+      "PO Issued",
+      "Partially Received", "Goods Received",
+      "Partially Invoiced", "Invoice Received",
+      "Partially Paid", "Paid",
+      "Closed",
+    ];
+    const curExtIdx = EXT_FLOW.indexOf(order.status);
+    // Pick the furthest satisfied stage that differs from current.
     let best: Cand | null = null;
-    let bestIdx = curIdx;
+    let bestIdx = curExtIdx < 0 ? curIdx : curExtIdx;
     for (const c of cands) {
-      const idx = STATUS_FLOW.indexOf(c.stage);
+      const idx = EXT_FLOW.indexOf(c.stage);
       if (idx > bestIdx) { best = c; bestIdx = idx; }
     }
     if (!best) return null;
     return { target: best.stage, note: best.note, actorName: best.actorName };
-  }, [isTransfer, order.status, order.procurement_items, vendorAssignments, vendorQuotes, grns, invoices, invPayments, vendorName]);
+  }, [isTransfer, order.status, order.procurement_items, vendorAssignments, vendorQuotes, grns, invoices, invPayments, vendorName, finalizedVendorIds, vendorLifecycleMap]);
 
   useEffect(() => {
     if (!open) return;
@@ -858,7 +962,14 @@ export default function ProcurementDetail({
 
 
   const stepFlow = statusFlowFor(order.source_type);
-  const stepIndex = stepFlow.indexOf(order.status as ProcStatus);
+  // Map partial rollup statuses to their nearest flow parent so the stepper still highlights.
+  const stepperStatus: ProcStatus = (
+    order.status === "Partially Received" ? "PO Issued" :
+    order.status === "Partially Invoiced" ? "Goods Received" :
+    order.status === "Partially Paid" ? "Invoice Received" :
+    order.status
+  ) as ProcStatus;
+  const stepIndex = stepFlow.indexOf(stepperStatus);
   const nextStage = stepIndex >= 0 && stepIndex < stepFlow.length - 1 ? stepFlow[stepIndex + 1] : null;
   const prevStage = stepIndex > 0 ? stepFlow[stepIndex - 1] : null;
   // The immediate next transition (unfiltered) tells us whether approval rights are needed
@@ -1512,16 +1623,11 @@ export default function ProcurementDetail({
                             qStatus === "changes_requested" ? "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300" :
                             qStatus === "reopened" ? "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300" :
                             "bg-muted text-muted-foreground border-border";
-                          // Derived progression pill (highest-applicable)
-                          const progressPill = !isTransfer && row.vendor_id ? (
-                            invoicedTotal > 0 && balanceDue <= 0.005
-                              ? { label: "Paid", cls: "bg-emerald-600 text-white border-emerald-700" }
-                              : invoicedTotal > 0
-                                ? { label: "Invoiced", cls: "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300" }
-                                : hasGrn
-                                  ? { label: "Received", cls: "bg-green-700 text-white border-green-800" }
-                                  : null
-                          ) : null;
+                          // Per-vendor lifecycle pill (independent of PO header status)
+                          const vLifecycle = row.vendor_id ? vendorLifecycleMap[row.vendor_id] : undefined;
+                          const progressPill = !isTransfer && row.vendor_id && vLifecycle
+                            ? { label: vLifecycle, cls: lifecycleColor(vLifecycle) }
+                            : null;
                           const fmtDT = (iso?: string | null) => iso ? new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
                           return (
                             <Fragment key={row.key}>
