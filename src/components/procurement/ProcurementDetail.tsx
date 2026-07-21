@@ -442,6 +442,30 @@ export default function ProcurementDetail({
     });
   }, [summaryVendorIds, vendorAssignments, rateLines, invoices, invPayments, vendorName]);
 
+  // "Selected/finalized" vendors — winners whose quote was applied to at least one line,
+  // or the sole assigned vendor on a line. These drive the vendor-centric workflow cards.
+  const finalizedVendorIds = useMemo(() => {
+    const s = new Set<string>();
+    rateLines.forEach((l) => {
+      if ((l.rate_source === "quote" || l.rate_source === "manual_adjusted") && l.rate_source_vendor_id) {
+        s.add(l.rate_source_vendor_id);
+      } else if ((l.vendor_ids || []).length === 1 && l.vendor_ids![0]) {
+        s.add(l.vendor_ids![0]);
+      }
+    });
+    return [...s];
+  }, [rateLines]);
+
+  // items assigned to a given vendor (used to scope GRN/Invoice forms per vendor)
+  const scopedItemVendorMap = useMemo(() => {
+    if (!scopedVendorId) return itemVendorMap;
+    const m: Record<string, string[]> = {};
+    Object.entries(itemVendorMap).forEach(([itemId, vids]) => {
+      if (vids.includes(scopedVendorId)) m[itemId] = [scopedVendorId];
+    });
+    return m;
+  }, [scopedVendorId, itemVendorMap]);
+
   // Manual override for a vendor's quote status (upsert quote row if missing).
   // Handles Draft/Submitted/Reopened workflow with audit-trail timestamps.
   const setVendorQuoteStatus = async (row: { vendor_id: string; line_ids: string[] }, status: string) => {
