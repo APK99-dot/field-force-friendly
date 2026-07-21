@@ -500,7 +500,7 @@ export default function Procurement() {
   };
 
   return (
-    <motion.div className="space-y-4 p-4 pb-24 w-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.div className="space-y-4 py-4 px-4 sm:px-6 lg:px-8 pb-24 w-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2"><ShoppingCart className="h-5 w-5" />Procurement</h1>
