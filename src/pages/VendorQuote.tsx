@@ -203,20 +203,16 @@ export default function VendorQuote() {
       response: (termResponses[i]?.response || "accept") as "accept" | "change",
       comment: (termResponses[i]?.comment || "").trim(),
     }));
-    const allTermsAnswered = terms.every((_, i) => termResponses[i]?.response === "accept" || termResponses[i]?.response === "change");
-    const anyMissingComment = responsesList.some((r) => r.response === "change" && !r.comment);
+    const allAccepted = terms.length === 0 || terms.every((_, i) => termResponses[i]?.response === "accept");
+    const anyChange = terms.some((_, i) => termResponses[i]?.response === "change");
 
     if (mode === "accept") {
       if (!paymentTerm.trim()) {
         toast.error("Please enter your Vendor Payment Terms before submitting.");
         return;
       }
-      if (terms.length && !allTermsAnswered) {
-        toast.error("Please respond (Accept or Request Change) to every Term & Condition.");
-        return;
-      }
-      if (anyMissingComment) {
-        toast.error("Please add a comment for every term where you requested a change.");
+      if (terms.length && !allAccepted) {
+        toast.error("Please Accept every Term & Condition to submit the quote. Use 'Send Change Request' if you need modifications.");
         return;
       }
       if (rows.some((r) => !r.rate || Number(r.rate) <= 0)) {
@@ -224,9 +220,15 @@ export default function VendorQuote() {
         return;
       }
     }
-    if (mode === "request_changes" && !changeNotes.trim()) {
-      toast.error("Please describe the changes you'd like.");
-      return;
+    if (mode === "request_changes") {
+      if (!anyChange) {
+        toast.error("Mark at least one Term & Condition as 'Request Change' before sending.");
+        return;
+      }
+      if (!changeNotes.trim()) {
+        toast.error("Please describe the changes you'd like.");
+        return;
+      }
     }
     setSaving(true);
     try {
