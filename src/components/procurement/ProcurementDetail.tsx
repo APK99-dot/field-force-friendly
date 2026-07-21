@@ -203,6 +203,10 @@ export default function ProcurementDetail({
   // Vendor picker for GRN / Invoice creation (which vendor is this receipt / bill for?)
   const [grnVendorId, setGrnVendorId] = useState<string | null>(null);
   const [invVendorId, setInvVendorId] = useState<string | null>(null);
+  // When a vendor row is clicked, the GRN/Invoice forms open scoped to only that vendor.
+  const [scopedVendorId, setScopedVendorId] = useState<string | null>(null);
+  // Vendor-workflow dialog: click a selected vendor to see their GRNs + invoices.
+  const [workflowVendorId, setWorkflowVendorId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAddressOptions().then(setAddressOptions).catch(() => {});
