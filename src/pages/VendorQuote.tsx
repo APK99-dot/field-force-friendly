@@ -44,6 +44,7 @@ interface QuoteData {
   attachments: Attachment[];
   terms_and_conditions: string[];
   terms_accepted_at: string | null;
+  term_responses: { term: string; response: "accept" | "change"; comment: string }[];
   requisition: {
     title: string;
     po_number: string | null;
