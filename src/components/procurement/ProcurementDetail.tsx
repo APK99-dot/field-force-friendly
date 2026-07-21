@@ -105,6 +105,7 @@ interface VendorQuoteRow {
   procurement_item_ids?: string[] | null;
   change_request_notes?: string | null;
   attachments?: { name: string; url: string; size: number; type: string }[] | null;
+  term_responses?: { term: string; response: "accept" | "change"; comment: string }[] | null;
   procurement_vendor_quote_items?: VendorQuoteItemRow[];
 }
 
