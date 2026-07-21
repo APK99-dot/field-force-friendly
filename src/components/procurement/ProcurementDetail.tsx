@@ -511,7 +511,37 @@ export default function ProcurementDetail({
     switch (s) {
       case "Assigned": return "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300";
       case "Draft": return "bg-muted text-muted-foreground border-border";
-...
+      case "Quote Submitted": return "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300";
+      case "PO Issued": return "bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-300";
+      case "Partially Received": return "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-300";
+      case "Fully Received": return "bg-teal-600 text-white border-teal-700";
+      case "Partially Invoiced": return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300";
+      case "Fully Invoiced": return "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300";
+      case "Partially Paid": return "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300";
+      case "Paid": return "bg-emerald-600 text-white border-emerald-700";
+      default: return "bg-muted text-muted-foreground border-border";
+    }
+  };
+
+  const vendorLifecycleMap = useMemo(() => {
+    const m: Record<string, VendorLifecycle> = {};
+    const finalized = new Set(finalizedVendorIds);
+    summaryVendorIds.forEach((vid) => {
+      const q = vendorQuotes.find((qq) => qq.vendor_id === vid);
+      const vGrns = grns.filter((g) => g.vendor_id === vid);
+      const vInvs = invoices.filter((i) => i.vendor_id === vid);
+      const invIds = new Set(vInvs.map((i) => i.id));
+      const vPays = invPayments.filter((p) => invIds.has(p.invoice_id));
+      const assigned = vendorAssignments.find((r) => r.vendor_id === vid);
+      const scopedLineIds = assigned
+        ? new Set(assigned.line_ids)
+        : new Set(rateLines.filter((l) => (l.vendor_ids || []).includes(vid)).map((l) => l.id));
+      const lineAmount = rateLines
+        .filter((l) => scopedLineIds.has(l.id))
+        .reduce((s, l) => s + (parseFloat(l.rate) || 0) * (l.qty || 0), 0);
+      const invoicedTotal = vInvs.reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
+      const paidTotal = vPays.reduce((s, p) => s + Number(p.amount || 0), 0);
+
       // Assigned = vendor row exists but no quote link generated yet.
       // Draft    = quote link generated, vendor has not submitted.
       // Quote Submitted = vendor submitted a quote.
