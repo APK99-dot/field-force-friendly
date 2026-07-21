@@ -118,6 +118,7 @@ export default function VendorQuote() {
             terms_and_conditions: Array.isArray(body.terms_and_conditions) ? body.terms_and_conditions : [],
             change_request_notes: body.change_request_notes || "",
             terms_accepted_at: body.terms_accepted_at || null,
+            term_responses: Array.isArray(body.term_responses) ? body.term_responses : [],
             items: Array.isArray(body.items) ? body.items : [],
           };
           setData(safe);
@@ -126,9 +127,16 @@ export default function VendorQuote() {
           setNotes(safe.notes || "");
           setAttachments(safe.attachments);
           setChangeNotes(safe.change_request_notes);
-            setSubmitted(safe.status === "submitted" || safe.status === "changes_requested");
-            // note: 'reopened' is intentionally editable — treat like draft.
-          if (safe.terms_accepted_at) setTermsAccepted(true);
+          setSubmitted(safe.status === "submitted" || safe.status === "changes_requested");
+          // Seed per-term responses. Fall back to accept if the quote was previously fully accepted.
+          const seeded: Record<number, { response: "accept" | "change" | ""; comment: string }> = {};
+          (safe.terms_and_conditions as string[]).forEach((term, i) => {
+            const saved = (safe.term_responses as any[]).find((r) => r.term === term);
+            if (saved) seeded[i] = { response: saved.response, comment: saved.comment || "" };
+            else if (safe.terms_accepted_at) seeded[i] = { response: "accept", comment: "" };
+            else seeded[i] = { response: "", comment: "" };
+          });
+          setTermResponses(seeded);
         }
       } catch {
         if (active) setError("Unable to load this quote. Please check your link.");
