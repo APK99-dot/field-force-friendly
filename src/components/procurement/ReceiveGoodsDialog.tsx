@@ -19,18 +19,30 @@ export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUs
   const [items, setItems] = useState<POItem[]>([]);
   const [received, setReceived] = useState<Record<string, number>>({});
   const [products, setProducts] = useState<Record<string, string>>({});
+  const [poVendors, setPoVendors] = useState<{ id: string; name: string }[]>([]);
+  const [itemVendorMap, setItemVendorMap] = useState<Record<string, string[]>>({});
   const [ready, setReady] = useState(false);
 
   const load = useCallback(async () => {
     setReady(false);
     const { data: po } = await supabase
       .from("procurement_orders")
-      .select("po_number, vendor_id, source_type, transfer_from_site_id, procurement_items(id, product_id, rate, qty, uom)")
+      .select("po_number, vendor_id, source_type, transfer_from_site_id, procurement_items(id, product_id, rate, qty, uom, vendor_ids)")
       .eq("id", poId)
       .single();
-    const its: POItem[] = ((po as any)?.procurement_items || []).map((it: any) => ({
+    const rawItems = ((po as any)?.procurement_items || []) as any[];
+    const its: POItem[] = rawItems.map((it) => ({
       id: it.id, product_id: it.product_id, rate: Number(it.rate || 0), qty: Number(it.qty || 0), uom: it.uom,
     }));
+    const ivMap: Record<string, string[]> = {};
+    const vendorIdSet = new Set<string>();
+    rawItems.forEach((it) => {
+      const vids: string[] = Array.isArray(it.vendor_ids) ? it.vendor_ids.filter(Boolean) : [];
+      ivMap[it.id] = vids;
+      vids.forEach((v) => vendorIdSet.add(v));
+    });
+    setItemVendorMap(ivMap);
+
     setPoNumber((po as any)?.po_number || "(No PO #)");
     setVendorId((po as any)?.vendor_id || null);
     setSourceType((po as any)?.source_type || null);
@@ -49,6 +61,14 @@ export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUs
       const pmap: Record<string, string> = {};
       (prods || []).forEach((p: any) => { pmap[p.id] = p.name; });
       setProducts(pmap);
+    }
+
+    const vendorIds = [...vendorIdSet];
+    if (vendorIds.length) {
+      const { data: vs } = await supabase.from("vendors").select("id, name").in("id", vendorIds);
+      setPoVendors((vs || []).map((v: any) => ({ id: v.id, name: v.name })));
+    } else {
+      setPoVendors([]);
     }
 
     const { data: grns } = await supabase
@@ -71,19 +91,23 @@ export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUs
 
   if (!open || !ready) return null;
 
+  const isTransfer = sourceType === "internal_transfer";
+
   return (
     <GRNForm
       open={open}
       onOpenChange={onOpenChange}
       poId={poId}
       poNumber={poNumber}
-      vendorId={sourceType === "internal_transfer" ? null : vendorId}
+      vendorId={isTransfer ? null : vendorId}
       sourceType={sourceType}
-      transferFromSiteName={sourceType === "internal_transfer" ? transferFromName : undefined}
+      transferFromSiteName={isTransfer ? transferFromName : undefined}
       items={items}
       alreadyReceived={received}
       productName={productName}
       createdBy={currentUserId}
+      poVendors={isTransfer ? undefined : poVendors}
+      itemVendorMap={isTransfer ? undefined : itemVendorMap}
       onSaved={() => { onSaved?.(); }}
     />
   );
