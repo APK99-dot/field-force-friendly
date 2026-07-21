@@ -1532,13 +1532,31 @@ export default function ProcurementDetail({
                                     s === "reopened" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300" :
                                     s === "draft" ? "bg-muted text-muted-foreground border-border" :
                                     "bg-muted text-muted-foreground border-border";
+                                  const canOverride = poUnlocked && isAdmin && !!row.vendor_id;
                                   const canReopen = poUnlocked && !!row.vendor_id && (s === "submitted" || s === "changes_requested");
                                   return (
                                     <div className="flex items-center gap-1.5">
-                                      <span className={`inline-flex items-center rounded border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap ${cls}`}>
-                                        {label}
-                                      </span>
-                                      {canReopen && (
+                                      {canOverride ? (
+                                        <Select
+                                          value={s || undefined}
+                                          onValueChange={(v) => setVendorQuoteStatus(row, v)}
+                                        >
+                                          <SelectTrigger className={`h-7 w-[160px] text-[11px] px-2 ${cls}`}>
+                                            <SelectValue placeholder="Set status">{label}</SelectValue>
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="draft">Draft</SelectItem>
+                                            <SelectItem value="submitted">Quote Submitted</SelectItem>
+                                            <SelectItem value="changes_requested">T&C Changes Requested</SelectItem>
+                                            <SelectItem value="reopened">Reopened</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      ) : (
+                                        <span className={`inline-flex items-center rounded border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap ${cls}`}>
+                                          {label}
+                                        </span>
+                                      )}
+                                      {!canOverride && canReopen && (
                                         <Button
                                           type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px]"
                                           onClick={() => setVendorQuoteStatus(row, "reopened")}
