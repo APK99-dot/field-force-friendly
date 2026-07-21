@@ -27,19 +27,26 @@ export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUs
     setReady(false);
     const { data: po } = await supabase
       .from("procurement_orders")
-      .select("po_number, vendor_id, source_type, transfer_from_site_id, procurement_items(id, product_id, rate, qty, uom, vendor_ids)")
+      .select("po_number, vendor_id, source_type, transfer_from_site_id, procurement_items(id, product_id, rate, qty, uom, vendor_ids, rate_source, rate_source_vendor_id)")
       .eq("id", poId)
       .single();
     const rawItems = ((po as any)?.procurement_items || []) as any[];
     const its: POItem[] = rawItems.map((it) => ({
       id: it.id, product_id: it.product_id, rate: Number(it.rate || 0), qty: Number(it.qty || 0), uom: it.uom,
     }));
+    // "Selected/finalized" vendor for a line = the vendor whose quote (or adjusted quote)
+    // was picked as the winner. Fall back to the sole assigned vendor when no winner
+    // has been explicitly selected yet.
     const ivMap: Record<string, string[]> = {};
-    const vendorIdSet = new Set<string>();
+    const finalizedVendorSet = new Set<string>();
     rawItems.forEach((it) => {
-      const vids: string[] = Array.isArray(it.vendor_ids) ? it.vendor_ids.filter(Boolean) : [];
-      ivMap[it.id] = vids;
-      vids.forEach((v) => vendorIdSet.add(v));
+      const assigned: string[] = Array.isArray(it.vendor_ids) ? it.vendor_ids.filter(Boolean) : [];
+      const winner = (it.rate_source === "quote" || it.rate_source === "manual_adjusted")
+        ? it.rate_source_vendor_id
+        : null;
+      const finalized = winner ? [winner] : (assigned.length === 1 ? assigned : []);
+      ivMap[it.id] = finalized;
+      finalized.forEach((v) => finalizedVendorSet.add(v));
     });
     setItemVendorMap(ivMap);
 
