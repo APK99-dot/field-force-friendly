@@ -1619,6 +1619,87 @@ export default function ProcurementDetail({
                                       )}
                                     </div>
                                   )}
+
+                                  {/* Vendor-scoped Goods Receipts & Invoices */}
+                                  {!isTransfer && row.vendor_id && (() => {
+                                    const vid = row.vendor_id;
+                                    const vGrns = grns.filter((g) => g.vendor_id === vid);
+                                    const vInvs = invoices.filter((i) => i.vendor_id === vid);
+                                    const hasGrn = vGrns.length > 0;
+                                    return (
+                                      <div className="border-t pt-2 space-y-2">
+                                        <div>
+                                          <div className="flex items-center justify-between mb-1">
+                                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Truck className="h-3 w-3" />Goods Receipts</div>
+                                            {canReceive && (
+                                              <Button
+                                                size="sm" variant="outline" className="h-6 text-[11px]"
+                                                onClick={() => { setScopedVendorId(vid); setGrnVendorId(vid); setGrnOpen(true); }}
+                                              >
+                                                <Plus className="h-3 w-3 mr-1" />Receive Goods
+                                              </Button>
+                                            )}
+                                          </div>
+                                          {vGrns.length === 0 ? (
+                                            <p className="text-[11px] text-muted-foreground">No goods received from this vendor yet.</p>
+                                          ) : (
+                                            <div className="border rounded divide-y bg-background">
+                                              {vGrns.map((g) => (
+                                                <div
+                                                  key={g.id} role="button" tabIndex={0}
+                                                  onClick={() => setSelectedGrn(g)}
+                                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedGrn(g); } }}
+                                                  className="flex items-center justify-between px-2 py-1 text-[11px] cursor-pointer hover:bg-muted/60"
+                                                >
+                                                  <div>
+                                                    <div className="font-medium">{g.grn_number}</div>
+                                                    <div className="text-[10px] text-muted-foreground">{g.receipt_date}{g.received_by ? ` · ${g.received_by}` : ""}</div>
+                                                  </div>
+                                                  <Badge variant="outline" className={`text-[10px] ${statusColor(g.status)}`}>{g.status}</Badge>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div>
+                                          <div className="flex items-center justify-between mb-1">
+                                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><FileText className="h-3 w-3" />Invoices</div>
+                                            {canInvoice && hasGrn && (
+                                              <Button
+                                                size="sm" variant="outline" className="h-6 text-[11px]"
+                                                onClick={() => { setScopedVendorId(vid); setInvVendorId(vid); setInvOpen(true); }}
+                                              >
+                                                <Plus className="h-3 w-3 mr-1" />Add Invoice
+                                              </Button>
+                                            )}
+                                          </div>
+                                          {!hasGrn ? (
+                                            <p className="text-[11px] text-muted-foreground">Receive goods first — invoices can be added after the first GRN.</p>
+                                          ) : vInvs.length === 0 ? (
+                                            <p className="text-[11px] text-muted-foreground">No invoices for this vendor yet.</p>
+                                          ) : (
+                                            <div className="border rounded divide-y bg-background">
+                                              {vInvs.map((i) => (
+                                                <div
+                                                  key={i.id} role="button" tabIndex={0}
+                                                  onClick={() => setSelectedInvoiceId(i.id)}
+                                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedInvoiceId(i.id); } }}
+                                                  className="flex items-center justify-between px-2 py-1 text-[11px] cursor-pointer hover:bg-muted/60"
+                                                >
+                                                  <div>
+                                                    <div className="font-medium">{i.invoice_number}</div>
+                                                    <div className="text-[10px] text-muted-foreground">{i.invoice_date}</div>
+                                                  </div>
+                                                  <div className="font-medium">{fmtAmt(i.invoice_amount)}</div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+
                                 </td>
                               </tr>
                             )}
