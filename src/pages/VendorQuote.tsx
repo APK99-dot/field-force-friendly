@@ -237,7 +237,7 @@ export default function VendorQuote() {
         vendor_payment_term: paymentTerm,
         notes,
         mode,
-        terms_accepted: mode === "accept" && terms.length > 0 && allTermsAnswered,
+        terms_accepted: mode === "accept" && terms.length > 0 && allAccepted,
         change_request_notes: changeNotes,
         attachments,
         term_responses: responsesList,
