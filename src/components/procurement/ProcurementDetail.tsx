@@ -1794,12 +1794,11 @@ export default function ProcurementDetail({
                           </div>
                           <div>
                             <Label className="text-[10px] text-muted-foreground">Rate</Label>
-                            <Input
-                              type="number" inputMode="decimal" value={l.rate} placeholder="0" className="h-8"
-                              disabled={!poUnlocked || ratesLocked}
-                              onChange={(e) => setLineRate(l.id, e.target.value)}
-                            />
+                            <div className="h-8 flex items-center text-sm" title="Auto-populated from the selected vendor's quote">
+                              {parseFloat(l.rate) > 0 ? fmtAmt(parseFloat(l.rate)) : <span className="text-muted-foreground">—</span>}
+                            </div>
                           </div>
+
                           <div>
                             <Label className="text-[10px] text-muted-foreground">Amount</Label>
                             <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
