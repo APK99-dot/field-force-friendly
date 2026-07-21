@@ -868,9 +868,18 @@ export default function ProcurementDetail({
     const allLinesHaveRate = persistedItems.length > 0 && persistedItems.every((it) => Number(it.rate || 0) > 0);
     const anyFullyReceived = grns.some((g) => g.status === "Fully Received");
     const hasInvoice = invoices.length > 0;
-    const invoicedTotal = invoices.reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
-    const paidTotal = invPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
-    const fullyPaid = hasInvoice && invoicedTotal > 0 && paidTotal >= invoicedTotal - 0.01;
+
+    // ---- Per-vendor aggregation for GRN / Invoice / Payment stages -----
+    // These stages only advance when ALL finalized vendors have reached the
+    // corresponding lifecycle rank. If vendors are in mixed states, surface
+    // a "Partially ..." rollup instead of the fully-completed stage.
+    const finalizedVids = finalizedVendorIds;
+    const lifecycles = finalizedVids.map((vid) => vendorLifecycleMap[vid] || "PO Issued");
+    const hasAnyLifecycle = lifecycles.length > 0;
+    const rankOf = (s: VendorLifecycle) => LIFECYCLE_RANK[s];
+    const minRank = hasAnyLifecycle ? Math.min(...lifecycles.map(rankOf)) : -1;
+    const anyRank = (min: number) => hasAnyLifecycle && lifecycles.some((s) => rankOf(s) >= min);
+    const allRank = (min: number) => hasAnyLifecycle && lifecycles.every((s) => rankOf(s) >= min);
 
     type Cand = { stage: ProcStatus; note: string; actorName?: string };
     const cands: Cand[] = [];
@@ -878,7 +887,6 @@ export default function ProcurementDetail({
       cands.push({ stage: "Quote Requested", note: "Quote link generated" });
     }
     if (lineHasRate) {
-      // Prefer to attribute to a vendor if a persisted rate was sourced from a quote
       const sourced = persistedItems.find((it) => it.rate_source === "quote" && it.rate_source_vendor_id && Number(it.rate || 0) > 0);
       if (sourced && sourced.rate_source_vendor_id) {
         const vname = vendorName(sourced.rate_source_vendor_id) || "Vendor";
@@ -890,15 +898,29 @@ export default function ProcurementDetail({
     if (allLinesHaveRate && hasAssignedVendors) {
       cands.push({ stage: "PO Issued", note: "All line rates finalized" });
     }
-    if (anyFullyReceived) {
+    // GRN aggregation
+    if (allRank(LIFECYCLE_RANK["Fully Received"])) {
+      cands.push({ stage: "Goods Received", note: "All vendors fully received" });
+    } else if (anyRank(LIFECYCLE_RANK["Partially Received"]) && minRank < LIFECYCLE_RANK["Fully Received"]) {
+      cands.push({ stage: "Partially Received" as ProcStatus, note: "Some vendors received; others pending" });
+    } else if (anyFullyReceived && !hasAnyLifecycle) {
       cands.push({ stage: "Goods Received", note: "GRN marked Fully Received" });
     }
-    if (hasInvoice) {
+    // Invoice aggregation
+    if (allRank(LIFECYCLE_RANK["Fully Invoiced"])) {
+      cands.push({ stage: "Invoice Received", note: "All vendors fully invoiced" });
+    } else if (anyRank(LIFECYCLE_RANK["Partially Invoiced"]) && !allRank(LIFECYCLE_RANK["Fully Invoiced"])) {
+      cands.push({ stage: "Partially Invoiced" as ProcStatus, note: "Some vendor invoices pending" });
+    } else if (hasInvoice && !hasAnyLifecycle) {
       cands.push({ stage: "Invoice Received", note: "Invoice recorded" });
     }
-    if (fullyPaid) {
-      cands.push({ stage: "Paid", note: "Payment covers invoice total" });
+    // Payment aggregation
+    if (allRank(LIFECYCLE_RANK["Paid"])) {
+      cands.push({ stage: "Paid", note: "All vendor invoices paid in full" });
+    } else if (anyRank(LIFECYCLE_RANK["Partially Paid"]) && !allRank(LIFECYCLE_RANK["Paid"])) {
+      cands.push({ stage: "Partially Paid" as ProcStatus, note: "Some vendor invoices still have a balance" });
     }
+
 
     // Pick the furthest satisfied stage that is strictly ahead of current.
     let best: Cand | null = null;
