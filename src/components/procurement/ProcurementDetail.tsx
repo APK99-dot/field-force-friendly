@@ -199,6 +199,7 @@ export default function ProcurementDetail({
   const [vendorPickerFor, setVendorPickerFor] = useState<string | null>(null);
   const [vendorSearch, setVendorSearch] = useState("");
   const [expandedVendorRow, setExpandedVendorRow] = useState<string | null>(null);
+  const [showAllLines, setShowAllLines] = useState(false);
   // Vendor picker for GRN / Invoice creation (which vendor is this receipt / bill for?)
   const [grnVendorId, setGrnVendorId] = useState<string | null>(null);
   const [invVendorId, setInvVendorId] = useState<string | null>(null);
