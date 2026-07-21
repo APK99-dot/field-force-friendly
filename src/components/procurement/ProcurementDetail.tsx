@@ -922,16 +922,26 @@ export default function ProcurementDetail({
     }
 
 
-    // Pick the furthest satisfied stage that is strictly ahead of current.
+    // Extended flow that includes partial rollups. Higher index = further along.
+    const EXT_FLOW: string[] = [
+      "Requisition", "Requisition Approved", "Quote Requested", "Quote Received",
+      "PO Issued",
+      "Partially Received", "Goods Received",
+      "Partially Invoiced", "Invoice Received",
+      "Partially Paid", "Paid",
+      "Closed",
+    ];
+    const curExtIdx = EXT_FLOW.indexOf(order.status);
+    // Pick the furthest satisfied stage that differs from current.
     let best: Cand | null = null;
-    let bestIdx = curIdx;
+    let bestIdx = curExtIdx < 0 ? curIdx : curExtIdx;
     for (const c of cands) {
-      const idx = STATUS_FLOW.indexOf(c.stage);
+      const idx = EXT_FLOW.indexOf(c.stage);
       if (idx > bestIdx) { best = c; bestIdx = idx; }
     }
     if (!best) return null;
     return { target: best.stage, note: best.note, actorName: best.actorName };
-  }, [isTransfer, order.status, order.procurement_items, vendorAssignments, vendorQuotes, grns, invoices, invPayments, vendorName]);
+  }, [isTransfer, order.status, order.procurement_items, vendorAssignments, vendorQuotes, grns, invoices, invPayments, vendorName, finalizedVendorIds, vendorLifecycleMap]);
 
   useEffect(() => {
     if (!open) return;
