@@ -23,6 +23,12 @@ const AttachmentSchema = z.object({
   type: z.string().max(200),
 });
 
+const TermResponseSchema = z.object({
+  term: z.string().max(2000),
+  response: z.enum(["accept", "change"]),
+  comment: z.string().max(2000).optional().default(""),
+});
+
 const BodySchema = z.object({
   token: z.string().min(8).max(128),
   vendor_payment_term: z.string().max(500).optional().default(""),
@@ -31,6 +37,7 @@ const BodySchema = z.object({
   terms_accepted: z.boolean().optional().default(false),
   change_request_notes: z.string().max(2000).optional().default(""),
   attachments: z.array(AttachmentSchema).max(20).optional().default([]),
+  term_responses: z.array(TermResponseSchema).max(100).optional().default([]),
   items: z.array(ItemSchema).max(500),
 });
 
