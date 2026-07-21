@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     }
     const {
       token, vendor_payment_term, notes, mode, terms_accepted,
-      change_request_notes, attachments, items,
+      change_request_notes, attachments, term_responses, items,
     } = parsed.data;
 
     const { data: quote, error: qErr } = await supabase
@@ -72,8 +72,13 @@ Deno.serve(async (req) => {
       return json({ error: "This quote has already been submitted. Ask the buyer to reopen it if changes are needed." }, 409);
     }
 
-    if (mode === "accept" && !terms_accepted) {
-      return json({ error: "You must accept the Terms & Conditions before submitting." }, 400);
+    // Per-term validation for accept mode: every "change" needs a comment.
+    if (mode === "accept") {
+      for (const t of term_responses) {
+        if (t.response === "change" && !(t.comment || "").trim()) {
+          return json({ error: "Please add a comment for every term where you requested a change." }, 400);
+        }
+      }
     }
     if (mode === "request_changes" && !change_request_notes.trim()) {
       return json({ error: "Please describe the changes you are requesting." }, 400);
