@@ -1798,6 +1798,16 @@ export default function ProcurementDetail({
                   </div>
                 );
               })}
+              {hiddenCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllLines((s) => !s)}
+                  className="w-full flex items-center justify-center gap-1 rounded-md border border-dashed py-1.5 text-xs text-muted-foreground hover:bg-muted/50"
+                >
+                  {showAllLines ? (<><ChevronUp className="h-3.5 w-3.5" />Show less</>) : (<><ChevronDown className="h-3.5 w-3.5" />Show {hiddenCount} more item{hiddenCount > 1 ? "s" : ""}</>)}
+                </button>
+              )}
+              </>); })()}
               {!isTransfer && (
                 <div className="flex items-center justify-between pt-2 font-semibold">
                   <span>Grand Total</span><span className="text-primary">{fmtAmt(poUnlocked ? poEditTotal : order.total_amount)}</span>
