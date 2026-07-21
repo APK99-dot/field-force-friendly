@@ -105,6 +105,7 @@ interface VendorQuoteRow {
   procurement_item_ids?: string[] | null;
   change_request_notes?: string | null;
   attachments?: { name: string; url: string; size: number; type: string }[] | null;
+  term_responses?: { term: string; response: "accept" | "change"; comment: string }[] | null;
   procurement_vendor_quote_items?: VendorQuoteItemRow[];
 }
 
@@ -876,7 +877,7 @@ export default function ProcurementDetail({
   const loadVendorQuotes = useCallback(async () => {
     const { data } = await supabase
       .from("procurement_vendor_quotes")
-      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, first_submitted_at, last_resubmitted_at, reopened_at, procurement_item_ids, change_request_notes, attachments, procurement_vendor_quote_items(*)")
+      .select("id, vendor_id, token, status, vendor_payment_term, notes, submitted_at, first_submitted_at, last_resubmitted_at, reopened_at, procurement_item_ids, change_request_notes, attachments, term_responses, procurement_vendor_quote_items(*)")
       .eq("po_id", order.id);
     setVendorQuotes((data || []) as unknown as VendorQuoteRow[]);
   }, [order.id]);
@@ -1729,6 +1730,37 @@ export default function ProcurementDetail({
                     )}
                   </div>
                 ))}
+
+                {/* Per-term T&C responses surfaced from submitted quotes */}
+                {vendorQuotes
+                  .filter((q) => Array.isArray(q.term_responses) && (q.term_responses || []).length > 0)
+                  .map((q) => {
+                    const responses = q.term_responses || [];
+                    const changes = responses.filter((r) => r.response === "change");
+                    if (changes.length === 0) return null;
+                    return (
+                      <div key={`tr-${q.id}`} className="rounded-md border border-amber-300 bg-amber-50/60 dark:bg-amber-900/10 p-2 text-[11px] space-y-1.5">
+                        <p className="font-medium text-amber-800 dark:text-amber-300">
+                          {vendorName(q.vendor_id || "")} requested changes on {changes.length} of {responses.length} terms
+                        </p>
+                        <ul className="space-y-1.5">
+                          {responses.map((r, i) => (
+                            <li key={i} className="flex gap-2">
+                              <span className={`shrink-0 mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ${r.response === "accept" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" : "bg-amber-200 text-amber-900 dark:bg-amber-800/60 dark:text-amber-100"}`}>
+                                {r.response === "accept" ? "Accepted" : "Change"}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="text-foreground/80 whitespace-pre-line"><span className="text-muted-foreground">{i + 1}.</span> {r.term}</div>
+                                {r.response === "change" && r.comment && (
+                                  <div className="mt-0.5 text-amber-900/90 dark:text-amber-100/90 whitespace-pre-line"><span className="font-medium">Vendor:</span> {r.comment}</div>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
               </CardContent>
             </Card>
           )}

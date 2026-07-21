@@ -1,0 +1,1 @@
+ALTER TABLE public.procurement_vendor_quotes ADD COLUMN IF NOT EXISTS term_responses jsonb NOT NULL DEFAULT '[]'::jsonb;

@@ -44,6 +44,7 @@ interface QuoteData {
   attachments: Attachment[];
   terms_and_conditions: string[];
   terms_accepted_at: string | null;
+  term_responses: { term: string; response: "accept" | "change"; comment: string }[];
   requisition: {
     title: string;
     po_number: string | null;
@@ -90,7 +91,7 @@ export default function VendorQuote() {
   const [rows, setRows] = useState<LineItem[]>([]);
   const [paymentTerm, setPaymentTerm] = useState("");
   const [notes, setNotes] = useState("");
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termResponses, setTermResponses] = useState<Record<number, { response: "accept" | "change" | ""; comment: string }>>({});
   const [changeMode, setChangeMode] = useState(false);
   const [changeNotes, setChangeNotes] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -117,6 +118,7 @@ export default function VendorQuote() {
             terms_and_conditions: Array.isArray(body.terms_and_conditions) ? body.terms_and_conditions : [],
             change_request_notes: body.change_request_notes || "",
             terms_accepted_at: body.terms_accepted_at || null,
+            term_responses: Array.isArray(body.term_responses) ? body.term_responses : [],
             items: Array.isArray(body.items) ? body.items : [],
           };
           setData(safe);
@@ -125,9 +127,16 @@ export default function VendorQuote() {
           setNotes(safe.notes || "");
           setAttachments(safe.attachments);
           setChangeNotes(safe.change_request_notes);
-            setSubmitted(safe.status === "submitted" || safe.status === "changes_requested");
-            // note: 'reopened' is intentionally editable — treat like draft.
-          if (safe.terms_accepted_at) setTermsAccepted(true);
+          setSubmitted(safe.status === "submitted" || safe.status === "changes_requested");
+          // Seed per-term responses. Fall back to accept if the quote was previously fully accepted.
+          const seeded: Record<number, { response: "accept" | "change" | ""; comment: string }> = {};
+          (safe.terms_and_conditions as string[]).forEach((term, i) => {
+            const saved = (safe.term_responses as any[]).find((r) => r.term === term);
+            if (saved) seeded[i] = { response: saved.response, comment: saved.comment || "" };
+            else if (safe.terms_accepted_at) seeded[i] = { response: "accept", comment: "" };
+            else seeded[i] = { response: "", comment: "" };
+          });
+          setTermResponses(seeded);
         }
       } catch {
         if (active) setError("Unable to load this quote. Please check your link.");
@@ -188,13 +197,26 @@ export default function VendorQuote() {
   const removeAttachment = (idx: number) => setAttachments((prev) => prev.filter((_, i) => i !== idx));
 
   const send = async (mode: "draft" | "accept" | "request_changes") => {
+    const terms = data?.terms_and_conditions || [];
+    const responsesList = terms.map((term, i) => ({
+      term,
+      response: (termResponses[i]?.response || "accept") as "accept" | "change",
+      comment: (termResponses[i]?.comment || "").trim(),
+    }));
+    const allTermsAnswered = terms.every((_, i) => termResponses[i]?.response === "accept" || termResponses[i]?.response === "change");
+    const anyMissingComment = responsesList.some((r) => r.response === "change" && !r.comment);
+
     if (mode === "accept") {
       if (!paymentTerm.trim()) {
         toast.error("Please enter your Vendor Payment Terms before submitting.");
         return;
       }
-      if (hasTerms && !termsAccepted) {
-        toast.error("Please accept the Terms & Conditions to submit.");
+      if (terms.length && !allTermsAnswered) {
+        toast.error("Please respond (Accept or Request Change) to every Term & Condition.");
+        return;
+      }
+      if (anyMissingComment) {
+        toast.error("Please add a comment for every term where you requested a change.");
         return;
       }
       if (rows.some((r) => !r.rate || Number(r.rate) <= 0)) {
@@ -213,9 +235,10 @@ export default function VendorQuote() {
         vendor_payment_term: paymentTerm,
         notes,
         mode,
-        terms_accepted: termsAccepted,
+        terms_accepted: mode === "accept" && terms.length > 0 && allTermsAnswered,
         change_request_notes: changeNotes,
         attachments,
+        term_responses: responsesList,
         items: rows.map((r) => ({
           procurement_item_id: r.procurement_item_id,
           rate: Number(r.rate) || 0,
@@ -286,7 +309,9 @@ export default function VendorQuote() {
   const { requisition: req, vendor, company, terms_and_conditions } = data;
   const readOnly = submitted;
   const hasTerms = terms_and_conditions.length > 0;
-  const acceptDisabled = readOnly || saving || !paymentTerm.trim() || (hasTerms && !termsAccepted);
+  const allTermsAnswered = terms_and_conditions.every((_, i) => termResponses[i]?.response === "accept" || termResponses[i]?.response === "change");
+  const anyChangeMissingComment = terms_and_conditions.some((_, i) => termResponses[i]?.response === "change" && !(termResponses[i]?.comment || "").trim());
+  const acceptDisabled = readOnly || saving || !paymentTerm.trim() || (hasTerms && (!allTermsAnswered || anyChangeMissingComment));
 
   // Success screen — shown once vendor has submitted their quote.
   if (submitted && data.status === "submitted") {
@@ -551,22 +576,73 @@ export default function VendorQuote() {
             )}
           </div>
 
-          {/* Terms & Conditions */}
+          {/* Terms & Conditions — per-term response */}
           {hasTerms && (
-            <div className="space-y-2 rounded-lg border p-3 bg-muted/10">
-              <div className="text-sm font-semibold">Terms &amp; Conditions</div>
-              <ol className="list-decimal pl-5 space-y-1 text-sm text-muted-foreground">
-                {terms_and_conditions.map((t, i) => <li key={i}>{t}</li>)}
-              </ol>
-              <label className="flex items-start gap-2 pt-2 text-sm cursor-pointer">
-                <Checkbox
-                  checked={termsAccepted}
-                  disabled={readOnly}
-                  onCheckedChange={(v) => setTermsAccepted(!!v)}
-                  className="mt-0.5"
-                />
-                <span>I accept the Terms &amp; Conditions above</span>
-              </label>
+            <div className="space-y-3 rounded-lg border p-3 bg-muted/10">
+              <div>
+                <div className="text-sm font-semibold">Terms &amp; Conditions</div>
+                <p className="text-xs text-muted-foreground">
+                  Respond to each term individually. Select <span className="font-medium">Accept</span> or{" "}
+                  <span className="font-medium">Request Change</span>. Add a comment for every change request.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {terms_and_conditions.map((t, i) => {
+                  const resp = termResponses[i]?.response || "";
+                  const cmt = termResponses[i]?.comment || "";
+                  const setResp = (r: "accept" | "change") =>
+                    setTermResponses((prev) => ({ ...prev, [i]: { response: r, comment: prev[i]?.comment || "" } }));
+                  const setCmt = (v: string) =>
+                    setTermResponses((prev) => ({ ...prev, [i]: { response: prev[i]?.response || "", comment: v } }));
+                  return (
+                    <div key={i} className="rounded-md border bg-background p-2.5 space-y-2">
+                      <div className="flex gap-2 text-sm">
+                        <span className="font-medium text-muted-foreground shrink-0">{i + 1}.</span>
+                        <span className="whitespace-pre-line">{t}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 pl-5">
+                        <label className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border cursor-pointer transition ${resp === "accept" ? "bg-emerald-50 border-emerald-400 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" : "hover:bg-muted"}`}>
+                          <input
+                            type="radio"
+                            name={`term-${i}`}
+                            className="h-3.5 w-3.5"
+                            checked={resp === "accept"}
+                            disabled={readOnly}
+                            onChange={() => setResp("accept")}
+                          />
+                          Accept
+                        </label>
+                        <label className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border cursor-pointer transition ${resp === "change" ? "bg-amber-50 border-amber-400 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" : "hover:bg-muted"}`}>
+                          <input
+                            type="radio"
+                            name={`term-${i}`}
+                            className="h-3.5 w-3.5"
+                            checked={resp === "change"}
+                            disabled={readOnly}
+                            onChange={() => setResp("change")}
+                          />
+                          Request Change
+                        </label>
+                      </div>
+                      {resp === "change" && (
+                        <div className="pl-5 space-y-1">
+                          <Label className="text-xs">Requested change <span className="text-destructive">*</span></Label>
+                          <Textarea
+                            rows={2}
+                            value={cmt}
+                            disabled={readOnly}
+                            onChange={(e) => setCmt(e.target.value)}
+                            placeholder="Describe the modification you're requesting for this term"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {!readOnly && hasTerms && !allTermsAnswered && (
+                <p className="text-xs text-amber-700 dark:text-amber-400">Please respond to every term before submitting.</p>
+              )}
             </div>
           )}
 

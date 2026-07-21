@@ -23,6 +23,12 @@ const AttachmentSchema = z.object({
   type: z.string().max(200),
 });
 
+const TermResponseSchema = z.object({
+  term: z.string().max(2000),
+  response: z.enum(["accept", "change"]),
+  comment: z.string().max(2000).optional().default(""),
+});
+
 const BodySchema = z.object({
   token: z.string().min(8).max(128),
   vendor_payment_term: z.string().max(500).optional().default(""),
@@ -31,6 +37,7 @@ const BodySchema = z.object({
   terms_accepted: z.boolean().optional().default(false),
   change_request_notes: z.string().max(2000).optional().default(""),
   attachments: z.array(AttachmentSchema).max(20).optional().default([]),
+  term_responses: z.array(TermResponseSchema).max(100).optional().default([]),
   items: z.array(ItemSchema).max(500),
 });
 
@@ -50,7 +57,7 @@ Deno.serve(async (req) => {
     }
     const {
       token, vendor_payment_term, notes, mode, terms_accepted,
-      change_request_notes, attachments, items,
+      change_request_notes, attachments, term_responses, items,
     } = parsed.data;
 
     const { data: quote, error: qErr } = await supabase
@@ -65,8 +72,13 @@ Deno.serve(async (req) => {
       return json({ error: "This quote has already been submitted. Ask the buyer to reopen it if changes are needed." }, 409);
     }
 
-    if (mode === "accept" && !terms_accepted) {
-      return json({ error: "You must accept the Terms & Conditions before submitting." }, 400);
+    // Per-term validation for accept mode: every "change" needs a comment.
+    if (mode === "accept") {
+      for (const t of term_responses) {
+        if (t.response === "change" && !(t.comment || "").trim()) {
+          return json({ error: "Please add a comment for every term where you requested a change." }, 400);
+        }
+      }
     }
     if (mode === "request_changes" && !change_request_notes.trim()) {
       return json({ error: "Please describe the changes you are requesting." }, 400);
@@ -102,6 +114,7 @@ Deno.serve(async (req) => {
       vendor_payment_term,
       notes,
       attachments,
+      term_responses,
     };
     if (mode === "accept") {
       const nowIso = new Date().toISOString();
