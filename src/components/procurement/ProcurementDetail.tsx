@@ -1854,72 +1854,14 @@ export default function ProcurementDetail({
 
           {/* Vendor financials are now inlined inside the Assign Vendors table (row expand). */}
 
-          {/* Vendor-centric workflow: click a selected vendor to Receive Goods / Add Invoice.
-              Replaces the old separate GRN and Invoice sections. */}
-          {!isTransfer && finalizedVendorIds.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Truck className="h-4 w-4" />Vendors — Deliveries & Billing
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-[11px] text-muted-foreground">
-                  Click a vendor to receive goods or add an invoice for them.
-                </p>
-                {finalizedVendorIds.map((vid) => {
-                  const vGrns = grns.filter((g) => g.vendor_id === vid);
-                  const vInvs = invoices.filter((i) => i.vendor_id === vid);
-                  const hasGrn = vGrns.length > 0;
-                  const openWorkflow = () => {
-                    setScopedVendorId(vid);
-                    if (!hasGrn && canReceive) {
-                      // Skip the workflow dialog — jump straight to Receive Goods.
-                      setGrnVendorId(vid);
-                      setGrnOpen(true);
-                    } else {
-                      setWorkflowVendorId(vid);
-                    }
-                  };
-                  return (
-                    <div
-                      key={vid}
-                      role="button"
-                      tabIndex={0}
-                      onClick={openWorkflow}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openWorkflow(); } }}
-                      className="flex items-center justify-between gap-2 border rounded-md px-3 py-2 cursor-pointer hover:bg-muted/60 transition-colors"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-medium text-sm truncate">{vendorName(vid)}</div>
-                        <div className="text-[11px] text-muted-foreground">
-                          {hasGrn
-                            ? `${vGrns.length} receipt${vGrns.length > 1 ? "s" : ""} · ${vInvs.length} invoice${vInvs.length === 1 ? "" : "s"}`
-                            : "No goods received yet"}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {!hasGrn ? (
-                          <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                            Receive Goods
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px]">Open workflow</Badge>
-                        )}
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    </div>
-                  );
-                })}
-                {order.status === "Invoice Received" && (
-                  <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-3 py-2 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
-                    <span className="font-semibold">Awaiting payment —</span>
-                    <span>record a payment against an invoice to mark this PO as <strong>Paid</strong>. Adding another invoice will not advance the stage.</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {/* Vendor GRN / Invoice actions live inside each vendor's expanded row in "Assign Vendors" above. */}
+          {!isTransfer && order.status === "Invoice Received" && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-3 py-2 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+              <span className="font-semibold">Awaiting payment —</span>
+              <span>record a payment against an invoice to mark this PO as <strong>Paid</strong>. Adding another invoice will not advance the stage.</span>
+            </div>
           )}
+
 
           {/* Internal transfers still need a simple GRN list (no vendor concept) */}
           {isTransfer && (
