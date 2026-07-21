@@ -1616,16 +1616,11 @@ export default function ProcurementDetail({
                             qStatus === "changes_requested" ? "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300" :
                             qStatus === "reopened" ? "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300" :
                             "bg-muted text-muted-foreground border-border";
-                          // Derived progression pill (highest-applicable)
-                          const progressPill = !isTransfer && row.vendor_id ? (
-                            invoicedTotal > 0 && balanceDue <= 0.005
-                              ? { label: "Paid", cls: "bg-emerald-600 text-white border-emerald-700" }
-                              : invoicedTotal > 0
-                                ? { label: "Invoiced", cls: "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300" }
-                                : hasGrn
-                                  ? { label: "Received", cls: "bg-green-700 text-white border-green-800" }
-                                  : null
-                          ) : null;
+                          // Per-vendor lifecycle pill (independent of PO header status)
+                          const vLifecycle = row.vendor_id ? vendorLifecycleMap[row.vendor_id] : undefined;
+                          const progressPill = !isTransfer && row.vendor_id && vLifecycle
+                            ? { label: vLifecycle, cls: lifecycleColor(vLifecycle) }
+                            : null;
                           const fmtDT = (iso?: string | null) => iso ? new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
                           return (
                             <Fragment key={row.key}>
