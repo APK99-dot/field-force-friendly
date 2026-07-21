@@ -55,12 +55,6 @@ Deno.serve(async (req) => {
 
     const { data: quote, error: qErr } = await supabase
       .from("procurement_vendor_quotes")
-      .select("id, status, po_id, vendor_id")
-      .eq("token", token)
-      .maybeSingle();
-    if (qErr) throw qErr;
-    const { data: quote, error: qErr } = await supabase
-      .from("procurement_vendor_quotes")
       .select("id, status, po_id, vendor_id, first_submitted_at")
       .eq("token", token)
       .maybeSingle();
