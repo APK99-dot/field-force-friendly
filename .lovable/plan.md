@@ -1,74 +1,90 @@
+
 ## Scope
 
-Faithfully port 4 CRM modules — **Customers, Leads, Events, Opportunities** — from `Jovo Automation` (project `eb4a3a70…`) into this project. Purely additive; existing modules (Attendance, GPS, Procurement, Activities, Milestones, Expenses, Reports, Admin, Security, Master Data) are untouched except for minimal nav additions.
+Change is UI/presentation only inside `src/components/procurement/ProcurementDetail.tsx`. No schema, no data-model, no edge-function changes. All existing state, handlers (`setGrnOpen`, `setInvOpen`, `scopedVendorId`, `setSelectedGrn`, `setSelectedInvoiceId`, `vendorSummaries`, `quote`, etc.) are reused.
 
-## Database (new tables in this project)
+## What changes
 
-All in `public`, RLS enabled, GRANT to `authenticated` + `service_role` (Procurement pattern — authenticated users can read/write; admin-managed via existing roles).
+### 1. Vendor row summary badges (collapsed state)
 
-**CRM data**
-- `customers` (name, industry, status, owner_id, primary_contact_id)
-- `customer_contacts` (customer_id, name, title, email, phone, reports_to_id, last_contact_at)
-- `customer_activities` (customer_id, opportunity_id, lead_id, type, subject, notes, activity_date, created_by)
-- `customer_documents` (customer_id, opportunity_id, file_name, file_url, file_size, file_type, uploaded_by)
-- `customer_opportunities` (customer_id, name, type, stage, probability, close_date, amount, owner_id, currency, payment_terms, opportunity_source_id, requirements_highlights, budget_status, authority_role, need_level, timeline, primary_contact_id, stage_changed_at)
-- `opportunity_milestones` (opportunity_id, name, invoice_number, invoice_date, invoice_value, status)
-- `opportunity_quotes` (opportunity_id, name, notes, total, overall_discount_pct, is_synced)
-- `opportunity_quote_items` (quote_id, product_id, product_name, qty, unit_price, start_date, end_date, term_months, discount_pct, total, sort_order)
-- `leads` (all fields from LeadRow — owner, contact info, statuses, SLA dates, conversion tracking, business_card_url)
-- `lead_audit_log` (lead_id, actor_id, event_type, from_value, to_value, notes)
-- `events` (name, event_type_id, budget/actual amount, start/end date, details, expected_end_result, owner_id, customer_id)
+Beside each vendor row (in the "Assign Vendors" table, either in the vendor cell or a new lightweight column), render compact chips derived from existing data:
+- GRN count: `N GRN`
+- Invoice count: `N Invoices`
+- Paid amount: `₹X Paid` (from `finSummary.paid_total`)
+- Balance: `Balance ₹Y` (green if 0, red if > 0)
 
-**CRM master data** (net-new, alongside existing masters — not merged)
-- `master_lead_sources` (name, sort_order, is_active)
-- `master_lead_statuses` (name, color, is_converted_status, sort_order, is_active)
-- `master_event_types` (name, sort_order, is_active)
-- `opportunity_stages` (name, color, sort_order, is_won, is_closed, is_active)
-- `opportunity_types` (name, sort_order, is_active)
+Also add a color-coded quote status pill next to the vendor name (grey/blue/orange/green/dark-green/purple/emerald mapping below).
 
-**RPC**: `convert_lead(_lead_id uuid, _payload jsonb)` — mirrors source (creates customer, primary contact, marks lead converted, logs audit).
+### 2. Expanded panel = accordion "workflow dashboard"
 
-**Storage bucket**: `customer-documents` (private, RLS to authenticated).
+Replace the current flat stack under the expanded row (lines ~1588–1766) with a single scroll-contained container:
 
-Scoring rules stored in existing `app_configuration` under `module='lead_scoring'` / `module='opportunity_scoring'` — no schema changes needed there.
+```text
+[Vendor name] [status pill] [N GRN] [N Invoices] [₹Paid] [Balance]
+──────────────────────────────────────────────────────────────
+Compact timeline:  ✓ Submitted 21/07 14:41  ↺ Reopened 22/07  📝 Changes 22/07
+──────────────────────────────────────────────────────────────
+Accordion (shadcn Accordion, single-open, defaultValue="grns"):
+  ▸ Goods Receipts (N)          [+ Receive Goods]   ← primary, open by default
+  ▸ Invoices (N)                [+ Add Invoice]     ← primary
+  ▸ Financial Summary            (chips + payment schedule)
+  ▸ Quote Details                 (submitted / reopened / attachments / items in scope)
+```
 
-## Frontend files copied (verbatim where possible, adapted only for imports/nav)
+Rules:
+- Accordion items with zero relevant content are hidden entirely (e.g. no attachments → no "attachments" line; no timeline events → no timeline row).
+- The whole expanded panel wraps in `max-h-[75vh] overflow-y-auto`, and each list (GRNs, Invoices, Attachments, Items in scope) uses its own `max-h-40 overflow-y-auto` so long lists scroll inside their subsection rather than blowing the panel out.
+- Vertical spacing tightened (`space-y-2` between accordion items; remove redundant uppercase headings replaced by accordion trigger label).
 
-**Pages** (`src/pages/`): Customers.tsx, CustomerDetail.tsx, Leads.tsx, LeadDetail.tsx, Events.tsx, EventDetail.tsx, Opportunities.tsx, OpportunityDetail.tsx
+### 3. Timeline (replaces "Quote Audit Trail" card)
 
-**Master pages** (`src/pages/master/`): LeadSourcesMaster.tsx, LeadStatusesMaster.tsx, EventTypesMaster.tsx, OpportunityStagesMaster.tsx, OpportunityTypesMaster.tsx, LeadScoringMaster.tsx, OpportunityScoringMaster.tsx
+Single-line horizontal (wraps on mobile) using `first_submitted_at`, `reopened_at`, `last_resubmitted_at`, and presence of `changes_requested` status:
+- `✓ Quote Submitted – dd/MM/yyyy HH:mm`
+- `↺ Reopened – dd/MM/yyyy HH:mm`
+- `📝 T&C Changes Requested – dd/MM/yyyy HH:mm` (uses latest `submitted_at` when status is `changes_requested`)
 
-**Components** (`src/components/customers/`, `src/components/leads/`): all 9 customer + 6 lead components as listed.
+Rendered as small chips with muted background; hidden if no events exist.
 
-**Hooks** (`src/hooks/`): useCustomers.ts, useLeadsEvents.ts, useLeadScoring.ts, useOpportunityMasters.ts, useOpportunityScoring.ts
+### 4. Items in scope truncation
 
-Full features retained: lead scoring, BANT, deal health, SLA tab, business-card scanner (uses existing Lovable AI gateway), convert-lead flow, contact org chart, quotes + line items, milestones with invoicing.
+Under "Quote Details" accordion, replace the current per-item list with:
+- Inline text: `"Item A, Item B +N more"` (first 2 names).
+- `+N more` is a `Popover` trigger showing the full scoped list (name · qty · rate) with `max-h-56 overflow-y-auto`.
+- If ≤ 2 items, render all inline without popover.
 
-## Minimal shared-file changes (nav only)
+### 5. Color-coded status mapping (single helper)
 
-- `src/App.tsx`: add 8 new lazy routes (`/customers`, `/customers/:id`, `/leads`, `/leads/:id`, `/events`, `/events/:id`, `/opportunities`, `/opportunities/:id`) + 7 master routes. No other route changes.
-- `src/pages/MasterData.tsx`: append 5 new master-data cards (Lead Sources, Lead Statuses, Event Types, Opportunity Stages, Opportunity Types). Existing cards unchanged.
-- `src/config/appModules.ts`: add `module_crm` entry (or 4 separate module keys, matching source's pattern) for permission gating.
-- Side navigation (`AppHeader` drawer): add 4 nav items — Customers, Leads, Events, Opportunities — gated by the new module key(s). No reordering of existing items.
+Add a small local helper `quoteStatusStyle(s)` used by both the collapsed row pill and expanded header:
+- `draft` → grey (`bg-muted text-muted-foreground border-border`)
+- `reopened` → blue (`bg-blue-100 text-blue-700 border-blue-300` + dark variants)
+- `changes_requested` → orange (`bg-orange-100 text-orange-700 border-orange-300`)
+- `submitted` → green (`bg-emerald-100 text-emerald-700 border-emerald-300`)
+- Derived per-vendor PO progression pill (shown next to the summary badges):
+  - Fully received (all scoped GRNs reconcile qty for this vendor) → dark green
+  - Any invoice exists → purple
+  - Fully paid (balance == 0 and invoiced > 0) → emerald
+  These are additive; only the "highest" applicable one is shown.
 
-No changes to BottomNav, Dashboard, Procurement, Activities, or any other page.
+### 6. GRN / Invoice sections stay actionable but compact
 
-## Assumptions (flag if wrong)
+Keep existing GRN and Invoice rendering logic and click-through to `setSelectedGrn` / `setSelectedInvoiceId`, but:
+- Move `Receive Goods` button into the Goods Receipts accordion trigger row (right-aligned).
+- Move `Add Invoice` button into the Invoices accordion trigger row (disabled with tooltip "Receive goods first" when `!hasGrn`).
+- Row density reduced (`py-1 text-[11px]`), status badge on GRN reuses `statusColor(g.status)`.
 
-1. **RLS**: use the Procurement/Activities pattern — any authenticated user can read/write CRM records; no per-user ownership restriction. If you want stricter (owner-only edit), say so.
-2. **Nav gating**: single new `module_crm` permission covering all 4 pages, mirroring how "module_procurement" gates all procurement UI. Alternative: 4 separate module keys.
-3. **Business-card scanner** in source likely uses Lovable AI Gateway (`LOVABLE_API_KEY`) — will reuse the same edge function pattern; no external OCR key needed.
-4. **Convert-lead RPC** will be recreated here with the source's logic (I'll read the source migration/function before writing).
-5. **Currency/Payment Terms masters** — source references `master_currencies` and `master_payment_terms`; you said do NOT duplicate existing masters. This project has none, so opportunities/quotes need a currency source. Plan: hardcode INR default + reuse existing procurement `payment_terms` text field (freeform) instead of creating currency/payment-term master tables. Confirm or override.
+### 7. Removed / consolidated
 
-## Execution order
+- Standalone "Financials" grid section becomes the "Financial Summary" accordion body (same data, no visual regression).
+- Empty "No items selected." / "No invoices for this vendor yet." states remain but sit inside their respective accordion sections; empty accordions are hidden entirely, except GRNs and Invoices which always render (they carry the primary actions).
 
-1. Migration: all tables + RLS + GRANTs + `convert_lead` RPC + storage bucket + seed default lead statuses/sources/event types/opportunity stages/types.
-2. Copy hooks (5 files).
-3. Copy components (15 files).
-4. Copy pages (15 files — 8 CRM + 7 master).
-5. Wire routes in `App.tsx`, add cards in `MasterData.tsx`, add nav items in `AppHeader`, register module in `appModules.ts`.
-6. Copy business-card scanner edge function if present.
-7. Typecheck + smoke-check preview.
+## Non-goals
 
-Reply **go** to proceed, or flag the assumptions to adjust.
+- No changes to line-items table, quote comparison table, T&C change-request banner, or top-level PO details.
+- No new tables, columns, or backend calls.
+- No changes to `GRNForm`, `InvoiceForm`, `GRNDetail`, or Invoice detail dialog.
+
+## Technical notes
+
+- Uses existing shadcn `Accordion` (`@/components/ui/accordion`) — already available in the codebase.
+- New helpers defined inline in the file: `quoteStatusStyle`, `vendorProgressPill(finSummary, vGrns, vInvs)`, `formatTimelineDate(iso)`.
+- All changes confined to the expanded-row JSX block (roughly lines 1588–1766) plus a small addition to the collapsed row for summary chips (around lines 1401–1445 vendor cell area).
