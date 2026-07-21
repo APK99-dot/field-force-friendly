@@ -91,7 +91,7 @@ export default function VendorQuote() {
   const [rows, setRows] = useState<LineItem[]>([]);
   const [paymentTerm, setPaymentTerm] = useState("");
   const [notes, setNotes] = useState("");
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termResponses, setTermResponses] = useState<Record<number, { response: "accept" | "change" | ""; comment: string }>>({});
   const [changeMode, setChangeMode] = useState(false);
   const [changeNotes, setChangeNotes] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
