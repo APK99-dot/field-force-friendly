@@ -493,6 +493,78 @@ export default function ProcurementDetail({
     return [...s];
   }, [rateLines]);
 
+  // -------- Per-vendor lifecycle status ---------------------------------
+  // Independent status for each vendor row so one vendor completing GRN /
+  // invoicing / payment does not force the whole PO forward.
+  type VendorLifecycle =
+    | "Draft" | "Quote Submitted" | "PO Issued"
+    | "Partially Received" | "Fully Received"
+    | "Partially Invoiced" | "Fully Invoiced"
+    | "Partially Paid" | "Paid";
+  const LIFECYCLE_RANK: Record<VendorLifecycle, number> = {
+    "Draft": 0, "Quote Submitted": 1, "PO Issued": 2,
+    "Partially Received": 3, "Fully Received": 4,
+    "Partially Invoiced": 5, "Fully Invoiced": 6,
+    "Partially Paid": 7, "Paid": 8,
+  };
+  const lifecycleColor = (s: VendorLifecycle | ""): string => {
+    switch (s) {
+      case "Draft": return "bg-muted text-muted-foreground border-border";
+      case "Quote Submitted": return "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300";
+      case "PO Issued": return "bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/30 dark:text-violet-300";
+      case "Partially Received": return "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-300";
+      case "Fully Received": return "bg-teal-600 text-white border-teal-700";
+      case "Partially Invoiced": return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300";
+      case "Fully Invoiced": return "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300";
+      case "Partially Paid": return "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300";
+      case "Paid": return "bg-emerald-600 text-white border-emerald-700";
+      default: return "bg-muted text-muted-foreground border-border";
+    }
+  };
+
+  const vendorLifecycleMap = useMemo(() => {
+    const m: Record<string, VendorLifecycle> = {};
+    const finalized = new Set(finalizedVendorIds);
+    summaryVendorIds.forEach((vid) => {
+      const q = vendorQuotes.find((qq) => qq.vendor_id === vid);
+      const vGrns = grns.filter((g) => g.vendor_id === vid);
+      const vInvs = invoices.filter((i) => i.vendor_id === vid);
+      const invIds = new Set(vInvs.map((i) => i.id));
+      const vPays = invPayments.filter((p) => invIds.has(p.invoice_id));
+      const assigned = vendorAssignments.find((r) => r.vendor_id === vid);
+      const scopedLineIds = assigned
+        ? new Set(assigned.line_ids)
+        : new Set(rateLines.filter((l) => (l.vendor_ids || []).includes(vid)).map((l) => l.id));
+      const lineAmount = rateLines
+        .filter((l) => scopedLineIds.has(l.id))
+        .reduce((s, l) => s + (parseFloat(l.rate) || 0) * (l.qty || 0), 0);
+      const invoicedTotal = vInvs.reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
+      const paidTotal = vPays.reduce((s, p) => s + Number(p.amount || 0), 0);
+
+      let status: VendorLifecycle = "Draft";
+      if (q?.status === "submitted") status = "Quote Submitted";
+      if (finalized.has(vid)) status = "PO Issued";
+
+      if (vGrns.length > 0) {
+        const anyFull = vGrns.some((g) => g.status === "Fully Received");
+        status = anyFull ? "Fully Received" : "Partially Received";
+      }
+      if (invoicedTotal > 0) {
+        status = invoicedTotal >= lineAmount - 0.01 && lineAmount > 0
+          ? "Fully Invoiced"
+          : "Partially Invoiced";
+      }
+      if (paidTotal > 0) {
+        status = paidTotal >= invoicedTotal - 0.01 && invoicedTotal > 0
+          ? "Paid"
+          : "Partially Paid";
+      }
+      m[vid] = status;
+    });
+    return m;
+  }, [summaryVendorIds, finalizedVendorIds, vendorQuotes, grns, invoices, invPayments, vendorAssignments, rateLines]);
+
+
   // items assigned to a given vendor (used to scope GRN/Invoice forms per vendor)
   const scopedItemVendorMap = useMemo(() => {
     if (!scopedVendorId) return itemVendorMap;
