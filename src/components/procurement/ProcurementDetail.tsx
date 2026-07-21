@@ -1489,26 +1489,38 @@ export default function ProcurementDetail({
                                 )}
                               </td>
                               <td className="p-2">
-                                <Select
-                                  value={qStatus || undefined}
-                                  onValueChange={(v) => setVendorQuoteStatus(row, v)}
-                                  disabled={!poUnlocked || !row.vendor_id}
-                                >
-                                  <SelectTrigger className={`h-7 text-[11px] w-full ${
-                                    qStatus === "submitted" ? "text-emerald-600 dark:text-emerald-400"
-                                    : qStatus === "reopened" ? "text-amber-600 dark:text-amber-400"
-                                    : qStatus === "changes_requested" ? "text-amber-600 dark:text-amber-400"
-                                    : ""
-                                  }`}>
-                                    <SelectValue placeholder="—" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="draft">Draft</SelectItem>
-                                    <SelectItem value="submitted">Submitted</SelectItem>
-                                    <SelectItem value="reopened">Reopened</SelectItem>
-                                    <SelectItem value="changes_requested">Changes Requested</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                {(() => {
+                                  const s = qStatus || "";
+                                  const label =
+                                    s === "submitted" ? "Quote Submitted" :
+                                    s === "changes_requested" ? "T&C Changes Requested" :
+                                    s === "reopened" ? "Reopened" :
+                                    s === "draft" ? "Draft" :
+                                    "—";
+                                  const cls =
+                                    s === "submitted" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300" :
+                                    s === "changes_requested" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300" :
+                                    s === "reopened" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300" :
+                                    s === "draft" ? "bg-muted text-muted-foreground border-border" :
+                                    "bg-muted text-muted-foreground border-border";
+                                  const canReopen = poUnlocked && !!row.vendor_id && (s === "submitted" || s === "changes_requested");
+                                  return (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`inline-flex items-center rounded border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap ${cls}`}>
+                                        {label}
+                                      </span>
+                                      {canReopen && (
+                                        <Button
+                                          type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px]"
+                                          onClick={() => setVendorQuoteStatus(row, "reopened")}
+                                          title="Reopen this quote so the vendor can edit and resubmit"
+                                        >
+                                          Reopen
+                                        </Button>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </td>
 
 

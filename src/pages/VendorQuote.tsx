@@ -92,7 +92,7 @@ export default function VendorQuote() {
   const [paymentTerm, setPaymentTerm] = useState("");
   const [notes, setNotes] = useState("");
   const [termResponses, setTermResponses] = useState<Record<number, { response: "accept" | "change" | ""; comment: string }>>({});
-  const [changeMode, setChangeMode] = useState(false);
+  // (legacy changeMode removed — change-request UX is now driven by per-term "Request Change")
   const [changeNotes, setChangeNotes] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -203,20 +203,16 @@ export default function VendorQuote() {
       response: (termResponses[i]?.response || "accept") as "accept" | "change",
       comment: (termResponses[i]?.comment || "").trim(),
     }));
-    const allTermsAnswered = terms.every((_, i) => termResponses[i]?.response === "accept" || termResponses[i]?.response === "change");
-    const anyMissingComment = responsesList.some((r) => r.response === "change" && !r.comment);
+    const allAccepted = terms.length === 0 || terms.every((_, i) => termResponses[i]?.response === "accept");
+    const anyChange = terms.some((_, i) => termResponses[i]?.response === "change");
 
     if (mode === "accept") {
       if (!paymentTerm.trim()) {
         toast.error("Please enter your Vendor Payment Terms before submitting.");
         return;
       }
-      if (terms.length && !allTermsAnswered) {
-        toast.error("Please respond (Accept or Request Change) to every Term & Condition.");
-        return;
-      }
-      if (anyMissingComment) {
-        toast.error("Please add a comment for every term where you requested a change.");
+      if (terms.length && !allAccepted) {
+        toast.error("Please Accept every Term & Condition to submit the quote. Use 'Send Change Request' if you need modifications.");
         return;
       }
       if (rows.some((r) => !r.rate || Number(r.rate) <= 0)) {
@@ -224,9 +220,15 @@ export default function VendorQuote() {
         return;
       }
     }
-    if (mode === "request_changes" && !changeNotes.trim()) {
-      toast.error("Please describe the changes you'd like.");
-      return;
+    if (mode === "request_changes") {
+      if (!anyChange) {
+        toast.error("Mark at least one Term & Condition as 'Request Change' before sending.");
+        return;
+      }
+      if (!changeNotes.trim()) {
+        toast.error("Please describe the changes you'd like.");
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -235,7 +237,7 @@ export default function VendorQuote() {
         vendor_payment_term: paymentTerm,
         notes,
         mode,
-        terms_accepted: mode === "accept" && terms.length > 0 && allTermsAnswered,
+        terms_accepted: mode === "accept" && terms.length > 0 && allAccepted,
         change_request_notes: changeNotes,
         attachments,
         term_responses: responsesList,
@@ -309,9 +311,10 @@ export default function VendorQuote() {
   const { requisition: req, vendor, company, terms_and_conditions } = data;
   const readOnly = submitted;
   const hasTerms = terms_and_conditions.length > 0;
-  const allTermsAnswered = terms_and_conditions.every((_, i) => termResponses[i]?.response === "accept" || termResponses[i]?.response === "change");
-  const anyChangeMissingComment = terms_and_conditions.some((_, i) => termResponses[i]?.response === "change" && !(termResponses[i]?.comment || "").trim());
-  const acceptDisabled = readOnly || saving || !paymentTerm.trim() || (hasTerms && (!allTermsAnswered || anyChangeMissingComment));
+  const allTermsAccepted = hasTerms && terms_and_conditions.every((_, i) => termResponses[i]?.response === "accept");
+  const anyChangeRequested = terms_and_conditions.some((_, i) => termResponses[i]?.response === "change");
+  const acceptDisabled = readOnly || saving || !paymentTerm.trim() || (hasTerms && !allTermsAccepted);
+  const changeRequestDisabled = readOnly || saving || !anyChangeRequested || !changeNotes.trim();
 
   // Success screen — shown once vendor has submitted their quote.
   if (submitted && data.status === "submitted") {
@@ -576,85 +579,69 @@ export default function VendorQuote() {
             )}
           </div>
 
-          {/* Terms & Conditions — per-term response */}
+          {/* Terms & Conditions — per-term response (buttons aligned right) */}
           {hasTerms && (
             <div className="space-y-3 rounded-lg border p-3 bg-muted/10">
               <div>
                 <div className="text-sm font-semibold">Terms &amp; Conditions</div>
                 <p className="text-xs text-muted-foreground">
-                  Respond to each term individually. Select <span className="font-medium">Accept</span> or{" "}
-                  <span className="font-medium">Request Change</span>. Add a comment for every change request.
+                  For each term, choose <span className="font-medium">Accept</span> or{" "}
+                  <span className="font-medium">Request Change</span>. If you request changes to any term,
+                  describe them in the <span className="font-medium">"Changes you're requesting"</span> box below.
                 </p>
               </div>
               <div className="space-y-2">
                 {terms_and_conditions.map((t, i) => {
                   const resp = termResponses[i]?.response || "";
-                  const cmt = termResponses[i]?.comment || "";
                   const setResp = (r: "accept" | "change") =>
-                    setTermResponses((prev) => ({ ...prev, [i]: { response: r, comment: prev[i]?.comment || "" } }));
-                  const setCmt = (v: string) =>
-                    setTermResponses((prev) => ({ ...prev, [i]: { response: prev[i]?.response || "", comment: v } }));
+                    setTermResponses((prev) => ({ ...prev, [i]: { response: r, comment: "" } }));
                   return (
-                    <div key={i} className="rounded-md border bg-background p-2.5 space-y-2">
-                      <div className="flex gap-2 text-sm">
+                    <div key={i} className="rounded-md border bg-background p-2.5 flex items-start gap-3">
+                      <div className="flex gap-2 text-sm flex-1 min-w-0">
                         <span className="font-medium text-muted-foreground shrink-0">{i + 1}.</span>
                         <span className="whitespace-pre-line">{t}</span>
                       </div>
-                      <div className="flex flex-wrap gap-2 pl-5">
-                        <label className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border cursor-pointer transition ${resp === "accept" ? "bg-emerald-50 border-emerald-400 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" : "hover:bg-muted"}`}>
-                          <input
-                            type="radio"
-                            name={`term-${i}`}
-                            className="h-3.5 w-3.5"
-                            checked={resp === "accept"}
-                            disabled={readOnly}
-                            onChange={() => setResp("accept")}
-                          />
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          type="button"
+                          disabled={readOnly}
+                          onClick={() => setResp("accept")}
+                          className={`text-xs px-3 py-1 rounded border transition ${resp === "accept" ? "bg-emerald-100 border-emerald-500 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200" : "hover:bg-muted"}`}
+                        >
                           Accept
-                        </label>
-                        <label className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border cursor-pointer transition ${resp === "change" ? "bg-amber-50 border-amber-400 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" : "hover:bg-muted"}`}>
-                          <input
-                            type="radio"
-                            name={`term-${i}`}
-                            className="h-3.5 w-3.5"
-                            checked={resp === "change"}
-                            disabled={readOnly}
-                            onChange={() => setResp("change")}
-                          />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={readOnly}
+                          onClick={() => setResp("change")}
+                          className={`text-xs px-3 py-1 rounded border transition ${resp === "change" ? "bg-amber-100 border-amber-500 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200" : "hover:bg-muted"}`}
+                        >
                           Request Change
-                        </label>
+                        </button>
                       </div>
-                      {resp === "change" && (
-                        <div className="pl-5 space-y-1">
-                          <Label className="text-xs">Requested change <span className="text-destructive">*</span></Label>
-                          <Textarea
-                            rows={2}
-                            value={cmt}
-                            disabled={readOnly}
-                            onChange={(e) => setCmt(e.target.value)}
-                            placeholder="Describe the modification you're requesting for this term"
-                          />
-                        </div>
-                      )}
                     </div>
                   );
                 })}
               </div>
-              {!readOnly && hasTerms && !allTermsAnswered && (
-                <p className="text-xs text-amber-700 dark:text-amber-400">Please respond to every term before submitting.</p>
+              {!readOnly && anyChangeRequested && (
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  You have requested changes on one or more terms. Describe them in the "Changes you're requesting" box and click <span className="font-medium">Send Change Request</span>.
+                </p>
               )}
             </div>
           )}
 
-          {/* Change request notes */}
-          {(changeMode || (readOnly && data.change_request_notes)) && (
+          {/* Change request notes — visible whenever a change is requested or previously submitted */}
+          {(anyChangeRequested || (readOnly && data.change_request_notes)) && (
             <div className="space-y-1.5">
-              <Label className="text-xs">Changes you're requesting</Label>
+              <Label className="text-xs">
+                Changes you're requesting {anyChangeRequested && <span className="text-destructive">*</span>}
+              </Label>
               <Textarea
                 value={changeNotes}
                 disabled={readOnly}
                 onChange={(e) => setChangeNotes(e.target.value)}
-                placeholder="Explain what needs to change (e.g. rate, delivery date, a specific term)…"
+                placeholder="Explain what needs to change (e.g. rate, delivery date, or specific terms)…"
                 rows={4}
               />
             </div>
@@ -666,28 +653,19 @@ export default function VendorQuote() {
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Save Draft
               </Button>
-              {!changeMode ? (
-                <>
-                  <Button variant="secondary" disabled={saving} onClick={() => setChangeMode(true)}>
-                    Request Changes
-                  </Button>
-                  <Button disabled={acceptDisabled} onClick={() => send("accept")}>
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    {data.status === "reopened" ? "Resubmit Quote" : "Accept & Submit Quote"}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button variant="ghost" disabled={saving} onClick={() => setChangeMode(false)}>
-                    Cancel
-                  </Button>
-                  <Button variant="secondary" disabled={saving || !changeNotes.trim()}
-                    onClick={() => send("request_changes")}>
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Send Change Request
-                  </Button>
-                </>
-              )}
+              <Button
+                variant="secondary"
+                disabled={changeRequestDisabled}
+                onClick={() => send("request_changes")}
+                title={!anyChangeRequested ? "Mark at least one term as 'Request Change'" : ""}
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Send Change Request
+              </Button>
+              <Button disabled={acceptDisabled} onClick={() => send("accept")}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {data.status === "reopened" ? "Resubmit Quote" : "Accept & Submit Quote"}
+              </Button>
             </div>
           )}
         </div>
