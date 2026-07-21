@@ -1636,180 +1636,245 @@ export default function ProcurementDetail({
                             {isExpanded && (
                               <tr className="border-t bg-muted/20">
                                 <td></td>
-                                <td colSpan={6} className="p-3 space-y-3">
-                                  {/* Audit trail for the vendor quote */}
-                                  {quote && (quote.first_submitted_at || quote.last_resubmitted_at || quote.reopened_at) && (
-                                    <div className="rounded-md border bg-background p-2 text-[11px] space-y-0.5">
-                                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Quote Audit Trail</div>
-                                      {quote.first_submitted_at && (
-                                        <div><span className="text-muted-foreground">First submitted: </span><span className="font-medium">{new Date(quote.first_submitted_at).toLocaleString("en-GB")}</span></div>
+                                <td colSpan={6} className="p-2">
+                                  <div className="max-h-[75vh] overflow-y-auto pr-1 space-y-2">
+                                    {/* Header: vendor + status pill + summary chips */}
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span className="text-xs font-semibold">{row.vendor_id ? vendorName(row.vendor_id) : "Unassigned vendor"}</span>
+                                      {qsLabel && (
+                                        <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${qsCls}`}>{qsLabel}</span>
                                       )}
-                                      {quote.reopened_at && (
-                                        <div><span className="text-muted-foreground">Reopened by buyer: </span><span className="font-medium">{new Date(quote.reopened_at).toLocaleString("en-GB")}</span></div>
+                                      {progressPill && (
+                                        <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${progressPill.cls}`}>{progressPill.label}</span>
                                       )}
-                                      {quote.last_resubmitted_at && (
-                                        <div><span className="text-muted-foreground">Last resubmitted: </span><span className="font-medium">{new Date(quote.last_resubmitted_at).toLocaleString("en-GB")}</span></div>
+                                      {!isTransfer && row.vendor_id && (
+                                        <>
+                                          <span className="inline-flex items-center rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground"><Truck className="h-2.5 w-2.5 mr-0.5" />{vGrns.length} GRN</span>
+                                          <span className="inline-flex items-center rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground"><FileText className="h-2.5 w-2.5 mr-0.5" />{vInvs.length} Invoices</span>
+                                          {paidTotal > 0 && (
+                                            <span className="inline-flex items-center rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">{fmtAmt(paidTotal)} Paid</span>
+                                          )}
+                                          {invoicedTotal > 0 && (
+                                            <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${balanceDue > 0.005 ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300" : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300"}`}>Balance {fmtAmt(balanceDue)}</span>
+                                          )}
+                                        </>
                                       )}
                                     </div>
-                                  )}
 
-                                  {/* Scoped line items + their submitted rates */}
-                                  <div>
-                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Items in scope</div>
-                                    {scopedLines.length === 0 ? (
-                                      <p className="text-[11px] text-muted-foreground">No items selected.</p>
-                                    ) : (
-                                      <div className="space-y-1">
-                                        {scopedLines.map((l) => {
-                                          const qi = quote?.procurement_vendor_quote_items?.find((x) => x.procurement_item_id === l.id);
-                                          const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
-                                          return (
-                                            <div key={l.id} className="flex items-center gap-2 text-[11px] border-b last:border-b-0 pb-1">
-                                              <span className="flex-1 truncate"><span className="font-medium">{productName(l.product_id)}</span> · Qty {l.qty}</span>
-                                              <span className="w-20 text-right">{rate != null ? fmtAmt(rate) : <span className="text-muted-foreground">—</span>}</span>
-                                            </div>
-                                          );
-                                        })}
+                                    {/* Compact timeline */}
+                                    {quote && (quote.first_submitted_at || quote.reopened_at || quote.last_resubmitted_at || qStatus === "changes_requested") && (
+                                      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                                        {quote.first_submitted_at && (
+                                          <span className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300 px-1.5 py-0.5">✓ Submitted <span className="font-medium">{fmtDT(quote.first_submitted_at)}</span></span>
+                                        )}
+                                        {quote.reopened_at && (
+                                          <span className="inline-flex items-center gap-1 rounded bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 px-1.5 py-0.5">↺ Reopened <span className="font-medium">{fmtDT(quote.reopened_at)}</span></span>
+                                        )}
+                                        {qStatus === "changes_requested" && (
+                                          <span className="inline-flex items-center gap-1 rounded bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300 px-1.5 py-0.5">📝 T&C Changes <span className="font-medium">{fmtDT(quote.last_resubmitted_at || quote.submitted_at)}</span></span>
+                                        )}
+                                        {quote.last_resubmitted_at && qStatus !== "changes_requested" && (
+                                          <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5">⟳ Resubmitted <span className="font-medium">{fmtDT(quote.last_resubmitted_at)}</span></span>
+                                        )}
                                       </div>
                                     )}
-                                  </div>
 
-                                  {/* Vendor's submitted remarks & attachments */}
-                                  {quote && (quote.notes?.trim() || (quote.attachments && quote.attachments.length > 0)) && (
-                                    <div className="border-t pt-2 space-y-2">
-                                      {quote.notes?.trim() && (
-                                        <div>
-                                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Vendor Remarks</div>
-                                          <p className="text-[11px] whitespace-pre-line">{quote.notes}</p>
-                                        </div>
-                                      )}
-                                      {quote.attachments && quote.attachments.length > 0 && (
-                                        <div>
-                                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Attachments</div>
-                                          <ul className="space-y-0.5">
-                                            {quote.attachments.map((a, i) => (
-                                              <li key={i} className="text-[11px]">
-                                                <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80 break-all">
-                                                  {a.name || `Attachment ${i + 1}`}
-                                                </a>
-                                                {typeof a.size === "number" && a.size > 0 && (
-                                                  <span className="text-muted-foreground"> · {(a.size / 1024).toFixed(0)} KB</span>
-                                                )}
-                                              </li>
-                                            ))}
-                                          </ul>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-
-
-                                  {/* Financial summary */}
-                                  {!isTransfer && finSummary && (
-                                    <div className="border-t pt-2">
-                                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Financials</div>
-                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                                        <div><span className="text-muted-foreground">Order: </span><span className="font-medium">{fmtAmt(finSummary.line_amount)}</span></div>
-                                        <div><span className="text-muted-foreground">Invoiced: </span><span className="font-medium">{fmtAmt(finSummary.invoiced_total)}</span></div>
-                                        <div><span className="text-muted-foreground">Paid: </span><span className="font-medium">{fmtAmt(finSummary.paid_total)}</span></div>
-                                        <div><span className="text-muted-foreground">Balance: </span>
-                                          <span className={`font-semibold ${finSummary.balance_due > 0.005 ? "text-red-600" : "text-green-600"}`}>{fmtAmt(finSummary.balance_due)}</span>
-                                        </div>
-                                      </div>
-                                      {finSummary.payments.length > 0 && (
-                                        <div className="pt-1 mt-1 border-t space-y-0.5">
-                                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Payment Schedule</div>
-                                          {finSummary.payments.map((p, i) => (
-                                            <div key={i} className="flex items-center justify-between text-[11px]">
-                                              <span>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</span>
-                                              <span className="font-medium">{fmtAmt(p.amount)}</span>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {/* Vendor-scoped Goods Receipts & Invoices */}
-                                  {!isTransfer && row.vendor_id && (() => {
-                                    const vid = row.vendor_id;
-                                    const vGrns = grns.filter((g) => g.vendor_id === vid);
-                                    const vInvs = invoices.filter((i) => i.vendor_id === vid);
-                                    const hasGrn = vGrns.length > 0;
-                                    return (
-                                      <div className="border-t pt-2 space-y-2">
-                                        <div>
-                                          <div className="flex items-center justify-between mb-1">
-                                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Truck className="h-3 w-3" />Goods Receipts</div>
+                                    {/* Workflow accordion — GRNs & Invoices are primary */}
+                                    <Accordion type="single" collapsible defaultValue={!isTransfer && row.vendor_id ? "grns" : "quote"} className="w-full">
+                                      {!isTransfer && row.vendor_id && (
+                                        <AccordionItem value="grns" className="border rounded-md bg-background mb-1.5">
+                                          <div className="flex items-center justify-between pr-2">
+                                            <AccordionTrigger className="flex-1 px-2 py-1.5 hover:no-underline">
+                                              <span className="flex items-center gap-1.5 text-xs font-medium"><Truck className="h-3.5 w-3.5" />Goods Receipts <span className="text-muted-foreground font-normal">({vGrns.length})</span></span>
+                                            </AccordionTrigger>
                                             {canReceive && (
                                               <Button
-                                                size="sm" variant="outline" className="h-6 text-[11px]"
-                                                onClick={() => { setScopedVendorId(vid); setGrnVendorId(vid); setGrnOpen(true); }}
+                                                size="sm" variant="outline" className="h-6 text-[11px] shrink-0"
+                                                onClick={(e) => { e.stopPropagation(); setScopedVendorId(row.vendor_id!); setGrnVendorId(row.vendor_id!); setGrnOpen(true); }}
                                               >
                                                 <Plus className="h-3 w-3 mr-1" />Receive Goods
                                               </Button>
                                             )}
                                           </div>
-                                          {vGrns.length === 0 ? (
-                                            <p className="text-[11px] text-muted-foreground">No goods received from this vendor yet.</p>
-                                          ) : (
-                                            <div className="border rounded divide-y bg-background">
-                                              {vGrns.map((g) => (
-                                                <div
-                                                  key={g.id} role="button" tabIndex={0}
-                                                  onClick={() => setSelectedGrn(g)}
-                                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedGrn(g); } }}
-                                                  className="flex items-center justify-between px-2 py-1 text-[11px] cursor-pointer hover:bg-muted/60"
-                                                >
-                                                  <div>
-                                                    <div className="font-medium">{g.grn_number}</div>
-                                                    <div className="text-[10px] text-muted-foreground">{g.receipt_date}{g.received_by ? ` · ${g.received_by}` : ""}</div>
+                                          <AccordionContent className="px-2 pb-2">
+                                            {vGrns.length === 0 ? (
+                                              <p className="text-[11px] text-muted-foreground">No goods received from this vendor yet.</p>
+                                            ) : (
+                                              <div className="border rounded divide-y max-h-40 overflow-y-auto">
+                                                {vGrns.map((g) => (
+                                                  <div
+                                                    key={g.id} role="button" tabIndex={0}
+                                                    onClick={() => setSelectedGrn(g)}
+                                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedGrn(g); } }}
+                                                    className="flex items-center justify-between px-2 py-1 text-[11px] cursor-pointer hover:bg-muted/60"
+                                                  >
+                                                    <div>
+                                                      <div className="font-medium">{g.grn_number}</div>
+                                                      <div className="text-[10px] text-muted-foreground">{g.receipt_date}{g.received_by ? ` · ${g.received_by}` : ""}</div>
+                                                    </div>
+                                                    <Badge variant="outline" className={`text-[10px] ${statusColor(g.status)}`}>{g.status}</Badge>
                                                   </div>
-                                                  <Badge variant="outline" className={`text-[10px] ${statusColor(g.status)}`}>{g.status}</Badge>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </div>
-                                        <div>
-                                          <div className="flex items-center justify-between mb-1">
-                                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><FileText className="h-3 w-3" />Invoices</div>
-                                            {canInvoice && hasGrn && (
+                                                ))}
+                                              </div>
+                                            )}
+                                          </AccordionContent>
+                                        </AccordionItem>
+                                      )}
+
+                                      {!isTransfer && row.vendor_id && (
+                                        <AccordionItem value="invoices" className="border rounded-md bg-background mb-1.5">
+                                          <div className="flex items-center justify-between pr-2">
+                                            <AccordionTrigger className="flex-1 px-2 py-1.5 hover:no-underline">
+                                              <span className="flex items-center gap-1.5 text-xs font-medium"><FileText className="h-3.5 w-3.5" />Invoices <span className="text-muted-foreground font-normal">({vInvs.length})</span></span>
+                                            </AccordionTrigger>
+                                            {canInvoice && (
                                               <Button
-                                                size="sm" variant="outline" className="h-6 text-[11px]"
-                                                onClick={() => { setScopedVendorId(vid); setInvVendorId(vid); setInvOpen(true); }}
+                                                size="sm" variant="outline" className="h-6 text-[11px] shrink-0"
+                                                disabled={!hasGrn}
+                                                title={!hasGrn ? "Receive goods first" : "Add Invoice"}
+                                                onClick={(e) => { e.stopPropagation(); if (!hasGrn) return; setScopedVendorId(row.vendor_id!); setInvVendorId(row.vendor_id!); setInvOpen(true); }}
                                               >
                                                 <Plus className="h-3 w-3 mr-1" />Add Invoice
                                               </Button>
                                             )}
                                           </div>
-                                          {!hasGrn ? (
-                                            <p className="text-[11px] text-muted-foreground">Receive goods first — invoices can be added after the first GRN.</p>
-                                          ) : vInvs.length === 0 ? (
-                                            <p className="text-[11px] text-muted-foreground">No invoices for this vendor yet.</p>
-                                          ) : (
-                                            <div className="border rounded divide-y bg-background">
-                                              {vInvs.map((i) => (
-                                                <div
-                                                  key={i.id} role="button" tabIndex={0}
-                                                  onClick={() => setSelectedInvoiceId(i.id)}
-                                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedInvoiceId(i.id); } }}
-                                                  className="flex items-center justify-between px-2 py-1 text-[11px] cursor-pointer hover:bg-muted/60"
-                                                >
-                                                  <div>
-                                                    <div className="font-medium">{i.invoice_number}</div>
-                                                    <div className="text-[10px] text-muted-foreground">{i.invoice_date}</div>
+                                          <AccordionContent className="px-2 pb-2">
+                                            {!hasGrn ? (
+                                              <p className="text-[11px] text-muted-foreground">Receive goods first — invoices can be added after the first GRN.</p>
+                                            ) : vInvs.length === 0 ? (
+                                              <p className="text-[11px] text-muted-foreground">No invoices for this vendor yet.</p>
+                                            ) : (
+                                              <div className="border rounded divide-y max-h-40 overflow-y-auto">
+                                                {vInvs.map((i) => (
+                                                  <div
+                                                    key={i.id} role="button" tabIndex={0}
+                                                    onClick={() => setSelectedInvoiceId(i.id)}
+                                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedInvoiceId(i.id); } }}
+                                                    className="flex items-center justify-between px-2 py-1 text-[11px] cursor-pointer hover:bg-muted/60"
+                                                  >
+                                                    <div>
+                                                      <div className="font-medium">{i.invoice_number}</div>
+                                                      <div className="text-[10px] text-muted-foreground">{i.invoice_date}</div>
+                                                    </div>
+                                                    <div className="font-medium">{fmtAmt(i.invoice_amount)}</div>
                                                   </div>
-                                                  <div className="font-medium">{fmtAmt(i.invoice_amount)}</div>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </AccordionContent>
+                                        </AccordionItem>
+                                      )}
+
+                                      {!isTransfer && finSummary && (
+                                        <AccordionItem value="financials" className="border rounded-md bg-background mb-1.5">
+                                          <AccordionTrigger className="px-2 py-1.5 hover:no-underline">
+                                            <span className="text-xs font-medium">Financial Summary</span>
+                                          </AccordionTrigger>
+                                          <AccordionContent className="px-2 pb-2">
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                                              <div><span className="text-muted-foreground">PO Value: </span><span className="font-medium">{fmtAmt(finSummary.line_amount)}</span></div>
+                                              <div><span className="text-muted-foreground">Invoiced: </span><span className="font-medium">{fmtAmt(finSummary.invoiced_total)}</span></div>
+                                              <div><span className="text-muted-foreground">Paid: </span><span className="font-medium">{fmtAmt(finSummary.paid_total)}</span></div>
+                                              <div><span className="text-muted-foreground">Outstanding: </span>
+                                                <span className={`font-semibold ${finSummary.balance_due > 0.005 ? "text-red-600" : "text-green-600"}`}>{fmtAmt(finSummary.balance_due)}</span>
+                                              </div>
+                                            </div>
+                                            {finSummary.payments.length > 0 && (
+                                              <div className="pt-2 mt-2 border-t">
+                                                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Payment Schedule</div>
+                                                <div className="max-h-32 overflow-y-auto space-y-0.5">
+                                                  {finSummary.payments.map((p, i) => (
+                                                    <div key={i} className="flex items-center justify-between text-[11px]">
+                                                      <span>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</span>
+                                                      <span className="font-medium">{fmtAmt(p.amount)}</span>
+                                                    </div>
+                                                  ))}
                                                 </div>
-                                              ))}
+                                              </div>
+                                            )}
+                                          </AccordionContent>
+                                        </AccordionItem>
+                                      )}
+
+                                      <AccordionItem value="quote" className="border rounded-md bg-background">
+                                        <AccordionTrigger className="px-2 py-1.5 hover:no-underline">
+                                          <span className="text-xs font-medium">Quote Details</span>
+                                        </AccordionTrigger>
+                                        <AccordionContent className="px-2 pb-2 space-y-2">
+                                          {/* Items in scope — truncated */}
+                                          <div>
+                                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Assigned items</div>
+                                            {scopedLines.length === 0 ? (
+                                              <p className="text-[11px] text-muted-foreground">No items selected.</p>
+                                            ) : scopedLines.length <= 2 ? (
+                                              <div className="space-y-0.5">
+                                                {scopedLines.map((l) => {
+                                                  const qi = quote?.procurement_vendor_quote_items?.find((x) => x.procurement_item_id === l.id);
+                                                  const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
+                                                  return (
+                                                    <div key={l.id} className="flex items-center gap-2 text-[11px]">
+                                                      <span className="flex-1 truncate"><span className="font-medium">{productName(l.product_id)}</span> · Qty {l.qty}</span>
+                                                      <span className="w-20 text-right">{rate != null ? fmtAmt(rate) : <span className="text-muted-foreground">—</span>}</span>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            ) : (
+                                              <div className="text-[11px] flex items-center gap-1 flex-wrap">
+                                                <span className="font-medium">{productName(scopedLines[0].product_id)}</span>,
+                                                <span className="font-medium">{productName(scopedLines[1].product_id)}</span>
+                                                <Popover>
+                                                  <PopoverTrigger asChild>
+                                                    <button type="button" className="text-primary hover:underline">+{scopedLines.length - 2} more</button>
+                                                  </PopoverTrigger>
+                                                  <PopoverContent align="start" className="w-72 p-2 max-h-56 overflow-y-auto">
+                                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">All assigned items</div>
+                                                    <div className="space-y-0.5">
+                                                      {scopedLines.map((l) => {
+                                                        const qi = quote?.procurement_vendor_quote_items?.find((x) => x.procurement_item_id === l.id);
+                                                        const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
+                                                        return (
+                                                          <div key={l.id} className="flex items-center gap-2 text-[11px] border-b last:border-b-0 py-1">
+                                                            <span className="flex-1 truncate"><span className="font-medium">{productName(l.product_id)}</span> · Qty {l.qty}</span>
+                                                            <span className="w-20 text-right">{rate != null ? fmtAmt(rate) : <span className="text-muted-foreground">—</span>}</span>
+                                                          </div>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  </PopoverContent>
+                                                </Popover>
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {quote?.notes?.trim() && (
+                                            <div>
+                                              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Vendor Remarks</div>
+                                              <p className="text-[11px] whitespace-pre-line">{quote.notes}</p>
                                             </div>
                                           )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })()}
 
+                                          {quote?.attachments && quote.attachments.length > 0 && (
+                                            <div>
+                                              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Attachments</div>
+                                              <ul className="space-y-0.5 max-h-32 overflow-y-auto">
+                                                {quote.attachments.map((a, i) => (
+                                                  <li key={i} className="text-[11px]">
+                                                    <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80 break-all">
+                                                      {a.name || `Attachment ${i + 1}`}
+                                                    </a>
+                                                    {typeof a.size === "number" && a.size > 0 && (
+                                                      <span className="text-muted-foreground"> · {(a.size / 1024).toFixed(0)} KB</span>
+                                                    )}
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          )}
+                                        </AccordionContent>
+                                      </AccordionItem>
+                                    </Accordion>
+                                  </div>
                                 </td>
                               </tr>
                             )}
