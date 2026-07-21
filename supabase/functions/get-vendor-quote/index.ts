@@ -162,6 +162,7 @@ Deno.serve(async (req) => {
       attachments: Array.isArray(quote.attachments) ? quote.attachments : [],
       terms_and_conditions: termsAndConditions,
       terms_accepted_at: quote.terms_accepted_at || null,
+      term_responses: Array.isArray(quote.term_responses) ? quote.term_responses : [],
       requisition: {
         title: reqTitle,
         po_number: order.po_number,
