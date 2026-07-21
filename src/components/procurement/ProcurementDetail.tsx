@@ -516,6 +516,23 @@ export default function ProcurementDetail({
 
 
 
+  // Persist just the Expected Delivery Date on its own (used on blur / auto-fill)
+  // so the value never gets lost if the user forgets to hit "Save PO Details".
+  const persistDeliveryDate = useCallback(async (value: string | null) => {
+    const normalized = value && value.trim() ? value : null;
+    if ((order.expected_delivery_date || null) === normalized) return;
+    try {
+      const { error } = await supabase.from("procurement_orders")
+        .update({ expected_delivery_date: normalized })
+        .eq("id", order.id);
+      if (error) throw error;
+      lastServerPoRef.current = { ...lastServerPoRef.current, expected_delivery_date: normalized || "" };
+      onChanged();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save delivery date");
+    }
+  }, [order.id, order.expected_delivery_date, onChanged]);
+
   const savePoDetails = async () => {
     setPoSaving(true);
     try {
@@ -1043,6 +1060,9 @@ export default function ProcurementDetail({
     if (qi.delivery_commitment_date) {
       setPoForm((p) => {
         if (!p.expected_delivery_date || qi.delivery_commitment_date! < p.expected_delivery_date) {
+          // Persist immediately so the value survives a reload even if the
+          // user never clicks "Save PO Details".
+          void persistDeliveryDate(qi.delivery_commitment_date!);
           return { ...p, expected_delivery_date: qi.delivery_commitment_date! };
         }
         return p;
@@ -1246,7 +1266,16 @@ export default function ProcurementDetail({
                         value={poForm.expected_delivery_date}
                         disabled={!poUnlocked}
                         onChange={(e) => setPoForm((p) => ({ ...p, expected_delivery_date: e.target.value }))}
+                        onBlur={(e) => { if (poUnlocked) void persistDeliveryDate(e.target.value); }}
                       />
+                      {poForm.expected_delivery_date && (
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          {(() => {
+                            const [y, m, d] = poForm.expected_delivery_date.split("-");
+                            return d && m && y ? `${d}/${m}/${y}` : poForm.expected_delivery_date;
+                          })()}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <Label className="text-xs">Payment Terms</Label>
