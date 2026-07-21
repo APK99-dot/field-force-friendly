@@ -1471,6 +1471,25 @@ export default function ProcurementDetail({
                                     </div>
                                   </PopoverContent>
                                 </Popover>
+                                {row.vendor_id && !isTransfer && (
+                                  <div className="mt-1 flex flex-wrap items-center gap-1">
+                                    {progressPill && (
+                                      <span className={`inline-flex items-center rounded border px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide ${progressPill.cls}`}>{progressPill.label}</span>
+                                    )}
+                                    {hasGrn && (
+                                      <span className="inline-flex items-center rounded border bg-background px-1.5 py-0 text-[9px] text-muted-foreground"><Truck className="h-2.5 w-2.5 mr-0.5" />{vGrns.length} GRN</span>
+                                    )}
+                                    {vInvs.length > 0 && (
+                                      <span className="inline-flex items-center rounded border bg-background px-1.5 py-0 text-[9px] text-muted-foreground"><FileText className="h-2.5 w-2.5 mr-0.5" />{vInvs.length} Inv</span>
+                                    )}
+                                    {paidTotal > 0 && (
+                                      <span className="inline-flex items-center rounded border bg-background px-1.5 py-0 text-[9px] text-muted-foreground">{fmtAmt(paidTotal)} paid</span>
+                                    )}
+                                    {invoicedTotal > 0 && (
+                                      <span className={`inline-flex items-center rounded border px-1.5 py-0 text-[9px] font-medium ${balanceDue > 0.005 ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300" : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300"}`}>Bal {fmtAmt(balanceDue)}</span>
+                                    )}
+                                  </div>
+                                )}
                               </td>
                               <td className="p-2">
                                 <div className="flex items-center gap-1">
