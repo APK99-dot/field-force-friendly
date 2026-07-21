@@ -1266,7 +1266,16 @@ export default function ProcurementDetail({
                         value={poForm.expected_delivery_date}
                         disabled={!poUnlocked}
                         onChange={(e) => setPoForm((p) => ({ ...p, expected_delivery_date: e.target.value }))}
+                        onBlur={(e) => { if (poUnlocked) void persistDeliveryDate(e.target.value); }}
                       />
+                      {poForm.expected_delivery_date && (
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          {(() => {
+                            const [y, m, d] = poForm.expected_delivery_date.split("-");
+                            return d && m && y ? `${d}/${m}/${y}` : poForm.expected_delivery_date;
+                          })()}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <Label className="text-xs">Payment Terms</Label>
