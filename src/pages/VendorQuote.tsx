@@ -92,7 +92,7 @@ export default function VendorQuote() {
   const [paymentTerm, setPaymentTerm] = useState("");
   const [notes, setNotes] = useState("");
   const [termResponses, setTermResponses] = useState<Record<number, { response: "accept" | "change" | ""; comment: string }>>({});
-  const [changeMode, setChangeMode] = useState(false);
+  // (legacy changeMode removed — change-request UX is now driven by per-term "Request Change")
   const [changeNotes, setChangeNotes] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
