@@ -4346,6 +4346,7 @@ export type Database = {
           reopened_by: string | null
           status: string
           submitted_at: string | null
+          term_responses: Json
           terms_accepted_at: string | null
           token: string
           updated_at: string
@@ -4367,6 +4368,7 @@ export type Database = {
           reopened_by?: string | null
           status?: string
           submitted_at?: string | null
+          term_responses?: Json
           terms_accepted_at?: string | null
           token?: string
           updated_at?: string
@@ -4388,6 +4390,7 @@ export type Database = {
           reopened_by?: string | null
           status?: string
           submitted_at?: string | null
+          term_responses?: Json
           terms_accepted_at?: string | null
           token?: string
           updated_at?: string
