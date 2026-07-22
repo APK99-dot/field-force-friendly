@@ -2433,18 +2433,6 @@ export default function ProcurementDetail({
           )}
 
 
-          {/* 3-way match (vendor only) */}
-          {!isTransfer && (grns.length > 0 || invoices.length > 0) && (
-            <ThreeWayMatch
-              items={items}
-              received={receivedByItem}
-              invoicedRate={invoicedRate}
-              poTotal={order.total_amount}
-              invoiceTotal={invoiceTotal}
-              productName={productName}
-            />
-          )}
-
           {/* Actions */}
           <div className="flex flex-wrap gap-2 pt-2 pb-6">
             {editable && (
