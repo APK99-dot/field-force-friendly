@@ -516,7 +516,7 @@ export default function Procurement() {
         </div>
       </div>
 
-      <SalesforceImportDialog open={sfImportOpen} onOpenChange={setSfImportOpen} onImported={loadOrders} />
+      <SalesforceImportDialog open={sfImportOpen} onOpenChange={setSfImportOpen} onImported={fetchAll} />
 
       <div className="space-y-2">
         <div className="relative">
