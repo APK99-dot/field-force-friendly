@@ -1,90 +1,102 @@
 
-## Scope
+## Goal
 
-Change is UI/presentation only inside `src/components/procurement/ProcurementDetail.tsx`. No schema, no data-model, no edge-function changes. All existing state, handlers (`setGrnOpen`, `setInvOpen`, `scopedVendorId`, `setSelectedGrn`, `setSelectedInvoiceId`, `vendorSummaries`, `quote`, etc.) are reused.
+Validate the Salesforce → Lovable procurement mapping by importing **one complete Requisition** (with its line items, assigned vendors, quotes, PO details, and any payment schedule) end-to-end, and rendering it in the existing Procurement UI unchanged. No UI redesign; only new backend + admin action to trigger the import.
 
-## What changes
+## Salesforce objects (verified via connector)
 
-### 1. Vendor row summary badges (collapsed state)
+The connected org exposes these custom objects for the procurement flow:
 
-Beside each vendor row (in the "Assign Vendors" table, either in the vendor cell or a new lightweight column), render compact chips derived from existing data:
-- GRN count: `N GRN`
-- Invoice count: `N Invoices`
-- Paid amount: `₹X Paid` (from `finSummary.paid_total`)
-- Balance: `Balance ₹Y` (green if 0, red if > 0)
+- `Requistion__c` — parent requisition (Name, `Requisition_name__c`, `Requisition_Status__c`, `Requisition_Raised_Date__c`, `PO_Date__c`, `Delivery_Due_Date__c`, `Payment_Terms__c` (days), `Billing_Location__c` → Account, `Shipping_Location__c` → Account, `Vendor__c` → Account, `Budget_Required_Requistion__c`)
+- `Product_Requisition__c` — requisition line items (child of Requistion__c)
+- `Vendor_Assigned__c` — vendors assigned to a requisition
+- `Vendor_Quote_Line_Item__c` — per-vendor, per-line quoted rates
+- `Vendor_Document__c` — vendor attachments (metadata only, files stay in SF)
+- `Payment_Schedule__c` — payment plan
+- Standard `SalesforceInvoice` — invoices
 
-Also add a color-coded quote status pill next to the vendor name (grey/blue/orange/green/dark-green/purple/emerald mapping below).
+There is **no** dedicated `GRN__c` / Goods Receipt object in this org. GRNs will be seeded as empty in Lovable and marked as "no source in SF".
 
-### 2. Expanded panel = accordion "workflow dashboard"
+## Target requisition for POC
 
-Replace the current flat stack under the expanded row (lines ~1588–1766) with a single scroll-contained container:
+Default pick: **"Rmx Concrete India - June & July 2026"** (`a01fu00000jFWGzAAO`) — has 3 line items, 1 assigned vendor, 3 quote line items, PO date + payment terms populated. Nice representative record. (If you prefer a different one — e.g. "Stone Requirement - June 2026" which has 4 lines / 4 quotes — say so before I run and I'll swap the ID.)
+
+## Field mapping (SF → Lovable `procurement_orders` + children)
 
 ```text
-[Vendor name] [status pill] [N GRN] [N Invoices] [₹Paid] [Balance]
-──────────────────────────────────────────────────────────────
-Compact timeline:  ✓ Submitted 21/07 14:41  ↺ Reopened 22/07  📝 Changes 22/07
-──────────────────────────────────────────────────────────────
-Accordion (shadcn Accordion, single-open, defaultValue="grns"):
-  ▸ Goods Receipts (N)          [+ Receive Goods]   ← primary, open by default
-  ▸ Invoices (N)                [+ Add Invoice]     ← primary
-  ▸ Financial Summary            (chips + payment schedule)
-  ▸ Quote Details                 (submitted / reopened / attachments / items in scope)
+Requistion__c                         → procurement_orders
+  Id                                  → salesforce_id (new column)
+  Name / Requisition_name__c          → requisition_name
+  Requisition_Raised_Date__c          → created_at (date part)
+  PO_Date__c                          → po_date (existing) / stays as is
+  Delivery_Due_Date__c                → expected_delivery_date
+  Payment_Terms__c (Integer days)     → payment_terms ("Net N")
+  Billing_Location__r.Name            → bill_to_id (lookup/create in master_addresses)
+  Shipping_Location__r.Name           → ship_to_id (lookup/create in master_addresses)
+  Requisition_Status__c               → status (mapped: Initiated→Requisition,
+                                        Approved→Requisition Approved,
+                                        Vendor list identified→Quote Requested,
+                                        Vendor shortlisted→PO Issued)
+  Budget_Required_Requistion__c       → budget_amount (if column exists, else ignored)
+  source_type                         → "vendor" (hardcoded)
+
+Product_Requisition__c                → procurement_items
+  Product name/lookup                 → product_id (match on master_products.salesforce_id
+                                        or product name; auto-create if missing)
+  Quantity / UOM / Rate / Description → qty, uom, rate, description
+  Vendor_Assigned relations           → vendor_ids[]
+
+Vendor_Assigned__c                    → contributes vendor into procurement_items.vendor_ids
+  Vendor Account                      → vendors (match on salesforce_id, else auto-create
+                                        via existing vendor import path)
+
+Vendor_Quote_Line_Item__c             → procurement_vendor_quotes
+                                      + procurement_vendor_quote_items
+  Vendor + Line + Rate + Qty          → one quote per vendor with items
+  status                              → "Quote Submitted" if a rate exists, else "Draft"
+
+Payment_Schedule__c (if present)      → procurement_invoice_payments
+                                        (informational only — no invoice linkage
+                                         unless SalesforceInvoice records exist for the req)
+
+SalesforceInvoice (if any)            → procurement_invoices + procurement_invoice_items
+                                        (skip if org has none for this req)
+
+GRN                                   → none in SF; leave GRN section empty in the imported PO
 ```
 
-Rules:
-- Accordion items with zero relevant content are hidden entirely (e.g. no attachments → no "attachments" line; no timeline events → no timeline row).
-- The whole expanded panel wraps in `max-h-[75vh] overflow-y-auto`, and each list (GRNs, Invoices, Attachments, Items in scope) uses its own `max-h-40 overflow-y-auto` so long lists scroll inside their subsection rather than blowing the panel out.
-- Vertical spacing tightened (`space-y-2` between accordion items; remove redundant uppercase headings replaced by accordion trigger label).
+## Deliverables
 
-### 3. Timeline (replaces "Quote Audit Trail" card)
+1. **New edge function** `supabase/functions/import-salesforce-procurement/index.ts`
+   - Verifies caller is an authenticated admin (same pattern as `import-salesforce-products`).
+   - Accepts `{ salesforce_id: string }` in the POST body — one requisition per call.
+   - Uses the Salesforce connector gateway (`LOVABLE_API_KEY` + `SALESFORCE_API_KEY`, already configured).
+   - Fetches Requistion__c + child Product_Requisition__r, Vendor_Assigned__r, Vendor_Quote_Line_Items__r in a single SOQL sub-query call, then follow-up queries for Payment_Schedule__c and any SalesforceInvoice tied to the requisition (best-effort — skip cleanly if none).
+   - Resolves/creates dependent records (vendors, master_products, master_addresses) using existing tables — reuses `salesforce_id` de-duplication like the product importer.
+   - Upserts the `procurement_orders` row (by `salesforce_id`), then its `procurement_items`, `procurement_vendor_quotes`, `procurement_vendor_quote_items`, and optional invoices/payments.
+   - Returns a JSON report: what was created vs updated per table, plus any skipped items with reasons.
 
-Single-line horizontal (wraps on mobile) using `first_submitted_at`, `reopened_at`, `last_resubmitted_at`, and presence of `changes_requested` status:
-- `✓ Quote Submitted – dd/MM/yyyy HH:mm`
-- `↺ Reopened – dd/MM/yyyy HH:mm`
-- `📝 T&C Changes Requested – dd/MM/yyyy HH:mm` (uses latest `submitted_at` when status is `changes_requested`)
+2. **Schema migration**
+   - Add `salesforce_id TEXT UNIQUE` to `procurement_orders`, `procurement_items`, `procurement_vendor_quotes`, `procurement_vendor_quote_items`, and `master_addresses` (mirroring the existing pattern on `master_products` and `vendors`) so the importer is idempotent and safe to re-run.
+   - Add `deploy` block in `supabase/config.toml` if needed (verify_jwt default is fine).
 
-Rendered as small chips with muted background; hidden if no events exist.
+3. **Admin trigger UI (minimal — no design change)**
+   - Add a small "Import from Salesforce" button on the Procurement list page (`src/pages/Procurement.tsx`), visible to admins only.
+   - Opens a plain dialog with a single input: **Salesforce Requisition ID** (prefilled with the POC ID above), plus an "Import" button.
+   - Calls the edge function, shows a toast with the import report, then refreshes the list. No changes to the PO detail UI — the imported record should render inside the existing screens as-is.
 
-### 4. Items in scope truncation
+## Verification
 
-Under "Quote Details" accordion, replace the current per-item list with:
-- Inline text: `"Item A, Item B +N more"` (first 2 names).
-- `+N more` is a `Popover` trigger showing the full scoped list (name · qty · rate) with `max-h-56 overflow-y-auto`.
-- If ≤ 2 items, render all inline without popover.
+After running, open the imported PO in the existing Procurement detail view and confirm:
+- Header shows requisition name, dates, bill-to / ship-to, payment terms.
+- Line items list matches SF (product, qty, UOM, rate).
+- Assigned vendor(s) render, with the quote table populated from the SF quote line items.
+- Status maps to the correct stage in the header stepper.
+- GRNs and Invoices sections stay empty (expected — no source data), and Record Payment / Add Invoice actions still work if the user clicks them.
 
-### 5. Color-coded status mapping (single helper)
+## Out of scope for this POC
 
-Add a small local helper `quoteStatusStyle(s)` used by both the collapsed row pill and expanded header:
-- `draft` → grey (`bg-muted text-muted-foreground border-border`)
-- `reopened` → blue (`bg-blue-100 text-blue-700 border-blue-300` + dark variants)
-- `changes_requested` → orange (`bg-orange-100 text-orange-700 border-orange-300`)
-- `submitted` → green (`bg-emerald-100 text-emerald-700 border-emerald-300`)
-- Derived per-vendor PO progression pill (shown next to the summary badges):
-  - Fully received (all scoped GRNs reconcile qty for this vendor) → dark green
-  - Any invoice exists → purple
-  - Fully paid (balance == 0 and invoiced > 0) → emerald
-  These are additive; only the "highest" applicable one is shown.
-
-### 6. GRN / Invoice sections stay actionable but compact
-
-Keep existing GRN and Invoice rendering logic and click-through to `setSelectedGrn` / `setSelectedInvoiceId`, but:
-- Move `Receive Goods` button into the Goods Receipts accordion trigger row (right-aligned).
-- Move `Add Invoice` button into the Invoices accordion trigger row (disabled with tooltip "Receive goods first" when `!hasGrn`).
-- Row density reduced (`py-1 text-[11px]`), status badge on GRN reuses `statusColor(g.status)`.
-
-### 7. Removed / consolidated
-
-- Standalone "Financials" grid section becomes the "Financial Summary" accordion body (same data, no visual regression).
-- Empty "No items selected." / "No invoices for this vendor yet." states remain but sit inside their respective accordion sections; empty accordions are hidden entirely, except GRNs and Invoices which always render (they carry the primary actions).
-
-## Non-goals
-
-- No changes to line-items table, quote comparison table, T&C change-request banner, or top-level PO details.
-- No new tables, columns, or backend calls.
-- No changes to `GRNForm`, `InvoiceForm`, `GRNDetail`, or Invoice detail dialog.
-
-## Technical notes
-
-- Uses existing shadcn `Accordion` (`@/components/ui/accordion`) — already available in the codebase.
-- New helpers defined inline in the file: `quoteStatusStyle`, `vendorProgressPill(finSummary, vGrns, vInvs)`, `formatTimelineDate(iso)`.
-- All changes confined to the expanded-row JSX block (roughly lines 1588–1766) plus a small addition to the collapsed row for summary chips (around lines 1401–1445 vendor cell area).
+- Bulk import UI and background job (comes in the next phase).
+- Vendor Documents file transfer (only metadata, if any, will be logged in the report).
+- Two-way sync back to Salesforce.
+- Any change to the existing Procurement UI.
