@@ -210,7 +210,7 @@ export default function InvoiceForm({
             <FileText className="h-4 w-4" />Record Invoice — {poNumber}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-5 p-4 overflow-y-auto flex-1 max-w-3xl w-full mx-auto pb-8">
+        <div className="space-y-5 px-6 md:px-8 py-4 overflow-y-auto flex-1 w-full pb-8">
           {/* PO / Vendor header (read-only) */}
           <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/40 p-3">
             <div>
