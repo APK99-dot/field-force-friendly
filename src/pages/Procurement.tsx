@@ -32,6 +32,8 @@ import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "
 import { useAppConfiguration } from "@/hooks/useAppConfiguration";
 import { EditableListEditor } from "@/components/config/EditableListEditor";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useAdminAccess } from "@/hooks/useAdminAccess";
+import SalesforceImportDialog from "@/components/procurement/SalesforceImportDialog";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
@@ -129,6 +131,8 @@ export default function Procurement() {
   const [isSaving, setIsSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailOrder | null>(null);
+  const [sfImportOpen, setSfImportOpen] = useState(false);
+  const { hasAdminAccess } = useAdminAccess();
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
   const [termsUserEdited, setTermsUserEdited] = useState(false);
   const [pendingUoms, setPendingUoms] = useState<string[]>([]);
@@ -506,8 +510,17 @@ export default function Procurement() {
           <h1 className="text-xl font-bold flex items-center gap-2"><ShoppingCart className="h-5 w-5" />Procurement</h1>
           <p className="text-xs text-muted-foreground">{orders.length} requisitions</p>
         </div>
-        {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New Requisition</Button>}
+        <div className="flex items-center gap-2">
+          {hasAdminAccess && (
+            <Button size="sm" variant="outline" onClick={() => setSfImportOpen(true)} className="gap-1.5">
+              Import from Salesforce
+            </Button>
+          )}
+          {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New Requisition</Button>}
+        </div>
       </div>
+
+      <SalesforceImportDialog open={sfImportOpen} onOpenChange={setSfImportOpen} onImported={fetchAll} />
 
       <div className="space-y-2">
         <div className="relative">
