@@ -221,7 +221,6 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
   const [newPassword, setNewPassword] = useState("");
   const [dateOfJoining, setDateOfJoining] = useState(employee?.date_of_joining || "");
   const [loading, setLoading] = useState(false);
-  const [deletingData, setDeletingData] = useState(false);
   const [editTab, setEditTab] = useState("basic");
 
   // Fetch current security profile assignment
@@ -305,25 +304,6 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
       toast.error(err.message || "Failed to update user");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDeleteData = async () => {
-    setDeletingData(true);
-    try {
-      // Delete operational records but keep the user account
-      await supabase.from("attendance").delete().eq("user_id", user.id);
-      await supabase.from("gps_tracking").delete().eq("user_id", user.id);
-      await supabase.from("gps_tracking_stops").delete().eq("user_id", user.id);
-      await supabase.from("additional_expenses").delete().eq("user_id", user.id);
-      await supabase.from("activity_events").delete().eq("user_id", user.id);
-      await supabase.from("leave_applications").delete().eq("user_id", user.id);
-      toast.success("User data cleared successfully");
-      onSaved();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete data");
-    } finally {
-      setDeletingData(false);
     }
   };
 
@@ -430,19 +410,10 @@ function EditUserDialog({ user, employee, roles, allUsers, onSaved, open, onOpen
             <Button
               variant="outline"
               size="sm"
-              className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950 text-xs"
-              onClick={handleDeleteData}
-              disabled={deletingData}
-            >
-              {deletingData ? "Deleting..." : "Delete Data"}
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="text-xs"
+              className="text-xs text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950"
               onClick={() => { onOpenChange(false); onDeleteUser(user); }}
             >
-              Delete User
+              Deactivate User
             </Button>
           </div>
           <div className="flex gap-2 justify-end">
@@ -750,38 +721,16 @@ export default function AdminUserManagement() {
     onError: (err: any) => toast.error(err.message),
   });
 
-  const deleteUser = useMutation({
+  const deactivateUser = useMutation({
     mutationFn: async (userId: string) => {
-      await supabase.from("users").update({ reporting_manager_id: null }).eq("reporting_manager_id", userId);
-      await supabase.from("employees").update({ manager_id: null }).eq("manager_id", userId);
-      await supabase.from("leave_balance").delete().eq("user_id", userId);
-      await supabase.from("leave_applications").delete().eq("user_id", userId);
-      await supabase.from("employee_documents").delete().eq("user_id", userId);
-      await supabase.from("activity_events").delete().eq("user_id", userId);
-      await supabase.from("attendance").delete().eq("user_id", userId);
-      await supabase.from("gps_tracking").delete().eq("user_id", userId);
-      await supabase.from("gps_tracking_stops").delete().eq("user_id", userId);
-      await supabase.from("additional_expenses").delete().eq("user_id", userId);
-      await supabase.from("beat_plans").delete().eq("user_id", userId);
-      const { data: userVisits } = await supabase.from("visits").select("id").eq("user_id", userId);
-      if (userVisits && userVisits.length > 0) {
-        const visitIds = userVisits.map(v => v.id);
-        const { data: userOrders } = await supabase.from("orders").select("id").in("visit_id", visitIds);
-        if (userOrders && userOrders.length > 0) {
-          await supabase.from("order_items").delete().in("order_id", userOrders.map(o => o.id));
-        }
-        await supabase.from("orders").delete().eq("user_id", userId);
-        await supabase.from("visits").delete().eq("user_id", userId);
-      }
-      await supabase.from("orders").delete().eq("user_id", userId);
-      await supabase.from("employees").delete().eq("user_id", userId);
-      await supabase.from("user_roles").delete().eq("user_id", userId);
-      const { error: userDelError } = await supabase.from("users").delete().eq("id", userId);
-      if (userDelError) throw userDelError;
-      await supabase.from("profiles").update({ user_status: "deleted" }).eq("id", userId);
+      const { error: userError } = await supabase.from("users").update({ is_active: false }).eq("id", userId);
+      if (userError) throw userError;
+
+      const { error: profileError } = await supabase.from("profiles").update({ user_status: "inactive" }).eq("id", userId);
+      if (profileError) throw profileError;
     },
-    onSuccess: () => { invalidateAll(); toast.success("User deleted"); setDeleteTarget(null); },
-    onError: (err: any) => toast.error(err.message || "Failed to delete user"),
+    onSuccess: () => { invalidateAll(); toast.success("User deactivated"); setDeleteTarget(null); },
+    onError: (err: any) => toast.error(err.message || "Failed to deactivate user"),
   });
 
   // Per-role stats (using security profile assignments, not legacy role_id)
@@ -1102,18 +1051,17 @@ export default function AdminUserManagement() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete User</AlertDialogTitle>
+              <AlertDialogTitle>Deactivate User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{deleteTarget?.full_name || deleteTarget?.email}</strong>? This action cannot be undone.
+                Deactivate <strong>{deleteTarget?.full_name || deleteTarget?.email}</strong>? Their historical attendance, leave, activity, expense, and procurement data will be preserved.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deleteTarget && deleteUser.mutate(deleteTarget.id)}
+              onClick={() => deleteTarget && deactivateUser.mutate(deleteTarget.id)}
             >
-              Delete
+              Deactivate
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
