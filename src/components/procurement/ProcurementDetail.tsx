@@ -903,27 +903,21 @@ export default function ProcurementDetail({
     if (allLinesHaveRate && hasAssignedVendors) {
       cands.push({ stage: "PO Issued", note: "All line rates finalized" });
     }
-    // GRN aggregation
+    // GRN aggregation — header only advances when ALL finalized vendors are fully received.
     if (allRank(LIFECYCLE_RANK["Fully Received"])) {
       cands.push({ stage: "Goods Received", note: "All vendors fully received" });
-    } else if (anyRank(LIFECYCLE_RANK["Partially Received"]) && minRank < LIFECYCLE_RANK["Fully Received"]) {
-      cands.push({ stage: "Partially Received" as ProcStatus, note: "Some vendors received; others pending" });
     } else if (anyFullyReceived && !hasAnyLifecycle) {
       cands.push({ stage: "Goods Received", note: "GRN marked Fully Received" });
     }
-    // Invoice aggregation
+    // Invoice aggregation — header only advances when ALL finalized vendors are fully invoiced.
     if (allRank(LIFECYCLE_RANK["Fully Invoiced"])) {
       cands.push({ stage: "Invoice Received", note: "All vendors fully invoiced" });
-    } else if (anyRank(LIFECYCLE_RANK["Partially Invoiced"]) && !allRank(LIFECYCLE_RANK["Fully Invoiced"])) {
-      cands.push({ stage: "Partially Invoiced" as ProcStatus, note: "Some vendor invoices pending" });
     } else if (hasInvoice && !hasAnyLifecycle) {
       cands.push({ stage: "Invoice Received", note: "Invoice recorded" });
     }
-    // Payment aggregation
+    // Payment aggregation — header only advances when ALL finalized vendors are fully paid.
     if (allRank(LIFECYCLE_RANK["Paid"])) {
       cands.push({ stage: "Paid", note: "All vendor invoices paid in full" });
-    } else if (anyRank(LIFECYCLE_RANK["Partially Paid"]) && !allRank(LIFECYCLE_RANK["Paid"])) {
-      cands.push({ stage: "Partially Paid" as ProcStatus, note: "Some vendor invoices still have a balance" });
     }
 
 
