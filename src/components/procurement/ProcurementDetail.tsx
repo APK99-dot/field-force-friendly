@@ -1128,17 +1128,21 @@ export default function ProcurementDetail({
 
   useEffect(() => { if (open) loadVendorQuotes(); }, [open, loadVendorQuotes]);
 
-  // Automatic status refresh: pick up vendor submissions without a page reload
+  // Automatic status refresh: pick up vendor submissions without a page reload.
+  // Also refresh the parent order (status + line rates) so the header stepper
+  // and auto-advance logic see the server-side changes made by the vendor
+  // portal edge function (e.g. Quote Requested -> Quote Received).
   useEffect(() => {
     if (!open) return;
-    const onVisible = () => { if (document.visibilityState === "visible") loadVendorQuotes(); };
+    const refreshAll = () => { loadVendorQuotes(); onChanged(); };
+    const onVisible = () => { if (document.visibilityState === "visible") refreshAll(); };
     document.addEventListener("visibilitychange", onVisible);
-    const interval = window.setInterval(loadVendorQuotes, 30000);
+    const interval = window.setInterval(refreshAll, 30000);
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
       window.clearInterval(interval);
     };
-  }, [open, loadVendorQuotes]);
+  }, [open, loadVendorQuotes, onChanged]);
 
   // Auto-apply the rate when a line item has exactly ONE submitted quote and
   // the buyer hasn't already picked/adjusted a rate. Manual "Select" is only
