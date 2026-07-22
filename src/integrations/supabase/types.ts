@@ -1696,6 +1696,7 @@ export type Database = {
           id: string
           is_active: boolean
           pincode: string | null
+          salesforce_id: string | null
           state: string | null
           updated_at: string
         }
@@ -1711,6 +1712,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           pincode?: string | null
+          salesforce_id?: string | null
           state?: string | null
           updated_at?: string
         }
@@ -1726,6 +1728,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           pincode?: string | null
+          salesforce_id?: string | null
           state?: string | null
           updated_at?: string
         }
@@ -4036,6 +4039,7 @@ export type Database = {
           rate: number
           rate_source: string | null
           rate_source_vendor_id: string | null
+          salesforce_id: string | null
           uom: string | null
           updated_at: string
           vendor_ids: string[] | null
@@ -4050,6 +4054,7 @@ export type Database = {
           rate?: number
           rate_source?: string | null
           rate_source_vendor_id?: string | null
+          salesforce_id?: string | null
           uom?: string | null
           updated_at?: string
           vendor_ids?: string[] | null
@@ -4064,6 +4069,7 @@ export type Database = {
           rate?: number
           rate_source?: string | null
           rate_source_vendor_id?: string | null
+          salesforce_id?: string | null
           uom?: string | null
           updated_at?: string
           vendor_ids?: string[] | null
@@ -4104,6 +4110,7 @@ export type Database = {
           requisition_name: string | null
           requisition_notes: string | null
           requisition_number: string | null
+          salesforce_id: string | null
           ship_to: string | null
           ship_to_address_id: string | null
           ship_to_gst: string | null
@@ -4136,6 +4143,7 @@ export type Database = {
           requisition_name?: string | null
           requisition_notes?: string | null
           requisition_number?: string | null
+          salesforce_id?: string | null
           ship_to?: string | null
           ship_to_address_id?: string | null
           ship_to_gst?: string | null
@@ -4168,6 +4176,7 @@ export type Database = {
           requisition_name?: string | null
           requisition_notes?: string | null
           requisition_number?: string | null
+          salesforce_id?: string | null
           ship_to?: string | null
           ship_to_address_id?: string | null
           ship_to_gst?: string | null
@@ -4285,6 +4294,7 @@ export type Database = {
           quote_id: string
           rate: number
           rate_after_discount: number
+          salesforce_id: string | null
           updated_at: string
         }
         Insert: {
@@ -4298,6 +4308,7 @@ export type Database = {
           quote_id: string
           rate?: number
           rate_after_discount?: number
+          salesforce_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -4311,6 +4322,7 @@ export type Database = {
           quote_id?: string
           rate?: number
           rate_after_discount?: number
+          salesforce_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -4345,6 +4357,7 @@ export type Database = {
           procurement_item_ids: string[] | null
           reopened_at: string | null
           reopened_by: string | null
+          salesforce_id: string | null
           status: string
           submitted_at: string | null
           term_responses: Json
@@ -4369,6 +4382,7 @@ export type Database = {
           procurement_item_ids?: string[] | null
           reopened_at?: string | null
           reopened_by?: string | null
+          salesforce_id?: string | null
           status?: string
           submitted_at?: string | null
           term_responses?: Json
@@ -4393,6 +4407,7 @@ export type Database = {
           procurement_item_ids?: string[] | null
           reopened_at?: string | null
           reopened_by?: string | null
+          salesforce_id?: string | null
           status?: string
           submitted_at?: string | null
           term_responses?: Json
