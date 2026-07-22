@@ -506,8 +506,17 @@ export default function Procurement() {
           <h1 className="text-xl font-bold flex items-center gap-2"><ShoppingCart className="h-5 w-5" />Procurement</h1>
           <p className="text-xs text-muted-foreground">{orders.length} requisitions</p>
         </div>
-        {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New Requisition</Button>}
+        <div className="flex items-center gap-2">
+          {hasAdminAccess && (
+            <Button size="sm" variant="outline" onClick={() => setSfImportOpen(true)} className="gap-1.5">
+              Import from Salesforce
+            </Button>
+          )}
+          {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New Requisition</Button>}
+        </div>
       </div>
+
+      <SalesforceImportDialog open={sfImportOpen} onOpenChange={setSfImportOpen} onImported={loadOrders} />
 
       <div className="space-y-2">
         <div className="relative">
