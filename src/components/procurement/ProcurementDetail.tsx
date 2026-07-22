@@ -799,9 +799,9 @@ export default function ProcurementDetail({
   // advanced (e.g. one vendor fully paid while others still need receipt/billing).
   const canReceive = isTransfer
     ? canApprove && ["Requisition Approved", "Goods Received"].includes(order.status)
-    : canApprove && ["PO Issued", "Goods Received", "Invoice Received", "Paid"].includes(order.status);
+    : canApprove && ["PO Issued", "Partially Received", "Goods Received", "Partially Invoiced", "Invoice Received", "Partially Paid", "Paid"].includes(order.status);
   const canInvoice =
-    !isTransfer && canApprove && ["Goods Received", "Invoice Received", "Paid"].includes(order.status);
+    !isTransfer && canApprove && ["PO Issued", "Partially Received", "Goods Received", "Partially Invoiced", "Invoice Received", "Partially Paid", "Paid"].includes(order.status);
 
   const estBudget = isTransfer ? null : order.estimated_budget;
   const poValue = order.total_amount || 0;
