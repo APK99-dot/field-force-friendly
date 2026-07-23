@@ -233,6 +233,15 @@ export default function ProcurementDetail({
   const [vendorSearch, setVendorSearch] = useState("");
   const [expandedVendorRow, setExpandedVendorRow] = useState<string | null>(null);
   const [showAllLines, setShowAllLines] = useState(false);
+  const comparisonStorageKey = `vendor-comparison-collapsed:${order.id}`;
+  const [comparisonCollapsed, setComparisonCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem(comparisonStorageKey) === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(comparisonStorageKey, comparisonCollapsed ? "1" : "0"); } catch { /* ignore */ }
+  }, [comparisonCollapsed, comparisonStorageKey]);
+  const [comparisonSort, setComparisonSort] = useState<"rate" | "delivery" | "discount" | "payment">("rate");
+  const [comparisonFilter, setComparisonFilter] = useState<"all" | "quoted" | "selected">("all");
   // Vendor picker for GRN / Invoice creation (which vendor is this receipt / bill for?)
   const [grnVendorId, setGrnVendorId] = useState<string | null>(null);
   const [invVendorId, setInvVendorId] = useState<string | null>(null);
