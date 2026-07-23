@@ -3944,6 +3944,7 @@ export type Database = {
           notes: string | null
           payment_date: string | null
           reference_number: string | null
+          salesforce_id: string | null
         }
         Insert: {
           amount?: number
@@ -3955,6 +3956,7 @@ export type Database = {
           notes?: string | null
           payment_date?: string | null
           reference_number?: string | null
+          salesforce_id?: string | null
         }
         Update: {
           amount?: number
@@ -3966,6 +3968,7 @@ export type Database = {
           notes?: string | null
           payment_date?: string | null
           reference_number?: string | null
+          salesforce_id?: string | null
         }
         Relationships: [
           {
@@ -3986,6 +3989,7 @@ export type Database = {
           invoice_date: string
           invoice_number: string | null
           po_id: string
+          salesforce_id: string | null
           updated_at: string
           vendor_id: string | null
         }
@@ -3997,6 +4001,7 @@ export type Database = {
           invoice_date?: string
           invoice_number?: string | null
           po_id: string
+          salesforce_id?: string | null
           updated_at?: string
           vendor_id?: string | null
         }
@@ -4008,6 +4013,7 @@ export type Database = {
           invoice_date?: string
           invoice_number?: string | null
           po_id?: string
+          salesforce_id?: string | null
           updated_at?: string
           vendor_id?: string | null
         }

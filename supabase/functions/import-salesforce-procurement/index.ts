@@ -54,6 +54,18 @@ interface SFQuoteLine {
   Vendor_Delivery_Commitment_Date__c: string | null;
   Quality_instruction__c: string | null;
 }
+interface SFPaymentSchedule {
+  Id: string;
+  Name: string | null;
+  Status__c: string | null;
+  Amount_Processed__c: number | null;
+  Amount_To_Be_Paid__c: number | null;
+  Invoice_Date_from_Vendor__c: string | null;
+  Payment_Date__c: string | null;
+  Payment_Due_Date__c: string | null;
+  Payment_cheque_or_reference_number__c: string | null;
+  Vendor_List__c: string | null; // → Vendor_Assigned__c Id
+}
 
 // Map SF Requisition_Status__c → Lovable procurement_orders.status
 function mapStatus(sf: string | null): string {
@@ -341,6 +353,75 @@ Deno.serve(async (req) => {
       }
     }
     step("quotes_created", { quotes: quoteCount, quote_items: quoteItemCount });
+
+    // ---- 9. Sync Payment Schedules → invoices + payments ----
+    // Payment_Schedule__c → Vendor_List__r (Vendor_Assigned__c) → Requistion__c
+    const psRows = await sfQuery<SFPaymentSchedule>(
+      `SELECT Id, Name, Status__c, Amount_Processed__c, Amount_To_Be_Paid__c, Invoice_Date_from_Vendor__c, Payment_Date__c, Payment_Due_Date__c, Payment_cheque_or_reference_number__c, Vendor_List__c FROM Payment_Schedule__c WHERE Vendor_List__r.Requistion__c = '${salesforceId}'`,
+      SALESFORCE_API_KEY, LOVABLE_API_KEY,
+    );
+    step("payment_schedules_loaded", { count: psRows.length });
+
+    let invoiceCount = 0, paymentCount = 0, psSkipped = 0;
+    for (const ps of psRows) {
+      const vaId = ps.Vendor_List__c;
+      const accId = vaId ? vaVendorMap.get(vaId) : null;
+      const vendorLocalId = accId ? vendorMap.get(accId) : null;
+      if (!vendorLocalId) { psSkipped++; continue; }
+
+      const amt = ps.Amount_To_Be_Paid__c ?? ps.Amount_Processed__c ?? 0;
+      const invDate = ps.Invoice_Date_from_Vendor__c || ps.Payment_Due_Date__c || ps.Payment_Date__c || new Date().toISOString().slice(0, 10);
+
+      // Upsert invoice by salesforce_id
+      const { data: existingInv } = await admin.from("procurement_invoices")
+        .select("id").eq("salesforce_id", ps.Id).maybeSingle();
+      let invoiceId: string;
+      const invPayload = {
+        po_id: orderId,
+        vendor_id: vendorLocalId,
+        invoice_number: ps.Name || `PS-${ps.Id.slice(-6)}`,
+        invoice_date: invDate,
+        invoice_amount: amt,
+        salesforce_id: ps.Id,
+        created_by: uid,
+      };
+      if (existingInv?.id) {
+        invoiceId = existingInv.id as string;
+        await admin.from("procurement_invoices").update(invPayload).eq("id", invoiceId);
+      } else {
+        const { data: ins, error: iErr } = await admin.from("procurement_invoices")
+          .insert(invPayload).select("id").single();
+        if (iErr) throw new Error(`insert invoice ${ps.Name}: ${iErr.message}`);
+        invoiceId = ins!.id as string;
+        invoiceCount++;
+      }
+
+      // If paid, ensure a payment row
+      const status = (ps.Status__c || "").toLowerCase();
+      const paidAmt = ps.Amount_Processed__c ?? 0;
+      if (status === "paid" && paidAmt > 0) {
+        const paySfId = `${ps.Id}-pay`;
+        const { data: existingPay } = await admin.from("procurement_invoice_payments")
+          .select("id").eq("salesforce_id", paySfId).maybeSingle();
+        const payPayload = {
+          invoice_id: invoiceId,
+          amount: paidAmt,
+          payment_date: ps.Payment_Date__c || invDate,
+          reference_number: ps.Payment_cheque_or_reference_number__c,
+          salesforce_id: paySfId,
+          created_by: uid,
+          notes: "Imported from Salesforce Payment Schedule",
+        };
+        if (existingPay?.id) {
+          await admin.from("procurement_invoice_payments").update(payPayload).eq("id", existingPay.id);
+        } else {
+          const { error: pErr } = await admin.from("procurement_invoice_payments").insert(payPayload);
+          if (pErr) throw new Error(`insert payment for ${ps.Name}: ${pErr.message}`);
+          paymentCount++;
+        }
+      }
+    }
+    step("invoices_and_payments", { invoices_created: invoiceCount, payments_created: paymentCount, skipped: psSkipped });
 
     report.order_id = orderId;
     report.success = true;
