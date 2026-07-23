@@ -839,7 +839,7 @@ export default function ProcurementDetail({
     const entry: StageHistoryEntry = {
       status: to,
       moved_by: currentUserId ?? null,
-      moved_by_name: opts?.actorName || moverName,
+      moved_by_name: opts?.actorName || (opts?.auto ? "System" : moverName),
       moved_at: new Date().toISOString(),
       note: opts?.note ?? null,
       auto: !!opts?.auto,
