@@ -54,6 +54,18 @@ interface SFQuoteLine {
   Vendor_Delivery_Commitment_Date__c: string | null;
   Quality_instruction__c: string | null;
 }
+interface SFPaymentSchedule {
+  Id: string;
+  Name: string | null;
+  Status__c: string | null;
+  Amount_Processed__c: number | null;
+  Amount_To_Be_Paid__c: number | null;
+  Invoice_Date_from_Vendor__c: string | null;
+  Payment_Date__c: string | null;
+  Payment_Due_Date__c: string | null;
+  Payment_cheque_or_reference_number__c: string | null;
+  Vendor_List__c: string | null; // → Vendor_Assigned__c Id
+}
 
 // Map SF Requisition_Status__c → Lovable procurement_orders.status
 function mapStatus(sf: string | null): string {
