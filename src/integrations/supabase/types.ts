@@ -3859,6 +3859,7 @@ export type Database = {
           file_size: number | null
           id: string
           invoice_id: string
+          salesforce_id: string | null
         }
         Insert: {
           created_at?: string
@@ -3868,6 +3869,7 @@ export type Database = {
           file_size?: number | null
           id?: string
           invoice_id: string
+          salesforce_id?: string | null
         }
         Update: {
           created_at?: string
@@ -3877,6 +3879,7 @@ export type Database = {
           file_size?: number | null
           id?: string
           invoice_id?: string
+          salesforce_id?: string | null
         }
         Relationships: [
           {
