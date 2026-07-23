@@ -390,7 +390,7 @@ Deno.serve(async (req) => {
       const submittedAt = earliestLine?.CreatedDate || va?.LastModifiedDate || va?.CreatedDate || new Date().toISOString();
       const { data: quote, error: qErr } = await admin.from("procurement_vendor_quotes")
         .insert({
-          po_id: orderId, vendor_id: vendorLocalId, status: "Quote Submitted",
+          po_id: orderId, vendor_id: vendorLocalId, status: "submitted",
           vendor_payment_term: vendorPaymentTerm,
           submitted_at: submittedAt, first_submitted_at: submittedAt,
           created_by: uid, salesforce_id: va?.Id || null,
@@ -416,6 +416,18 @@ Deno.serve(async (req) => {
           });
         if (qiErr) throw new Error(`insert quote item ${line.Id}: ${qiErr.message}`);
         quoteItemCount++;
+
+        // Populate the line item's own rate/amount and mark this vendor as the source
+        // so the top-line "Rate" / "Amount" cells render (single-vendor imports).
+        const { data: itemRow } = await admin.from("procurement_items")
+          .select("qty").eq("id", itemId).single();
+        const qty = Number(itemRow?.qty || 0);
+        await admin.from("procurement_items").update({
+          rate: rateAfter,
+          amount: rateAfter * qty,
+          rate_source: "quote",
+          rate_source_vendor_id: vendorLocalId,
+        }).eq("id", itemId);
       }
     }
     step("quotes_created", { quotes: quoteCount, quote_items: quoteItemCount });
