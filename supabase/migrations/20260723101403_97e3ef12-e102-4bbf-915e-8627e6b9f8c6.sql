@@ -1,0 +1,1 @@
+ALTER TABLE public.procurement_invoice_attachments ADD COLUMN IF NOT EXISTS salesforce_id text UNIQUE;
