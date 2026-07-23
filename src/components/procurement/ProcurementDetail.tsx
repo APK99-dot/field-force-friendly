@@ -2203,7 +2203,42 @@ export default function ProcurementDetail({
 
 
           <Card ref={lineItemsRef}>
-            <CardHeader className="pb-2"><CardTitle className="text-base">{isTransfer ? "Transfer Items" : "Line Items"}</CardTitle></CardHeader>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setComparisonCollapsed((c) => !c)}
+                  className="flex items-center gap-1.5 text-left"
+                  aria-expanded={!comparisonCollapsed}
+                >
+                  {comparisonCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  <CardTitle className="text-base">{isTransfer ? "Transfer Items" : "Vendor Comparison"}</CardTitle>
+                  <span className="text-[11px] text-muted-foreground">({rateLines.length} item{rateLines.length !== 1 ? "s" : ""})</span>
+                </button>
+                {!isTransfer && !comparisonCollapsed && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select value={comparisonFilter} onValueChange={(v) => setComparisonFilter(v as any)}>
+                      <SelectTrigger className="h-7 w-[130px] text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All vendors</SelectItem>
+                        <SelectItem value="quoted">Quoted only</SelectItem>
+                        <SelectItem value="selected">Selected only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={comparisonSort} onValueChange={(v) => setComparisonSort(v as any)}>
+                      <SelectTrigger className="h-7 w-[150px] text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="rate">Sort: Lowest Rate</SelectItem>
+                        <SelectItem value="delivery">Sort: Fastest Delivery</SelectItem>
+                        <SelectItem value="discount">Sort: Highest Discount</SelectItem>
+                        <SelectItem value="payment">Sort: Payment Terms</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            {!comparisonCollapsed && (
             <CardContent className="space-y-2">
               {(() => {
                 const INITIAL_VISIBLE = 2;
@@ -2278,12 +2313,12 @@ export default function ProcurementDetail({
 
                         {/* Submitted quote comparison for this line item */}
                         {(() => {
-                          const rows = submittedQuotes.map((q) => {
+                          const rawRows = submittedQuotes.map((q) => {
                             const qi = (q.procurement_vendor_quote_items || []).find((x) => x.procurement_item_id === l.id);
                             const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
                             return { q, qi, rate };
                           });
-                          const priced = rows.filter((r) => r.rate != null && r.qi);
+                          const priced = rawRows.filter((r) => r.rate != null && r.qi);
                           if (priced.length === 0) {
                             return (
                               <div className="rounded-md border p-2 text-[11px] text-muted-foreground">
@@ -2293,17 +2328,56 @@ export default function ProcurementDetail({
                           }
                           const winnerVid = l.rate_source === "quote" ? l.rate_source_vendor_id : null;
                           const hasWinner = !!winnerVid && priced.some((r) => r.q.vendor_id === winnerVid);
-                          const minRate = Math.min(...priced.map((r) => r.rate as number));
-                          const deliveryDates = priced
-                            .map((r) => r.qi?.delivery_commitment_date)
-                            .filter((d): d is string => !!d);
-                          const minDelivery = deliveryDates.length ? deliveryDates.sort()[0] : null;
+                          const rates = priced.map((r) => r.rate as number);
+                          const minRate = Math.min(...rates);
+                          const maxRate = Math.max(...rates);
+                          const deliveryDates = priced.map((r) => r.qi?.delivery_commitment_date).filter((d): d is string => !!d);
+                          const minDelivery = deliveryDates.length ? [...deliveryDates].sort()[0] : null;
+                          const maxDiscount = Math.max(...priced.map((r) => Number(r.qi?.discount_pct) || 0));
+
+                          // Best overall = lowest rate AND (if delivery available) also fastest
+                          const bestOverallVid = (() => {
+                            const rateWinners = priced.filter((r) => r.rate === minRate);
+                            if (rateWinners.length === 1) return rateWinners[0].q.vendor_id;
+                            const both = rateWinners.find((r) => r.qi?.delivery_commitment_date === minDelivery);
+                            return (both || rateWinners[0]).q.vendor_id;
+                          })();
+
+                          // Apply filter
+                          let rows = rawRows.filter((r) => {
+                            if (comparisonFilter === "quoted") return r.qi && r.rate != null;
+                            if (comparisonFilter === "selected") return hasWinner && r.q.vendor_id === winnerVid;
+                            return true;
+                          });
+                          // Apply sort
+                          const paymentRank = (s: string) => {
+                            const idx = (PAYMENT_TERMS as readonly string[]).indexOf(s);
+                            return idx === -1 ? 999 : idx;
+                          };
+                          rows = [...rows].sort((a, b) => {
+                            if (comparisonSort === "rate") return (a.rate ?? Infinity) - (b.rate ?? Infinity);
+                            if (comparisonSort === "delivery") {
+                              const ad = a.qi?.delivery_commitment_date || "9999-12-31";
+                              const bd = b.qi?.delivery_commitment_date || "9999-12-31";
+                              return ad.localeCompare(bd);
+                            }
+                            if (comparisonSort === "discount") return (Number(b.qi?.discount_pct) || 0) - (Number(a.qi?.discount_pct) || 0);
+                            if (comparisonSort === "payment") return paymentRank(a.q.vendor_payment_term || "") - paymentRank(b.q.vendor_payment_term || "");
+                            return 0;
+                          });
 
                           return (
                             <div className="space-y-1.5 rounded-md border p-2 overflow-x-auto">
-                              <p className="text-[11px] font-medium">
-                                {priced.length >= 2 ? `Compare submitted quotes (${priced.length})` : "Submitted quote for this item"}
-                              </p>
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <p className="text-[11px] font-medium">
+                                  {priced.length >= 2 ? `Compare submitted quotes (${priced.length})` : "Submitted quote for this item"}
+                                </p>
+                                {priced.length >= 2 && maxRate > minRate && (
+                                  <span className="text-[10px] text-emerald-700 dark:text-emerald-400">
+                                    Potential savings: {fmtAmt((maxRate - minRate) * (l.qty || 0))} vs highest
+                                  </span>
+                                )}
+                              </div>
                               <table className="w-full text-[11px]">
                                 <thead className="text-muted-foreground">
                                   <tr className="text-left">
@@ -2311,6 +2385,8 @@ export default function ProcurementDetail({
                                     <th className="py-1 pr-2">Rate</th>
                                     <th className="py-1 pr-2">Disc %</th>
                                     <th className="py-1 pr-2">After Disc.</th>
+                                    <th className="py-1 pr-2">Amount</th>
+                                    <th className="py-1 pr-2">Variance</th>
                                     <th className="py-1 pr-2">Delivery</th>
                                     <th className="py-1 pr-2">Payment</th>
                                     <th className="py-1 pr-2 text-right">Action</th>
@@ -2323,34 +2399,53 @@ export default function ProcurementDetail({
                                     const canSelect = rate != null && qi;
                                     const isMinRate = canSelect && priced.length >= 2 && rate === minRate;
                                     const isMinDelivery = priced.length >= 2 && !!qi?.delivery_commitment_date && qi.delivery_commitment_date === minDelivery;
+                                    const isMaxDiscount = priced.length >= 2 && (Number(qi?.discount_pct) || 0) === maxDiscount && maxDiscount > 0;
+                                    const isBestOverall = priced.length >= 2 && q.vendor_id === bestOverallVid;
+                                    const variancePct = canSelect && minRate > 0 && rate != null ? ((rate - minRate) / minRate) * 100 : null;
+                                    const lineAmount = canSelect && rate != null ? rate * (l.qty || 0) : null;
                                     return (
-                                      <tr key={q.id} className={`border-t ${isLoser ? "opacity-60" : ""}`}>
-                                        <td className="py-1 pr-2 font-medium">
-                                          {vendorName(q.vendor_id || "")}
-                                          {isWinner && <span className="ml-1 text-emerald-600">✓ Selected</span>}
-                                          {isLoser && <span className="ml-1 text-muted-foreground">· Not Selected</span>}
+                                      <tr key={q.id} className={`border-t align-top ${isLoser ? "opacity-70" : ""} ${isWinner ? "bg-emerald-50/50 dark:bg-emerald-950/20" : ""}`}>
+                                        <td className="py-1.5 pr-2 font-medium">
+                                          <div className="flex flex-col gap-0.5">
+                                            <span>{vendorName(q.vendor_id || "")}</span>
+                                            <div className="flex flex-wrap gap-1">
+                                              {isWinner && <Badge className="h-4 px-1.5 text-[9px] bg-emerald-600 hover:bg-emerald-600">✓ Selected</Badge>}
+                                              {isBestOverall && !isWinner && <Badge variant="outline" className="h-4 px-1.5 text-[9px] border-emerald-500 text-emerald-700 dark:text-emerald-400">★ Best Overall</Badge>}
+                                            </div>
+                                          </div>
                                         </td>
-                                        <td className="py-1 pr-2">{qi ? fmtAmt(Number(qi.rate) || 0) : "-"}</td>
-                                        <td className="py-1 pr-2">{qi ? `${Number(qi.discount_pct) || 0}%` : "-"}</td>
-                                        <td className="py-1 pr-2">
-                                          <span className={isMinRate ? "inline-flex items-center gap-1" : ""}>
+                                        <td className="py-1.5 pr-2">{qi ? fmtAmt(Number(qi.rate) || 0) : "-"}</td>
+                                        <td className="py-1.5 pr-2">
+                                          {qi ? (
+                                            <span className={isMaxDiscount ? "inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium" : ""}>
+                                              {Number(qi.discount_pct) || 0}%
+                                              {isMaxDiscount && <span title="Highest discount">🏷</span>}
+                                            </span>
+                                          ) : "-"}
+                                        </td>
+                                        <td className="py-1.5 pr-2">
+                                          <span className={isMinRate ? "inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium" : ""}>
                                             {rate != null ? fmtAmt(rate) : "-"}
-                                            {isMinRate && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" title="Lowest rate" />}
+                                            {isMinRate && <Badge variant="outline" className="h-4 px-1 text-[9px] border-emerald-500 text-emerald-700 dark:text-emerald-400">Lowest</Badge>}
                                           </span>
                                         </td>
-                                        <td className="py-1 pr-2">
-                                          <span className={isMinDelivery ? "inline-flex items-center gap-1" : ""}>
+                                        <td className="py-1.5 pr-2">{lineAmount != null ? fmtAmt(lineAmount) : "-"}</td>
+                                        <td className="py-1.5 pr-2">
+                                          {variancePct == null ? "-" : variancePct === 0 ? (
+                                            <span className="text-emerald-700 dark:text-emerald-400">Base</span>
+                                          ) : (
+                                            <span className="text-amber-700 dark:text-amber-400">+{variancePct.toFixed(1)}%</span>
+                                          )}
+                                        </td>
+                                        <td className="py-1.5 pr-2">
+                                          <span className={isMinDelivery ? "inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium" : ""}>
                                             {qi?.delivery_commitment_date || "-"}
-                                            {isMinDelivery && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" title="Earliest delivery" />}
+                                            {isMinDelivery && <Badge variant="outline" className="h-4 px-1 text-[9px] border-emerald-500 text-emerald-700 dark:text-emerald-400">Fastest</Badge>}
                                           </span>
                                         </td>
-                                        <td className="py-1 pr-2">{q.vendor_payment_term || "-"}</td>
-                                        <td className="py-1 pr-2 text-right">
-                                          {isLoser ? (
-                                            <Button type="button" size="sm" variant="ghost" className="h-6 text-[11px]" disabled={!poUnlocked || ratesLocked} onClick={() => canSelect && applyLineQuote(l.id, q)}>
-                                              Select
-                                            </Button>
-                                          ) : canSelect ? (
+                                        <td className="py-1.5 pr-2">{q.vendor_payment_term || "-"}</td>
+                                        <td className="py-1.5 pr-2 text-right">
+                                          {canSelect ? (
                                             <Button type="button" size="sm" variant={isWinner ? "secondary" : "outline"} className="h-6 text-[11px]" disabled={!poUnlocked || ratesLocked || isWinner} onClick={() => applyLineQuote(l.id, q)}>
                                               {isWinner ? "Selected" : "Select"}
                                             </Button>
@@ -2393,6 +2488,7 @@ export default function ProcurementDetail({
                 </Button>
               )}
             </CardContent>
+            )}
 
 
 
