@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,30 @@ interface RecordResult {
   order_id?: string;
 }
 
+interface BatchResponse {
+  success?: boolean;
+  error?: string;
+  run_id: string;
+  total: number;
+  cursor: number;
+  next_cursor: number;
+  done: boolean;
+  created: number;
+  updated: number;
+  failed: number;
+  cumulative?: { created: number; updated: number; failed: number };
+  records?: RecordResult[];
+}
+
+async function getFunctionErrorMessage(error: unknown) {
+  if (error instanceof FunctionsHttpError) {
+    const text = await error.context.text();
+    return text || error.message;
+  }
+  if (error instanceof Error) return error.message;
+  return "Bulk import failed";
+}
+
 /**
  * Admin utility to bulk-import a date range of Salesforce Requisitions
  * (Requistion__c) along with their line items, vendors, quotes, invoices,
@@ -33,7 +58,7 @@ export default function SalesforceBulkImportDialog({ open, onOpenChange, onImpor
   const [from, setFrom] = useState("2026-06-01");
   const [to, setTo] = useState("2026-06-30");
   const [busy, setBusy] = useState(false);
-  const [summary, setSummary] = useState<{ total: number; created: number; updated: number; failed: number } | null>(null);
+  const [summary, setSummary] = useState<{ total: number; created: number; updated: number; failed: number; processed?: number } | null>(null);
   const [records, setRecords] = useState<RecordResult[]>([]);
 
   const runImport = async () => {
@@ -42,18 +67,39 @@ export default function SalesforceBulkImportDialog({ open, onOpenChange, onImpor
     setSummary(null);
     setRecords([]);
     try {
-      const { data, error } = await supabase.functions.invoke("bulk-import-salesforce-procurement", {
-        body: { from, to },
-      });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      const d = data as any;
-      setSummary({ total: d.total, created: d.created, updated: d.updated, failed: d.failed });
-      setRecords(d.records || []);
-      toast.success(`Import finished: ${d.created} new, ${d.updated} updated, ${d.failed} failed`);
+      let runId: string | null = null;
+      let cursor = 0;
+      let total = 0;
+      let cumulative = { created: 0, updated: 0, failed: 0 };
+      const allRecords: RecordResult[] = [];
+
+      while (true) {
+        const { data, error } = await supabase.functions.invoke("bulk-import-salesforce-procurement", {
+          body: { from, to, run_id: runId, cursor, batch_size: 1 },
+        });
+        if (error) throw new Error(await getFunctionErrorMessage(error));
+        const d = data as BatchResponse;
+        if (d?.error) throw new Error(d.error);
+
+        runId = d.run_id;
+        cursor = d.next_cursor;
+        total = d.total;
+        cumulative = d.cumulative || {
+          created: cumulative.created + (d.created || 0),
+          updated: cumulative.updated + (d.updated || 0),
+          failed: cumulative.failed + (d.failed || 0),
+        };
+        allRecords.push(...(d.records || []));
+        setRecords([...allRecords]);
+        setSummary({ total, processed: cursor, ...cumulative });
+
+        if (d.done) break;
+      }
+
+      toast.success(`Import finished: ${cumulative.created} new, ${cumulative.updated} updated, ${cumulative.failed} failed`);
       onImported?.();
-    } catch (e: any) {
-      toast.error(e?.message || "Bulk import failed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Bulk import failed");
     } finally {
       setBusy(false);
     }
@@ -90,7 +136,7 @@ export default function SalesforceBulkImportDialog({ open, onOpenChange, onImpor
           </div>
           {summary && (
             <div className="grid grid-cols-4 gap-2 text-center text-xs">
-              <div className="rounded-md border p-2"><div className="font-semibold text-lg">{summary.total}</div>Total</div>
+              <div className="rounded-md border p-2"><div className="font-semibold text-lg">{summary.processed ?? summary.total}/{summary.total}</div>Processed</div>
               <div className="rounded-md border p-2 bg-green-50 dark:bg-green-900/20"><div className="font-semibold text-lg">{summary.created}</div>Created</div>
               <div className="rounded-md border p-2 bg-blue-50 dark:bg-blue-900/20"><div className="font-semibold text-lg">{summary.updated}</div>Updated</div>
               <div className="rounded-md border p-2 bg-red-50 dark:bg-red-900/20"><div className="font-semibold text-lg">{summary.failed}</div>Failed</div>
