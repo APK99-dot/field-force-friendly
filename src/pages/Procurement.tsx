@@ -478,23 +478,35 @@ export default function Procurement() {
     setDeleteId(null);
   };
 
+  const vendorNameById = useMemo(
+    () => Object.fromEntries(vendors.map((v) => [v.id, v.name])) as Record<string, string>,
+    [vendors]
+  );
+
   const filtered = useMemo(() => {
     let list = orders;
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
-        (o) =>
-          (o.po_number || "").toLowerCase().includes(q) ||
-          ((o as any).requisition_number || "").toLowerCase().includes(q) ||
-          ((o as any).requisition_name || "").toLowerCase().includes(q) ||
-          sName(o.site_id).toLowerCase().includes(q) ||
-          (ownerNames[o.created_by || ""] || "").toLowerCase().includes(q)
+        (o) => {
+          const vIds: string[] = ((o as any).vendor_ids as string[] | null) || ((o as any).vendor_id ? [(o as any).vendor_id] : []);
+          const vendorNames = vIds.map((id) => vendorNameById[id] || "").join(" ").toLowerCase();
+          return (
+            (o.po_number || "").toLowerCase().includes(q) ||
+            ((o as any).requisition_number || "").toLowerCase().includes(q) ||
+            ((o as any).requisition_name || "").toLowerCase().includes(q) ||
+            sName(o.site_id).toLowerCase().includes(q) ||
+            (ownerNames[o.created_by || ""] || "").toLowerCase().includes(q) ||
+            vendorNames.includes(q)
+          );
+        }
       );
     }
     if (filterStatus !== "all") list = list.filter((o) => o.status === filterStatus);
     return list;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders, search, filterStatus, sites, ownerNames]);
+  }, [orders, search, filterStatus, sites, ownerNames, vendorNameById]);
+
 
   const fmtDMY = (d?: string | null) => {
     if (!d) return "—";
