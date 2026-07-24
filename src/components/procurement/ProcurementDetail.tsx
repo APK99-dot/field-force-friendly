@@ -66,6 +66,11 @@ export interface DetailOrder {
   procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null; vendor_ids?: string[] | null; rate_source?: string | null; rate_source_vendor_id?: string | null }[];
 }
 
+export interface ProcurementDetailFocus {
+  vendorId?: string | null;
+  section?: "quote" | "invoices" | "grns" | "financials";
+  invoiceId?: string | null;
+}
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -77,6 +82,8 @@ interface Props {
   productName: (id: string | null) => string;
   onEdit: (o: DetailOrder) => void;
   onChanged: () => void;
+  focus?: ProcurementDetailFocus | null;
+  onFocusConsumed?: () => void;
 }
 
 interface GrnRow { id: string; grn_number: string | null; receipt_date: string; status: string; received_by: string | null; remarks: string | null; vendor_id: string | null; photos?: string[] | null; }
