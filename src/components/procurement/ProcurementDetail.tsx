@@ -182,6 +182,7 @@ export default function ProcurementDetail({
   const [invoices, setInvoices] = useState<InvRow[]>([]);
   const [invItems, setInvItems] = useState<InvItemRow[]>([]);
   const [invPayments, setInvPayments] = useState<InvPaymentRow[]>([]);
+  const [invAttachments, setInvAttachments] = useState<{ id: string; invoice_id: string; file_name: string; file_path: string; file_size: number | null }[]>([]);
   const [grnOpen, setGrnOpen] = useState(false);
   const [invOpen, setInvOpen] = useState(false);
   const [selectedGrn, setSelectedGrn] = useState<GrnRow | null>(null);
