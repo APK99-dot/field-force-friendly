@@ -543,7 +543,7 @@ export default function VendorDetail() {
         {/* Documents */}
         <TabsContent value="documents" className="mt-4 space-y-2">
           {attachments.length === 0 ? <EmptyRow label="No documents on record." /> : (attachments as any[]).map((a) => (
-            <Card key={a.id}>
+            <Card key={a.id} className={a.po_id ? "cursor-pointer hover:shadow-sm" : ""} onClick={() => a.po_id && navigate(`/procurement/${a.po_id}`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{a.file_name}</p>
@@ -551,7 +551,7 @@ export default function VendorDetail() {
                     {a.scope} · {a.po?.po_number || a.po?.requisition_number || "—"} · {fmtDate(a.created_at)}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={() => downloadAttachment(a.file_path, a.file_name)}>
+                <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={(e) => { e.stopPropagation(); downloadAttachment(a.file_path, a.file_name); }}>
                   <Download className="h-3 w-3" /> Download
                 </Button>
               </CardContent>
