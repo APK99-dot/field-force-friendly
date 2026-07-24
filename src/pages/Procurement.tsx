@@ -238,14 +238,25 @@ export default function Procurement() {
     setPendingRestore(null);
   }, [pendingRestore, isLoading, products, categories, orders]);
 
-  // Open detail when navigated with ?po=<id>
+  // Focus target when navigated from a deep link (e.g., Vendor 360°)
+  const [detailFocus, setDetailFocus] = useState<{ vendorId?: string | null; section?: "quote" | "invoices" | "grns" | "financials"; invoiceId?: string | null } | null>(null);
+
+  // Open detail when navigated with ?po=<id>&vendor=&section=&invoice=
   useEffect(() => {
     const poId = searchParams.get("po");
     if (poId && orders.length) {
       const found = orders.find((o) => o.id === poId);
       if (found) {
+        const vendorId = searchParams.get("vendor");
+        const section = searchParams.get("section") as any;
+        const invoiceId = searchParams.get("invoice");
+        setDetailFocus({
+          vendorId: vendorId || null,
+          section: (["quote", "invoices", "grns", "financials"].includes(section) ? section : undefined),
+          invoiceId: invoiceId || null,
+        });
         setDetail(found);
-        setSearchParams((prev) => { prev.delete("po"); return prev; }, { replace: true });
+        setSearchParams((prev) => { prev.delete("po"); prev.delete("vendor"); prev.delete("section"); prev.delete("invoice"); return prev; }, { replace: true });
       }
     }
   }, [searchParams, orders]);
