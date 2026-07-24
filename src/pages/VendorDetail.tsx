@@ -474,7 +474,7 @@ export default function VendorDetail() {
         {/* GRNs */}
         <TabsContent value="grns" className="mt-4 space-y-2">
           {grns.length === 0 ? <EmptyRow label="No goods receipts recorded." /> : (grns as any[]).map((g) => (
-            <Card key={g.id} className="cursor-pointer hover:shadow-sm" onClick={() => g.po_id && navigate(`/procurement?po=${g.po_id}`)}>
+            <Card key={g.id} className="cursor-pointer hover:shadow-sm" onClick={() => g.po_id && navigate(`/procurement?po=${g.po_id}&vendor=${id}&section=grns`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{g.grn_number || "—"} <span className="text-muted-foreground">· {g.po?.po_number || "—"}</span></p>
