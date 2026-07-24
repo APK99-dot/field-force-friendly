@@ -416,7 +416,7 @@ export default function VendorDetail() {
         {/* Requisitions */}
         <TabsContent value="requisitions" className="mt-4 space-y-2">
           {requisitions.length === 0 ? <EmptyRow label="No requisitions with this vendor." /> : requisitions.map((r: any) => (
-            <Card key={r.id} className="cursor-pointer hover:shadow-sm" onClick={() => navigate(`/procurement/${r.id}`)}>
+            <Card key={r.id} className="cursor-pointer hover:shadow-sm" onClick={() => navigate(`/procurement?po=${r.id}`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{r.requisition_number || "—"} <span className="text-muted-foreground">· {r.po_number || "No PO yet"}</span></p>
@@ -434,7 +434,7 @@ export default function VendorDetail() {
         {/* Quotations */}
         <TabsContent value="quotations" className="mt-4 space-y-2">
           {quotes.length === 0 ? <EmptyRow label="No quotations from this vendor." /> : quotes.map((q: any) => (
-            <Card key={q.id} className="cursor-pointer hover:shadow-sm" onClick={() => q.po_id && navigate(`/procurement/${q.po_id}`)}>
+            <Card key={q.id} className="cursor-pointer hover:shadow-sm" onClick={() => q.po_id && navigate(`/procurement?po=${q.po_id}`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium flex items-center gap-1.5">
@@ -456,7 +456,7 @@ export default function VendorDetail() {
         {/* POs */}
         <TabsContent value="pos" className="mt-4 space-y-2">
           {pos.length === 0 ? <EmptyRow label="No POs issued to this vendor." /> : pos.map((p: any) => (
-            <Card key={p.id} className="cursor-pointer hover:shadow-sm" onClick={() => navigate(`/procurement/${p.id}`)}>
+            <Card key={p.id} className="cursor-pointer hover:shadow-sm" onClick={() => navigate(`/procurement?po=${p.id}`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{p.po_number} <span className="text-muted-foreground">· {p.requisition_number || "—"}</span></p>
@@ -474,7 +474,7 @@ export default function VendorDetail() {
         {/* GRNs */}
         <TabsContent value="grns" className="mt-4 space-y-2">
           {grns.length === 0 ? <EmptyRow label="No goods receipts recorded." /> : (grns as any[]).map((g) => (
-            <Card key={g.id} className="cursor-pointer hover:shadow-sm" onClick={() => g.po_id && navigate(`/procurement/${g.po_id}`)}>
+            <Card key={g.id} className="cursor-pointer hover:shadow-sm" onClick={() => g.po_id && navigate(`/procurement?po=${g.po_id}`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{g.grn_number || "—"} <span className="text-muted-foreground">· {g.po?.po_number || "—"}</span></p>
@@ -489,7 +489,7 @@ export default function VendorDetail() {
         {/* Invoices */}
         <TabsContent value="invoices" className="mt-4 space-y-2">
           {invoices.length === 0 ? <EmptyRow label="No invoices from this vendor." /> : (invoices as any[]).map((inv) => (
-            <Card key={inv.id} className="cursor-pointer hover:shadow-sm" onClick={() => inv.po_id && navigate(`/procurement/${inv.po_id}`)}>
+            <Card key={inv.id} className="cursor-pointer hover:shadow-sm" onClick={() => inv.po_id && navigate(`/procurement?po=${inv.po_id}`)}>
               <CardContent className="p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="min-w-0">
@@ -524,7 +524,7 @@ export default function VendorDetail() {
         {/* Payments */}
         <TabsContent value="payments" className="mt-4 space-y-2">
           {payments.length === 0 ? <EmptyRow label="No payments recorded." /> : (payments as any[]).map((p) => (
-            <Card key={p.id} className="cursor-pointer hover:shadow-sm" onClick={() => p.invoice?.po_id && navigate(`/procurement/${p.invoice.po_id}`)}>
+            <Card key={p.id} className="cursor-pointer hover:shadow-sm" onClick={() => p.invoice?.po_id && navigate(`/procurement?po=${p.invoice.po_id}`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{fmtInr(p.amount)} <span className="text-muted-foreground text-xs">· {p.invoice?.invoice_number || "—"}</span></p>
@@ -543,7 +543,7 @@ export default function VendorDetail() {
         {/* Documents */}
         <TabsContent value="documents" className="mt-4 space-y-2">
           {attachments.length === 0 ? <EmptyRow label="No documents on record." /> : (attachments as any[]).map((a) => (
-            <Card key={a.id} className={a.po_id ? "cursor-pointer hover:shadow-sm" : ""} onClick={() => a.po_id && navigate(`/procurement/${a.po_id}`)}>
+            <Card key={a.id} className={a.po_id ? "cursor-pointer hover:shadow-sm" : ""} onClick={() => a.po_id && navigate(`/procurement?po=${a.po_id}`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{a.file_name}</p>
