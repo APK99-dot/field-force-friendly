@@ -432,6 +432,17 @@ Deno.serve(async (req) => {
     }
     step("quotes_created", { quotes: quoteCount, quote_items: quoteItemCount });
 
+    // ---- Roll up total_amount from finalized line-item rate*qty ----
+    {
+      const { data: sumRows } = await admin.from("procurement_items")
+        .select("rate, qty").eq("procurement_id", orderId);
+      const total = (sumRows || []).reduce(
+        (s: number, r: any) => s + Number(r.rate || 0) * Number(r.qty || 0), 0
+      );
+      await admin.from("procurement_orders").update({ total_amount: total }).eq("id", orderId);
+      step("order_total_synced", { total });
+    }
+
     // ---- Invoices + Payments ----
     let invoiceCount = 0, paymentCount = 0, psSkipped = 0;
     const invoiceIdBySfPsId = new Map<string, string>(); // Payment_Schedule__c Id → invoice.id
