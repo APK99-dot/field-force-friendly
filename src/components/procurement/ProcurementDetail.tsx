@@ -2402,7 +2402,7 @@ export default function ProcurementDetail({
                             <div className="space-y-1.5 rounded-md border p-2 overflow-x-auto">
                               <div className="flex items-center justify-between flex-wrap gap-2">
                                 <p className="text-[11px] font-medium">
-                                  {priced.length >= 2 ? `Compare submitted quotes (${priced.length})` : "Submitted quote for this item"}
+                                  {hasWinner ? "Selected vendor for this item" : (priced.length >= 2 ? `Compare submitted quotes (${priced.length})` : "Submitted quote for this item")}
                                 </p>
                                 {priced.length >= 2 && maxRate > minRate && (
                                   <span className="text-[10px] text-emerald-700 dark:text-emerald-400">
