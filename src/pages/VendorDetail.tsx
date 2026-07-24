@@ -155,7 +155,7 @@ export default function VendorDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("procurement_grns")
-        .select("id, grn_number, receipt_date, status, remarks, po:procurement_orders(po_number, requisition_number)")
+        .select("id, po_id, grn_number, receipt_date, status, remarks, po:procurement_orders(id, po_number, requisition_number)")
         .eq("vendor_id", id)
         .order("receipt_date", { ascending: false });
       if (error) throw error;
@@ -169,7 +169,7 @@ export default function VendorDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("procurement_invoices")
-        .select("id, invoice_number, invoice_date, invoice_amount, po:procurement_orders(po_number, requisition_number), payments:procurement_invoice_payments(amount), attachments:procurement_invoice_attachments(file_name, file_path)")
+        .select("id, po_id, invoice_number, invoice_date, invoice_amount, po:procurement_orders(id, po_number, requisition_number), payments:procurement_invoice_payments(amount), attachments:procurement_invoice_attachments(file_name, file_path)")
         .eq("vendor_id", id)
         .order("invoice_date", { ascending: false });
       if (error) throw error;
@@ -205,7 +205,7 @@ export default function VendorDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("procurement_attachments")
-        .select("id, file_name, file_path, scope, created_at, po:procurement_orders(po_number, requisition_number)")
+        .select("id, po_id, file_name, file_path, scope, created_at, po:procurement_orders(id, po_number, requisition_number)")
         .eq("vendor_id", id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -474,7 +474,7 @@ export default function VendorDetail() {
         {/* GRNs */}
         <TabsContent value="grns" className="mt-4 space-y-2">
           {grns.length === 0 ? <EmptyRow label="No goods receipts recorded." /> : (grns as any[]).map((g) => (
-            <Card key={g.id}>
+            <Card key={g.id} className="cursor-pointer hover:shadow-sm" onClick={() => g.po_id && navigate(`/procurement/${g.po_id}`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{g.grn_number || "—"} <span className="text-muted-foreground">· {g.po?.po_number || "—"}</span></p>
@@ -489,7 +489,7 @@ export default function VendorDetail() {
         {/* Invoices */}
         <TabsContent value="invoices" className="mt-4 space-y-2">
           {invoices.length === 0 ? <EmptyRow label="No invoices from this vendor." /> : (invoices as any[]).map((inv) => (
-            <Card key={inv.id}>
+            <Card key={inv.id} className="cursor-pointer hover:shadow-sm" onClick={() => inv.po_id && navigate(`/procurement/${inv.po_id}`)}>
               <CardContent className="p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="min-w-0">
@@ -510,7 +510,7 @@ export default function VendorDetail() {
                 {(inv.attachments || []).length > 0 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {inv.attachments.map((a: any, i: number) => (
-                      <Button key={i} variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={() => downloadAttachment(a.file_path, a.file_name)}>
+                      <Button key={i} variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={(e) => { e.stopPropagation(); downloadAttachment(a.file_path, a.file_name); }}>
                         <Download className="h-3 w-3" /> {a.file_name}
                       </Button>
                     ))}
@@ -524,7 +524,7 @@ export default function VendorDetail() {
         {/* Payments */}
         <TabsContent value="payments" className="mt-4 space-y-2">
           {payments.length === 0 ? <EmptyRow label="No payments recorded." /> : (payments as any[]).map((p) => (
-            <Card key={p.id}>
+            <Card key={p.id} className="cursor-pointer hover:shadow-sm" onClick={() => p.invoice?.po_id && navigate(`/procurement/${p.invoice.po_id}`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{fmtInr(p.amount)} <span className="text-muted-foreground text-xs">· {p.invoice?.invoice_number || "—"}</span></p>
@@ -543,7 +543,7 @@ export default function VendorDetail() {
         {/* Documents */}
         <TabsContent value="documents" className="mt-4 space-y-2">
           {attachments.length === 0 ? <EmptyRow label="No documents on record." /> : (attachments as any[]).map((a) => (
-            <Card key={a.id}>
+            <Card key={a.id} className={a.po_id ? "cursor-pointer hover:shadow-sm" : ""} onClick={() => a.po_id && navigate(`/procurement/${a.po_id}`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{a.file_name}</p>
@@ -551,7 +551,7 @@ export default function VendorDetail() {
                     {a.scope} · {a.po?.po_number || a.po?.requisition_number || "—"} · {fmtDate(a.created_at)}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={() => downloadAttachment(a.file_path, a.file_name)}>
+                <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={(e) => { e.stopPropagation(); downloadAttachment(a.file_path, a.file_name); }}>
                   <Download className="h-3 w-3" /> Download
                 </Button>
               </CardContent>
