@@ -205,7 +205,7 @@ export default function VendorDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("procurement_attachments")
-        .select("id, file_name, file_path, scope, created_at, po:procurement_orders(po_number, requisition_number)")
+        .select("id, po_id, file_name, file_path, scope, created_at, po:procurement_orders(id, po_number, requisition_number)")
         .eq("vendor_id", id)
         .order("created_at", { ascending: false });
       if (error) throw error;
