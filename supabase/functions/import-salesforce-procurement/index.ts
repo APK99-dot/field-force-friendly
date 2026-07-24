@@ -531,6 +531,60 @@ Deno.serve(async (req) => {
     }
     step("invoice_attachments", { imported: attachmentCount, skipped: attachmentsSkipped });
 
+    // ---- PO-level + Vendor-level attachments (Requistion__c + Vendor_Assigned__c) ----
+    let poAttCount = 0, poAttSkipped = 0;
+    const reqEntityIds: string[] = [salesforceId];
+    const vaIdToVendorLocal = new Map<string, string>();
+    for (const v of vas) {
+      reqEntityIds.push(v.Id);
+      const accId = v.Vendor__c;
+      const local = accId ? vendorMap.get(accId) : null;
+      if (local) vaIdToVendorLocal.set(v.Id, local);
+    }
+    try {
+      const idListSoql = reqEntityIds.map((id) => `'${id}'`).join(",");
+      const cdls2 = await sfQuery<SFContentDocLink>(
+        `SELECT LinkedEntityId, ContentDocumentId, ContentDocument.Title, ContentDocument.FileExtension, ContentDocument.LatestPublishedVersionId, ContentDocument.CreatedDate, ContentDocument.ContentSize FROM ContentDocumentLink WHERE LinkedEntityId IN (${idListSoql})`,
+        SALESFORCE_API_KEY, LOVABLE_API_KEY,
+      );
+      step("sf_po_attachments_found", { count: cdls2.length });
+      for (const link of cdls2) {
+        try {
+          const versionId = link.ContentDocument?.LatestPublishedVersionId;
+          if (!versionId) { poAttSkipped++; continue; }
+          const title = link.ContentDocument?.Title || "attachment";
+          const ext = link.ContentDocument?.FileExtension || "bin";
+          const fileName = `${title}.${ext}`;
+          const sfAttId = `${link.LinkedEntityId}-${link.ContentDocumentId}`;
+          const { data: existing } = await admin.from("procurement_attachments")
+            .select("id").eq("salesforce_id", sfAttId).maybeSingle();
+          if (existing?.id) { poAttSkipped++; continue; }
+          const isVendor = vaIdToVendorLocal.has(link.LinkedEntityId);
+          const vendorLocalId = isVendor ? vaIdToVendorLocal.get(link.LinkedEntityId)! : null;
+          const bytes = await sfDownloadFile(versionId, SALESFORCE_API_KEY, LOVABLE_API_KEY);
+          const storagePath = `${uid}/sf-${link.ContentDocumentId}-${Date.now()}.${ext}`;
+          const { error: upErr } = await admin.storage.from("procurement-attachments")
+            .upload(storagePath, bytes, { contentType: `application/${ext}`, upsert: false });
+          if (upErr) throw new Error(`storage upload ${fileName}: ${upErr.message}`);
+          const { error: attErr } = await admin.from("procurement_attachments").insert({
+            po_id: orderId, vendor_id: vendorLocalId,
+            scope: isVendor ? "vendor" : "requisition",
+            file_name: fileName, file_path: storagePath,
+            file_size: link.ContentDocument?.ContentSize ?? bytes.byteLength,
+            source: "salesforce", salesforce_id: sfAttId, created_by: uid,
+          });
+          if (attErr) throw new Error(`insert po attachment row ${fileName}: ${attErr.message}`);
+          poAttCount++;
+        } catch (e) {
+          console.error("po attachment error:", e);
+          poAttSkipped++;
+        }
+      }
+    } catch (e) {
+      console.error("po attachments query failed:", e);
+    }
+    step("po_attachments", { imported: poAttCount, skipped: poAttSkipped });
+
     report.order_id = orderId;
     report.status = orderStatus;
     report.success = true;
