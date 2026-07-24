@@ -434,7 +434,7 @@ export default function VendorDetail() {
         {/* Quotations */}
         <TabsContent value="quotations" className="mt-4 space-y-2">
           {quotes.length === 0 ? <EmptyRow label="No quotations from this vendor." /> : quotes.map((q: any) => (
-            <Card key={q.id} className="cursor-pointer hover:shadow-sm" onClick={() => q.po_id && navigate(`/procurement?po=${q.po_id}`)}>
+            <Card key={q.id} className="cursor-pointer hover:shadow-sm" onClick={() => q.po_id && navigate(`/procurement?po=${q.po_id}&vendor=${id}&section=quote`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium flex items-center gap-1.5">
