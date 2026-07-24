@@ -1956,20 +1956,16 @@ export default function ProcurementDetail({
                                             {canInvoice && (
                                               <Button
                                                 size="sm" variant="outline" className="h-6 text-[11px] shrink-0"
-                                                disabled={!hasGrn}
-                                                title={!hasGrn ? "Receive goods first" : "Add Invoice"}
-                                                onClick={(e) => { e.stopPropagation(); if (!hasGrn) return; setScopedVendorId(row.vendor_id!); setInvVendorId(row.vendor_id!); setInvOpen(true); }}
+                                                disabled={!hasGrn && vInvs.length === 0}
+                                                title={!hasGrn && vInvs.length === 0 ? "Receive goods first" : "Add Invoice"}
+                                                onClick={(e) => { e.stopPropagation(); if (!hasGrn && vInvs.length === 0) return; setScopedVendorId(row.vendor_id!); setInvVendorId(row.vendor_id!); setInvOpen(true); }}
                                               >
                                                 <Plus className="h-3 w-3 mr-1" />Add Invoice
                                               </Button>
                                             )}
                                           </div>
                                           <AccordionContent className="px-2 pb-2">
-                                            {!hasGrn ? (
-                                              <p className="text-[11px] text-muted-foreground">Receive goods first — invoices can be added after the first GRN.</p>
-                                            ) : vInvs.length === 0 ? (
-                                              <p className="text-[11px] text-muted-foreground">No invoices for this vendor yet.</p>
-                                            ) : (
+                                            {vInvs.length > 0 ? (
                                               <div className="border rounded divide-y max-h-40 overflow-y-auto">
                                                 {vInvs.map((i) => (
                                                   <div
@@ -1986,6 +1982,10 @@ export default function ProcurementDetail({
                                                   </div>
                                                 ))}
                                               </div>
+                                            ) : !hasGrn ? (
+                                              <p className="text-[11px] text-muted-foreground">Receive goods first — invoices can be added after the first GRN.</p>
+                                            ) : (
+                                              <p className="text-[11px] text-muted-foreground">No invoices for this vendor yet.</p>
                                             )}
                                           </AccordionContent>
                                         </AccordionItem>
