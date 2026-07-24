@@ -169,7 +169,7 @@ export default function VendorDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("procurement_invoices")
-        .select("id, invoice_number, invoice_date, invoice_amount, po:procurement_orders(po_number, requisition_number), payments:procurement_invoice_payments(amount), attachments:procurement_invoice_attachments(file_name, file_path)")
+        .select("id, po_id, invoice_number, invoice_date, invoice_amount, po:procurement_orders(id, po_number, requisition_number), payments:procurement_invoice_payments(amount), attachments:procurement_invoice_attachments(file_name, file_path)")
         .eq("vendor_id", id)
         .order("invoice_date", { ascending: false });
       if (error) throw error;
