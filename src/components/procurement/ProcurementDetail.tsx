@@ -589,13 +589,15 @@ export default function ProcurementDetail({
         const anyFull = vGrns.some((g) => g.status === "Fully Received");
         status = anyFull ? "Fully Received" : "Partially Received";
       }
+      // Tolerance of ₹1 to absorb rounding differences (e.g. Salesforce imports where
+      // paid amount differs from invoiced by paise).
       if (invoicedTotal > 0) {
-        status = invoicedTotal >= lineAmount - 0.01 && lineAmount > 0
+        status = invoicedTotal >= lineAmount - 1 && lineAmount > 0
           ? "Fully Invoiced"
           : "Partially Invoiced";
       }
       if (paidTotal > 0) {
-        status = paidTotal >= invoicedTotal - 0.01 && invoicedTotal > 0
+        status = paidTotal >= invoicedTotal - 1 && invoicedTotal > 0
           ? "Paid"
           : "Partially Paid";
       }
@@ -1739,7 +1741,7 @@ export default function ProcurementDetail({
                                       <span className="inline-flex items-center rounded border bg-background px-1.5 py-0 text-[9px] text-muted-foreground">{fmtAmt(paidTotal)} paid</span>
                                     )}
                                     {invoicedTotal > 0 && (
-                                      <span className={`inline-flex items-center rounded border px-1.5 py-0 text-[9px] font-medium ${balanceDue > 0.005 ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300" : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300"}`}>Bal {fmtAmt(balanceDue)}</span>
+                                      <span className={`inline-flex items-center rounded border px-1.5 py-0 text-[9px] font-medium ${balanceDue > 1 ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300" : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300"}`}>Bal {fmtAmt(balanceDue)}</span>
                                     )}
                                   </div>
                                 )}
@@ -1908,7 +1910,7 @@ export default function ProcurementDetail({
                                             <span className="inline-flex items-center rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">{fmtAmt(paidTotal)} Paid</span>
                                           )}
                                           {invoicedTotal > 0 && (
-                                            <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${balanceDue > 0.005 ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300" : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300"}`}>Balance {fmtAmt(balanceDue)}</span>
+                                            <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${balanceDue > 1 ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300" : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300"}`}>Balance {fmtAmt(balanceDue)}</span>
                                           )}
                                         </>
                                       )}
@@ -2029,7 +2031,7 @@ export default function ProcurementDetail({
                                               <div><span className="text-muted-foreground">Invoiced: </span><span className="font-medium">{fmtAmt(finSummary.invoiced_total)}</span></div>
                                               <div><span className="text-muted-foreground">Paid: </span><span className="font-medium">{fmtAmt(finSummary.paid_total)}</span></div>
                                               <div><span className="text-muted-foreground">Outstanding: </span>
-                                                <span className={`font-semibold ${finSummary.balance_due > 0.005 ? "text-red-600" : "text-green-600"}`}>{fmtAmt(finSummary.balance_due)}</span>
+                                                <span className={`font-semibold ${finSummary.balance_due > 1 ? "text-red-600" : "text-green-600"}`}>{fmtAmt(finSummary.balance_due)}</span>
                                               </div>
                                             </div>
                                             {finSummary.payments.length > 0 && (
