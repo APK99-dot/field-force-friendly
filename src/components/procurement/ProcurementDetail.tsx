@@ -2374,10 +2374,11 @@ export default function ProcurementDetail({
                             return (both || rateWinners[0]).q.vendor_id;
                           })();
 
-                          // Apply filter
+                          // Apply filter — once a vendor is selected for this line, hide the others.
                           let rows = rawRows.filter((r) => {
+                            if (hasWinner) return r.q.vendor_id === winnerVid;
                             if (comparisonFilter === "quoted") return r.qi && r.rate != null;
-                            if (comparisonFilter === "selected") return hasWinner && r.q.vendor_id === winnerVid;
+                            if (comparisonFilter === "selected") return false;
                             return true;
                           });
                           // Apply sort
