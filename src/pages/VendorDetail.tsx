@@ -456,7 +456,7 @@ export default function VendorDetail() {
         {/* POs */}
         <TabsContent value="pos" className="mt-4 space-y-2">
           {pos.length === 0 ? <EmptyRow label="No POs issued to this vendor." /> : pos.map((p: any) => (
-            <Card key={p.id} className="cursor-pointer hover:shadow-sm" onClick={() => navigate(`/procurement?po=${p.id}`)}>
+            <Card key={p.id} className="cursor-pointer hover:shadow-sm" onClick={() => navigate(`/procurement?po=${p.id}&vendor=${id}`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{p.po_number} <span className="text-muted-foreground">· {p.requisition_number || "—"}</span></p>
