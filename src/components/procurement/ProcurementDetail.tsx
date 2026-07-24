@@ -29,6 +29,7 @@ import InvoiceForm from "./InvoiceForm";
 import GRNDetail from "./GRNDetail";
 
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
+import { resolveInvoiceFileUrl } from "@/utils/invoiceAttachments";
 
 export interface StageHistoryEntry {
   status: string;
@@ -181,6 +182,7 @@ export default function ProcurementDetail({
   const [invoices, setInvoices] = useState<InvRow[]>([]);
   const [invItems, setInvItems] = useState<InvItemRow[]>([]);
   const [invPayments, setInvPayments] = useState<InvPaymentRow[]>([]);
+  const [invAttachments, setInvAttachments] = useState<{ id: string; invoice_id: string; file_name: string; file_path: string; file_size: number | null }[]>([]);
   const [grnOpen, setGrnOpen] = useState(false);
   const [invOpen, setInvOpen] = useState(false);
   const [selectedGrn, setSelectedGrn] = useState<GrnRow | null>(null);
@@ -768,7 +770,7 @@ export default function ProcurementDetail({
   const fetchSub = useCallback(async () => {
     const [g, inv] = await Promise.all([
       supabase.from("procurement_grns").select("*, procurement_grn_items(*)").eq("po_id", order.id).order("created_at"),
-      supabase.from("procurement_invoices").select("*, procurement_invoice_items(*), procurement_invoice_payments(*)").eq("po_id", order.id).order("created_at"),
+      supabase.from("procurement_invoices").select("*, procurement_invoice_items(*), procurement_invoice_payments(*), procurement_invoice_attachments(*)").eq("po_id", order.id).order("created_at"),
     ]);
     const gRows = (g.data || []) as any[];
     setGrns(gRows.map((r) => ({ id: r.id, grn_number: r.grn_number, receipt_date: r.receipt_date, status: r.status, received_by: r.received_by, remarks: r.remarks, vendor_id: r.vendor_id ?? null, photos: r.photos ?? null })));
@@ -777,6 +779,7 @@ export default function ProcurementDetail({
     setInvoices(iRows.map((r) => ({ id: r.id, invoice_number: r.invoice_number, invoice_date: r.invoice_date, invoice_amount: r.invoice_amount, vendor_id: r.vendor_id ?? null })));
     setInvItems(iRows.flatMap((r) => (r.procurement_invoice_items || []) as InvItemRow[]));
     setInvPayments(iRows.flatMap((r) => (r.procurement_invoice_payments || []).map((p: any) => ({ invoice_id: r.id, amount: Number(p.amount || 0), payment_date: p.payment_date, reference_number: p.reference_number, notes: p.notes ?? null }))));
+    setInvAttachments(iRows.flatMap((r) => (r.procurement_invoice_attachments || []).map((a: any) => ({ id: a.id, invoice_id: r.id, file_name: a.file_name, file_path: a.file_path, file_size: a.file_size ?? null }))));
   }, [order.id]);
 
   useEffect(() => { if (open) fetchSub(); }, [open, fetchSub]);
@@ -2687,6 +2690,39 @@ export default function ProcurementDetail({
                       </div>
                     </div>
                   )}
+                  {(() => {
+                    const atts = invAttachments.filter((a) => a.invoice_id === inv.id);
+                    if (atts.length === 0) return null;
+                    return (
+                      <div>
+                        <div className="text-xs font-semibold mb-1">Attachments</div>
+                        <div className="border rounded divide-y">
+                          {atts.map((a) => (
+                            <button
+                              key={a.id}
+                              type="button"
+                              className="w-full flex items-center justify-between px-2 py-1.5 text-xs hover:bg-muted/50 text-left"
+                              onClick={async () => {
+                                try {
+                                  const url = await resolveInvoiceFileUrl(a.file_path);
+                                  if (url) window.open(url, "_blank", "noopener,noreferrer");
+                                  else toast.error("Could not open attachment");
+                                } catch (e: any) {
+                                  toast.error(e?.message || "Could not open attachment");
+                                }
+                              }}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                <span className="truncate">{a.file_name}</span>
+                              </div>
+                              <Download className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <div className="text-xs font-semibold">Payments</div>
