@@ -22,7 +22,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus, Search, Phone, Mail, Edit, Trash2, Filter, User, X, Download,
+  Plus, Search, Phone, Mail, Edit, Trash2, Filter, User, X, Download, Eye,
 } from "lucide-react";
 import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
 
@@ -500,7 +500,18 @@ export default function Vendors() {
                       </p>
                     )}
                   </div>
-                  {v.category && <Badge variant="secondary" className="text-[10px] shrink-0">{v.category}</Badge>}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {v.category && <Badge variant="secondary" className="text-[10px]">{v.category}</Badge>}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/vendors/${v.id}`); }}
+                      aria-label="View vendor details"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
