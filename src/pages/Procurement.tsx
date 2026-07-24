@@ -518,11 +518,17 @@ export default function Procurement() {
               Import from Salesforce
             </Button>
           )}
+          {hasAdminAccess && (
+            <Button size="sm" variant="outline" onClick={() => setSfBulkOpen(true)} className="gap-1.5">
+              Bulk Import (SF)
+            </Button>
+          )}
           {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New Requisition</Button>}
         </div>
       </div>
 
       <SalesforceImportDialog open={sfImportOpen} onOpenChange={setSfImportOpen} onImported={fetchAll} />
+      <SalesforceBulkImportDialog open={sfBulkOpen} onOpenChange={setSfBulkOpen} onImported={fetchAll} />
 
       <div className="space-y-2">
         <div className="relative">
