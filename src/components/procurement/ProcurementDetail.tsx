@@ -29,6 +29,7 @@ import InvoiceForm from "./InvoiceForm";
 import GRNDetail from "./GRNDetail";
 
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
+import { resolveInvoiceFileUrl } from "@/utils/invoiceAttachments";
 
 export interface StageHistoryEntry {
   status: string;
