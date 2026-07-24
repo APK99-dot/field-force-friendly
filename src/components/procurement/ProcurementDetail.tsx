@@ -242,6 +242,22 @@ export default function ProcurementDetail({
   const [vendorPickerFor, setVendorPickerFor] = useState<string | null>(null);
   const [vendorSearch, setVendorSearch] = useState("");
   const [expandedVendorRow, setExpandedVendorRow] = useState<string | null>(null);
+
+  // Apply external focus: expand target vendor row, and if an invoice is targeted, open it.
+  useEffect(() => {
+    if (!focus || !open) return;
+    if (focus.vendorId) setExpandedVendorRow(focus.vendorId);
+  }, [focus, open, order.id]);
+  useEffect(() => {
+    if (!focus?.invoiceId || !open) return;
+    const inv = invoices.find((i) => i.id === focus.invoiceId);
+    if (inv) {
+      setSelectedInvoiceId(inv.id);
+      setInvOpen(true);
+      onFocusConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.invoiceId, invoices, open]);
   const [showAllLines, setShowAllLines] = useState(false);
   const comparisonStorageKey = `vendor-comparison-collapsed:${order.id}`;
   const [comparisonCollapsed, setComparisonCollapsed] = useState<boolean>(() => {
