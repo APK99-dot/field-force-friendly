@@ -1670,9 +1670,11 @@ export default function ProcurementDetail({
                             ? { label: vLifecycle, cls: lifecycleColor(vLifecycle) }
                             : null;
                           const fmtDT = (iso?: string | null) => iso ? new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+                          const hasFinalized = finalizedVendorIds.length > 0;
+                          const isDimmed = hasFinalized && (!row.vendor_id || !finalizedVendorIds.includes(row.vendor_id));
                           return (
                             <Fragment key={row.key}>
-                            <tr className="border-t align-top">
+                            <tr className={`border-t align-top ${isDimmed ? "opacity-50 grayscale" : ""}`} title={isDimmed ? "A vendor has been selected for this PO — this vendor is not active." : undefined}>
                               <td className="p-2">
                                 <button
                                   type="button" className="text-muted-foreground hover:text-foreground"
@@ -2372,10 +2374,11 @@ export default function ProcurementDetail({
                             return (both || rateWinners[0]).q.vendor_id;
                           })();
 
-                          // Apply filter
+                          // Apply filter — once a vendor is selected for this line, hide the others.
                           let rows = rawRows.filter((r) => {
+                            if (hasWinner) return r.q.vendor_id === winnerVid;
                             if (comparisonFilter === "quoted") return r.qi && r.rate != null;
-                            if (comparisonFilter === "selected") return hasWinner && r.q.vendor_id === winnerVid;
+                            if (comparisonFilter === "selected") return false;
                             return true;
                           });
                           // Apply sort
@@ -2399,7 +2402,7 @@ export default function ProcurementDetail({
                             <div className="space-y-1.5 rounded-md border p-2 overflow-x-auto">
                               <div className="flex items-center justify-between flex-wrap gap-2">
                                 <p className="text-[11px] font-medium">
-                                  {priced.length >= 2 ? `Compare submitted quotes (${priced.length})` : "Submitted quote for this item"}
+                                  {hasWinner ? "Selected vendor for this item" : (priced.length >= 2 ? `Compare submitted quotes (${priced.length})` : "Submitted quote for this item")}
                                 </p>
                                 {priced.length >= 2 && maxRate > minRate && (
                                   <span className="text-[10px] text-emerald-700 dark:text-emerald-400">
