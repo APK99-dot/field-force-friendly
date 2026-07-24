@@ -478,23 +478,35 @@ export default function Procurement() {
     setDeleteId(null);
   };
 
+  const vendorNameById = useMemo(
+    () => Object.fromEntries(vendors.map((v) => [v.id, v.name])) as Record<string, string>,
+    [vendors]
+  );
+
   const filtered = useMemo(() => {
     let list = orders;
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
-        (o) =>
-          (o.po_number || "").toLowerCase().includes(q) ||
-          ((o as any).requisition_number || "").toLowerCase().includes(q) ||
-          ((o as any).requisition_name || "").toLowerCase().includes(q) ||
-          sName(o.site_id).toLowerCase().includes(q) ||
-          (ownerNames[o.created_by || ""] || "").toLowerCase().includes(q)
+        (o) => {
+          const vIds: string[] = ((o as any).vendor_ids as string[] | null) || ((o as any).vendor_id ? [(o as any).vendor_id] : []);
+          const vendorNames = vIds.map((id) => vendorNameById[id] || "").join(" ").toLowerCase();
+          return (
+            (o.po_number || "").toLowerCase().includes(q) ||
+            ((o as any).requisition_number || "").toLowerCase().includes(q) ||
+            ((o as any).requisition_name || "").toLowerCase().includes(q) ||
+            sName(o.site_id).toLowerCase().includes(q) ||
+            (ownerNames[o.created_by || ""] || "").toLowerCase().includes(q) ||
+            vendorNames.includes(q)
+          );
+        }
       );
     }
     if (filterStatus !== "all") list = list.filter((o) => o.status === filterStatus);
     return list;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders, search, filterStatus, sites, ownerNames]);
+  }, [orders, search, filterStatus, sites, ownerNames, vendorNameById]);
+
 
   const fmtDMY = (d?: string | null) => {
     if (!d) return "—";
@@ -533,7 +545,7 @@ export default function Procurement() {
       <div className="space-y-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search REQ #, name, PO, site, owner..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+          <Input placeholder="Search REQ #, name, PO, site, owner, vendor..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
