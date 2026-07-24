@@ -510,7 +510,7 @@ export default function VendorDetail() {
                 {(inv.attachments || []).length > 0 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {inv.attachments.map((a: any, i: number) => (
-                      <Button key={i} variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={() => downloadAttachment(a.file_path, a.file_name)}>
+                      <Button key={i} variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={(e) => { e.stopPropagation(); downloadAttachment(a.file_path, a.file_name); }}>
                         <Download className="h-3 w-3" /> {a.file_name}
                       </Button>
                     ))}
