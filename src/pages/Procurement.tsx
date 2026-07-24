@@ -34,6 +34,7 @@ import { EditableListEditor } from "@/components/config/EditableListEditor";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 import SalesforceImportDialog from "@/components/procurement/SalesforceImportDialog";
+import SalesforceBulkImportDialog from "@/components/procurement/SalesforceBulkImportDialog";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
