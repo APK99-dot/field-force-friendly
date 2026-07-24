@@ -66,6 +66,11 @@ export interface DetailOrder {
   procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null; vendor_ids?: string[] | null; rate_source?: string | null; rate_source_vendor_id?: string | null }[];
 }
 
+export interface ProcurementDetailFocus {
+  vendorId?: string | null;
+  section?: "quote" | "invoices" | "grns" | "financials";
+  invoiceId?: string | null;
+}
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -77,6 +82,8 @@ interface Props {
   productName: (id: string | null) => string;
   onEdit: (o: DetailOrder) => void;
   onChanged: () => void;
+  focus?: ProcurementDetailFocus | null;
+  onFocusConsumed?: () => void;
 }
 
 interface GrnRow { id: string; grn_number: string | null; receipt_date: string; status: string; received_by: string | null; remarks: string | null; vendor_id: string | null; photos?: string[] | null; }
@@ -173,6 +180,7 @@ const fmtDT = (iso?: string | null) => iso ? new Date(iso).toLocaleString("en-GB
 export default function ProcurementDetail({
   open, onOpenChange, order, canApprove, currentUserId,
   vendorName, siteName, productName, onEdit, onChanged,
+  focus, onFocusConsumed,
 }: Props) {
   const procCfg = useModuleConfig("procurement");
   const canEditRatesPostApproval = procCfg.canDo("editRatesAfterApproval");
@@ -234,6 +242,22 @@ export default function ProcurementDetail({
   const [vendorPickerFor, setVendorPickerFor] = useState<string | null>(null);
   const [vendorSearch, setVendorSearch] = useState("");
   const [expandedVendorRow, setExpandedVendorRow] = useState<string | null>(null);
+
+  // Apply external focus: expand target vendor row, and if an invoice is targeted, open it.
+  useEffect(() => {
+    if (!focus || !open) return;
+    if (focus.vendorId) setExpandedVendorRow(focus.vendorId);
+  }, [focus, open, order.id]);
+  useEffect(() => {
+    if (!focus?.invoiceId || !open) return;
+    const inv = invoices.find((i) => i.id === focus.invoiceId);
+    if (inv) {
+      setSelectedInvoiceId(inv.id);
+      setInvOpen(true);
+      onFocusConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.invoiceId, invoices, open]);
   const [showAllLines, setShowAllLines] = useState(false);
   const comparisonStorageKey = `vendor-comparison-collapsed:${order.id}`;
   const [comparisonCollapsed, setComparisonCollapsed] = useState<boolean>(() => {
@@ -1909,7 +1933,7 @@ export default function ProcurementDetail({
                                     )}
 
                                     {/* Workflow accordion — GRNs & Invoices are primary */}
-                                    <Accordion type="single" collapsible defaultValue={!isTransfer && row.vendor_id ? "grns" : "quote"} className="w-full">
+                                    <Accordion type="single" collapsible defaultValue={(focus?.vendorId && focus.vendorId === row.vendor_id && focus.section) ? focus.section : (!isTransfer && row.vendor_id ? "grns" : "quote")} className="w-full">
                                       {!isTransfer && row.vendor_id && (
                                         <AccordionItem value="grns" className="border rounded-md bg-background mb-1.5">
                                           <div className="flex items-center justify-between pr-2">
