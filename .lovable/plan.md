@@ -1,102 +1,66 @@
 
 ## Goal
 
-Validate the Salesforce → Lovable procurement mapping by importing **one complete Requisition** (with its line items, assigned vendors, quotes, PO details, and any payment schedule) end-to-end, and rendering it in the existing Procurement UI unchanged. No UI redesign; only new backend + admin action to trigger the import.
+Bulk-import **every Salesforce `Requistion__c` record from June 2026** into the Lovable procurement module, with complete child data (line items, assigned vendors, quote line items, payment schedules / invoices, and all file attachments). Nothing may be dropped silently. All timestamps and dates from Salesforce must be preserved exactly — no field should ever be stamped with the current server time or the current admin's name.
 
-## Salesforce objects (verified via connector)
+## Approach
 
-The connected org exposes these custom objects for the procurement flow:
+Reuse the existing `import-salesforce-procurement` edge function (already proven for single-record imports of `REQ-0015` and `REQ-0016`) and drive it from a new bulk orchestrator, so the mapping logic stays in one place.
 
-- `Requistion__c` — parent requisition (Name, `Requisition_name__c`, `Requisition_Status__c`, `Requisition_Raised_Date__c`, `PO_Date__c`, `Delivery_Due_Date__c`, `Payment_Terms__c` (days), `Billing_Location__c` → Account, `Shipping_Location__c` → Account, `Vendor__c` → Account, `Budget_Required_Requistion__c`)
-- `Product_Requisition__c` — requisition line items (child of Requistion__c)
-- `Vendor_Assigned__c` — vendors assigned to a requisition
-- `Vendor_Quote_Line_Item__c` — per-vendor, per-line quoted rates
-- `Vendor_Document__c` — vendor attachments (metadata only, files stay in SF)
-- `Payment_Schedule__c` — payment plan
-- Standard `SalesforceInvoice` — invoices
+### 1. New edge function: `bulk-import-salesforce-procurement`
 
-There is **no** dedicated `GRN__c` / Goods Receipt object in this org. GRNs will be seeded as empty in Lovable and marked as "no source in SF".
+- Admin-only (same auth pattern as the single import).
+- Accepts `{ from: "2026-06-01", to: "2026-06-30" }` (defaults to June 2026 if omitted).
+- Runs a single SOQL query to list candidate Ids:
+  ```
+  SELECT Id, Name, Requisition_Raised_Date__c
+  FROM Requistion__c
+  WHERE Requisition_Raised_Date__c >= 2026-06-01
+    AND Requisition_Raised_Date__c <= 2026-06-30
+  ORDER BY Requisition_Raised_Date__c ASC
+  ```
+- For each Id, invokes the existing single-record import routine **in-process** (not via HTTP) so we reuse the mapper without extra auth hops.
+- Processes sequentially with a small delay to stay under Salesforce API limits; collects a per-record report `{ salesforce_id, requisition_number, status: created|updated|failed, error?, counts }`.
+- Returns an aggregated JSON summary and also writes each per-record report to the response so the UI can render a full audit list.
 
-## Target requisition for POC
+### 2. Harden the existing single-record importer
 
-Default pick: **"Rmx Concrete India - June & July 2026"** (`a01fu00000jFWGzAAO`) — has 3 line items, 1 assigned vendor, 3 quote line items, PO date + payment terms populated. Nice representative record. (If you prefer a different one — e.g. "Stone Requirement - June 2026" which has 4 lines / 4 quotes — say so before I run and I'll swap the ID.)
+Refactor `supabase/functions/import-salesforce-procurement/index.ts` so its core logic is an exported `importRequisition(sfId)` function reused by the bulk orchestrator. While refactoring, close the gaps observed in the two POC imports:
 
-## Field mapping (SF → Lovable `procurement_orders` + children)
+- **Attachments (critical):** for every `Requistion__c`, `Vendor_Quote_Line_Item__c`, `Payment_Schedule__c`, and `Vendor_Document__c`, fetch related `ContentDocumentLink` → `ContentVersion` and upload the binary via the Salesforce REST `/sobjects/ContentVersion/{id}/VersionData` endpoint. Store PO/vendor-quote/vendor docs in the appropriate existing bucket (`vendor-quote-attachments`, new `procurement-attachments` if none fits) and invoice files in `invoice-attachments`. Dedupe on the existing `salesforce_id` column on `procurement_invoice_attachments`; add matching `salesforce_id` columns to any other attachment tables that need them.
+- **Timestamp fidelity:** every insert/update must set `created_at`, `updated_at`, `submitted_at`, `paid_at`, `invoice_date`, `stage_history[*].moved_at`, etc. from Salesforce (`CreatedDate`, `LastModifiedDate`, field-specific dates). Never let a DB default or the current user overwrite them. Stage history actor stays `Salesforce` when no SF owner is present (already fixed for stages, extend to invoices/payments).
+- **Zero data loss:** for every SF field the current mapper does not map, log it in the per-record report under `unmapped_fields` instead of dropping silently, so we can decide whether to extend the schema.
 
-```text
-Requistion__c                         → procurement_orders
-  Id                                  → salesforce_id (new column)
-  Name / Requisition_name__c          → requisition_name
-  Requisition_Raised_Date__c          → created_at (date part)
-  PO_Date__c                          → po_date (existing) / stays as is
-  Delivery_Due_Date__c                → expected_delivery_date
-  Payment_Terms__c (Integer days)     → payment_terms ("Net N")
-  Billing_Location__r.Name            → bill_to_id (lookup/create in master_addresses)
-  Shipping_Location__r.Name           → ship_to_id (lookup/create in master_addresses)
-  Requisition_Status__c               → status (mapped: Initiated→Requisition,
-                                        Approved→Requisition Approved,
-                                        Vendor list identified→Quote Requested,
-                                        Vendor shortlisted→PO Issued)
-  Budget_Required_Requistion__c       → budget_amount (if column exists, else ignored)
-  source_type                         → "vendor" (hardcoded)
+### 3. Schema migration
 
-Product_Requisition__c                → procurement_items
-  Product name/lookup                 → product_id (match on master_products.salesforce_id
-                                        or product name; auto-create if missing)
-  Quantity / UOM / Rate / Description → qty, uom, rate, description
-  Vendor_Assigned relations           → vendor_ids[]
+- Add `salesforce_id TEXT UNIQUE` on any attachment/child table that still lacks it (verify `procurement_invoice_attachments`, `procurement_invoice_payments`, `procurement_vendor_quote_items`, `procurement_items`).
+- Add a small `procurement_import_runs` table to record each bulk run (started_at, finished_at, requested_range, summary jsonb) for auditability. GRANTs + RLS admin-only.
 
-Vendor_Assigned__c                    → contributes vendor into procurement_items.vendor_ids
-  Vendor Account                      → vendors (match on salesforce_id, else auto-create
-                                        via existing vendor import path)
+### 4. Admin UI
 
-Vendor_Quote_Line_Item__c             → procurement_vendor_quotes
-                                      + procurement_vendor_quote_items
-  Vendor + Line + Rate + Qty          → one quote per vendor with items
-  status                              → "Quote Submitted" if a rate exists, else "Draft"
+Extend `src/components/procurement/SalesforceImportDialog.tsx` (or add a sibling `SalesforceBulkImportDialog.tsx`) with a second tab **"Bulk import by date range"**:
 
-Payment_Schedule__c (if present)      → procurement_invoice_payments
-                                        (informational only — no invoice linkage
-                                         unless SalesforceInvoice records exist for the req)
+- Date range inputs, prefilled 1 Jun 2026 – 30 Jun 2026.
+- "Start Import" button calls `bulk-import-salesforce-procurement`.
+- Streams / displays a progress list: `Requistion Id — Requisition # — status — counts`.
+- Toast summarising totals (`X created, Y updated, Z failed`).
+- Failed rows show error text and remain in the list; user can retry a single Id via the existing single-import path.
 
-SalesforceInvoice (if any)            → procurement_invoices + procurement_invoice_items
-                                        (skip if org has none for this req)
-
-GRN                                   → none in SF; leave GRN section empty in the imported PO
-```
-
-## Deliverables
-
-1. **New edge function** `supabase/functions/import-salesforce-procurement/index.ts`
-   - Verifies caller is an authenticated admin (same pattern as `import-salesforce-products`).
-   - Accepts `{ salesforce_id: string }` in the POST body — one requisition per call.
-   - Uses the Salesforce connector gateway (`LOVABLE_API_KEY` + `SALESFORCE_API_KEY`, already configured).
-   - Fetches Requistion__c + child Product_Requisition__r, Vendor_Assigned__r, Vendor_Quote_Line_Items__r in a single SOQL sub-query call, then follow-up queries for Payment_Schedule__c and any SalesforceInvoice tied to the requisition (best-effort — skip cleanly if none).
-   - Resolves/creates dependent records (vendors, master_products, master_addresses) using existing tables — reuses `salesforce_id` de-duplication like the product importer.
-   - Upserts the `procurement_orders` row (by `salesforce_id`), then its `procurement_items`, `procurement_vendor_quotes`, `procurement_vendor_quote_items`, and optional invoices/payments.
-   - Returns a JSON report: what was created vs updated per table, plus any skipped items with reasons.
-
-2. **Schema migration**
-   - Add `salesforce_id TEXT UNIQUE` to `procurement_orders`, `procurement_items`, `procurement_vendor_quotes`, `procurement_vendor_quote_items`, and `master_addresses` (mirroring the existing pattern on `master_products` and `vendors`) so the importer is idempotent and safe to re-run.
-   - Add `deploy` block in `supabase/config.toml` if needed (verify_jwt default is fine).
-
-3. **Admin trigger UI (minimal — no design change)**
-   - Add a small "Import from Salesforce" button on the Procurement list page (`src/pages/Procurement.tsx`), visible to admins only.
-   - Opens a plain dialog with a single input: **Salesforce Requisition ID** (prefilled with the POC ID above), plus an "Import" button.
-   - Calls the edge function, shows a toast with the import report, then refreshes the list. No changes to the PO detail UI — the imported record should render inside the existing screens as-is.
+Trigger button lives on `src/pages/Procurement.tsx` (admin-only), next to the current "Import from Salesforce" action.
 
 ## Verification
 
-After running, open the imported PO in the existing Procurement detail view and confirm:
-- Header shows requisition name, dates, bill-to / ship-to, payment terms.
-- Line items list matches SF (product, qty, UOM, rate).
-- Assigned vendor(s) render, with the quote table populated from the SF quote line items.
-- Status maps to the correct stage in the header stepper.
-- GRNs and Invoices sections stay empty (expected — no source data), and Record Payment / Add Invoice actions still work if the user clicks them.
+After the bulk run:
+1. Query Salesforce for the June count of `Requistion__c` records and confirm the Lovable count matches (by `salesforce_id`).
+2. Spot-check 3 imported POs in the existing Procurement detail UI:
+   - Header dates equal SF `Requisition_Raised_Date__c` / `PO_Date__c`.
+   - Stage history actors and timestamps come from SF (no "Suyog", no current-day times).
+   - Vendor Comparison shows rates + amounts; finalized vendors match SF `Vendor_Assigned__c`.
+   - Invoices open and their attached PDFs/images download from `invoice-attachments`.
+3. Confirm the run report lists zero silent skips — every unmapped field is called out.
 
-## Out of scope for this POC
+## Out of scope
 
-- Bulk import UI and background job (comes in the next phase).
-- Vendor Documents file transfer (only metadata, if any, will be logged in the report).
 - Two-way sync back to Salesforce.
-- Any change to the existing Procurement UI.
+- Historical months other than June 2026 (same tool can be reused later once June is validated).
+- Any UI redesign of the Procurement detail screen.

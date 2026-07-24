@@ -34,6 +34,7 @@ import { EditableListEditor } from "@/components/config/EditableListEditor";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 import SalesforceImportDialog from "@/components/procurement/SalesforceImportDialog";
+import SalesforceBulkImportDialog from "@/components/procurement/SalesforceBulkImportDialog";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
@@ -132,6 +133,7 @@ export default function Procurement() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailOrder | null>(null);
   const [sfImportOpen, setSfImportOpen] = useState(false);
+  const [sfBulkOpen, setSfBulkOpen] = useState(false);
   const { hasAdminAccess } = useAdminAccess();
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
   const [termsUserEdited, setTermsUserEdited] = useState(false);
@@ -516,11 +518,17 @@ export default function Procurement() {
               Import from Salesforce
             </Button>
           )}
+          {hasAdminAccess && (
+            <Button size="sm" variant="outline" onClick={() => setSfBulkOpen(true)} className="gap-1.5">
+              Bulk Import (SF)
+            </Button>
+          )}
           {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New Requisition</Button>}
         </div>
       </div>
 
       <SalesforceImportDialog open={sfImportOpen} onOpenChange={setSfImportOpen} onImported={fetchAll} />
+      <SalesforceBulkImportDialog open={sfBulkOpen} onOpenChange={setSfBulkOpen} onImported={fetchAll} />
 
       <div className="space-y-2">
         <div className="relative">

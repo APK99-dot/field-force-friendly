@@ -3742,6 +3742,66 @@ export type Database = {
           },
         ]
       }
+      procurement_attachments: {
+        Row: {
+          content_type: string | null
+          created_at: string
+          created_by: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          po_id: string
+          salesforce_id: string | null
+          scope: string
+          source: string | null
+          vendor_id: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          po_id: string
+          salesforce_id?: string | null
+          scope?: string
+          source?: string | null
+          vendor_id?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          po_id?: string
+          salesforce_id?: string | null
+          scope?: string
+          source?: string | null
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_attachments_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_attachments_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       procurement_grn_items: {
         Row: {
           created_at: string
@@ -3849,6 +3909,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      procurement_import_runs: {
+        Row: {
+          created: number | null
+          failed: number | null
+          finished_at: string | null
+          id: string
+          requested_from: string | null
+          requested_to: string | null
+          started_at: string
+          summary: Json | null
+          total: number | null
+          triggered_by: string | null
+          updated: number | null
+        }
+        Insert: {
+          created?: number | null
+          failed?: number | null
+          finished_at?: string | null
+          id?: string
+          requested_from?: string | null
+          requested_to?: string | null
+          started_at?: string
+          summary?: Json | null
+          total?: number | null
+          triggered_by?: string | null
+          updated?: number | null
+        }
+        Update: {
+          created?: number | null
+          failed?: number | null
+          finished_at?: string | null
+          id?: string
+          requested_from?: string | null
+          requested_to?: string | null
+          started_at?: string
+          summary?: Json | null
+          total?: number | null
+          triggered_by?: string | null
+          updated?: number | null
+        }
+        Relationships: []
       }
       procurement_invoice_attachments: {
         Row: {
