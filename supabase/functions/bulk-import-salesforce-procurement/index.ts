@@ -5,6 +5,36 @@ const GATEWAY_URL = "https://connector-gateway.lovable.dev/salesforce";
 
 interface SFRow { Id: string; Name: string | null; Requisition_Raised_Date__c: string | null; }
 
+interface RecordResult {
+  salesforce_id: string;
+  name?: string | null;
+  status: "created" | "updated" | "failed";
+  error?: string;
+  order_id?: string;
+  po_status?: string;
+  duration_ms?: number;
+}
+
+function clampBatchSize(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.max(1, Math.min(3, Math.floor(parsed)));
+}
+
+function parseCursor(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return Math.floor(parsed);
+}
+
+function validateDate(value: string, label: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error(`${label} must be YYYY-MM-DD`);
+}
+
+function validateSalesforceId(id: string) {
+  if (!/^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$/.test(id)) throw new Error(`Invalid Salesforce Id: ${id}`);
+}
+
 async function sfQuery<T = unknown>(soql: string, apiKey: string, gatewayKey: string): Promise<T[]> {
   const results: T[] = [];
   let next: string | null = `/query?q=${encodeURIComponent(soql)}`;
@@ -46,7 +76,13 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const from = String(body?.from || "2026-06-01");
     const to = String(body?.to || "2026-06-30");
-    const idsFilter: string[] | null = Array.isArray(body?.ids) ? body.ids : null;
+    validateDate(from, "from");
+    validateDate(to, "to");
+    const idsFilter: string[] | null = Array.isArray(body?.ids) ? body.ids.map(String) : null;
+    idsFilter?.forEach(validateSalesforceId);
+    const cursor = parseCursor(body?.cursor);
+    const batchSize = clampBatchSize(body?.batch_size);
+    const runId = typeof body?.run_id === "string" && body.run_id.trim() ? body.run_id.trim() : null;
 
     // Build list of SF ids to import
     let sfRows: SFRow[];
@@ -63,16 +99,29 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Start run record
-    const { data: run } = await admin.from("procurement_import_runs").insert({
-      requested_from: from, requested_to: to, total: sfRows.length, triggered_by: uid,
-    }).select("id").single();
+    let run: { id: string; summary?: unknown; created?: number | null; updated?: number | null; failed?: number | null } | null = null;
+    if (runId) {
+      const { data: existingRun, error: runErr } = await admin.from("procurement_import_runs")
+        .select("id, summary, created, updated, failed")
+        .eq("id", runId)
+        .maybeSingle();
+      if (runErr) throw new Error(`load run: ${runErr.message}`);
+      if (!existingRun?.id) return json({ error: "Import run not found" }, 404);
+      run = existingRun as typeof run;
+    } else {
+      const { data: newRun, error: runErr } = await admin.from("procurement_import_runs").insert({
+        requested_from: from, requested_to: to, total: sfRows.length, triggered_by: uid, summary: [],
+      }).select("id, summary, created, updated, failed").single();
+      if (runErr) throw new Error(`start run: ${runErr.message}`);
+      run = newRun as typeof run;
+    }
 
     const singleUrl = `${SUPABASE_URL}/functions/v1/import-salesforce-procurement`;
-    const perRecord: Array<Record<string, unknown>> = [];
+    const perRecord: RecordResult[] = [];
     let created = 0, updated = 0, failed = 0;
+    const batchRows = sfRows.slice(cursor, cursor + batchSize);
 
-    for (const row of sfRows) {
+    for (const row of batchRows) {
       const startedAt = Date.now();
       try {
         // Check existing before to determine created vs updated
@@ -108,14 +157,32 @@ Deno.serve(async (req) => {
       }
     }
 
+    const nextCursor = Math.min(sfRows.length, cursor + batchRows.length);
+    const done = nextCursor >= sfRows.length;
+    const existingSummary = Array.isArray(run?.summary) ? run.summary as RecordResult[] : [];
+    const mergedSummary = [...existingSummary, ...perRecord];
+    const cumulativeCreated = Number(run?.created || 0) + created;
+    const cumulativeUpdated = Number(run?.updated || 0) + updated;
+    const cumulativeFailed = Number(run?.failed || 0) + failed;
+
     await admin.from("procurement_import_runs").update({
-      finished_at: new Date().toISOString(),
-      created, updated, failed, summary: perRecord,
+      finished_at: done ? new Date().toISOString() : null,
+      created: cumulativeCreated,
+      updated: cumulativeUpdated,
+      failed: cumulativeFailed,
+      total: sfRows.length,
+      summary: mergedSummary,
     }).eq("id", run!.id);
 
     return json({
       success: true, run_id: run!.id,
-      total: sfRows.length, created, updated, failed,
+      total: sfRows.length,
+      cursor,
+      next_cursor: nextCursor,
+      batch_size: batchSize,
+      done,
+      created, updated, failed,
+      cumulative: { created: cumulativeCreated, updated: cumulativeUpdated, failed: cumulativeFailed },
       from, to, records: perRecord,
     }, 200);
   } catch (e) {
