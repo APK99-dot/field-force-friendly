@@ -863,7 +863,7 @@ export default function Procurement() {
       {detail && (
         <ProcurementDetail
           open={!!detail}
-          onOpenChange={(o) => !o && setDetail(null)}
+          onOpenChange={(o) => { if (!o) { setDetail(null); setDetailFocus(null); } }}
           order={detail}
           canApprove={canApprove}
           currentUserId={profile?.id}
@@ -872,6 +872,8 @@ export default function Procurement() {
           productName={pName}
           onEdit={openEdit}
           onChanged={fetchAll}
+          focus={detailFocus}
+          onFocusConsumed={() => setDetailFocus((f) => f ? { ...f, invoiceId: null } : f)}
         />
       )}
 
