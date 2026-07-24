@@ -1933,7 +1933,7 @@ export default function ProcurementDetail({
                                     )}
 
                                     {/* Workflow accordion — GRNs & Invoices are primary */}
-                                    <Accordion type="single" collapsible defaultValue={!isTransfer && row.vendor_id ? "grns" : "quote"} className="w-full">
+                                    <Accordion type="single" collapsible defaultValue={(focus?.vendorId && focus.vendorId === row.vendor_id && focus.section) ? focus.section : (!isTransfer && row.vendor_id ? "grns" : "quote")} className="w-full">
                                       {!isTransfer && row.vendor_id && (
                                         <AccordionItem value="grns" className="border rounded-md bg-background mb-1.5">
                                           <div className="flex items-center justify-between pr-2">
