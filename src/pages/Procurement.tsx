@@ -133,6 +133,7 @@ export default function Procurement() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailOrder | null>(null);
   const [sfImportOpen, setSfImportOpen] = useState(false);
+  const [sfBulkOpen, setSfBulkOpen] = useState(false);
   const { hasAdminAccess } = useAdminAccess();
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
   const [termsUserEdited, setTermsUserEdited] = useState(false);
