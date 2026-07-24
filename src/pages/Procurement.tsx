@@ -545,7 +545,7 @@ export default function Procurement() {
       <div className="space-y-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search REQ #, name, PO, site, owner..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
+          <Input placeholder="Search REQ #, name, PO, site, owner, vendor..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
