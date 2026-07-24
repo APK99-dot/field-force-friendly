@@ -180,6 +180,7 @@ const fmtDT = (iso?: string | null) => iso ? new Date(iso).toLocaleString("en-GB
 export default function ProcurementDetail({
   open, onOpenChange, order, canApprove, currentUserId,
   vendorName, siteName, productName, onEdit, onChanged,
+  focus, onFocusConsumed,
 }: Props) {
   const procCfg = useModuleConfig("procurement");
   const canEditRatesPostApproval = procCfg.canDo("editRatesAfterApproval");
