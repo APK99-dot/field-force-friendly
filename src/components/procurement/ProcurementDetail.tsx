@@ -589,13 +589,15 @@ export default function ProcurementDetail({
         const anyFull = vGrns.some((g) => g.status === "Fully Received");
         status = anyFull ? "Fully Received" : "Partially Received";
       }
+      // Tolerance of ₹1 to absorb rounding differences (e.g. Salesforce imports where
+      // paid amount differs from invoiced by paise).
       if (invoicedTotal > 0) {
-        status = invoicedTotal >= lineAmount - 0.01 && lineAmount > 0
+        status = invoicedTotal >= lineAmount - 1 && lineAmount > 0
           ? "Fully Invoiced"
           : "Partially Invoiced";
       }
       if (paidTotal > 0) {
-        status = paidTotal >= invoicedTotal - 0.01 && invoicedTotal > 0
+        status = paidTotal >= invoicedTotal - 1 && invoicedTotal > 0
           ? "Paid"
           : "Partially Paid";
       }
