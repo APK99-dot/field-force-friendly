@@ -524,7 +524,7 @@ export default function VendorDetail() {
         {/* Payments */}
         <TabsContent value="payments" className="mt-4 space-y-2">
           {payments.length === 0 ? <EmptyRow label="No payments recorded." /> : (payments as any[]).map((p) => (
-            <Card key={p.id}>
+            <Card key={p.id} className="cursor-pointer hover:shadow-sm" onClick={() => p.invoice?.po_id && navigate(`/procurement/${p.invoice.po_id}`)}>
               <CardContent className="p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{fmtInr(p.amount)} <span className="text-muted-foreground text-xs">· {p.invoice?.invoice_number || "—"}</span></p>
