@@ -489,7 +489,7 @@ export default function VendorDetail() {
         {/* Invoices */}
         <TabsContent value="invoices" className="mt-4 space-y-2">
           {invoices.length === 0 ? <EmptyRow label="No invoices from this vendor." /> : (invoices as any[]).map((inv) => (
-            <Card key={inv.id} className="cursor-pointer hover:shadow-sm" onClick={() => inv.po_id && navigate(`/procurement?po=${inv.po_id}`)}>
+            <Card key={inv.id} className="cursor-pointer hover:shadow-sm" onClick={() => inv.po_id && navigate(`/procurement?po=${inv.po_id}&vendor=${id}&section=invoices&invoice=${inv.id}`)}>
               <CardContent className="p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="min-w-0">
