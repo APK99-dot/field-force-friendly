@@ -116,6 +116,8 @@ Deno.serve(async (req) => {
       run = newRun as typeof run;
     }
 
+    if (!run?.id) return json({ error: "Could not start import run" }, 500);
+
     const singleUrl = `${SUPABASE_URL}/functions/v1/import-salesforce-procurement`;
     const perRecord: RecordResult[] = [];
     let created = 0, updated = 0, failed = 0;
@@ -172,10 +174,10 @@ Deno.serve(async (req) => {
       failed: cumulativeFailed,
       total: sfRows.length,
       summary: mergedSummary,
-    }).eq("id", run!.id);
+    }).eq("id", run.id);
 
     return json({
-      success: true, run_id: run!.id,
+      success: true, run_id: run.id,
       total: sfRows.length,
       cursor,
       next_cursor: nextCursor,
