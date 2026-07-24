@@ -2690,6 +2690,39 @@ export default function ProcurementDetail({
                       </div>
                     </div>
                   )}
+                  {(() => {
+                    const atts = invAttachments.filter((a) => a.invoice_id === inv.id);
+                    if (atts.length === 0) return null;
+                    return (
+                      <div>
+                        <div className="text-xs font-semibold mb-1">Attachments</div>
+                        <div className="border rounded divide-y">
+                          {atts.map((a) => (
+                            <button
+                              key={a.id}
+                              type="button"
+                              className="w-full flex items-center justify-between px-2 py-1.5 text-xs hover:bg-muted/50 text-left"
+                              onClick={async () => {
+                                try {
+                                  const url = await resolveInvoiceFileUrl(a.file_path);
+                                  if (url) window.open(url, "_blank", "noopener,noreferrer");
+                                  else toast.error("Could not open attachment");
+                                } catch (e: any) {
+                                  toast.error(e?.message || "Could not open attachment");
+                                }
+                              }}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                <span className="truncate">{a.file_name}</span>
+                              </div>
+                              <Download className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <div className="text-xs font-semibold">Payments</div>
