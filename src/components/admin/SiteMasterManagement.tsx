@@ -271,6 +271,7 @@ export default function SiteMasterManagement() {
       start_date: site.start_date || "",
       end_date: site.end_date || "",
       status: site.status || "planned",
+      image_url: site.image_url || "",
     });
     setSelectedUserIds(siteAssignments[site.id] || []);
     setAttachments(site.attachment_urls || []);
