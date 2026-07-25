@@ -1082,7 +1082,10 @@ export default function Activities() {
 
       <CreativeActivityForm
         open={showCreativeForm}
-        onOpenChange={setShowCreativeForm}
+        onOpenChange={(o) => {
+          setShowCreativeForm(o);
+          if (!o) setCreativeEditActivity(null);
+        }}
         projects={sites.filter((s) => s.is_active).map((s) => ({ id: s.id, name: s.site_name, image_url: s.image_url }))}
         users={users}
         activityTypes={activityTypes}
@@ -1091,10 +1094,13 @@ export default function Activities() {
         cfgCheckIn={cfgCheckIn}
         cfgTakePhoto={cfgTakePhoto}
         createActivity={createActivity}
+        updateActivity={updateActivity}
         checkInForDate={checkInForDate}
         fetchAttendanceForDate={fetchAttendanceForDate}
         onCreated={() => fetchActivities()}
+        editActivity={creativeEditActivity}
       />
+
 
       {/* Create/Edit Activity Dialog */}
       <Dialog open={showForm} onOpenChange={(open) => { if (!open) { if (isRecording) { stopRecording(); } clearRecording(); setVoiceToTextMode(false); } setShowForm(open); }}>
