@@ -241,6 +241,7 @@ export default function SiteMasterManagement() {
         flag: s.flag || "green",
         status: s.status || "planned",
         attachment_urls: s.attachment_urls || [],
+        image_url: s.image_url || null,
       })) as Site[]);
     }
     setLoading(false);
