@@ -39,6 +39,7 @@ export type Database = {
           remarks: string | null
           retailer_id: string | null
           site_id: string | null
+          source_form: string
           start_time: string | null
           status: string
           status_change_lat: number | null
@@ -75,6 +76,7 @@ export type Database = {
           remarks?: string | null
           retailer_id?: string | null
           site_id?: string | null
+          source_form?: string
           start_time?: string | null
           status?: string
           status_change_lat?: number | null
@@ -111,6 +113,7 @@ export type Database = {
           remarks?: string | null
           retailer_id?: string | null
           site_id?: string | null
+          source_form?: string
           start_time?: string | null
           status?: string
           status_change_lat?: number | null

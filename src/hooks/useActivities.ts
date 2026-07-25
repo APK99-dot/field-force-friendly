@@ -46,6 +46,7 @@ export interface Activity {
   status_changed_at: string | null;
   status_change_lat: number | null;
   status_change_lng: number | null;
+  source_form?: string | null;
   attachment_urls: string[];
   status_history: ActivityStatusEntry[];
   photo_urls: ActivityPhotoEntry[];
@@ -260,6 +261,7 @@ export function useActivities() {
         attachment_urls: activity.attachment_urls || [],
         status_history: (activity.status_history as any) || [],
         photo_urls: (activity.photo_urls as any) || [],
+        ...((activity as any).source_form ? { source_form: (activity as any).source_form } : {}),
       })
       .select("*")
       .single();
@@ -286,7 +288,7 @@ export function useActivities() {
       'project_id', 'site_id', 'milestone_id', 'grn_po_id', 'location_address',
       'status_changed_at', 'status_change_lat', 'status_change_lng',
       'location_lat', 'location_lng', 'attachment_urls',
-      'status_history', 'photo_urls',
+      'status_history', 'photo_urls', 'source_form',
     ];
     fields.forEach((f) => {
       if ((updates as any)[f] !== undefined) updatePayload[f] = (updates as any)[f];

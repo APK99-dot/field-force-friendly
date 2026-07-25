@@ -636,6 +636,7 @@ export default function Activities() {
 
   const [showFormChooser, setShowFormChooser] = useState(false);
   const [showCreativeForm, setShowCreativeForm] = useState(false);
+  const [creativeEditActivity, setCreativeEditActivity] = useState<ActivityType | null>(null);
 
   const openStandardForm = () => {
     setForm({ ...defaultForm, activity_date: dateStr, owner_user_id: currentUserId });
@@ -684,6 +685,12 @@ export default function Activities() {
   };
 
   const handleOpenEdit = (a: ActivityType) => {
+    // Route back to creative form if that's how it was saved
+    if ((a as any).source_form === "creative") {
+      setCreativeEditActivity(a);
+      setShowCreativeForm(true);
+      return;
+    }
     setForm({
       activity_name: a.activity_name,
       activity_type: a.activity_type,
@@ -1075,7 +1082,10 @@ export default function Activities() {
 
       <CreativeActivityForm
         open={showCreativeForm}
-        onOpenChange={setShowCreativeForm}
+        onOpenChange={(o) => {
+          setShowCreativeForm(o);
+          if (!o) setCreativeEditActivity(null);
+        }}
         projects={sites.filter((s) => s.is_active).map((s) => ({ id: s.id, name: s.site_name, image_url: s.image_url }))}
         users={users}
         activityTypes={activityTypes}
@@ -1084,10 +1094,13 @@ export default function Activities() {
         cfgCheckIn={cfgCheckIn}
         cfgTakePhoto={cfgTakePhoto}
         createActivity={createActivity}
+        updateActivity={updateActivity}
         checkInForDate={checkInForDate}
         fetchAttendanceForDate={fetchAttendanceForDate}
         onCreated={() => fetchActivities()}
+        editActivity={creativeEditActivity}
       />
+
 
       {/* Create/Edit Activity Dialog */}
       <Dialog open={showForm} onOpenChange={(open) => { if (!open) { if (isRecording) { stopRecording(); } clearRecording(); setVoiceToTextMode(false); } setShowForm(open); }}>
