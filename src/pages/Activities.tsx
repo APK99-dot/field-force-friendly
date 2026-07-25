@@ -1029,6 +1029,66 @@ export default function Activities() {
         )}
       </motion.div>
 
+      {/* Form Style Chooser */}
+      <Dialog open={showFormChooser} onOpenChange={setShowFormChooser}>
+        <DialogContent className="max-w-md p-0 overflow-hidden rounded-2xl">
+          <div className="p-5 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white">
+            <h3 className="text-lg font-semibold">How do you want to log?</h3>
+            <p className="text-xs text-white/80 mt-0.5">Pick the form style that suits your flow</p>
+          </div>
+          <div className="p-4 grid grid-cols-1 gap-3">
+            <button
+              onClick={() => { setShowFormChooser(false); openStandardForm(); }}
+              className="group text-left rounded-xl border border-border p-4 hover:border-primary hover:bg-primary/5 transition-all"
+            >
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-105 transition">
+                  <LayoutList className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">Standard Form</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Full detailed form with dates, milestones, GRN, recurring options and every field.
+                  </p>
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => { setShowFormChooser(false); setShowCreativeForm(true); }}
+              className="group text-left rounded-xl border border-transparent p-4 bg-gradient-to-br from-fuchsia-50 to-pink-50 dark:from-fuchsia-950/30 dark:to-pink-950/30 hover:from-fuchsia-100 hover:to-pink-100 dark:hover:from-fuchsia-950/50 dark:hover:to-pink-950/50 transition-all ring-1 ring-fuchsia-200/60 dark:ring-fuchsia-900/60"
+            >
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 via-fuchsia-600 to-pink-600 text-white flex items-center justify-center group-hover:scale-105 transition shadow-md">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">Creative Feed <Badge className="ml-1 bg-fuchsia-600 hover:bg-fuchsia-600 text-[9px] px-1.5 py-0 rounded-full">NEW</Badge></p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Social-style quick post — pick a project, drop a status, tag people, snap a photo.
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <CreativeActivityForm
+        open={showCreativeForm}
+        onOpenChange={setShowCreativeForm}
+        projects={projects}
+        users={users}
+        activityTypes={activityTypes}
+        currentUserId={currentUserId}
+        canAssign={canAssign}
+        cfgCheckIn={cfgCheckIn}
+        cfgTakePhoto={cfgTakePhoto}
+        createActivity={createActivity}
+        checkInForDate={checkInForDate}
+        fetchAttendanceForDate={fetchAttendanceForDate}
+        onCreated={() => fetchActivities()}
+      />
+
       {/* Create/Edit Activity Dialog */}
       <Dialog open={showForm} onOpenChange={(open) => { if (!open) { if (isRecording) { stopRecording(); } clearRecording(); setVoiceToTextMode(false); } setShowForm(open); }}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
