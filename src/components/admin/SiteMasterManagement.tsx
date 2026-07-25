@@ -49,7 +49,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   Plus, Edit, Loader2, Building2, Users, Check, ChevronsUpDown, X,
-  Paperclip, Download, Target,
+  Paperclip, Download, Target, ImagePlus, Camera,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
