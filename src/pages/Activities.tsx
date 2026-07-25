@@ -685,6 +685,12 @@ export default function Activities() {
   };
 
   const handleOpenEdit = (a: ActivityType) => {
+    // Route back to creative form if that's how it was saved
+    if ((a as any).source_form === "creative") {
+      setCreativeEditActivity(a);
+      setShowCreativeForm(true);
+      return;
+    }
     setForm({
       activity_name: a.activity_name,
       activity_type: a.activity_type,
