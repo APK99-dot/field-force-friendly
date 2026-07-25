@@ -267,11 +267,15 @@ export default function CreativeActivityForm({
                       >
                         <div
                           className={cn(
-                            "h-full w-full rounded-full bg-gradient-to-br flex items-center justify-center text-white font-semibold text-sm border-2 border-background",
-                            gradientFor(p.id)
+                            "h-full w-full rounded-full overflow-hidden bg-gradient-to-br flex items-center justify-center text-white font-semibold text-sm border-2 border-background",
+                            !p.image_url && gradientFor(p.id)
                           )}
                         >
-                          {initials(p.name)}
+                          {p.image_url ? (
+                            <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" />
+                          ) : (
+                            initials(p.name)
+                          )}
                         </div>
                         {active && (
                           <div className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-emerald-500 border-2 border-background flex items-center justify-center">
