@@ -357,8 +357,8 @@ export default function CreativeActivityForm({
             </div>
 
             {/* Activity type chips */}
-            <div className="px-4 py-3 border-t border-border/40">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-100 dark:border-amber-900/50 px-4 py-3 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 mb-2">
                 Activity Type
               </p>
               <div className="flex flex-wrap gap-2">
@@ -375,7 +375,7 @@ export default function CreativeActivityForm({
                         "px-3.5 h-8 rounded-full text-xs font-medium border transition-all",
                         active
                           ? "bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white border-transparent shadow-md"
-                          : "bg-background border-border text-foreground hover:border-fuchsia-400 hover:text-fuchsia-600"
+                          : "bg-white dark:bg-background border-amber-200 dark:border-amber-900/60 text-foreground hover:border-fuchsia-400 hover:text-fuchsia-600"
                       )}
                     >
                       {t}
@@ -384,6 +384,7 @@ export default function CreativeActivityForm({
                 })}
               </div>
             </div>
+
 
             {/* Assign to + Risk */}
             <div className="px-4 py-3 border-t border-border/40 grid grid-cols-2 gap-3">
