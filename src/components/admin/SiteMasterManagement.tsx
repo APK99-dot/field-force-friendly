@@ -364,6 +364,7 @@ export default function SiteMasterManagement() {
         status: form.status,
         is_active: form.status !== "dropped",
         attachment_urls: attachments,
+        image_url: form.image_url || null,
       };
 
       let userIds = [...selectedUserIds];
