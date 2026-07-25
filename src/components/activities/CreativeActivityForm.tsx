@@ -1,9 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Search,
   Camera,
@@ -13,14 +20,19 @@ import {
   X,
   Sparkles,
   Loader2,
-  ImagePlus,
   ShieldAlert,
+  Mic,
+  Square,
+  AudioLines,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { uploadActivityPhoto, resolveActivityPhotoUrl } from "@/utils/activityPhotos";
-import type { ActivityPhotoEntry, ActivityStatusEntry } from "@/hooks/useActivities";
+import type { Activity as ActivityType, ActivityPhotoEntry, ActivityStatusEntry } from "@/hooks/useActivities";
 import { format } from "date-fns";
+import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { supabase } from "@/integrations/supabase/client";
 
 type ProjectOpt = { id: string; name: string; image_url?: string | null };
 type UserOpt = { id: string; full_name: string };
@@ -36,15 +48,17 @@ interface Props {
   cfgCheckIn: boolean;
   cfgTakePhoto: boolean;
   createActivity: (activity: any, targetUserId?: string, silent?: boolean) => Promise<any>;
+  updateActivity?: (id: string, updates: any) => Promise<any>;
   checkInForDate: (userId: string, date: string) => Promise<any>;
   fetchAttendanceForDate: (userId: string, date: string) => Promise<any>;
   onCreated?: () => void;
+  editActivity?: ActivityType | null;
 }
 
 const RISK_OPTIONS = [
-  { key: "green", label: "On Track", color: "bg-emerald-500", ring: "ring-emerald-500" },
-  { key: "orange", label: "Attention", color: "bg-amber-500", ring: "ring-amber-500" },
-  { key: "red", label: "Critical", color: "bg-red-500", ring: "ring-red-500" },
+  { key: "green", label: "On Track", solid: "bg-emerald-500", dot: "bg-emerald-500", iconColor: "text-emerald-500" },
+  { key: "orange", label: "Attention", solid: "bg-amber-500", dot: "bg-amber-500", iconColor: "text-amber-500" },
+  { key: "red", label: "Critical", solid: "bg-red-500", dot: "bg-red-500", iconColor: "text-red-500" },
 ] as const;
 
 function initials(name: string) {
@@ -81,10 +95,13 @@ export default function CreativeActivityForm({
   cfgCheckIn,
   cfgTakePhoto,
   createActivity,
+  updateActivity,
   checkInForDate,
   fetchAttendanceForDate,
   onCreated,
+  editActivity,
 }: Props) {
+  const isEdit = !!editActivity;
   const [projectId, setProjectId] = useState("");
   const [projectSearch, setProjectSearch] = useState("");
   const [description, setDescription] = useState("");
@@ -99,6 +116,20 @@ export default function CreativeActivityForm({
   const [checkingIn, setCheckingIn] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignSearch, setAssignSearch] = useState("");
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [voiceToTextMode, setVoiceToTextMode] = useState(false);
+  const [isStartingRecording, setIsStartingRecording] = useState(false);
+  const [micMenuOpen, setMicMenuOpen] = useState(false);
+  const {
+    isRecording,
+    isFinalizing,
+    recording,
+    elapsed,
+    startRecording,
+    stopRecording,
+    clearRecording,
+    formatDuration,
+  } = useAudioRecorder();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const dateStr = format(new Date(), "yyyy-MM-dd");
 
@@ -114,14 +145,31 @@ export default function CreativeActivityForm({
       setPhotoPreviews({});
       setAssignOpen(false);
       setAssignSearch("");
+      clearRecording();
+      setVoiceToTextMode(false);
       return;
+    }
+    // Prefill on edit
+    if (editActivity) {
+      setProjectId(editActivity.site_id || "");
+      setDescription(editActivity.description || "");
+      setActivityType(editActivity.activity_type || "");
+      setAssignedIds(Array.isArray((editActivity as any).assigned_user_ids) ? (editActivity as any).assigned_user_ids : []);
+      setPhotos(editActivity.photo_urls || []);
+      // resolve photo previews
+      (editActivity.photo_urls || []).forEach(async (ph) => {
+        try {
+          const url = await resolveActivityPhotoUrl(ph.url);
+          setPhotoPreviews((prev) => ({ ...prev, [ph.url]: url }));
+        } catch {}
+      });
     }
     if (currentUserId && cfgCheckIn) {
       fetchAttendanceForDate(currentUserId, dateStr)
         .then((r) => setCheckedIn(!!r?.check_in_time))
         .catch(() => {});
     }
-  }, [open, currentUserId, cfgCheckIn, dateStr, fetchAttendanceForDate]);
+  }, [open, currentUserId, cfgCheckIn, dateStr, fetchAttendanceForDate, editActivity, clearRecording]);
 
   const filteredProjects = useMemo(() => {
     const q = projectSearch.trim().toLowerCase();
@@ -164,6 +212,69 @@ export default function CreativeActivityForm({
     }
   };
 
+  // Voice transcription
+  const transcribeAudio = useCallback(async (audioBlob: Blob) => {
+    setIsTranscribing(true);
+    try {
+      const formData = new FormData();
+      const extension = audioBlob.type.includes("mp4") || audioBlob.type.includes("aac")
+        ? "m4a"
+        : audioBlob.type.includes("ogg")
+          ? "ogg"
+          : "webm";
+      formData.append("audio", audioBlob, `recording.${extension}`);
+      formData.append("lang", "en");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please sign in to use voice-to-text");
+        return;
+      }
+      const response = await supabase.functions.invoke("transcribe-audio", { body: formData });
+      if (response.error) throw response.error;
+      const transcript = response.data?.transcript?.trim();
+      if (transcript) {
+        setDescription((prev) => (prev ? prev + " " + transcript : transcript));
+        toast.success("Voice transcribed");
+      } else {
+        toast.error("Could not understand the audio.");
+      }
+    } catch (err: any) {
+      toast.error("Transcription failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsTranscribing(false);
+    }
+  }, []);
+
+  // Auto-transcribe when voice-to-text finishes
+  useEffect(() => {
+    if (voiceToTextMode && recording && !isRecording && !isTranscribing) {
+      transcribeAudio(recording.blob);
+      clearRecording();
+      setVoiceToTextMode(false);
+    }
+  }, [voiceToTextMode, recording, isRecording, isTranscribing, transcribeAudio, clearRecording]);
+
+  const handleMicOptionClick = useCallback(async (mode: 'text' | 'audio') => {
+    if (isTranscribing || isStartingRecording || isFinalizing) return;
+    if (isRecording) {
+      setMicMenuOpen(false);
+      await stopRecording();
+      return;
+    }
+    clearRecording();
+    setVoiceToTextMode(mode === 'text');
+    setIsStartingRecording(true);
+    try {
+      await startRecording();
+      setMicMenuOpen(false);
+    } catch (err: any) {
+      setVoiceToTextMode(false);
+      toast.error(err.message || 'Could not start recording');
+    } finally {
+      setIsStartingRecording(false);
+    }
+  }, [clearRecording, isFinalizing, isRecording, isStartingRecording, isTranscribing, startRecording, stopRecording]);
+
   const canPost = !!description.trim() || !!activityType || !!projectId;
 
   const handlePost = async () => {
@@ -173,19 +284,44 @@ export default function CreativeActivityForm({
     }
     setSaving(true);
     try {
+      // Upload voice recording (audio mode) as attachment
+      let audioUrl: string | null = null;
+      if (recording && !voiceToTextMode) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const extension = recording.fileExtension || (recording.mimeType.includes("mp4") ? "m4a" : recording.mimeType.includes("ogg") ? "ogg" : "webm");
+        const fileName = `${user!.id}/${Date.now()}.${extension}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("activity-audio")
+          .upload(fileName, recording.blob, { contentType: recording.mimeType || "audio/webm" });
+        if (!uploadErr) {
+          const { data: urlData } = supabase.storage.from("activity-audio").getPublicUrl(fileName);
+          audioUrl = urlData.publicUrl;
+        }
+      }
+      const attachmentUrls: string[] = [];
+      if (audioUrl) attachmentUrls.push(audioUrl);
+
       const payload: any = {
         activity_name: activityType || "Activity Update",
         activity_type: activityType || "General Activity",
-        activity_date: dateStr,
+        activity_date: isEdit ? editActivity!.activity_date : dateStr,
         description: description || null,
         site_id: projectId || null,
         photo_urls: photos,
-        status: "planned",
-        status_history: [{ status: "planned", at: new Date().toISOString() } as ActivityStatusEntry],
+        source_form: "creative",
         ...(canAssign ? { assigned_user_ids: assignedIds } : {}),
+        ...(attachmentUrls.length > 0 ? { attachment_urls: attachmentUrls } : {}),
       };
-      await createActivity(payload);
-      toast.success("Posted to your activity feed");
+
+      if (isEdit && updateActivity) {
+        await updateActivity(editActivity!.id, payload);
+        toast.success("Post updated");
+      } else {
+        payload.status = "planned";
+        payload.status_history = [{ status: "planned", at: new Date().toISOString() } as ActivityStatusEntry];
+        await createActivity(payload);
+        toast.success("Posted to your activity feed");
+      }
       onCreated?.();
       onOpenChange(false);
     } catch (err: any) {
@@ -198,204 +334,358 @@ export default function CreativeActivityForm({
   const selectedProject = projects.find((p) => p.id === projectId);
   const currentRisk = RISK_OPTIONS.find((r) => r.key === risk)!;
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="p-0 gap-0 max-w-[520px] max-h-[92vh] overflow-hidden rounded-2xl border-0 shadow-2xl">
-        <div className="flex flex-col max-h-[92vh]">
-          {/* Header */}
-          <div className="relative px-5 py-4 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-9 w-9 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-                <Sparkles className="h-4 w-4" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold leading-tight">New Post</h2>
-                <p className="text-[11px] text-white/80">Share what's happening on the ground</p>
-              </div>
-            </div>
-            <button
-              onClick={() => onOpenChange(false)}
-              className="h-8 w-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition"
-              aria-label="Close"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+  const micBusy = isStartingRecording || isTranscribing || isFinalizing;
 
-          <div className="overflow-y-auto flex-1 bg-muted/40 p-3 space-y-3">
-            {/* Project selector — circular horizontal scroll */}
-            <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-fuchsia-50 dark:from-indigo-950/30 dark:to-fuchsia-950/30 border border-indigo-100 dark:border-indigo-900/50 px-4 pt-4 pb-3 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Project</p>
-                {selectedProject && (
-                  <button
-                    className="text-[11px] text-muted-foreground hover:text-foreground"
-                    onClick={() => setProjectId("")}
-                  >
-                    Clear
-                  </button>
-                )}
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="p-0 gap-0 max-w-[520px] max-h-[92vh] overflow-hidden rounded-2xl border-0 shadow-2xl">
+          <div className="flex flex-col max-h-[92vh]">
+            {/* Header */}
+            <div className="relative px-5 py-4 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-9 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold leading-tight">{isEdit ? "Edit Post" : "New Post"}</h2>
+                  <p className="text-[11px] text-white/80">Share what's happening on the ground</p>
+                </div>
               </div>
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Search projects..."
-                  value={projectSearch}
-                  onChange={(e) => setProjectSearch(e.target.value)}
-                  className="pl-9 h-9 rounded-full bg-background/80 border-0"
-                />
-              </div>
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
-                {filteredProjects.length === 0 && (
-                  <p className="text-xs text-muted-foreground py-4">No projects found</p>
-                )}
-                {filteredProjects.map((p) => {
-                  const active = p.id === projectId;
-                  return (
+              <button
+                onClick={() => onOpenChange(false)}
+                className="h-8 w-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 bg-muted/40 p-3 space-y-3">
+              {/* Project selector */}
+              <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-fuchsia-50 dark:from-indigo-950/30 dark:to-fuchsia-950/30 border border-indigo-100 dark:border-indigo-900/50 px-4 pt-4 pb-3 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Project</p>
+                  {selectedProject && (
                     <button
-                      key={p.id}
-                      onClick={() => setProjectId(p.id)}
-                      className="shrink-0 flex flex-col items-center gap-1.5 w-16 focus:outline-none group"
+                      className="text-[11px] text-muted-foreground hover:text-foreground"
+                      onClick={() => setProjectId("")}
                     >
-                      <div
-                        className={cn(
-                          "relative h-16 w-16 rounded-full p-[2.5px] transition-all",
-                          active
-                            ? "bg-gradient-to-tr from-yellow-400 via-pink-500 to-fuchsia-600 scale-105"
-                            : "bg-gradient-to-tr from-muted to-muted group-hover:from-pink-300 group-hover:to-fuchsia-400"
-                        )}
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search projects..."
+                    value={projectSearch}
+                    onChange={(e) => setProjectSearch(e.target.value)}
+                    className="pl-9 h-9 rounded-full bg-background/80 border-0"
+                  />
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
+                  {filteredProjects.length === 0 && (
+                    <p className="text-xs text-muted-foreground py-4">No projects found</p>
+                  )}
+                  {filteredProjects.map((p) => {
+                    const active = p.id === projectId;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => setProjectId(p.id)}
+                        className="shrink-0 flex flex-col items-center gap-1.5 w-16 focus:outline-none group"
                       >
                         <div
                           className={cn(
-                            "h-full w-full rounded-full overflow-hidden bg-gradient-to-br flex items-center justify-center text-white font-semibold text-sm border-2 border-background",
-                            !p.image_url && gradientFor(p.id)
+                            "relative h-16 w-16 rounded-full p-[2.5px] transition-all",
+                            active
+                              ? "bg-gradient-to-tr from-yellow-400 via-pink-500 to-fuchsia-600 scale-105"
+                              : "bg-gradient-to-tr from-muted to-muted group-hover:from-pink-300 group-hover:to-fuchsia-400"
                           )}
                         >
-                          {p.image_url ? (
-                            <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" />
-                          ) : (
-                            initials(p.name)
+                          <div
+                            className={cn(
+                              "h-full w-full rounded-full overflow-hidden bg-gradient-to-br flex items-center justify-center text-white font-semibold text-sm border-2 border-background",
+                              !p.image_url && gradientFor(p.id)
+                            )}
+                          >
+                            {p.image_url ? (
+                              <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" />
+                            ) : (
+                              initials(p.name)
+                            )}
+                          </div>
+                          {active && (
+                            <div className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-emerald-500 border-2 border-background flex items-center justify-center">
+                              <Check className="h-3 w-3 text-white" />
+                            </div>
                           )}
                         </div>
-                        {active && (
-                          <div className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-emerald-500 border-2 border-background flex items-center justify-center">
-                            <Check className="h-3 w-3 text-white" />
+                        <p
+                          className={cn(
+                            "text-[10px] w-full text-center truncate leading-tight",
+                            active ? "font-semibold text-foreground" : "text-muted-foreground"
+                          )}
+                          title={p.name}
+                        >
+                          {p.name}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Status / description with inline icon rail */}
+              <div className="rounded-2xl bg-card border border-border px-4 py-3 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div
+                    className={cn(
+                      "h-10 w-10 rounded-full bg-gradient-to-br flex items-center justify-center text-white text-sm font-semibold shrink-0",
+                      gradientFor(currentUserId || "me")
+                    )}
+                  >
+                    {initials("Me")}
+                  </div>
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder={
+                      selectedProject
+                        ? `What's happening at ${selectedProject.name}?`
+                        : "What's happening in your project?"
+                    }
+                    rows={3}
+                    className="resize-none border-0 bg-transparent focus-visible:ring-0 shadow-none px-0 text-[15px] placeholder:text-muted-foreground/70"
+                  />
+                </div>
+
+                {/* Icon action rail — under description */}
+                <div className="mt-2 pt-2 border-t border-border/60 flex items-center gap-1">
+                  {/* Photo */}
+                  {cfgTakePhoto && (
+                    <>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handlePhotoPick}
+                        className="hidden"
+                      />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploadingPhoto}
+                            className="h-9 w-9 rounded-full flex items-center justify-center text-fuchsia-600 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/30 disabled:opacity-60 transition"
+                            aria-label="Add photo"
+                          >
+                            {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Add photo{photos.length > 0 ? ` (${photos.length})` : ""}</TooltipContent>
+                      </Tooltip>
+                    </>
+                  )}
+
+                  {/* Check in */}
+                  {cfgCheckIn && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={handleCheckIn}
+                          disabled={checkedIn || checkingIn}
+                          className={cn(
+                            "h-9 w-9 rounded-full flex items-center justify-center transition",
+                            checkedIn
+                              ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
+                              : "text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30",
+                            checkingIn && "opacity-60"
+                          )}
+                          aria-label="Check in"
+                        >
+                          {checkingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>{checkedIn ? "Checked in" : "Check in with location"}</TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  {/* Risk indicator (opens menu) */}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className={cn(
+                              "h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted transition",
+                              currentRisk.iconColor
+                            )}
+                            aria-label="Risk status"
+                          >
+                            <TrendingUp className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>Risk: {currentRisk.label}</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="start">
+                      {RISK_OPTIONS.map((r) => (
+                        <DropdownMenuItem key={r.key} onClick={() => setRisk(r.key)} className="gap-2">
+                          <span className={cn("h-2.5 w-2.5 rounded-full", r.dot)} />
+                          {r.label}
+                          {r.key === risk && <Check className="h-3.5 w-3.5 ml-auto" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Voice mic dropdown */}
+                  <DropdownMenu open={micMenuOpen} onOpenChange={setMicMenuOpen}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            disabled={micBusy}
+                            className={cn(
+                              "h-9 w-9 rounded-full flex items-center justify-center transition",
+                              isRecording
+                                ? "text-red-600 bg-red-50 dark:bg-red-950/30 animate-pulse"
+                                : "text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/30",
+                              micBusy && "opacity-60"
+                            )}
+                            onClick={(e) => {
+                              if (isRecording) {
+                                e.preventDefault();
+                                stopRecording();
+                              }
+                            }}
+                            aria-label="Voice"
+                          >
+                            {isTranscribing || isFinalizing ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : isRecording ? (
+                              <Square className="h-4 w-4" />
+                            ) : (
+                              <Mic className="h-4 w-4" />
+                            )}
+                          </button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {isRecording ? "Stop recording" : "Voice-to-text or record audio"}
+                      </TooltipContent>
+                    </Tooltip>
+                    {!isRecording && (
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => handleMicOptionClick('text')} className="gap-2">
+                          <Mic className="h-3.5 w-3.5" /> Voice to text
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMicOptionClick('audio')} className="gap-2">
+                          <AudioLines className="h-3.5 w-3.5" /> Record audio
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    )}
+                  </DropdownMenu>
+
+                  {isRecording && (
+                    <span className="text-[11px] text-red-600 font-medium ml-1">
+                      {voiceToTextMode ? "Listening" : "Recording"} · {formatDuration(elapsed)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Photos preview */}
+                {photos.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mt-3">
+                    {photos.map((ph) => (
+                      <div
+                        key={ph.url}
+                        className="relative aspect-square rounded-xl overflow-hidden bg-muted group"
+                      >
+                        {photoPreviews[ph.url] ? (
+                          <img
+                            src={photoPreviews[ph.url]}
+                            alt="upload"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                           </div>
                         )}
+                        <button
+                          onClick={() =>
+                            setPhotos((p) => p.filter((x) => x.url !== ph.url))
+                          }
+                          className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </div>
-                      <p
-                        className={cn(
-                          "text-[10px] w-full text-center truncate leading-tight",
-                          active ? "font-semibold text-foreground" : "text-muted-foreground"
-                        )}
-                        title={p.name}
-                      >
-                        {p.name}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-
-            {/* Status / description */}
-            <div className="rounded-2xl bg-card border border-border px-4 py-3 shadow-sm">
-              <div className="flex items-start gap-3">
-                <div
-                  className={cn(
-                    "h-10 w-10 rounded-full bg-gradient-to-br flex items-center justify-center text-white text-sm font-semibold shrink-0",
-                    gradientFor(currentUserId || "me")
-                  )}
-                >
-                  {initials("Me")}
-                </div>
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder={
-                    selectedProject
-                      ? `What's happening at ${selectedProject.name}?`
-                      : "What's on your mind today?"
-                  }
-                  rows={3}
-                  className="resize-none border-0 bg-transparent focus-visible:ring-0 shadow-none px-0 text-[15px] placeholder:text-muted-foreground/70"
-                />
-              </div>
-
-              {/* Photos preview */}
-              {photos.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mt-3">
-                  {photos.map((ph) => (
-                    <div
-                      key={ph.url}
-                      className="relative aspect-square rounded-xl overflow-hidden bg-muted group"
-                    >
-                      {photoPreviews[ph.url] ? (
-                        <img
-                          src={photoPreviews[ph.url]}
-                          alt="upload"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                        </div>
-                      )}
-                      <button
-                        onClick={() =>
-                          setPhotos((p) => p.filter((x) => x.url !== ph.url))
-                        }
-                        className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Activity type chips */}
-            <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-100 dark:border-amber-900/50 px-4 py-3 shadow-sm">
-              <p className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 mb-2">
-                Activity Type
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {activityTypes.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No activity types configured</p>
+                    ))}
+                  </div>
                 )}
-                {activityTypes.map((t) => {
-                  const active = t === activityType;
-                  return (
+
+                {recording && !voiceToTextMode && !isRecording && (
+                  <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-2 py-1.5 text-xs">
+                    <AudioLines className="h-3.5 w-3.5 text-violet-600" />
+                    <span className="flex-1">Audio note · {formatDuration(recording.duration)}</span>
                     <button
-                      key={t}
-                      onClick={() => setActivityType(active ? "" : t)}
-                      className={cn(
-                        "px-3.5 h-8 rounded-full text-xs font-medium border transition-all",
-                        active
-                          ? "bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white border-transparent shadow-md"
-                          : "bg-white dark:bg-background border-amber-200 dark:border-amber-900/60 text-foreground hover:border-fuchsia-400 hover:text-fuchsia-600"
-                      )}
+                      onClick={() => clearRecording()}
+                      className="text-muted-foreground hover:text-destructive"
+                      aria-label="Remove audio"
                     >
-                      {t}
+                      <X className="h-3.5 w-3.5" />
                     </button>
-                  );
-                })}
+                  </div>
+                )}
               </div>
-            </div>
 
+              {/* Activity type chips */}
+              <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-100 dark:border-amber-900/50 px-4 py-3 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 mb-2">
+                  Activity Type
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {activityTypes.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No activity types configured</p>
+                  )}
+                  {activityTypes.map((t) => {
+                    const active = t === activityType;
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => setActivityType(active ? "" : t)}
+                        className={cn(
+                          "px-3.5 h-8 rounded-full text-xs font-medium border transition-all",
+                          active
+                            ? "bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white border-transparent shadow-md"
+                            : "bg-white dark:bg-background border-amber-200 dark:border-amber-900/60 text-foreground hover:border-fuchsia-400 hover:text-fuchsia-600"
+                        )}
+                      >
+                        {t}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-            {/* Assign to + Risk */}
-            <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/50 px-4 py-3 shadow-sm grid grid-cols-2 gap-3">
+              {/* Assign */}
               {canAssign && (
-                <div>
+                <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/50 px-4 py-3 shadow-sm">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                     Assign
                   </p>
                   <button
                     onClick={() => setAssignOpen((v) => !v)}
-                    className="w-full h-11 rounded-xl border border-border bg-muted/40 hover:bg-muted flex items-center gap-2 px-3 text-sm transition"
+                    className="w-full h-11 rounded-xl border border-border bg-background/60 hover:bg-background flex items-center gap-2 px-3 text-sm transition"
                   >
                     <Users className="h-4 w-4 text-muted-foreground" />
                     {assignedIds.length === 0 ? (
@@ -425,169 +715,84 @@ export default function CreativeActivityForm({
                       </div>
                     )}
                   </button>
-                </div>
-              )}
 
-              <div className={cn(!canAssign && "col-span-2")}>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  Risk
-                </p>
-                <div className="flex gap-2">
-                  {RISK_OPTIONS.map((r) => {
-                    const active = r.key === risk;
-                    return (
-                      <button
-                        key={r.key}
-                        onClick={() => setRisk(r.key)}
-                        className={cn(
-                          "flex-1 h-11 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-medium transition-all",
-                          active
-                            ? `border-transparent bg-gradient-to-br ${r.color} text-white shadow-md`
-                            : "border-border bg-background text-muted-foreground hover:border-foreground/30"
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "h-2 w-2 rounded-full",
-                            active ? "bg-white" : r.color
-                          )}
+                  {assignOpen && (
+                    <div className="mt-2 rounded-xl border border-border bg-background/70 p-3 space-y-2">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                          value={assignSearch}
+                          onChange={(e) => setAssignSearch(e.target.value)}
+                          placeholder="Search people..."
+                          className="pl-9 h-9 bg-background rounded-full border-0"
                         />
-                        {r.label}
-                      </button>
-                    );
-                  })}
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-1">
+                        {filteredUsers.map((u) => {
+                          const active = assignedIds.includes(u.id);
+                          return (
+                            <button
+                              key={u.id}
+                              onClick={() =>
+                                setAssignedIds((cur) =>
+                                  active ? cur.filter((x) => x !== u.id) : [...cur, u.id]
+                                )
+                              }
+                              className={cn(
+                                "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm",
+                                active ? "bg-primary/10" : "hover:bg-background"
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  "h-7 w-7 rounded-full bg-gradient-to-br text-white text-[10px] flex items-center justify-center font-semibold",
+                                  gradientFor(u.id)
+                                )}
+                              >
+                                {initials(u.full_name)}
+                              </div>
+                              <span className="flex-1 text-left truncate">{u.full_name}</span>
+                              {active && <Check className="h-4 w-4 text-primary" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Assign picker */}
-            {canAssign && assignOpen && (
-              <div className="px-4 pb-2">
-                <div className="rounded-xl border border-border bg-muted/40 p-3 space-y-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input
-                      value={assignSearch}
-                      onChange={(e) => setAssignSearch(e.target.value)}
-                      placeholder="Search people..."
-                      className="pl-9 h-9 bg-background rounded-full border-0"
-                    />
-                  </div>
-                  <div className="max-h-40 overflow-y-auto space-y-1">
-                    {filteredUsers.map((u) => {
-                      const active = assignedIds.includes(u.id);
-                      return (
-                        <button
-                          key={u.id}
-                          onClick={() =>
-                            setAssignedIds((cur) =>
-                              active ? cur.filter((x) => x !== u.id) : [...cur, u.id]
-                            )
-                          }
-                          className={cn(
-                            "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm",
-                            active ? "bg-primary/10" : "hover:bg-background"
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              "h-7 w-7 rounded-full bg-gradient-to-br text-white text-[10px] flex items-center justify-center font-semibold",
-                              gradientFor(u.id)
-                            )}
-                          >
-                            {initials(u.full_name)}
-                          </div>
-                          <span className="flex-1 text-left truncate">{u.full_name}</span>
-                          {active && <Check className="h-4 w-4 text-primary" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+            {/* Footer */}
+            <div className="px-4 py-3 border-t border-border/60 bg-background flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                {selectedProject && (
+                  <Badge variant="secondary" className="rounded-full text-[10px] px-2 py-0">
+                    {selectedProject.name}
+                  </Badge>
+                )}
+                {activityType && (
+                  <Badge className="rounded-full text-[10px] px-2 py-0 bg-fuchsia-600 hover:bg-fuchsia-600">
+                    {activityType}
+                  </Badge>
+                )}
+                <Badge variant="outline" className="rounded-full text-[10px] px-2 py-0 gap-1">
+                  <span className={cn("h-2 w-2 rounded-full", currentRisk.dot)} />
+                  {currentRisk.label}
+                </Badge>
               </div>
-            )}
-
-            {/* Action rail: photo + check-in */}
-            <div className="rounded-2xl bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-950/30 dark:to-cyan-950/30 border border-sky-100 dark:border-sky-900/50 px-4 py-3 shadow-sm flex items-center gap-2">
-              {cfgTakePhoto && (
-                <>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handlePhotoPick}
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingPhoto}
-                    className="flex-1 h-11 rounded-xl bg-gradient-to-br from-pink-50 to-fuchsia-100 dark:from-fuchsia-950/40 dark:to-pink-950/40 border border-fuchsia-200/60 dark:border-fuchsia-900/60 flex items-center justify-center gap-2 text-xs font-medium text-fuchsia-700 dark:text-fuchsia-300 hover:brightness-105 transition disabled:opacity-60"
-                  >
-                    {uploadingPhoto ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : photos.length > 0 ? (
-                      <ImagePlus className="h-4 w-4" />
-                    ) : (
-                      <Camera className="h-4 w-4" />
-                    )}
-                    {uploadingPhoto ? "Uploading" : photos.length > 0 ? "Add More" : "Photo"}
-                  </button>
-                </>
-              )}
-
-              {cfgCheckIn && (
-                <button
-                  onClick={handleCheckIn}
-                  disabled={checkedIn || checkingIn}
-                  className={cn(
-                    "flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-xs font-medium transition border",
-                    checkedIn
-                      ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/60"
-                      : "bg-gradient-to-br from-sky-50 to-indigo-100 dark:from-indigo-950/40 dark:to-sky-950/40 border-sky-200/60 dark:border-sky-900/60 text-indigo-700 dark:text-indigo-300 hover:brightness-105"
-                  )}
-                >
-                  {checkingIn ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <MapPin className="h-4 w-4" />
-                  )}
-                  {checkedIn ? "Checked In" : "Check In"}
-                </button>
-              )}
-
-              <div className="flex-1 h-11 rounded-xl border border-border bg-muted/30 flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <ShieldAlert className={cn("h-4 w-4", currentRisk.key === "green" ? "text-emerald-500" : currentRisk.key === "orange" ? "text-amber-500" : "text-red-500")} />
-                {currentRisk.label}
-              </div>
+              <Button
+                onClick={handlePost}
+                disabled={!canPost || saving}
+                className="rounded-full h-10 px-5 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white hover:brightness-110 shadow-md"
+              >
+                {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
+                {isEdit ? "Save" : "Post"}
+              </Button>
             </div>
           </div>
-
-          {/* Footer */}
-          <div className="px-4 py-3 border-t border-border/60 bg-background flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              {selectedProject && (
-                <Badge variant="secondary" className="rounded-full text-[10px] px-2 py-0">
-                  {selectedProject.name}
-                </Badge>
-              )}
-              {activityType && (
-                <Badge className="rounded-full text-[10px] px-2 py-0 bg-fuchsia-600 hover:bg-fuchsia-600">
-                  {activityType}
-                </Badge>
-              )}
-            </div>
-            <Button
-              onClick={handlePost}
-              disabled={!canPost || saving}
-              className="rounded-full h-10 px-5 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white hover:brightness-110 shadow-md"
-            >
-              {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
-              Post
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
   );
 }
