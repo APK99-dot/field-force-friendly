@@ -1,0 +1,1 @@
+ALTER TABLE public.activity_events ADD COLUMN IF NOT EXISTS source_form text NOT NULL DEFAULT 'standard';
