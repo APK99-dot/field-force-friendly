@@ -508,7 +508,7 @@ export default function CreativeActivityForm({
             )}
 
             {/* Action rail: photo + check-in */}
-            <div className="px-4 py-3 border-t border-border/40 flex items-center gap-2">
+            <div className="rounded-2xl bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-950/30 dark:to-cyan-950/30 border border-sky-100 dark:border-sky-900/50 px-4 py-3 shadow-sm flex items-center gap-2">
               {cfgTakePhoto && (
                 <>
                   <input
