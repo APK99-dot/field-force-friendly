@@ -11,6 +11,7 @@ export interface SiteCardData {
   status: string;
   start_date: string;
   end_date: string | null;
+  image_url?: string | null;
 }
 
 const STATUS_STYLES: Record<
