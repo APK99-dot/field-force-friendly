@@ -222,11 +222,11 @@ export default function CreativeActivityForm({
             </button>
           </div>
 
-          <div className="overflow-y-auto flex-1 bg-background">
+          <div className="overflow-y-auto flex-1 bg-muted/40 p-3 space-y-3">
             {/* Project selector — circular horizontal scroll */}
-            <div className="px-4 pt-4 pb-2">
+            <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-fuchsia-50 dark:from-indigo-950/30 dark:to-fuchsia-950/30 border border-indigo-100 dark:border-indigo-900/50 px-4 pt-4 pb-3 shadow-sm">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Project</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Project</p>
                 {selectedProject && (
                   <button
                     className="text-[11px] text-muted-foreground hover:text-foreground"
@@ -242,7 +242,7 @@ export default function CreativeActivityForm({
                   placeholder="Search projects..."
                   value={projectSearch}
                   onChange={(e) => setProjectSearch(e.target.value)}
-                  className="pl-9 h-9 rounded-full bg-muted/60 border-0"
+                  className="pl-9 h-9 rounded-full bg-background/80 border-0"
                 />
               </div>
               <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
@@ -298,8 +298,9 @@ export default function CreativeActivityForm({
               </div>
             </div>
 
+
             {/* Status / description */}
-            <div className="px-4 py-3 border-t border-border/40">
+            <div className="rounded-2xl bg-card border border-border px-4 py-3 shadow-sm">
               <div className="flex items-start gap-3">
                 <div
                   className={cn(
@@ -356,8 +357,8 @@ export default function CreativeActivityForm({
             </div>
 
             {/* Activity type chips */}
-            <div className="px-4 py-3 border-t border-border/40">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-100 dark:border-amber-900/50 px-4 py-3 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 mb-2">
                 Activity Type
               </p>
               <div className="flex flex-wrap gap-2">
@@ -374,7 +375,7 @@ export default function CreativeActivityForm({
                         "px-3.5 h-8 rounded-full text-xs font-medium border transition-all",
                         active
                           ? "bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white border-transparent shadow-md"
-                          : "bg-background border-border text-foreground hover:border-fuchsia-400 hover:text-fuchsia-600"
+                          : "bg-white dark:bg-background border-amber-200 dark:border-amber-900/60 text-foreground hover:border-fuchsia-400 hover:text-fuchsia-600"
                       )}
                     >
                       {t}
@@ -384,8 +385,9 @@ export default function CreativeActivityForm({
               </div>
             </div>
 
+
             {/* Assign to + Risk */}
-            <div className="px-4 py-3 border-t border-border/40 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/50 px-4 py-3 shadow-sm grid grid-cols-2 gap-3">
               {canAssign && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
@@ -506,7 +508,7 @@ export default function CreativeActivityForm({
             )}
 
             {/* Action rail: photo + check-in */}
-            <div className="px-4 py-3 border-t border-border/40 flex items-center gap-2">
+            <div className="rounded-2xl bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-950/30 dark:to-cyan-950/30 border border-sky-100 dark:border-sky-900/50 px-4 py-3 shadow-sm flex items-center gap-2">
               {cfgTakePhoto && (
                 <>
                   <input
