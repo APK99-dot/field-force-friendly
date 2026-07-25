@@ -46,6 +46,7 @@ export interface Activity {
   status_changed_at: string | null;
   status_change_lat: number | null;
   status_change_lng: number | null;
+  source_form?: string | null;
   attachment_urls: string[];
   status_history: ActivityStatusEntry[];
   photo_urls: ActivityPhotoEntry[];
