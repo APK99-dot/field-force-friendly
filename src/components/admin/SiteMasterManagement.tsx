@@ -113,6 +113,7 @@ interface FormState {
   start_date: string;
   end_date: string;
   status: SiteStatus;
+  image_url: string;
 }
 
 const emptyForm: FormState = {
@@ -121,6 +122,7 @@ const emptyForm: FormState = {
   start_date: new Date().toISOString().split("T")[0],
   end_date: "",
   status: "planned",
+  image_url: "",
 };
 
 function UserMultiSelect({
