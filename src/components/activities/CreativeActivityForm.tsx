@@ -222,11 +222,11 @@ export default function CreativeActivityForm({
             </button>
           </div>
 
-          <div className="overflow-y-auto flex-1 bg-background">
+          <div className="overflow-y-auto flex-1 bg-muted/40 p-3 space-y-3">
             {/* Project selector — circular horizontal scroll */}
-            <div className="px-4 pt-4 pb-2">
+            <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-fuchsia-50 dark:from-indigo-950/30 dark:to-fuchsia-950/30 border border-indigo-100 dark:border-indigo-900/50 px-4 pt-4 pb-3 shadow-sm">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Project</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Project</p>
                 {selectedProject && (
                   <button
                     className="text-[11px] text-muted-foreground hover:text-foreground"
@@ -242,7 +242,7 @@ export default function CreativeActivityForm({
                   placeholder="Search projects..."
                   value={projectSearch}
                   onChange={(e) => setProjectSearch(e.target.value)}
-                  className="pl-9 h-9 rounded-full bg-muted/60 border-0"
+                  className="pl-9 h-9 rounded-full bg-background/80 border-0"
                 />
               </div>
               <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
@@ -297,6 +297,7 @@ export default function CreativeActivityForm({
                 })}
               </div>
             </div>
+
 
             {/* Status / description */}
             <div className="px-4 py-3 border-t border-border/40">
