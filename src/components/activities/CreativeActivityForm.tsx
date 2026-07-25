@@ -387,7 +387,7 @@ export default function CreativeActivityForm({
 
 
             {/* Assign to + Risk */}
-            <div className="px-4 py-3 border-t border-border/40 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/50 px-4 py-3 shadow-sm grid grid-cols-2 gap-3">
               {canAssign && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
