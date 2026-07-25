@@ -22,7 +22,7 @@ import { uploadActivityPhoto, resolveActivityPhotoUrl } from "@/utils/activityPh
 import type { ActivityPhotoEntry, ActivityStatusEntry } from "@/hooks/useActivities";
 import { format } from "date-fns";
 
-type ProjectOpt = { id: string; name: string };
+type ProjectOpt = { id: string; name: string; image_url?: string | null };
 type UserOpt = { id: string; full_name: string };
 
 interface Props {
