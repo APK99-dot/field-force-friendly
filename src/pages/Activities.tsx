@@ -72,6 +72,8 @@ import { MultiUserPicker } from "@/components/pm/MultiUserPicker";
 import { milestoneStatusLabel } from "@/components/admin/SiteMilestonesDialog";
 import OpenGRNPicker from "@/components/procurement/OpenGRNPicker";
 import ReceiveGoodsDialog from "@/components/procurement/ReceiveGoodsDialog";
+import CreativeActivityForm from "@/components/activities/CreativeActivityForm";
+import { Sparkles, LayoutList } from "lucide-react";
 
 interface MilestoneOption {
   id: string;
