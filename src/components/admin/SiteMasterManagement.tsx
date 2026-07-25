@@ -81,6 +81,7 @@ interface Site {
   flag: SiteFlag;
   status: SiteStatus;
   attachment_urls: string[];
+  image_url: string | null;
 }
 
 interface UserOption {
