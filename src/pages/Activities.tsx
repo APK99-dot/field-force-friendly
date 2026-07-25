@@ -634,12 +634,19 @@ export default function Activities() {
     return { distance: Math.round(dist * 10) / 10, stops: gpsData.stops.length, duration: Math.round(duration * 10) / 10 };
   }, [gpsData]);
 
-  const handleOpenCreate = () => {
+  const [showFormChooser, setShowFormChooser] = useState(false);
+  const [showCreativeForm, setShowCreativeForm] = useState(false);
+
+  const openStandardForm = () => {
     setForm({ ...defaultForm, activity_date: dateStr, owner_user_id: currentUserId });
     setEditingId(null);
     setFormAttendance(null);
     setShowForm(true);
     fetchAttendanceForDate(currentUserId, dateStr).then(setFormAttendance).catch(() => {});
+  };
+
+  const handleOpenCreate = () => {
+    setShowFormChooser(true);
   };
 
   const handleCheckIn = async () => {
