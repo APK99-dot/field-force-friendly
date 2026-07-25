@@ -1076,7 +1076,7 @@ export default function Activities() {
       <CreativeActivityForm
         open={showCreativeForm}
         onOpenChange={setShowCreativeForm}
-        projects={projects}
+        projects={sites.filter((s) => s.is_active).map((s) => ({ id: s.id, name: s.site_name, image_url: s.image_url }))}
         users={users}
         activityTypes={activityTypes}
         currentUserId={currentUserId}

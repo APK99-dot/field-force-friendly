@@ -11,6 +11,7 @@ export interface SiteCardData {
   status: string;
   start_date: string;
   end_date: string | null;
+  image_url?: string | null;
 }
 
 const STATUS_STYLES: Record<
@@ -77,8 +78,12 @@ export default function SiteCard({ site, assignedNames, progress, milestoneCount
       <div className="relative p-4 flex flex-col gap-3.5">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shrink-0 shadow-sm">
-              <Building2 className="h-5 w-5 text-primary-foreground" />
+            <div className="h-11 w-11 rounded-xl overflow-hidden bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shrink-0 shadow-sm">
+              {site.image_url ? (
+                <img src={site.image_url} alt={site.site_name} className="h-full w-full object-cover" />
+              ) : (
+                <Building2 className="h-5 w-5 text-primary-foreground" />
+              )}
             </div>
             <div className="min-w-0">
               <span className="font-semibold block truncate leading-tight">{site.site_name}</span>

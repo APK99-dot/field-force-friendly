@@ -49,7 +49,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   Plus, Edit, Loader2, Building2, Users, Check, ChevronsUpDown, X,
-  Paperclip, Download, Target,
+  Paperclip, Download, Target, ImagePlus, Camera,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -81,6 +81,7 @@ interface Site {
   flag: SiteFlag;
   status: SiteStatus;
   attachment_urls: string[];
+  image_url: string | null;
 }
 
 interface UserOption {
@@ -112,6 +113,7 @@ interface FormState {
   start_date: string;
   end_date: string;
   status: SiteStatus;
+  image_url: string;
 }
 
 const emptyForm: FormState = {
@@ -120,6 +122,7 @@ const emptyForm: FormState = {
   start_date: new Date().toISOString().split("T")[0],
   end_date: "",
   status: "planned",
+  image_url: "",
 };
 
 function UserMultiSelect({
@@ -189,6 +192,7 @@ export default function SiteMasterManagement() {
   const [originalMilestoneIds, setOriginalMilestoneIds] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadingDp, setUploadingDp] = useState(false);
 
   const [detailSite, setDetailSite] = useState<Site | null>(null);
   const [milestoneStats, setMilestoneStats] = useState<Record<string, { avg: number; count: number }>>({});
@@ -238,6 +242,7 @@ export default function SiteMasterManagement() {
         flag: s.flag || "green",
         status: s.status || "planned",
         attachment_urls: s.attachment_urls || [],
+        image_url: s.image_url || null,
       })) as Site[]);
     }
     setLoading(false);
@@ -268,6 +273,7 @@ export default function SiteMasterManagement() {
       start_date: site.start_date || "",
       end_date: site.end_date || "",
       status: site.status || "planned",
+      image_url: site.image_url || "",
     });
     setSelectedUserIds(siteAssignments[site.id] || []);
     setAttachments(site.attachment_urls || []);
@@ -307,6 +313,30 @@ export default function SiteMasterManagement() {
     } finally {
       setUploading(false);
       e.target.value = "";
+    }
+  };
+
+  const handleDpUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingDp(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage.from("site-photos").upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type,
+      });
+      if (error) throw error;
+      const { data } = supabase.storage.from("site-photos").getPublicUrl(path);
+      setForm((f) => ({ ...f, image_url: data.publicUrl }));
+      toast.success("Display picture uploaded");
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploadingDp(false);
     }
   };
 
@@ -359,6 +389,7 @@ export default function SiteMasterManagement() {
         status: form.status,
         is_active: form.status !== "dropped",
         attachment_urls: attachments,
+        image_url: form.image_url || null,
       };
 
       let userIds = [...selectedUserIds];
@@ -474,6 +505,33 @@ export default function SiteMasterManagement() {
             <DialogTitle>{editingSite ? "Edit Site" : "Add New Site"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2 overflow-y-auto flex-1 pr-1">
+            <div className="flex items-center gap-3">
+              <label className="relative h-20 w-20 rounded-2xl border-2 border-dashed border-primary/40 bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-colors shrink-0">
+                {form.image_url ? (
+                  <img src={form.image_url} alt="Site DP" className="h-full w-full object-cover" />
+                ) : uploadingDp ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                ) : (
+                  <ImagePlus className="h-6 w-6 text-primary/70" />
+                )}
+                <input type="file" accept="image/*" className="hidden" onChange={handleDpUpload} disabled={uploadingDp} />
+              </label>
+              <div className="flex-1 min-w-0">
+                <Label className="text-xs">Display Picture</Label>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Shown as the project icon across lists and the Creative feed. Optional.
+                </p>
+                {form.image_url && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, image_url: "" }))}
+                    className="text-[11px] text-destructive hover:underline mt-1"
+                  >
+                    Remove picture
+                  </button>
+                )}
+              </div>
+            </div>
             <div>
               <Label className="text-xs">Site Name *</Label>
               <Input value={form.site_name} onChange={(e) => setForm({ ...form, site_name: e.target.value })} placeholder="e.g. Koramangala Site" autoFocus />

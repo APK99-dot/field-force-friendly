@@ -4784,6 +4784,7 @@ export type Database = {
           end_date: string | null
           flag: string | null
           id: string
+          image_url: string | null
           is_active: boolean
           site_code: string | null
           site_name: string
@@ -4800,6 +4801,7 @@ export type Database = {
           end_date?: string | null
           flag?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
           site_code?: string | null
           site_name: string
@@ -4816,6 +4818,7 @@ export type Database = {
           end_date?: string | null
           flag?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
           site_code?: string | null
           site_name?: string
