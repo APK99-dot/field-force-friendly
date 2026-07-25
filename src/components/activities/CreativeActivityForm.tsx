@@ -178,7 +178,7 @@ export default function CreativeActivityForm({
         activity_type: activityType || "General Activity",
         activity_date: dateStr,
         description: description || null,
-        project_id: projectId || null,
+        site_id: projectId || null,
         photo_urls: photos,
         status: "planned",
         status_history: [{ status: "planned", at: new Date().toISOString() } as ActivityStatusEntry],
