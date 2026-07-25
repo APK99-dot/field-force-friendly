@@ -300,7 +300,7 @@ export default function CreativeActivityForm({
 
 
             {/* Status / description */}
-            <div className="px-4 py-3 border-t border-border/40">
+            <div className="rounded-2xl bg-card border border-border px-4 py-3 shadow-sm">
               <div className="flex items-start gap-3">
                 <div
                   className={cn(
