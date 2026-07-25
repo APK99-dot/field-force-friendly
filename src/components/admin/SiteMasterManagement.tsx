@@ -505,6 +505,33 @@ export default function SiteMasterManagement() {
             <DialogTitle>{editingSite ? "Edit Site" : "Add New Site"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2 overflow-y-auto flex-1 pr-1">
+            <div className="flex items-center gap-3">
+              <label className="relative h-20 w-20 rounded-2xl border-2 border-dashed border-primary/40 bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-colors shrink-0">
+                {form.image_url ? (
+                  <img src={form.image_url} alt="Site DP" className="h-full w-full object-cover" />
+                ) : uploadingDp ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                ) : (
+                  <ImagePlus className="h-6 w-6 text-primary/70" />
+                )}
+                <input type="file" accept="image/*" className="hidden" onChange={handleDpUpload} disabled={uploadingDp} />
+              </label>
+              <div className="flex-1 min-w-0">
+                <Label className="text-xs">Display Picture</Label>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Shown as the project icon across lists and the Creative feed. Optional.
+                </p>
+                {form.image_url && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, image_url: "" }))}
+                    className="text-[11px] text-destructive hover:underline mt-1"
+                  >
+                    Remove picture
+                  </button>
+                )}
+              </div>
+            </div>
             <div>
               <Label className="text-xs">Site Name *</Label>
               <Input value={form.site_name} onChange={(e) => setForm({ ...form, site_name: e.target.value })} placeholder="e.g. Koramangala Site" autoFocus />
