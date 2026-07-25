@@ -636,6 +636,7 @@ export default function Activities() {
 
   const [showFormChooser, setShowFormChooser] = useState(false);
   const [showCreativeForm, setShowCreativeForm] = useState(false);
+  const [creativeEditActivity, setCreativeEditActivity] = useState<ActivityType | null>(null);
 
   const openStandardForm = () => {
     setForm({ ...defaultForm, activity_date: dateStr, owner_user_id: currentUserId });
