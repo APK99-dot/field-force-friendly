@@ -192,6 +192,7 @@ export default function SiteMasterManagement() {
   const [originalMilestoneIds, setOriginalMilestoneIds] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadingDp, setUploadingDp] = useState(false);
 
   const [detailSite, setDetailSite] = useState<Site | null>(null);
   const [milestoneStats, setMilestoneStats] = useState<Record<string, { avg: number; count: number }>>({});
