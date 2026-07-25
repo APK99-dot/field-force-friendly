@@ -154,11 +154,11 @@ export function useActivities() {
     const [usersRes, projRes, sitesRes] = await Promise.all([
       supabase.from("users").select("id, full_name").eq("is_active", true).order("full_name"),
       supabase.from("pm_projects").select("id, name").eq("is_template", false).order("name"),
-      supabase.from("project_sites").select("id, site_name, is_active").order("site_name"),
+      supabase.from("project_sites").select("id, site_name, is_active, image_url").order("site_name"),
     ]);
     setUsers((usersRes.data || []).map((u: any) => ({ id: u.id, full_name: u.full_name || "" })));
     setProjects((projRes.data || []).map((p: any) => ({ id: p.id, name: p.name })));
-    setSites((sitesRes.data || []).map((s: any) => ({ id: s.id, site_name: s.site_name, is_active: s.is_active })));
+    setSites((sitesRes.data || []).map((s: any) => ({ id: s.id, site_name: s.site_name, is_active: s.is_active, image_url: s.image_url || null })));
   }, []);
 
   const fetchAttendanceForDate = useCallback(async (userId: string, date: string) => {
