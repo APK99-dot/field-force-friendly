@@ -261,6 +261,7 @@ export function useActivities() {
         attachment_urls: activity.attachment_urls || [],
         status_history: (activity.status_history as any) || [],
         photo_urls: (activity.photo_urls as any) || [],
+        ...((activity as any).source_form ? { source_form: (activity as any).source_form } : {}),
       })
       .select("*")
       .single();
