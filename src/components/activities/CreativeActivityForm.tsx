@@ -933,24 +933,24 @@ export default function CreativeActivityForm({
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-3 border-t border-border/60 bg-background flex items-center justify-between gap-3">
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+            <div className="px-3 sm:px-4 py-3 border-t border-border/60 bg-background flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 min-w-0 max-w-full overflow-hidden safe-bottom">
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap min-w-0 max-w-full">
                 {selectedProject && (
-                  <Badge variant="secondary" className="rounded-full text-[10px] px-2 py-0">
-                    {selectedProject.name}
+                  <Badge variant="secondary" className="rounded-full text-[10px] px-2 py-0 max-w-full min-w-0">
+                    <span className="min-w-0 truncate">{selectedProject.name}</span>
                   </Badge>
                 )}
                 {activityType && (
-                  <Badge className="rounded-full text-[10px] px-2 py-0 bg-fuchsia-600 hover:bg-fuchsia-600">
-                    {activityType}
+                  <Badge className="rounded-full text-[10px] px-2 py-0 bg-fuchsia-600 hover:bg-fuchsia-600 max-w-full min-w-0">
+                    <span className="min-w-0 truncate">{activityType}</span>
                   </Badge>
                 )}
-                <Badge variant="outline" className="rounded-full text-[10px] px-2 py-0 gap-1">
+                <Badge variant="outline" className="rounded-full text-[10px] px-2 py-0 gap-1 shrink-0">
                   <span className={cn("h-2 w-2 rounded-full", currentRisk.dot)} />
                   {currentRisk.label}
                 </Badge>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-end gap-2 shrink-0 w-full sm:w-auto">
                 {isEdit && onDelete && (
                   <Button
                     onClick={handleDelete}
@@ -966,7 +966,7 @@ export default function CreativeActivityForm({
                 <Button
                   onClick={handlePost}
                   disabled={!canPost || saving}
-                  className="rounded-full h-10 px-5 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white hover:brightness-110 shadow-md"
+                  className="rounded-full h-10 px-5 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white hover:brightness-110 shadow-md min-w-0"
                 >
                   {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
                   {isEdit ? "Save" : "Post"}
