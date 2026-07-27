@@ -215,7 +215,7 @@ const defaultForm = {
 };
 
 export default function Activities() {
-  const { activities, loading, users, projects, sites, fetchActivities, fetchDropdowns, createActivity, updateActivity, deleteActivity, fetchAttendanceForDate, checkInForDate, fetchGPSTrackingForDate } = useActivities();
+  const { activities, loading, users, projects, sites, fetchActivities, fetchDropdowns, createActivity, updateActivity, deleteActivity, fetchAttendanceForDate, checkInForDate, fetchGPSTrackingForDate, checkInActivity, checkOutActivity } = useActivities();
   const { isAdmin, role } = useUserProfile();
   const navigate = useNavigate();
   const cfg = useModuleConfig("activities");
