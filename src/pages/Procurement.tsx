@@ -920,5 +920,6 @@ export default function Procurement() {
         </AlertDialogContent>
       </AlertDialog>
     </motion.div>
+    </LightningShell>
   );
 }
