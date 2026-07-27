@@ -1422,9 +1422,6 @@ export default function ProcurementDetail({
           {order.status !== "Rejected" && (
             <div className="space-y-3">
               {/* Mobile: vertical timeline */}
-          {order.status !== "Rejected" && (
-            <div className="space-y-3">
-              {/* Mobile: vertical timeline */}
               <ol className="sm:hidden space-y-2 border-l pl-3">
                 {stepFlow.map((s, i) => {
                   const h = historyByStatus[s];
