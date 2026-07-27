@@ -658,5 +658,6 @@ export default function VendorDetail() {
         </div>
       )}
     </motion.div>
+    </LightningShell>
   );
 }
