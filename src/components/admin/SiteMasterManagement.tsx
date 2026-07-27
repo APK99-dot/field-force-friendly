@@ -290,6 +290,10 @@ export default function SiteMasterManagement() {
       end_date: site.end_date || "",
       status: site.status || "planned",
       image_url: site.image_url || "",
+      base_lat: site.base_lat != null ? String(site.base_lat) : "",
+      base_lng: site.base_lng != null ? String(site.base_lng) : "",
+      base_address: site.base_address || "",
+      geofence_radius_m: String(site.geofence_radius_m ?? 100),
     });
     setSelectedUserIds(siteAssignments[site.id] || []);
     setAttachments(site.attachment_urls || []);
