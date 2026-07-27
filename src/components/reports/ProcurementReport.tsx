@@ -308,22 +308,46 @@ export default function ProcurementReport() {
           <SelectField label="Status" value={status} onChange={setStatus} allLabel="All Statuses" options={STATUS} />
         </>
       }
-      summary={<SummaryCards items={summary} />}
+      summary={<KpiGrid items={kpis} cols={6} />}
       chart={
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ReportChartCard
-            title="PO Value by Site"
-            description="Total purchase order value grouped by site"
-            type="bar"
-            data={chartData}
-            formatValue={inr}
-          />
-          <ReportChartCard
-            title="PO Count by Payment Status"
-            description="Number of purchase orders by payment status"
-            type="pie"
-            data={payStatusChart}
-          />
+        <div className="space-y-4">
+          <ChartGrid cols={2}>
+            <ReportChartCard
+              title="Top Sites by PO Value"
+              description="Purchase spend concentration across active sites"
+              type="hbar"
+              data={siteChart}
+              height={Math.max(280, siteChart.length * 34)}
+              formatValue={short}
+            />
+            <ReportChartCard
+              title="Payment Status"
+              description="Purchase orders by payment status"
+              type="donut"
+              data={payStatusChart}
+              height={300}
+            />
+          </ChartGrid>
+          <ChartGrid cols={2}>
+            <ReportChartCard
+              title="Monthly Spend Trend"
+              description="PO value vs paid amount over time"
+              type="line"
+              data={monthlyTrend}
+              series={[
+                { key: "PO Value", label: "PO Value", color: "hsl(220 90% 55%)" },
+                { key: "Paid", label: "Paid", color: "hsl(160 64% 42%)" },
+              ]}
+              formatValue={short}
+            />
+            <ReportChartCard
+              title="Workflow Stage Distribution"
+              description="POs by current procurement stage"
+              type="bar"
+              data={statusChart}
+              height={300}
+            />
+          </ChartGrid>
         </div>
       }
       table={
