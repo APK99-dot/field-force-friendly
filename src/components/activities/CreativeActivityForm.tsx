@@ -941,14 +941,29 @@ export default function CreativeActivityForm({
                   {currentRisk.label}
                 </Badge>
               </div>
-              <Button
-                onClick={handlePost}
-                disabled={!canPost || saving}
-                className="rounded-full h-10 px-5 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white hover:brightness-110 shadow-md"
-              >
-                {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
-                {isEdit ? "Save" : "Post"}
-              </Button>
+              <div className="flex items-center gap-2">
+                {isEdit && onDelete && (
+                  <Button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full h-10 w-10 text-destructive hover:bg-destructive/10"
+                    aria-label="Delete"
+                  >
+                    {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  </Button>
+                )}
+                <Button
+                  onClick={handlePost}
+                  disabled={!canPost || saving}
+                  className="rounded-full h-10 px-5 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white hover:brightness-110 shadow-md"
+                >
+                  {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
+                  {isEdit ? "Save" : "Post"}
+                </Button>
+              </div>
+
             </div>
           </div>
         </DialogContent>
