@@ -420,7 +420,109 @@ export default function CreativeActivityForm({
             </div>
 
             <div className="overflow-y-auto flex-1 bg-muted/40 p-3 space-y-3">
-              {/* Project selector */}
+              {/* Details panel — visible in edit/view */}
+              {isEdit && editActivity && (
+                <div className="rounded-2xl bg-card border border-border px-4 py-3 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {editActivity.activity_code && (
+                        <Badge variant="secondary" className="font-mono text-[10px]">{editActivity.activity_code}</Badge>
+                      )}
+                      <span className="text-sm font-semibold truncate">{editActivity.activity_name}</span>
+                    </div>
+                    <div className={cn("inline-flex items-center gap-1.5 px-2 h-6 rounded-full text-[10px] font-semibold uppercase tracking-wider border",
+                      status === "completed" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900" :
+                      status === "in_progress" ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900" :
+                      "bg-muted text-muted-foreground border-border")}
+                    >
+                      <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOT[status])} />
+                      {STATUS_LABELS[status] || status}
+                    </div>
+                  </div>
+                  {editActivity.user_full_name && (
+                    <p className="text-[11px] text-muted-foreground">By {editActivity.user_full_name}</p>
+                  )}
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                    {editActivity.activity_date && (
+                      <div className="flex items-center gap-1.5 text-muted-foreground"><Calendar className="h-3 w-3" />{format(parseISO(editActivity.activity_date), "MMM d, yyyy")}</div>
+                    )}
+                    {editActivity.total_hours ? (
+                      <div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3 w-3" />{editActivity.total_hours}h</div>
+                    ) : null}
+                    {editActivity.start_time && (
+                      <div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3 w-3" />Start {format(parseISO(editActivity.start_time), "h:mm a")}</div>
+                    )}
+                    {editActivity.end_time && (
+                      <div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3 w-3" />End {format(parseISO(editActivity.end_time), "h:mm a")}</div>
+                    )}
+                  </div>
+                  {editActivity.location_address && (
+                    <p className="text-[11px] flex items-start gap-1.5 text-muted-foreground"><MapPin className="h-3 w-3 mt-0.5 shrink-0" /><span className="min-w-0">{editActivity.location_address}</span></p>
+                  )}
+                  {editActivity.milestone_name && (
+                    <div className="text-[11px] text-muted-foreground"><span className="font-medium text-foreground">Milestone:</span> {editActivity.milestone_name}</div>
+                  )}
+                  {attendance && (attendance.check_in_time || attendance.check_out_time) && (
+                    <div className="text-[11px] text-muted-foreground space-y-0.5 pt-1 border-t border-border/60">
+                      {attendance.check_in_time && <p>Check-in: {format(parseISO(attendance.check_in_time), "MMM d, h:mm a")}</p>}
+                      {attendance.check_out_time && <p>Check-out: {format(parseISO(attendance.check_out_time), "MMM d, h:mm a")}</p>}
+                    </div>
+                  )}
+                  {/* Status change chips */}
+                  {updateActivity && (
+                    <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+                      {["planned", "in_progress", "completed"].map((s) => (
+                        <button
+                          key={s}
+                          disabled={changingStatus || s === status}
+                          onClick={() => handleStatusChange(s)}
+                          className={cn(
+                            "px-2.5 h-7 rounded-full text-[11px] border transition",
+                            s === status
+                              ? "bg-primary text-primary-foreground border-primary cursor-default"
+                              : "bg-background hover:bg-muted border-border"
+                          )}
+                        >
+                          {STATUS_LABELS[s]}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {/* Timeline */}
+                  {(editActivity.status_history || []).length > 0 && (
+                    <div className="pt-2 border-t border-border/60">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Timeline</p>
+                      <div className="space-y-1">
+                        {[...editActivity.status_history]
+                          .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+                          .map((h, i) => (
+                            <div key={i} className="flex items-center gap-2 text-[11px]">
+                              <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_DOT[h.status] || "bg-muted-foreground")} />
+                              <span className="font-medium">{STATUS_LABELS[h.status] || h.status}</span>
+                              <span className="text-muted-foreground">· {format(parseISO(h.at), "MMM d, h:mm a")}</span>
+                              {h.address && <span className="text-muted-foreground truncate">· {h.address}</span>}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Attachments */}
+                  {editActivity.attachment_urls && editActivity.attachment_urls.length > 0 && (
+                    <div className="pt-2 border-t border-border/60">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Attachments</p>
+                      <div className="space-y-1">
+                        {editActivity.attachment_urls.map((u, i) => (
+                          <a key={i} href={u} target="_blank" rel="noreferrer" className="text-[11px] text-primary hover:underline flex items-center gap-1.5">
+                            <Paperclip className="h-3 w-3" /> Attachment {i + 1}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+
               <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-fuchsia-50 dark:from-indigo-950/30 dark:to-fuchsia-950/30 border border-indigo-100 dark:border-indigo-900/50 px-4 pt-4 pb-3 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Project</p>
