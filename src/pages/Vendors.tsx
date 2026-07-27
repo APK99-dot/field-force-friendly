@@ -25,6 +25,7 @@ import {
   Plus, Search, Phone, Mail, Edit, Trash2, Filter, User, X, Download, Eye,
 } from "lucide-react";
 import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
+import { LightningShell, LightningToggle } from "@/components/procurement/lightning/LightningShell";
 
 const CATEGORIES = [
   "Civil", "Electrical", "Plumbing", "Painting", "Carpentry",
