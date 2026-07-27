@@ -701,28 +701,48 @@ export default function CreativeActivityForm({
                     </>
                   )}
 
-                  {/* Check in */}
+                  {/* Activity Check in / Check out */}
                   {cfgCheckIn && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          onClick={handleCheckIn}
-                          disabled={checkedIn || checkingIn}
-                          className={cn(
-                            "h-9 w-9 rounded-full flex items-center justify-center transition",
-                            checkedIn
-                              ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
-                              : "text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30",
-                            checkingIn && "opacity-60"
-                          )}
-                          aria-label="Check in"
-                        >
-                          {checkingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>{checkedIn ? "Checked in" : "Check in with location"}</TooltipContent>
-                    </Tooltip>
+                    <>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={handleActivityCheckIn}
+                            disabled={checkedIn || checkingIn || !isEdit}
+                            className={cn(
+                              "h-9 w-9 rounded-full flex items-center justify-center transition",
+                              checkedIn
+                                ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
+                                : "text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30",
+                              (checkingIn || !isEdit) && "opacity-60",
+                            )}
+                            aria-label="Activity check in"
+                          >
+                            {checkingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {!isEdit ? "Save post first to check in" : checkedIn ? "Checked in for this activity" : "Check in at site"}
+                        </TooltipContent>
+                      </Tooltip>
+                      {isEdit && checkedIn && !(editActivity as any)?.check_out_at && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={handleActivityCheckOut}
+                              disabled={checkingIn}
+                              className="h-9 w-9 rounded-full flex items-center justify-center text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
+                              aria-label="Activity check out"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Check out</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </>
                   )}
 
                   {/* Risk indicator (opens menu) */}
