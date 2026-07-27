@@ -17,15 +17,15 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Loader2, Edit, Users, Download, Building2, Image as ImageIcon,
-  Target, Activity as ActivityIcon, FileText, X, Plus,
+  Loader2, Edit, Users, Building2, Image as ImageIcon,
+  Target, Activity as ActivityIcon, X, Plus,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { getSiteAttachmentUrl } from "@/utils/siteAttachments";
 import { useSiteHub } from "@/hooks/useSiteHub";
 import { MILESTONE_STATUSES } from "@/components/admin/SiteMilestonesDialog";
 import SiteGallery from "@/components/admin/site-hub/SiteGallery";
+import SiteDocuments from "@/components/admin/site-hub/SiteDocuments";
 import SiteMilestoneList from "@/components/admin/site-hub/SiteMilestoneList";
 import SiteActivityList from "@/components/admin/site-hub/SiteActivityList";
 import ActivityDetailsDialog from "@/components/activities/ActivityDetailsDialog";
