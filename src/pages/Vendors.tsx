@@ -403,31 +403,36 @@ export default function Vendors() {
   };
 
   return (
+    <LightningShell>
     <motion.div className="space-y-4 p-4 pb-24" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-xl font-bold">Vendor Management</h1>
           <p className="text-xs text-muted-foreground">{vendors.length} vendors</p>
         </div>
-        {isAdmin && (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setImportConfirm(true)}
-              disabled={importMutation.isPending}
-              className="gap-1.5"
-            >
-              <Download className="h-4 w-4" />
-              {importMutation.isPending ? "Importing..." : "Import from Salesforce"}
-            </Button>
-            <Button size="sm" onClick={openAdd} className="gap-1.5">
-              <Plus className="h-4 w-4" /> Add Vendor
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <LightningToggle />
+          {isAdmin && (
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setImportConfirm(true)}
+                disabled={importMutation.isPending}
+                className="gap-1.5"
+              >
+                <Download className="h-4 w-4" />
+                {importMutation.isPending ? "Importing..." : "Import from Salesforce"}
+              </Button>
+              <Button size="sm" onClick={openAdd} className="gap-1.5">
+                <Plus className="h-4 w-4" /> Add Vendor
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
+
 
       {/* Search & Filters */}
       <div className="space-y-2">
