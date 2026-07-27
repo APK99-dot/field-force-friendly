@@ -8,21 +8,18 @@ interface Props {
   siteId: string;
   kind: "document" | "photo";
   onUploaded: () => void;
-  label: string;
-  helper: string;
   accept?: string;
+  className?: string;
 }
 
-export default function SiteFileDropzone({ siteId, kind, onUploaded, label, helper, accept }: Props) {
+export default function SiteFileDropzone({ siteId, kind, onUploaded, accept, className }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [dragOver, setDragOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
   const handleFiles = async (fileList: FileList | File[]) => {
     const files = Array.from(fileList);
     if (files.length === 0) return;
-    // For photo kind, only accept images. Warn & skip others.
     const filtered = kind === "photo" ? files.filter((f) => {
       if (!isImageFile(f)) { toast.error(`Skipped ${f.name} — not an image`); return false; }
       return true;
@@ -52,19 +49,7 @@ export default function SiteFileDropzone({ siteId, kind, onUploaded, label, help
   };
 
   return (
-    <div
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragOver(false);
-        if (busy) return;
-        if (e.dataTransfer.files?.length) handleFiles(e.dataTransfer.files);
-      }}
-      className={`rounded-xl border-2 border-dashed p-5 sm:p-6 text-center transition-colors ${
-        dragOver ? "border-primary bg-primary/5" : "border-border bg-muted/20"
-      }`}
-    >
+    <>
       <input
         ref={inputRef}
         type="file"
@@ -73,13 +58,10 @@ export default function SiteFileDropzone({ siteId, kind, onUploaded, label, help
         className="hidden"
         onChange={(e) => e.target.files && handleFiles(e.target.files)}
       />
-      <UploadCloud className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-      <p className="text-sm font-medium">{label}</p>
-      <p className="text-xs text-muted-foreground mt-0.5">{helper}</p>
       <Button
         type="button"
         size="sm"
-        className="mt-3"
+        className={className}
         onClick={() => inputRef.current?.click()}
         disabled={busy}
       >
@@ -95,6 +77,6 @@ export default function SiteFileDropzone({ siteId, kind, onUploaded, label, help
           </>
         )}
       </Button>
-    </div>
+    </>
   );
 }
