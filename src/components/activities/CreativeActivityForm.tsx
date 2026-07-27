@@ -495,14 +495,14 @@ export default function CreativeActivityForm({
                       <div className="space-y-1">
                         {[...editActivity.status_history]
                           .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
-                          .map((h, i) => (
-                            <div key={i} className="flex items-center gap-2 text-[11px]">
-                              <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_DOT[h.status] || "bg-muted-foreground")} />
-                              <span className="font-medium">{STATUS_LABELS[h.status] || h.status}</span>
-                              <span className="text-muted-foreground">· {format(parseISO(h.at), "MMM d, h:mm a")}</span>
-                              {h.address && <span className="text-muted-foreground truncate">· {h.address}</span>}
-                            </div>
-                          ))}
+                        .map((h, i) => (
+                          <div key={i} className="flex items-center gap-2 text-[11px] min-w-0">
+                            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_DOT[h.status] || "bg-muted-foreground")} />
+                            <span className="font-medium shrink-0">{STATUS_LABELS[h.status] || h.status}</span>
+                            <span className="text-muted-foreground shrink-0">· {format(parseISO(h.at), "MMM d, h:mm a")}</span>
+                            {h.address && <span className="text-muted-foreground truncate min-w-0">· {h.address}</span>}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
