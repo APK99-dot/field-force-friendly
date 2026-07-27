@@ -533,7 +533,7 @@
   margin-bottom: 4px !important;
 }
 
-/* Badges → SLDS pills. Preserve semantic color from utility bg-*/text-* classes */
+/* Badges - SLDS pills. Preserve semantic color from utility classes */
 .lightning-ui [data-slot="badge"],
 .lightning-ui .badge {
   border-radius: 12px !important;
