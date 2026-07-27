@@ -352,13 +352,6 @@ export default function CreativeActivityForm({
                   <p className="text-[11px] text-white/80">Share what's happening on the ground</p>
                 </div>
               </div>
-              <button
-                onClick={() => onOpenChange(false)}
-                className="h-8 w-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
             </div>
 
             <div className="overflow-y-auto flex-1 bg-muted/40 p-3 space-y-3">
