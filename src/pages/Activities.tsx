@@ -639,15 +639,16 @@ export default function Activities() {
   const [creativeEditActivity, setCreativeEditActivity] = useState<ActivityType | null>(null);
 
   const openStandardForm = () => {
+    // legacy — no longer used; kept as no-op to preserve helper references.
     setForm({ ...defaultForm, activity_date: dateStr, owner_user_id: currentUserId });
     setEditingId(null);
     setFormAttendance(null);
-    setShowForm(true);
     fetchAttendanceForDate(currentUserId, dateStr).then(setFormAttendance).catch(() => {});
   };
 
   const handleOpenCreate = () => {
-    setShowFormChooser(true);
+    setCreativeEditActivity(null);
+    setShowCreativeForm(true);
   };
 
   const handleCheckIn = async () => {
@@ -685,44 +686,10 @@ export default function Activities() {
   };
 
   const handleOpenEdit = (a: ActivityType) => {
-    // Route back to creative form if that's how it was saved
-    if ((a as any).source_form === "creative") {
-      setCreativeEditActivity(a);
-      setShowCreativeForm(true);
-      return;
-    }
-    setForm({
-      activity_name: a.activity_name,
-      activity_type: a.activity_type,
-      custom_activity_name: a.activity_type?.trim().toLowerCase() === "other" ? a.activity_name : "",
-      activity_date: a.activity_date,
-      start_time: a.start_time ? format(parseISO(a.start_time), "HH:mm") : "",
-      end_time: a.end_time ? format(parseISO(a.end_time), "HH:mm") : "",
-      duration_type: a.duration_type || "hour_based",
-      half_day_type: (a as any).half_day_type || "",
-      from_date: a.from_date || "",
-      to_date: a.to_date || "",
-      recurrence_pattern: "daily",
-      recurrence_interval: 1,
-      recurrence_start_date: a.activity_date || format(new Date(), "yyyy-MM-dd"),
-      recurrence_end_date: "",
-      recurrence_no_end: false,
-      description: a.description || "",
-      site_id: a.site_id || "",
-      milestone_id: a.milestone_id || "",
-      milestone_progress: 0,
-      grn_po_id: (a as any).grn_po_id || "",
-      site_flag: "",
-      site_status: "",
-      location_address: a.location_address || "",
-      total_hours: a.total_hours || 0,
-      owner_user_id: a.user_id,
-      assigned_user_ids: Array.isArray((a as any).assigned_user_ids) ? (a as any).assigned_user_ids : [],
-      photos: a.photo_urls || [],
-    });
-    setEditingId(a.id);
-    setShowForm(true);
+    setCreativeEditActivity(a);
+    setShowCreativeForm(true);
   };
+
 
   const handleSave = async () => {
     if (cfgRequireActivityType && !form.activity_type) return;
