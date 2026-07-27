@@ -39,7 +39,15 @@ import { format, parseISO } from "date-fns";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { supabase } from "@/integrations/supabase/client";
 
-type ProjectOpt = { id: string; name: string; image_url?: string | null };
+type ProjectOpt = {
+  id: string;
+  name: string;
+  image_url?: string | null;
+  base_lat?: number | null;
+  base_lng?: number | null;
+  base_address?: string | null;
+  geofence_radius_m?: number | null;
+};
 type UserOpt = { id: string; full_name: string };
 
 interface Props {
@@ -56,6 +64,8 @@ interface Props {
   updateActivity?: (id: string, updates: any) => Promise<any>;
   checkInForDate: (userId: string, date: string) => Promise<any>;
   fetchAttendanceForDate: (userId: string, date: string) => Promise<any>;
+  checkInActivity?: (activityId: string, site?: { base_lat: number | null; base_lng: number | null; geofence_radius_m: number } | null) => Promise<any>;
+  checkOutActivity?: (activityId: string) => Promise<any>;
   onCreated?: () => void;
   editActivity?: ActivityType | null;
   onDelete?: (id: string) => void | Promise<void>;
