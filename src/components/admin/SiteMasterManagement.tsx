@@ -82,6 +82,10 @@ interface Site {
   status: SiteStatus;
   attachment_urls: string[];
   image_url: string | null;
+  base_lat: number | null;
+  base_lng: number | null;
+  base_address: string | null;
+  geofence_radius_m: number;
 }
 
 interface UserOption {
@@ -114,6 +118,10 @@ interface FormState {
   end_date: string;
   status: SiteStatus;
   image_url: string;
+  base_lat: string;
+  base_lng: string;
+  base_address: string;
+  geofence_radius_m: string;
 }
 
 const emptyForm: FormState = {
@@ -123,6 +131,10 @@ const emptyForm: FormState = {
   end_date: "",
   status: "planned",
   image_url: "",
+  base_lat: "",
+  base_lng: "",
+  base_address: "",
+  geofence_radius_m: "100",
 };
 
 function UserMultiSelect({
