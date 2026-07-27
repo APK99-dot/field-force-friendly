@@ -377,7 +377,7 @@ export default function CreativeActivityForm({
       const payload: any = {
         activity_name: activityType || "Activity Update",
         activity_type: activityType || "General Activity",
-        activity_date: isEdit ? editActivity.activity_date : dateStr,
+        activity_date: activityDate,
         description: description || null,
         site_id: projectId || null,
         photo_urls: photos,
