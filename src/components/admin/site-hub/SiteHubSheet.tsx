@@ -379,7 +379,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                   </TabsContent>
 
                   <TabsContent value="milestones" className="mt-0">
-                    <SiteMilestoneList siteId={site!.id} milestones={milestones} activities={activities} onChanged={reload} onAddSubMilestone={openAddSubMilestone} onEditMilestone={openEditMilestone} onOpenActivity={setSelectedActivity} />
+                    <SiteMilestoneList siteId={site!.id} milestones={milestones} activities={activities} onChanged={reload} onAddSubMilestone={openAddSubMilestone} onEditMilestone={openEditMilestone} onOpenActivity={openActivity} />
                   </TabsContent>
 
 
@@ -388,7 +388,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                   </TabsContent>
 
                   <TabsContent value="activities" className="mt-0">
-                    <SiteActivityList activities={activities} onOpen={setSelectedActivity} />
+                    <SiteActivityList activities={activities} onOpen={openActivity} />
                   </TabsContent>
 
                   <TabsContent value="documents" className="mt-0">
@@ -475,7 +475,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
       <ActivityDetailsDialog
         activity={selectedActivity}
         open={!!selectedActivity}
-        onClose={() => setSelectedActivity(null)}
+        onClose={() => openActivity(null)}
         attendance={selectedActivity ? attendanceByActivity[selectedActivity.id] : null}
       />
     </>
