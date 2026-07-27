@@ -189,6 +189,7 @@ export default function ProcurementDetail({
   const { profile: currentProfile, isAdmin } = useUserProfile();
   const [uiMode] = useUiMode();
   const lightning = isLightning(uiMode);
+  const [stageHistoryOpen, setStageHistoryOpen] = useState(false);
   const [grns, setGrns] = useState<GrnRow[]>([]);
   const [grnItems, setGrnItems] = useState<GrnItemRow[]>([]);
   const [invoices, setInvoices] = useState<InvRow[]>([]);
