@@ -165,20 +165,39 @@ export default function ProcurementReport() {
     }
   };
 
-  const summary = useMemo(() => {
+  const short = (n: number) =>
+    n >= 10000000 ? `Rs ${(n / 10000000).toFixed(2)}Cr` : n >= 100000 ? `Rs ${(n / 100000).toFixed(2)}L` : inr(n);
+
+  const kpis: KpiItem[] = useMemo(() => {
     const total = rows.reduce((s, r) => s + r.po_value, 0);
     const paid = rows.reduce((s, r) => s + r.paid, 0);
+    const pending = Math.max(0, total - paid);
+    const open = rows.filter((r) => r.status !== "Closed").length;
+    const closed = rows.filter((r) => r.status === "Closed").length;
+    const avg = rows.length ? total / rows.length : 0;
+    const uniqueVendors = new Set(rows.map((r) => r.vendor).filter((v) => v && v !== "-")).size;
     return [
-      { label: "Total POs", value: String(rows.length) },
-      { label: "Total PO Value", value: inr(total) },
-      { label: "Paid Amount", value: inr(paid) },
-      { label: "Pending Amount", value: inr(Math.max(0, total - paid)) },
+      { label: "Total POs", value: String(rows.length), sub: `${open} open · ${closed} closed`, icon: ShoppingCart, tone: "primary" },
+      { label: "PO Value", value: short(total), icon: IndianRupee, tone: "info" },
+      { label: "Paid", value: short(paid), icon: CheckCircle2, tone: "success" },
+      { label: "Pending", value: short(pending), icon: Clock, tone: "warning" },
+      { label: "Avg PO", value: short(avg), icon: Package, tone: "muted" },
+      { label: "Vendors", value: String(uniqueVendors), icon: Building2, tone: "primary" },
     ];
   }, [rows]);
 
-  const chartData = useMemo(() => {
+  const siteChart = useMemo(() => {
     const m = new Map<string, number>();
     rows.forEach((r) => m.set(r.site, (m.get(r.site) || 0) + r.po_value));
+    return Array.from(m.entries())
+      .map(([name, value]) => ({ name, value: +value.toFixed(2) }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [rows]);
+
+  const statusChart = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => m.set(r.status, (m.get(r.status) || 0) + 1));
     return Array.from(m.entries()).map(([name, value]) => ({ name, value }));
   }, [rows]);
 
@@ -188,6 +207,22 @@ export default function ProcurementReport() {
     return ["Paid", "Partial", "Unpaid"]
       .filter((k) => m.has(k))
       .map((name) => ({ name, value: m.get(name) as number }));
+  }, [rows]);
+
+  const monthlyTrend = useMemo(() => {
+    const m = new Map<string, { Value: number; Paid: number }>();
+    rows.forEach((r) => {
+      const key = r.order_date ? format(new Date(r.order_date), "MMM yyyy") : "—";
+      const e = m.get(key) || { Value: 0, Paid: 0 };
+      e.Value += r.po_value;
+      e.Paid += r.paid;
+      m.set(key, e);
+    });
+    return Array.from(m.entries()).map(([name, v]) => ({
+      name,
+      "PO Value": +v.Value.toFixed(2),
+      Paid: +v.Paid.toFixed(2),
+    }));
   }, [rows]);
 
   const download = async () => {
