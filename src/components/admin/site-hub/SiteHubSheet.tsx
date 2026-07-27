@@ -66,7 +66,9 @@ interface Props {
 
 export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChanged }: Props) {
   const { loading, milestones, activities, assignedUsers, gallery, documents, attendanceByActivity, reload } = useSiteHub(open ? site?.id ?? null : null);
-  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+  const navigate = useNavigate();
+  const openActivity = (a: Activity) => navigate(`/activities?id=${a.id}`);
+
   const [status, setStatus] = useState<string | null>(null);
   const [savingStatus, setSavingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
