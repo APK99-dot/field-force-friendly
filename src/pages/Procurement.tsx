@@ -35,6 +35,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 import SalesforceImportDialog from "@/components/procurement/SalesforceImportDialog";
 import SalesforceBulkImportDialog from "@/components/procurement/SalesforceBulkImportDialog";
+import { LightningShell, LightningToggle } from "@/components/procurement/lightning/LightningShell";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
@@ -529,13 +530,15 @@ export default function Procurement() {
   };
 
   return (
+    <LightningShell>
     <motion.div className="space-y-4 py-4 px-4 sm:px-6 lg:px-8 pb-24 w-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2"><ShoppingCart className="h-5 w-5" />Procurement</h1>
           <p className="text-xs text-muted-foreground">{orders.length} requisitions</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <LightningToggle />
           {hasAdminAccess && (
             <Button size="sm" variant="outline" onClick={() => setSfImportOpen(true)} className="gap-1.5">
               Import from Salesforce
@@ -549,6 +552,7 @@ export default function Procurement() {
           {cfgCanCreateRequisition && <Button size="sm" onClick={openAdd} className="gap-1.5"><Plus className="h-4 w-4" />New Requisition</Button>}
         </div>
       </div>
+
 
       <SalesforceImportDialog open={sfImportOpen} onOpenChange={setSfImportOpen} onImported={fetchAll} />
       <SalesforceBulkImportDialog open={sfBulkOpen} onOpenChange={setSfBulkOpen} onImported={fetchAll} />
