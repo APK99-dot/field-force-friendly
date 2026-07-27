@@ -255,6 +255,10 @@ export default function SiteMasterManagement() {
         status: s.status || "planned",
         attachment_urls: s.attachment_urls || [],
         image_url: s.image_url || null,
+        base_lat: s.base_lat ?? null,
+        base_lng: s.base_lng ?? null,
+        base_address: s.base_address ?? null,
+        geofence_radius_m: s.geofence_radius_m ?? 100,
       })) as Site[]);
     }
     setLoading(false);
