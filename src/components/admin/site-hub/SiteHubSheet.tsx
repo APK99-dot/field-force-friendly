@@ -472,12 +472,8 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
         </DialogContent>
       </Dialog>
 
-      <ActivityDetailsDialog
-        activity={selectedActivity}
-        open={!!selectedActivity}
-        onClose={() => openActivity(null)}
-        attendance={selectedActivity ? attendanceByActivity[selectedActivity.id] : null}
-      />
+
+
     </>
   );
 }
