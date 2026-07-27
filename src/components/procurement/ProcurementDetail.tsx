@@ -1516,7 +1516,42 @@ export default function ProcurementDetail({
 
           )}
 
-
+          {/* Stage History — full audit trail */}
+          <Card>
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-semibold">Stage History</div>
+                <div className="text-[11px] text-muted-foreground">{stageHistory.length} {stageHistory.length === 1 ? "entry" : "entries"}</div>
+              </div>
+              {stageHistory.length === 0 ? (
+                <div className="text-xs text-muted-foreground italic py-2">No stage transitions recorded yet.</div>
+              ) : (
+                <ol className="space-y-2">
+                  {[...stageHistory]
+                    .sort((a, b) => new Date(a.moved_at).getTime() - new Date(b.moved_at).getTime())
+                    .map((h, idx) => {
+                      const dt = h.moved_at ? new Date(h.moved_at) : null;
+                      const when = dt && !isNaN(dt.getTime())
+                        ? dt.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+                        : "—";
+                      return (
+                        <li key={idx} className="flex flex-wrap items-start gap-2 text-xs border-b last:border-b-0 pb-2 last:pb-0">
+                          <Badge variant="outline" className={`text-[10px] ${statusColor(h.status)}`}>{h.status}</Badge>
+                          <span className="text-foreground font-medium">{h.moved_by_name || "—"}</span>
+                          {h.auto && (
+                            <span className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">System</span>
+                          )}
+                          <span className="text-muted-foreground ml-auto">{when}</span>
+                          {h.note && (
+                            <div className="w-full text-[11px] text-muted-foreground italic pl-1">"{h.note}"</div>
+                          )}
+                        </li>
+                      );
+                    })}
+                </ol>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Header info */}
           <Card>
