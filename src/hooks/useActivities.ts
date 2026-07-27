@@ -50,6 +50,16 @@ export interface Activity {
   attachment_urls: string[];
   status_history: ActivityStatusEntry[];
   photo_urls: ActivityPhotoEntry[];
+  check_in_at?: string | null;
+  check_in_lat?: number | null;
+  check_in_lng?: number | null;
+  check_in_address?: string | null;
+  check_in_distance_m?: number | null;
+  check_in_within_site?: boolean | null;
+  check_out_at?: string | null;
+  check_out_lat?: number | null;
+  check_out_lng?: number | null;
+  check_out_address?: string | null;
   created_at: string;
   // joined
   user_full_name?: string;
