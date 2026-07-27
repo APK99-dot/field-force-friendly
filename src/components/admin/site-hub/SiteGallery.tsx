@@ -124,17 +124,15 @@ export default function SiteGallery({ siteId, gallery, onActivityClick, onChange
 
   return (
     <div className="space-y-4">
-      <SiteFileDropzone
-        siteId={siteId}
-        kind="photo"
-        onUploaded={onChanged}
-        label="Drag & drop photos here"
-        helper="or click to select multiple images (JPG, PNG, HEIC, WebP…)"
-        accept="image/*"
-      />
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {gallery.length} {gallery.length === 1 ? "photo" : "photos"}
+        </p>
+        <SiteFileDropzone siteId={siteId} kind="photo" onUploaded={onChanged} accept="image/*" />
+      </div>
 
       {gallery.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-6 text-center">No photos uploaded yet.</p>
+        <p className="text-sm text-muted-foreground py-10 text-center border rounded-xl">No photos uploaded yet.</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {gallery.map((p, i) => (
