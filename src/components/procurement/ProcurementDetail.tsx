@@ -1465,14 +1465,14 @@ export default function ProcurementDetail({
                   </ol>
 
                   {/* Desktop: horizontal chips */}
-                  <div className="hidden sm:flex items-start gap-1 flex-wrap pb-1">
+                  <div className="hidden sm:flex items-start gap-1 pb-1 overflow-x-auto">
                     {stepFlow.map((s, i) => {
                       const h = historyByStatus[s];
                       const when = h?.moved_at ? new Date(h.moved_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : null;
                       return (
                         <div key={s} className="flex items-start shrink-0">
-                          <div className="flex flex-col items-center gap-1 max-w-[110px]">
-                            <span className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
+                          <div className="flex flex-col items-center gap-1 min-w-[140px] px-1">
+                            <span className={`text-[10px] px-2.5 py-1 rounded-full whitespace-nowrap ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
                             {i <= stepIndex && h && (
                               <span className="text-[9px] text-muted-foreground text-center leading-tight">
                                 {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
@@ -1480,7 +1480,7 @@ export default function ProcurementDetail({
                               </span>
                             )}
                           </div>
-                          {i < stepFlow.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground mt-1.5" />}
+                          {i < stepFlow.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground mt-1.5 shrink-0" />}
                         </div>
                       );
                     })}
