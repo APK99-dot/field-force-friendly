@@ -262,7 +262,7 @@ export default function ProcurementReport() {
           r.bill_gst || "—",
           r.ship_gst || "—",
         ]),
-        summary,
+        summary: kpis.map((k) => ({ label: k.label, value: k.value })),
       });
       toast.success("PDF downloaded");
     } catch {
