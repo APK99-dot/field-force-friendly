@@ -215,7 +215,7 @@ const defaultForm = {
 };
 
 export default function Activities() {
-  const { activities, loading, users, projects, sites, fetchActivities, fetchDropdowns, createActivity, updateActivity, deleteActivity, fetchAttendanceForDate, checkInForDate, fetchGPSTrackingForDate } = useActivities();
+  const { activities, loading, users, projects, sites, fetchActivities, fetchDropdowns, createActivity, updateActivity, deleteActivity, fetchAttendanceForDate, checkInForDate, fetchGPSTrackingForDate, checkInActivity, checkOutActivity } = useActivities();
   const { isAdmin, role } = useUserProfile();
   const navigate = useNavigate();
   const cfg = useModuleConfig("activities");
@@ -1014,7 +1014,7 @@ export default function Activities() {
           setShowCreativeForm(o);
           if (!o) setCreativeEditActivity(null);
         }}
-        projects={sites.filter((s) => s.is_active).map((s) => ({ id: s.id, name: s.site_name, image_url: s.image_url }))}
+        projects={sites.filter((s) => s.is_active).map((s) => ({ id: s.id, name: s.site_name, image_url: s.image_url, base_lat: s.base_lat, base_lng: s.base_lng, base_address: s.base_address, geofence_radius_m: s.geofence_radius_m }))}
         users={users}
         activityTypes={activityTypes}
         currentUserId={currentUserId}
@@ -1025,6 +1025,8 @@ export default function Activities() {
         updateActivity={updateActivity}
         checkInForDate={checkInForDate}
         fetchAttendanceForDate={fetchAttendanceForDate}
+        checkInActivity={checkInActivity}
+        checkOutActivity={checkOutActivity}
         onCreated={() => fetchActivities()}
         editActivity={creativeEditActivity}
         onDelete={async (id) => { await deleteActivity(id); fetchActivities(); }}

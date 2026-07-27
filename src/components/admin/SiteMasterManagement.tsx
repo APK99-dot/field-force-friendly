@@ -82,6 +82,10 @@ interface Site {
   status: SiteStatus;
   attachment_urls: string[];
   image_url: string | null;
+  base_lat: number | null;
+  base_lng: number | null;
+  base_address: string | null;
+  geofence_radius_m: number;
 }
 
 interface UserOption {
@@ -114,6 +118,10 @@ interface FormState {
   end_date: string;
   status: SiteStatus;
   image_url: string;
+  base_lat: string;
+  base_lng: string;
+  base_address: string;
+  geofence_radius_m: string;
 }
 
 const emptyForm: FormState = {
@@ -123,6 +131,10 @@ const emptyForm: FormState = {
   end_date: "",
   status: "planned",
   image_url: "",
+  base_lat: "",
+  base_lng: "",
+  base_address: "",
+  geofence_radius_m: "100",
 };
 
 function UserMultiSelect({
@@ -243,6 +255,10 @@ export default function SiteMasterManagement() {
         status: s.status || "planned",
         attachment_urls: s.attachment_urls || [],
         image_url: s.image_url || null,
+        base_lat: s.base_lat ?? null,
+        base_lng: s.base_lng ?? null,
+        base_address: s.base_address ?? null,
+        geofence_radius_m: s.geofence_radius_m ?? 100,
       })) as Site[]);
     }
     setLoading(false);
@@ -274,6 +290,10 @@ export default function SiteMasterManagement() {
       end_date: site.end_date || "",
       status: site.status || "planned",
       image_url: site.image_url || "",
+      base_lat: site.base_lat != null ? String(site.base_lat) : "",
+      base_lng: site.base_lng != null ? String(site.base_lng) : "",
+      base_address: site.base_address || "",
+      geofence_radius_m: String(site.geofence_radius_m ?? 100),
     });
     setSelectedUserIds(siteAssignments[site.id] || []);
     setAttachments(site.attachment_urls || []);
@@ -390,6 +410,10 @@ export default function SiteMasterManagement() {
         is_active: form.status !== "dropped",
         attachment_urls: attachments,
         image_url: form.image_url || null,
+        base_lat: form.base_lat ? Number(form.base_lat) : null,
+        base_lng: form.base_lng ? Number(form.base_lng) : null,
+        base_address: form.base_address || null,
+        geofence_radius_m: form.geofence_radius_m ? Number(form.geofence_radius_m) : 100,
       };
 
       let userIds = [...selectedUserIds];
@@ -558,6 +582,55 @@ export default function SiteMasterManagement() {
                   {SITE_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="rounded-md border p-3 space-y-2 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Base Location (Geofence)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (!navigator.geolocation) { toast.error("Geolocation not available"); return; }
+                    navigator.geolocation.getCurrentPosition(
+                      async (pos) => {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        let addr = "";
+                        try {
+                          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`);
+                          if (r.ok) { const j = await r.json(); addr = j?.display_name || ""; }
+                        } catch {}
+                        setForm((f) => ({ ...f, base_lat: String(lat), base_lng: String(lng), base_address: addr || f.base_address }));
+                        toast.success("Location captured");
+                      },
+                      () => toast.error("Unable to fetch location"),
+                      { enableHighAccuracy: true, timeout: 15000 },
+                    );
+                  }}
+                >
+                  Use current location
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Latitude</Label>
+                  <Input value={form.base_lat} onChange={(e) => setForm({ ...form, base_lat: e.target.value })} placeholder="12.9716" />
+                </div>
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Longitude</Label>
+                  <Input value={form.base_lng} onChange={(e) => setForm({ ...form, base_lng: e.target.value })} placeholder="77.5946" />
+                </div>
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground">Geo Address</Label>
+                <Input value={form.base_address} onChange={(e) => setForm({ ...form, base_address: e.target.value })} placeholder="Human-readable address" />
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground">Geofence Radius (metres)</Label>
+                <Input type="number" min={10} max={5000} value={form.geofence_radius_m} onChange={(e) => setForm({ ...form, geofence_radius_m: e.target.value })} />
+              </div>
             </div>
 
             <div>

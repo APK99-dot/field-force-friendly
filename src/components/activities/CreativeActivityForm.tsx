@@ -39,7 +39,15 @@ import { format, parseISO } from "date-fns";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { supabase } from "@/integrations/supabase/client";
 
-type ProjectOpt = { id: string; name: string; image_url?: string | null };
+type ProjectOpt = {
+  id: string;
+  name: string;
+  image_url?: string | null;
+  base_lat?: number | null;
+  base_lng?: number | null;
+  base_address?: string | null;
+  geofence_radius_m?: number | null;
+};
 type UserOpt = { id: string; full_name: string };
 
 interface Props {
@@ -56,6 +64,8 @@ interface Props {
   updateActivity?: (id: string, updates: any) => Promise<any>;
   checkInForDate: (userId: string, date: string) => Promise<any>;
   fetchAttendanceForDate: (userId: string, date: string) => Promise<any>;
+  checkInActivity?: (activityId: string, site?: { base_lat: number | null; base_lng: number | null; geofence_radius_m: number } | null) => Promise<any>;
+  checkOutActivity?: (activityId: string) => Promise<any>;
   onCreated?: () => void;
   editActivity?: ActivityType | null;
   onDelete?: (id: string) => void | Promise<void>;
@@ -117,6 +127,8 @@ export default function CreativeActivityForm({
   updateActivity,
   checkInForDate,
   fetchAttendanceForDate,
+  checkInActivity,
+  checkOutActivity,
   onCreated,
   editActivity,
   onDelete,
@@ -127,6 +139,7 @@ export default function CreativeActivityForm({
   const [projectSearch, setProjectSearch] = useState("");
   const [description, setDescription] = useState("");
   const [activityType, setActivityType] = useState("");
+  const [activityDate, setActivityDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [assignedIds, setAssignedIds] = useState<string[]>([]);
   const [risk, setRisk] = useState<string>("green");
   const [photos, setPhotos] = useState<ActivityPhotoEntry[]>([]);
@@ -164,6 +177,7 @@ export default function CreativeActivityForm({
       setProjectSearch("");
       setDescription("");
       setActivityType("");
+      setActivityDate(format(new Date(), "yyyy-MM-dd"));
       setAssignedIds([]);
       setRisk("green");
       setPhotos([]);
@@ -179,9 +193,11 @@ export default function CreativeActivityForm({
       setProjectId(editActivity.site_id || "");
       setDescription(editActivity.description || "");
       setActivityType(editActivity.activity_type || "");
+      setActivityDate(editActivity.activity_date || format(new Date(), "yyyy-MM-dd"));
       setAssignedIds(Array.isArray((editActivity as any).assigned_user_ids) ? (editActivity as any).assigned_user_ids : []);
       setPhotos(editActivity.photo_urls || []);
       setStatus(editActivity.status || "planned");
+      setCheckedIn(!!(editActivity as any).check_in_at);
 
       // resolve photo previews
       (editActivity.photo_urls || []).forEach(async (ph) => {
@@ -190,13 +206,10 @@ export default function CreativeActivityForm({
           setPhotoPreviews((prev) => ({ ...prev, [ph.url]: url }));
         } catch {}
       });
+    } else {
+      setCheckedIn(false);
     }
-    if (currentUserId && cfgCheckIn) {
-      fetchAttendanceForDate(currentUserId, dateStr)
-        .then((r) => setCheckedIn(!!r?.check_in_time))
-        .catch(() => {});
-    }
-  }, [open, currentUserId, cfgCheckIn, dateStr, fetchAttendanceForDate, editActivity, clearRecording]);
+  }, [open, editActivity, clearRecording]);
 
   const filteredProjects = useMemo(() => {
     const q = projectSearch.trim().toLowerCase();
@@ -226,14 +239,42 @@ export default function CreativeActivityForm({
     }
   };
 
-  const handleCheckIn = async () => {
+  const handleActivityCheckIn = async () => {
+    if (!isEdit || !editActivity || !checkInActivity) {
+      toast.error("Save the post first to check in for this activity");
+      return;
+    }
     setCheckingIn(true);
     try {
-      await checkInForDate(currentUserId, dateStr);
+      const site = selectedProject
+        ? {
+            base_lat: selectedProject.base_lat ?? null,
+            base_lng: selectedProject.base_lng ?? null,
+            geofence_radius_m: selectedProject.geofence_radius_m ?? 100,
+          }
+        : null;
+      const res = await checkInActivity(editActivity.id, site);
       setCheckedIn(true);
-      toast.success("Checked in");
+      if (res?.within_site === true) toast.success(`Checked in · Within site (${res.distance_m}m)`);
+      else if (res?.within_site === false) toast.warning(`Checked in · Outside site (${res.distance_m}m)`);
+      else toast.success("Checked in");
+      onCreated?.();
     } catch (err: any) {
       toast.error(err.message || "Check-in failed");
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const handleActivityCheckOut = async () => {
+    if (!isEdit || !editActivity || !checkOutActivity) return;
+    setCheckingIn(true);
+    try {
+      await checkOutActivity(editActivity.id);
+      toast.success("Checked out");
+      onCreated?.();
+    } catch (err: any) {
+      toast.error(err.message || "Check-out failed");
     } finally {
       setCheckingIn(false);
     }
@@ -336,7 +377,7 @@ export default function CreativeActivityForm({
       const payload: any = {
         activity_name: activityType || "Activity Update",
         activity_type: activityType || "General Activity",
-        activity_date: isEdit ? editActivity.activity_date : dateStr,
+        activity_date: activityDate,
         description: description || null,
         site_id: projectId || null,
         photo_urls: photos,
@@ -606,6 +647,50 @@ export default function CreativeActivityForm({
                 </div>
               </div>
 
+              {/* Activity date */}
+              <div className="rounded-2xl bg-card border border-border px-3 sm:px-4 py-2.5 shadow-sm flex items-center gap-2 min-w-0">
+                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                <label className="text-xs font-semibold text-muted-foreground shrink-0">Activity Date</label>
+                <input
+                  type="date"
+                  value={activityDate}
+                  onChange={(e) => setActivityDate(e.target.value)}
+                  max={format(new Date(), "yyyy-MM-dd")}
+                  className="flex-1 min-w-0 bg-transparent text-sm outline-none text-right"
+                />
+              </div>
+
+              {/* Activity check-in status banner */}
+              {isEdit && editActivity && ((editActivity as any).check_in_at || (editActivity as any).check_in_within_site !== null) && (
+                <div className={cn(
+                  "rounded-2xl border px-3 sm:px-4 py-2.5 shadow-sm text-xs min-w-0",
+                  (editActivity as any).check_in_within_site === true
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900 dark:text-emerald-200"
+                    : (editActivity as any).check_in_within_site === false
+                    ? "bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-200"
+                    : "bg-muted/40 border-border text-foreground",
+                )}>
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {(editActivity as any).check_in_within_site === true && "Within Site"}
+                    {(editActivity as any).check_in_within_site === false && "Outside Site"}
+                    {(editActivity as any).check_in_within_site == null && "Checked In"}
+                    {(editActivity as any).check_in_distance_m != null && (
+                      <span className="font-normal text-muted-foreground">· {(editActivity as any).check_in_distance_m}m from site</span>
+                    )}
+                  </div>
+                  {(editActivity as any).check_in_at && (
+                    <div className="text-[11px] mt-0.5 opacity-80">
+                      In: {format(parseISO((editActivity as any).check_in_at), "MMM d, h:mm a")}
+                      {(editActivity as any).check_out_at && ` · Out: ${format(parseISO((editActivity as any).check_out_at), "h:mm a")}`}
+                    </div>
+                  )}
+                  {(editActivity as any).check_in_address && (
+                    <div className="text-[11px] mt-0.5 opacity-80 break-words">{(editActivity as any).check_in_address}</div>
+                  )}
+                </div>
+              )}
+
               {/* Status / description with inline icon rail */}
               <div className="rounded-2xl bg-card border border-border px-3 sm:px-4 py-3 shadow-sm min-w-0 max-w-full overflow-hidden">
                 <div className="flex items-start gap-3 min-w-0">
@@ -660,28 +745,48 @@ export default function CreativeActivityForm({
                     </>
                   )}
 
-                  {/* Check in */}
+                  {/* Activity Check in / Check out */}
                   {cfgCheckIn && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          onClick={handleCheckIn}
-                          disabled={checkedIn || checkingIn}
-                          className={cn(
-                            "h-9 w-9 rounded-full flex items-center justify-center transition",
-                            checkedIn
-                              ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
-                              : "text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30",
-                            checkingIn && "opacity-60"
-                          )}
-                          aria-label="Check in"
-                        >
-                          {checkingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>{checkedIn ? "Checked in" : "Check in with location"}</TooltipContent>
-                    </Tooltip>
+                    <>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={handleActivityCheckIn}
+                            disabled={checkedIn || checkingIn || !isEdit}
+                            className={cn(
+                              "h-9 w-9 rounded-full flex items-center justify-center transition",
+                              checkedIn
+                                ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
+                                : "text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30",
+                              (checkingIn || !isEdit) && "opacity-60",
+                            )}
+                            aria-label="Activity check in"
+                          >
+                            {checkingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {!isEdit ? "Save post first to check in" : checkedIn ? "Checked in for this activity" : "Check in at site"}
+                        </TooltipContent>
+                      </Tooltip>
+                      {isEdit && checkedIn && !(editActivity as any)?.check_out_at && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={handleActivityCheckOut}
+                              disabled={checkingIn}
+                              className="h-9 w-9 rounded-full flex items-center justify-center text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
+                              aria-label="Activity check out"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Check out</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </>
                   )}
 
                   {/* Risk indicator (opens menu) */}

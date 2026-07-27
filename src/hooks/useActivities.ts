@@ -50,6 +50,16 @@ export interface Activity {
   attachment_urls: string[];
   status_history: ActivityStatusEntry[];
   photo_urls: ActivityPhotoEntry[];
+  check_in_at?: string | null;
+  check_in_lat?: number | null;
+  check_in_lng?: number | null;
+  check_in_address?: string | null;
+  check_in_distance_m?: number | null;
+  check_in_within_site?: boolean | null;
+  check_out_at?: string | null;
+  check_out_lat?: number | null;
+  check_out_lng?: number | null;
+  check_out_address?: string | null;
   created_at: string;
   // joined
   user_full_name?: string;
@@ -73,7 +83,7 @@ export function useActivities() {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<{ id: string; full_name: string }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
-  const [sites, setSites] = useState<{ id: string; site_name: string; is_active: boolean; image_url: string | null }[]>([]);
+  const [sites, setSites] = useState<{ id: string; site_name: string; is_active: boolean; image_url: string | null; base_lat: number | null; base_lng: number | null; base_address: string | null; geofence_radius_m: number }[]>([]);
   const { toast } = useToast();
 
   const fetchActivities = useCallback(async (filters?: ActivityFilters) => {
@@ -155,11 +165,11 @@ export function useActivities() {
     const [usersRes, projRes, sitesRes] = await Promise.all([
       supabase.from("users").select("id, full_name").eq("is_active", true).order("full_name"),
       supabase.from("pm_projects").select("id, name").eq("is_template", false).order("name"),
-      supabase.from("project_sites").select("id, site_name, is_active, image_url").order("site_name"),
+      supabase.from("project_sites").select("id, site_name, is_active, image_url, base_lat, base_lng, base_address, geofence_radius_m").order("site_name"),
     ]);
     setUsers((usersRes.data || []).map((u: any) => ({ id: u.id, full_name: u.full_name || "" })));
     setProjects((projRes.data || []).map((p: any) => ({ id: p.id, name: p.name })));
-    setSites((sitesRes.data || []).map((s: any) => ({ id: s.id, site_name: s.site_name, is_active: s.is_active, image_url: s.image_url || null })));
+    setSites((sitesRes.data || []).map((s: any) => ({ id: s.id, site_name: s.site_name, is_active: s.is_active, image_url: s.image_url || null, base_lat: s.base_lat ?? null, base_lng: s.base_lng ?? null, base_address: s.base_address ?? null, geofence_radius_m: s.geofence_radius_m ?? 100 })));
   }, []);
 
   const fetchAttendanceForDate = useCallback(async (userId: string, date: string) => {
@@ -289,6 +299,9 @@ export function useActivities() {
       'status_changed_at', 'status_change_lat', 'status_change_lng',
       'location_lat', 'location_lng', 'attachment_urls',
       'status_history', 'photo_urls', 'source_form',
+      'check_in_at', 'check_in_lat', 'check_in_lng', 'check_in_address',
+      'check_in_distance_m', 'check_in_within_site',
+      'check_out_at', 'check_out_lat', 'check_out_lng', 'check_out_address',
     ];
     fields.forEach((f) => {
       if ((updates as any)[f] !== undefined) updatePayload[f] = (updates as any)[f];
@@ -302,6 +315,76 @@ export function useActivities() {
     if (error) throw error;
     toast({ title: "Activity Updated" });
   }, [toast]);
+
+  // Get current GPS position + best-effort reverse geocoded address
+  const getCurrentPositionWithAddress = useCallback(async (): Promise<{ lat: number; lng: number; address: string | null }> => {
+    const pos: GeolocationPosition = await new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error("Geolocation not supported"));
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000 });
+    });
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    let address: string | null = null;
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`);
+      if (r.ok) {
+        const j = await r.json();
+        address = j?.display_name || null;
+      }
+    } catch {}
+    return { lat, lng, address };
+  }, []);
+
+  // Haversine distance in metres
+  const distanceMeters = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371000;
+    const toRad = (v: number) => (v * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return Math.round(2 * R * Math.asin(Math.sqrt(a)));
+  };
+
+  const checkInActivity = useCallback(async (activityId: string, site?: { base_lat: number | null; base_lng: number | null; geofence_radius_m: number } | null) => {
+    const { lat, lng, address } = await getCurrentPositionWithAddress();
+    let distance: number | null = null;
+    let within: boolean | null = null;
+    if (site?.base_lat != null && site?.base_lng != null) {
+      distance = distanceMeters(Number(site.base_lat), Number(site.base_lng), lat, lng);
+      within = distance <= (site.geofence_radius_m || 100);
+    }
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("activity_events")
+      .update({
+        check_in_at: now,
+        check_in_lat: lat,
+        check_in_lng: lng,
+        check_in_address: address,
+        check_in_distance_m: distance,
+        check_in_within_site: within,
+      } as any)
+      .eq("id", activityId);
+    if (error) throw error;
+    return { at: now, lat, lng, address, distance_m: distance, within_site: within };
+  }, [getCurrentPositionWithAddress]);
+
+  const checkOutActivity = useCallback(async (activityId: string) => {
+    const { lat, lng, address } = await getCurrentPositionWithAddress();
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("activity_events")
+      .update({
+        check_out_at: now,
+        check_out_lat: lat,
+        check_out_lng: lng,
+        check_out_address: address,
+      } as any)
+      .eq("id", activityId);
+    if (error) throw error;
+    return { at: now, lat, lng, address };
+  }, [getCurrentPositionWithAddress]);
+
 
   const deleteActivity = useCallback(async (id: string) => {
     const { error } = await supabase.from("activity_events").delete().eq("id", id);
@@ -328,5 +411,7 @@ export function useActivities() {
     fetchAttendanceForDate,
     checkInForDate,
     fetchGPSTrackingForDate,
+    checkInActivity,
+    checkOutActivity,
   };
 }
