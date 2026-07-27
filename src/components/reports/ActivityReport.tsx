@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, parseISO, eachDayOfInterval } from "date-fns";
 import { toast } from "sonner";
+import { Activity, CheckCircle2, Clock, ListChecks, MapPin, Timer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { ReportShell, SummaryCards } from "./ReportShell";
+import { ReportShell } from "./ReportShell";
 import { ReportChartCard } from "./ReportChartCard";
+import { KpiGrid, ChartGrid, KpiItem } from "./KpiCards";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
 import { useReportContext, DateRangePill } from "@/components/analytics/ReportContext";
@@ -31,9 +33,9 @@ const STATUS = [
 
 const statusBadge = (s: string) => {
   const map: Record<string, string> = {
-    completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    in_progress: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-    planned: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    completed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+    in_progress: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400",
+    planned: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   };
   return <Badge className={map[s] || "bg-muted text-muted-foreground"}>{s.replace(/_/g, " ")}</Badge>;
 };
@@ -120,24 +122,71 @@ export default function ActivityReport() {
     }
   };
 
-  const summary = useMemo(() => {
+  const kpis: KpiItem[] = useMemo(() => {
     const completed = rows.filter((r) => r.status === "completed").length;
-    const pending = rows.length - completed;
+    const inProgress = rows.filter((r) => r.status === "in_progress").length;
+    const planned = rows.filter((r) => r.status === "planned").length;
+    const hours = rows.reduce((s, r) => s + (r.total_hours || 0), 0);
+    const activeUsers = new Set(rows.map((r) => r.full_name)).size;
+    const activeSites = new Set(rows.map((r) => r.site).filter((s) => s !== "-")).size;
+    const completionPct = rows.length ? (completed / rows.length) * 100 : 0;
+    const avgHrs = rows.length ? hours / rows.length : 0;
     return [
-      { label: "Total Activities", value: String(rows.length) },
-      { label: "Completed", value: String(completed) },
-      { label: "Pending", value: String(pending) },
-      {
-        label: "Total Hours",
-        value: rows.reduce((s, r) => s + (r.total_hours || 0), 0).toFixed(1),
-      },
+      { label: "Total Activities", value: String(rows.length), icon: ListChecks, tone: "primary" },
+      { label: "Completed", value: String(completed), sub: `${completionPct.toFixed(1)}% completion`, icon: CheckCircle2, tone: "success" },
+      { label: "In Progress", value: String(inProgress), icon: Activity, tone: "info" },
+      { label: "Planned", value: String(planned), icon: Timer, tone: "warning" },
+      { label: "Total Hours", value: `${hours.toFixed(1)}h`, sub: `${avgHrs.toFixed(2)}h / activity`, icon: Clock, tone: "info" },
+      { label: "Active Sites", value: String(activeSites), sub: `${activeUsers} users`, icon: MapPin, tone: "muted" },
     ];
   }, [rows]);
 
-  const chartData = useMemo(() => {
+  const dailyTrend = useMemo(() => {
+    if (!from || !to || !rows.length) return [];
+    const days = eachDayOfInterval({ start: parseISO(from), end: parseISO(to) });
+    const map = new Map<string, { Completed: number; "In Progress": number; Planned: number }>();
+    days.forEach((d) => map.set(format(d, "yyyy-MM-dd"), { Completed: 0, "In Progress": 0, Planned: 0 }));
+    rows.forEach((r) => {
+      const e = map.get(r.activity_date);
+      if (!e) return;
+      if (r.status === "completed") e.Completed += 1;
+      else if (r.status === "in_progress") e["In Progress"] += 1;
+      else if (r.status === "planned") e.Planned += 1;
+    });
+    return Array.from(map.entries()).map(([k, v]) => ({ name: format(parseISO(k), "dd MMM"), ...v }));
+  }, [rows, from, to]);
+
+  const byType = useMemo(() => {
     const m = new Map<string, number>();
     rows.forEach((r) => m.set(r.activity_type, (m.get(r.activity_type) || 0) + 1));
-    return Array.from(m.entries()).map(([name, value]) => ({ name, value }));
+    return Array.from(m.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [rows]);
+
+  const bySite = useMemo(() => {
+    type A = { count: number; hours: number };
+    const m = new Map<string, A>();
+    rows.forEach((r) => {
+      const e = m.get(r.site) || { count: 0, hours: 0 };
+      e.count += 1;
+      e.hours += r.total_hours || 0;
+      m.set(r.site, e);
+    });
+    return Array.from(m.entries())
+      .map(([name, v]) => ({ name, Activities: v.count, Hours: +v.hours.toFixed(1) }))
+      .sort((a, b) => b.Activities - a.Activities)
+      .slice(0, 10);
+  }, [rows]);
+
+  const byEmployee = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => m.set(r.full_name, (m.get(r.full_name) || 0) + 1));
+    return Array.from(m.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
   }, [rows]);
 
   const download = async () => {
@@ -174,7 +223,7 @@ export default function ActivityReport() {
           r.total_hours?.toFixed(1) || "--",
           r.status.replace(/_/g, " "),
         ]),
-        summary,
+        summary: kpis.map((k) => ({ label: k.label, value: k.value })),
       });
       toast.success("PDF downloaded");
     } catch {
@@ -187,7 +236,7 @@ export default function ActivityReport() {
   return (
     <ReportShell
       title="Activity Report"
-      description="Site activities, milestones, hours logged and status."
+      description="Site activities, milestones, hours logged and status trends."
       pill={<DateRangePill />}
       loading={loading || scope.loading}
       downloading={downloading}
@@ -220,14 +269,49 @@ export default function ActivityReport() {
           <SelectField label="Activity Type" value={actType} onChange={setActType} allLabel="All Types" options={actTypes} />
         </>
       }
-      summary={<SummaryCards items={summary} />}
+      summary={<KpiGrid items={kpis} cols={6} />}
       chart={
-        <ReportChartCard
-          title="Activities by Type"
-          description="Number of activities grouped by type"
-          type="bar"
-          data={chartData}
-        />
+        <div className="space-y-4">
+          <ReportChartCard
+            title="Daily Activity Trend"
+            description="Completed vs In Progress vs Planned activities per day"
+            type="stackedBar"
+            data={dailyTrend}
+            height={280}
+            series={[
+              { key: "Completed", label: "Completed", color: "hsl(160 64% 42%)" },
+              { key: "In Progress", label: "In Progress", color: "hsl(217 80% 58%)" },
+              { key: "Planned", label: "Planned", color: "hsl(35 90% 55%)" },
+            ]}
+          />
+          <ChartGrid cols={2}>
+            <ReportChartCard
+              title="Activities by Type"
+              description="Top activity categories"
+              type="hbar"
+              data={byType}
+              height={Math.max(260, byType.length * 30)}
+            />
+            <ReportChartCard
+              title="Activities by Site"
+              description="Volume and hours per site"
+              type="groupedBar"
+              data={bySite}
+              height={Math.max(260, bySite.length * 34)}
+              series={[
+                { key: "Activities", label: "Activities", color: "hsl(217 80% 58%)" },
+                { key: "Hours", label: "Hours", color: "hsl(160 64% 42%)" },
+              ]}
+            />
+          </ChartGrid>
+          <ReportChartCard
+            title="Top Contributors"
+            description="Employees with most activities in range"
+            type="hbar"
+            data={byEmployee}
+            height={Math.max(240, byEmployee.length * 30)}
+          />
+        </div>
       }
       table={
         <Table>

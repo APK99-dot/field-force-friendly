@@ -4,8 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { ReportShell, SummaryCards } from "./ReportShell";
+import { Wallet, CheckCircle2, AlertTriangle, FileText, PiggyBank, TrendingDown } from "lucide-react";
+import { ReportShell } from "./ReportShell";
 import { ReportChartCard } from "./ReportChartCard";
+import { KpiGrid, ChartGrid, KpiItem } from "./KpiCards";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
 import { useReportContext, DateRangePill } from "@/components/analytics/ReportContext";
@@ -144,15 +146,22 @@ export default function PaymentReport() {
     }
   };
 
-  const summary = useMemo(() => {
+  const kpis: KpiItem[] = useMemo(() => {
     const invoiced = rows.reduce((s, r) => s + r.invoice_amount, 0);
     const paid = rows.reduce((s, r) => s + r.paid, 0);
     const balance = rows.reduce((s, r) => s + r.balance, 0);
+    const collectionRate = invoiced ? (paid / invoiced) * 100 : 0;
+    const paidCount = rows.filter((r) => r.payment_status === "Paid").length;
+    const unpaidCount = rows.filter((r) => r.payment_status === "Unpaid").length;
+    const short = (n: number) =>
+      n >= 10000000 ? `Rs ${(n / 10000000).toFixed(2)}Cr` : n >= 100000 ? `Rs ${(n / 100000).toFixed(2)}L` : inr(n);
     return [
-      { label: "Total Invoiced", value: inr(invoiced) },
-      { label: "Total Paid", value: inr(paid) },
-      { label: "Total Balance Due", value: inr(balance) },
-      { label: "Invoices", value: String(rows.length) },
+      { label: "Total Invoiced", value: short(invoiced), sub: `${rows.length} invoices`, icon: FileText, tone: "primary" },
+      { label: "Total Paid", value: short(paid), icon: CheckCircle2, tone: "success" },
+      { label: "Balance Due", value: short(balance), icon: AlertTriangle, tone: "danger" },
+      { label: "Collection Rate", value: `${collectionRate.toFixed(1)}%`, icon: TrendingDown, tone: "info" },
+      { label: "Paid Invoices", value: String(paidCount), icon: PiggyBank, tone: "success" },
+      { label: "Unpaid", value: String(unpaidCount), icon: Wallet, tone: "warning" },
     ];
   }, [rows]);
 
@@ -164,7 +173,9 @@ export default function PaymentReport() {
       e.Pending += r.balance;
       m.set(r.vendor, e);
     });
-    return Array.from(m.values());
+    return Array.from(m.values())
+      .sort((a, b) => b.Paid + b.Pending - (a.Paid + a.Pending))
+      .slice(0, 10);
   }, [rows]);
 
   const statusChart = useMemo(() => {
@@ -174,6 +185,24 @@ export default function PaymentReport() {
       .filter((k) => m.has(k))
       .map((name) => ({ name, value: m.get(name) as number }));
   }, [rows]);
+
+  const monthlyTrend = useMemo(() => {
+    const m = new Map<string, { Invoiced: number; Paid: number }>();
+    rows.forEach((r) => {
+      const key = r.payment_date
+        ? format(new Date(r.payment_date), "MMM yyyy")
+        : format(new Date(from), "MMM yyyy");
+      const e = m.get(key) || { Invoiced: 0, Paid: 0 };
+      e.Invoiced += r.invoice_amount;
+      e.Paid += r.paid;
+      m.set(key, e);
+    });
+    return Array.from(m.entries()).map(([name, v]) => ({
+      name,
+      Invoiced: +v.Invoiced.toFixed(2),
+      Paid: +v.Paid.toFixed(2),
+    }));
+  }, [rows, from]);
 
   const download = async () => {
     setDownloading(true);
@@ -210,7 +239,7 @@ export default function PaymentReport() {
           r.bank,
           r.payment_date ? format(new Date(r.payment_date), "dd MMM yyyy") : "--",
         ]),
-        summary,
+        summary: kpis.map((k) => ({ label: k.label, value: k.value })),
       });
       toast.success("PDF downloaded");
     } catch {
@@ -240,25 +269,40 @@ export default function PaymentReport() {
           <SelectField label="Payment Status" value={payStatus} onChange={setPayStatus} allLabel="All" options={PAY_STATUS} />
         </>
       }
-      summary={<SummaryCards items={summary} />}
+      summary={<KpiGrid items={kpis} cols={6} />}
       chart={
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="space-y-4">
+          <ChartGrid cols={2}>
+            <ReportChartCard
+              title="Top Vendors — Paid vs Pending"
+              description="Highest-value vendors and their payment split"
+              type="stackedBar"
+              data={chartData}
+              height={Math.max(280, chartData.length * 34)}
+              series={[
+                { key: "Paid", label: "Paid", color: "hsl(160 64% 42%)" },
+                { key: "Pending", label: "Pending", color: "hsl(0 75% 60%)" },
+              ]}
+              formatValue={inr}
+            />
+            <ReportChartCard
+              title="Payment Status"
+              description="Invoices by payment status"
+              type="donut"
+              data={statusChart}
+              height={300}
+            />
+          </ChartGrid>
           <ReportChartCard
-            title="Paid vs Pending by Vendor"
-            description="Payment status grouped by vendor"
-            type="groupedBar"
-            data={chartData}
+            title="Monthly Cashflow — Invoiced vs Paid"
+            description="Compare invoiced amount against actual payments"
+            type="line"
+            data={monthlyTrend}
             series={[
+              { key: "Invoiced", label: "Invoiced", color: "hsl(220 90% 55%)" },
               { key: "Paid", label: "Paid", color: "hsl(160 64% 42%)" },
-              { key: "Pending", label: "Pending", color: "hsl(35 90% 55%)" },
             ]}
             formatValue={inr}
-          />
-          <ReportChartCard
-            title="Payment Status Distribution"
-            description="Invoices by payment status"
-            type="pie"
-            data={statusChart}
           />
         </div>
       }
