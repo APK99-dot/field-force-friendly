@@ -58,7 +58,21 @@ interface Props {
   fetchAttendanceForDate: (userId: string, date: string) => Promise<any>;
   onCreated?: () => void;
   editActivity?: ActivityType | null;
+  onDelete?: (id: string) => void | Promise<void>;
+  attendance?: { check_in_time: string | null; check_out_time: string | null } | null;
 }
+
+const STATUS_LABELS: Record<string, string> = {
+  planned: "Planned",
+  in_progress: "In Progress",
+  completed: "Completed",
+};
+const STATUS_DOT: Record<string, string> = {
+  planned: "bg-muted-foreground",
+  in_progress: "bg-blue-500",
+  completed: "bg-emerald-500",
+};
+
 
 const RISK_OPTIONS = [
   { key: "green", label: "On Track", solid: "bg-emerald-500", dot: "bg-emerald-500", iconColor: "text-emerald-500" },
