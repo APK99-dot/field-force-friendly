@@ -127,6 +127,8 @@ export default function CreativeActivityForm({
   updateActivity,
   checkInForDate,
   fetchAttendanceForDate,
+  checkInActivity,
+  checkOutActivity,
   onCreated,
   editActivity,
   onDelete,
@@ -137,6 +139,7 @@ export default function CreativeActivityForm({
   const [projectSearch, setProjectSearch] = useState("");
   const [description, setDescription] = useState("");
   const [activityType, setActivityType] = useState("");
+  const [activityDate, setActivityDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [assignedIds, setAssignedIds] = useState<string[]>([]);
   const [risk, setRisk] = useState<string>("green");
   const [photos, setPhotos] = useState<ActivityPhotoEntry[]>([]);
