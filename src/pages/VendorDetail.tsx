@@ -323,16 +323,16 @@ export default function VendorDetail() {
   const pos = (orders as any[]).filter((o) => !!o.po_number);
 
   return (
+    <LightningShell>
     <motion.div className="space-y-4 p-4 pb-24 max-w-5xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <Button variant="ghost" size="sm" className="gap-1.5 -ml-2" onClick={() => navigate("/vendors")}>
-        <ArrowLeft className="h-4 w-4" /> Back to Vendor Management
-      </Button>
-
-      <div className="flex items-center gap-2 flex-wrap">
-        <h1 className="text-xl font-bold">{vendor.name}</h1>
-        <Badge variant="outline" className={`text-xs ${statusColor(vendor.status)}`}>{vendor.status}</Badge>
-        <Badge variant="outline" className={`text-[10px] ${flag.className}`}>{flag.emoji} {flag.label}</Badge>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <Button variant="ghost" size="sm" className="gap-1.5 -ml-2" onClick={() => navigate("/vendors")}>
+          <ArrowLeft className="h-4 w-4" /> Back to Vendor Management
+        </Button>
+        <LightningToggle />
       </div>
+
+      <VendorHeader vendor={vendor} flag={flag} />
 
       <div className="flex gap-2">
         {vendor.phone[0] && (
@@ -350,6 +350,7 @@ export default function VendorDetail() {
           </a>
         )}
       </div>
+
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="w-full h-auto flex-wrap justify-start gap-1">
