@@ -982,7 +982,7 @@ export default function Activities() {
                   isAdmin={isAdmin}
                   onEdit={handleOpenEdit}
                   onDelete={handleDelete}
-                  onOpenDetails={setDetailsActivity}
+                  onOpenDetails={(a) => { setCreativeEditActivity(a); setShowCreativeForm(true); }}
                   onReceiveGoods={(poId) => setReceivePoId(poId)}
                   onStatusChanged={() => fetchActivities()}
                   updateActivity={updateActivity}
