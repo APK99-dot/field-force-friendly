@@ -269,25 +269,40 @@ export default function PaymentReport() {
           <SelectField label="Payment Status" value={payStatus} onChange={setPayStatus} allLabel="All" options={PAY_STATUS} />
         </>
       }
-      summary={<SummaryCards items={summary} />}
+      summary={<KpiGrid items={kpis} cols={6} />}
       chart={
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="space-y-4">
+          <ChartGrid cols={2}>
+            <ReportChartCard
+              title="Top Vendors — Paid vs Pending"
+              description="Highest-value vendors and their payment split"
+              type="stackedBar"
+              data={chartData}
+              height={Math.max(280, chartData.length * 34)}
+              series={[
+                { key: "Paid", label: "Paid", color: "hsl(160 64% 42%)" },
+                { key: "Pending", label: "Pending", color: "hsl(0 75% 60%)" },
+              ]}
+              formatValue={inr}
+            />
+            <ReportChartCard
+              title="Payment Status"
+              description="Invoices by payment status"
+              type="donut"
+              data={statusChart}
+              height={300}
+            />
+          </ChartGrid>
           <ReportChartCard
-            title="Paid vs Pending by Vendor"
-            description="Payment status grouped by vendor"
-            type="groupedBar"
-            data={chartData}
+            title="Monthly Cashflow — Invoiced vs Paid"
+            description="Compare invoiced amount against actual payments"
+            type="line"
+            data={monthlyTrend}
             series={[
+              { key: "Invoiced", label: "Invoiced", color: "hsl(220 90% 55%)" },
               { key: "Paid", label: "Paid", color: "hsl(160 64% 42%)" },
-              { key: "Pending", label: "Pending", color: "hsl(35 90% 55%)" },
             ]}
             formatValue={inr}
-          />
-          <ReportChartCard
-            title="Payment Status Distribution"
-            description="Invoices by payment status"
-            type="pie"
-            data={statusChart}
           />
         </div>
       }
