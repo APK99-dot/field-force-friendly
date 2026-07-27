@@ -181,6 +181,8 @@ export default function CreativeActivityForm({
       setActivityType(editActivity.activity_type || "");
       setAssignedIds(Array.isArray((editActivity as any).assigned_user_ids) ? (editActivity as any).assigned_user_ids : []);
       setPhotos(editActivity.photo_urls || []);
+      setStatus(editActivity.status || "planned");
+
       // resolve photo previews
       (editActivity.photo_urls || []).forEach(async (ph) => {
         try {
