@@ -584,6 +584,55 @@ export default function SiteMasterManagement() {
               </Select>
             </div>
 
+            <div className="rounded-md border p-3 space-y-2 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Base Location (Geofence)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (!navigator.geolocation) { toast.error("Geolocation not available"); return; }
+                    navigator.geolocation.getCurrentPosition(
+                      async (pos) => {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        let addr = "";
+                        try {
+                          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`);
+                          if (r.ok) { const j = await r.json(); addr = j?.display_name || ""; }
+                        } catch {}
+                        setForm((f) => ({ ...f, base_lat: String(lat), base_lng: String(lng), base_address: addr || f.base_address }));
+                        toast.success("Location captured");
+                      },
+                      () => toast.error("Unable to fetch location"),
+                      { enableHighAccuracy: true, timeout: 15000 },
+                    );
+                  }}
+                >
+                  Use current location
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Latitude</Label>
+                  <Input value={form.base_lat} onChange={(e) => setForm({ ...form, base_lat: e.target.value })} placeholder="12.9716" />
+                </div>
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Longitude</Label>
+                  <Input value={form.base_lng} onChange={(e) => setForm({ ...form, base_lng: e.target.value })} placeholder="77.5946" />
+                </div>
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground">Geo Address</Label>
+                <Input value={form.base_address} onChange={(e) => setForm({ ...form, base_address: e.target.value })} placeholder="Human-readable address" />
+              </div>
+              <div>
+                <Label className="text-[11px] text-muted-foreground">Geofence Radius (metres)</Label>
+                <Input type="number" min={10} max={5000} value={form.geofence_radius_m} onChange={(e) => setForm({ ...form, geofence_radius_m: e.target.value })} />
+              </div>
+            </div>
+
             <div>
               <Label className="text-xs flex items-center gap-1.5 mb-2">
                 <Users className="h-3.5 w-3.5" /> Assign Users
