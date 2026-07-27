@@ -414,3 +414,282 @@
   text-overflow: ellipsis;
 }
 
+/* =========================================================================
+   Extended Salesforce Lightning skin — applies to every descendant so the
+   entire Procurement / Vendor 360 surface looks like a Lightning record page,
+   not just the header. Classic mode (no .lightning-ui wrapper) is unaffected.
+   ========================================================================= */
+
+/* Global background + typography inside the shell */
+.lightning-ui {
+  background: var(--sf-surface-shell);
+}
+.lightning-ui * {
+  font-family: inherit;
+}
+.lightning-ui p,
+.lightning-ui span,
+.lightning-ui div,
+.lightning-ui label,
+.lightning-ui li,
+.lightning-ui a {
+  font-size: inherit;
+}
+
+/* Cards: SLDS "region" panels — flat, thin border, subtle shadow, tight radius */
+.lightning-ui .rounded-lg,
+.lightning-ui .rounded-xl,
+.lightning-ui .rounded-md {
+  border-radius: var(--sf-radius) !important;
+}
+.lightning-ui [data-slot="card"],
+.lightning-ui .sf-card {
+  background: var(--sf-surface) !important;
+  border: 1px solid var(--sf-border) !important;
+  border-radius: var(--sf-radius) !important;
+  box-shadow: var(--sf-shadow) !important;
+}
+.lightning-ui [data-slot="card"] > * + * { border-color: var(--sf-border); }
+
+/* Card header/title spacing tightened */
+.lightning-ui [data-slot="card-header"] {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--sf-border);
+  background: var(--sf-surface);
+}
+.lightning-ui [data-slot="card-title"] {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sf-text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.lightning-ui [data-slot="card-content"] { padding: 12px 16px; }
+
+/* Buttons — SLDS look. Primary = SLDS brand blue, outline = neutral, ghost stays flat */
+.lightning-ui button,
+.lightning-ui [data-slot="button"] {
+  border-radius: var(--sf-radius) !important;
+  font-weight: 400 !important;
+  transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+}
+.lightning-ui button.bg-primary,
+.lightning-ui [data-slot="button"].bg-primary {
+  background: var(--sf-link) !important;
+  color: #fff !important;
+  border: 1px solid var(--sf-link) !important;
+}
+.lightning-ui button.bg-primary:hover,
+.lightning-ui [data-slot="button"].bg-primary:hover {
+  background: #014486 !important;
+  border-color: #014486 !important;
+}
+.lightning-ui button[data-variant="outline"],
+.lightning-ui .border.bg-background {
+  background: var(--sf-surface) !important;
+  border: 1px solid var(--sf-border-strong) !important;
+  color: var(--sf-link) !important;
+}
+.lightning-ui button[data-variant="outline"]:hover {
+  background: #f4f6f9 !important;
+}
+.lightning-ui button[data-variant="destructive"],
+.lightning-ui .bg-destructive {
+  background: var(--sf-error) !important;
+  color: #fff !important;
+  border-color: var(--sf-error) !important;
+}
+.lightning-ui button[data-variant="ghost"]:hover {
+  background: #f4f6f9 !important;
+}
+
+/* Inputs / selects / textareas — SLDS field style */
+.lightning-ui input:not([type="checkbox"]):not([type="radio"]),
+.lightning-ui textarea,
+.lightning-ui [data-slot="select-trigger"] {
+  background: var(--sf-surface) !important;
+  border: 1px solid var(--sf-border-strong) !important;
+  border-radius: var(--sf-radius) !important;
+  color: var(--sf-text) !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+.lightning-ui input:focus,
+.lightning-ui textarea:focus,
+.lightning-ui [data-slot="select-trigger"]:focus {
+  border-color: var(--sf-link) !important;
+  box-shadow: 0 0 3px var(--sf-link) !important;
+  outline: none !important;
+}
+.lightning-ui label { color: var(--sf-text-weak); font-size: 12px; font-weight: 600; }
+
+/* Labels above form fields — SLDS field label style */
+.lightning-ui [data-slot="label"] {
+  color: var(--sf-text-weak) !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  margin-bottom: 4px !important;
+}
+
+/* Badges - SLDS pills. Preserve semantic color from utility classes */
+.lightning-ui [data-slot="badge"],
+.lightning-ui .badge {
+  border-radius: 12px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  padding: 2px 8px !important;
+  border-width: 1px !important;
+}
+
+/* Tabs — SLDS underline row, sticky under the header */
+.lightning-ui [role="tablist"] {
+  background: var(--sf-surface) !important;
+  border: 1px solid var(--sf-border) !important;
+  border-radius: var(--sf-radius) !important;
+  padding: 0 12px !important;
+  height: auto !important;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+}
+.lightning-ui [role="tab"] {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 3px solid transparent !important;
+  border-radius: 0 !important;
+  color: var(--sf-text-weak) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  padding: 12px 16px !important;
+  box-shadow: none !important;
+  white-space: nowrap;
+}
+.lightning-ui [role="tab"]:hover {
+  color: var(--sf-link) !important;
+  background: #f4f6f9 !important;
+}
+.lightning-ui [role="tab"][data-state="active"] {
+  color: var(--sf-link) !important;
+  border-bottom-color: var(--sf-link) !important;
+  font-weight: 700 !important;
+  background: transparent !important;
+}
+
+/* Tables — dense SLDS list view */
+.lightning-ui table {
+  font-size: 12px !important;
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+.lightning-ui thead th {
+  background: var(--sf-surface-alt) !important;
+  color: var(--sf-text-weak) !important;
+  font-weight: 400 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  font-size: 11px !important;
+  padding: 6px 10px !important;
+  border-bottom: 1px solid var(--sf-border) !important;
+  border-top: 1px solid var(--sf-border) !important;
+  text-align: left;
+}
+.lightning-ui tbody td {
+  padding: 8px 10px !important;
+  border-bottom: 1px solid var(--sf-border) !important;
+  color: var(--sf-text) !important;
+}
+.lightning-ui tbody tr:hover td { background: #fafaf9 !important; }
+
+/* Dialogs — SLDS modal chrome */
+.lightning-ui [role="dialog"],
+[role="dialog"].lightning-ui {
+  background: var(--sf-surface-shell) !important;
+}
+.lightning-ui [data-slot="dialog-header"],
+[role="dialog"].lightning-ui [data-slot="dialog-header"] {
+  background: var(--sf-surface) !important;
+  border-bottom: 1px solid var(--sf-border) !important;
+  padding: 14px 20px !important;
+}
+.lightning-ui [data-slot="dialog-title"],
+[role="dialog"].lightning-ui [data-slot="dialog-title"] {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: var(--sf-text) !important;
+}
+
+/* Sheets — same treatment */
+.lightning-ui [data-slot="sheet-content"] { background: var(--sf-surface-shell) !important; }
+
+/* Accordion — SLDS collapsible section */
+.lightning-ui [data-slot="accordion-item"],
+.lightning-ui [data-radix-accordion-item] {
+  background: var(--sf-surface) !important;
+  border: 1px solid var(--sf-border) !important;
+  border-radius: var(--sf-radius) !important;
+  margin-bottom: 8px !important;
+  box-shadow: var(--sf-shadow);
+}
+.lightning-ui [data-slot="accordion-trigger"],
+.lightning-ui [data-radix-accordion-trigger] {
+  padding: 10px 14px !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  color: var(--sf-text) !important;
+  background: var(--sf-surface-alt) !important;
+  border-bottom: 1px solid var(--sf-border) !important;
+  text-transform: none !important;
+}
+.lightning-ui [data-slot="accordion-content"],
+.lightning-ui [data-radix-accordion-content] {
+  padding: 12px 14px !important;
+  background: var(--sf-surface) !important;
+}
+
+/* Popovers, dropdowns, command menus */
+.lightning-ui [data-slot="popover-content"],
+.lightning-ui [data-slot="dropdown-menu-content"],
+.lightning-ui [data-slot="select-content"] {
+  background: var(--sf-surface) !important;
+  border: 1px solid var(--sf-border-strong) !important;
+  border-radius: var(--sf-radius) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
+}
+
+/* Text muted → SLDS meta grey */
+.lightning-ui .text-muted-foreground { color: var(--sf-text-weak) !important; }
+.lightning-ui .text-foreground { color: var(--sf-text) !important; }
+
+/* Headings across the shell */
+.lightning-ui h1 { font-size: 20px !important; font-weight: 700 !important; color: var(--sf-text) !important; }
+.lightning-ui h2 { font-size: 16px !important; font-weight: 700 !important; color: var(--sf-text) !important; }
+.lightning-ui h3 { font-size: 14px !important; font-weight: 700 !important; color: var(--sf-text) !important; }
+
+/* Separators inside Lightning surfaces */
+.lightning-ui hr,
+.lightning-ui [data-slot="separator"] { background: var(--sf-border) !important; border-color: var(--sf-border) !important; }
+
+/* Icon container inside "Object Icon" tiles */
+.lightning-ui .sf-object-icon svg { width: 20px; height: 20px; }
+
+/* Dark mode remap — keep SLDS look, dark surface */
+.dark .lightning-ui {
+  --sf-surface: #1b1b1b;
+  --sf-surface-alt: #242424;
+  --sf-surface-shell: #161616;
+  --sf-border: #3e3e3c;
+  --sf-border-strong: #4a4a48;
+  --sf-text: #f5f5f4;
+  --sf-text-weak: #b4b3b1;
+  --sf-link: #1b96ff;
+}
+.dark .lightning-ui tbody tr:hover td { background: #2a2a2a !important; }
+.dark .lightning-ui button[data-variant="outline"]:hover,
+.dark .lightning-ui button[data-variant="ghost"]:hover { background: #2a2a2a !important; }
+
+

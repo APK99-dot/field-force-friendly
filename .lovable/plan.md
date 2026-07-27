@@ -1,106 +1,102 @@
-# Salesforce Lightning Redesign – Procurement Module
+# Full Salesforce Lightning Redesign — Procurement Module
 
-Rework the Procurement list, Procurement detail, and Vendor 360° pages to look and feel like Salesforce Lightning record pages while preserving every existing workflow, data operation, and permission check. Ships behind a per-user toggle so users can switch back to the current UI.
+The current Lightning toggle only restyled the outer header. This plan extends the SLDS-inspired treatment across every Procurement surface so the entire module feels like a Salesforce Lightning app when the toggle is on. No business logic, data, permissions, or navigation changes — pure UI.
 
-## Goals
+## Scope (all screens)
 
-- Adopt Lightning's visual grammar: Highlights Panel header, Path (stage bar), Related-lists-as-tabs, compact utility bar.
-- Keep all existing business logic, RPCs, mutations, status automation, geofencing, vendor comparison math, and DB schema untouched.
-- Hybrid theme: current Navy & Gold brand tokens for primary/accent; borrow Lightning's neutral surfaces, borders, and typography scale for structure.
+1. **Procurement list** (`src/pages/Procurement.tsx`)
+2. **Procurement detail** (`src/components/procurement/ProcurementDetail.tsx`) — the largest surface
+3. **Vendor 360°** (`src/pages/VendorDetail.tsx`)
+4. **Vendors list** (`src/pages/Vendors.tsx`) — for consistency when navigating from Vendor 360
+5. **Supporting dialogs** rendered inside the above: `GRNForm`, `GRNDetail`, `InvoiceForm`, `ReceiveGoodsDialog`, `OpenGRNPicker`, `SalesforceImportDialog`, `SalesforceBulkImportDialog`, `VendorRating`
 
-## Scope
+Out of scope: GRN standalone page (`pages/GRN.tsx`) and non-procurement modules stay classic.
 
-Redesigned:
-- `src/pages/Procurement.tsx` (list)
-- `src/components/procurement/ProcurementDetail.tsx` (detail)
-- `src/pages/VendorDetail.tsx` (vendor 360°)
+## Design system additions (`src/index.css`, `.lightning-ui` scope)
 
-Not changed: schema, edge functions, hooks, GRN/Invoice/Payment forms internals, permissions, routes.
+Extend the existing `.lightning-ui` layer with the SLDS primitives we still need:
 
-## UX Blueprint
+- **App-level chrome**: subtle grey app background (`#f3f3f3`), white record surface, 1px `#dddbda` borders, 2px radius, SLDS shadow ramp.
+- **Typography**: 13px base, 11px uppercase labels with 0.05em tracking, `#080707` headings, `#3e3e3c` body, `#706e6b` meta.
+- **Record header** (`sf-record-header`): compact 2-row layout — object icon tile + eyebrow/title/subtitle, right-aligned action cluster, followed by inline field row with vertical dividers.
+- **Path bar** (already added): tighten chevron sizing, add hover, "Mark Status as Complete" affordance stays classic (still driven by existing Advance button).
+- **Related lists** (`sf-related-list`): card with header strip (icon + title + count + "View All"), dense table (32px rows, 11px header caps, hover row, zebra optional), inline row actions dropdown.
+- **Tabs** (`sf-tabs`): underline tabs in SLDS blue (`#0176d3`), 40px tall, sticky under the header when scrolling.
+- **Buttons**: brand (`#0176d3` bg / white text), neutral (white / border / `#0176d3` text), destructive (`#ba0517`). Height 32px, radius 4px.
+- **Badges/pills** (`sf-badge`): neutral grey by default; success/warning/error/info variants that map to existing status colors without changing hues drastically.
+- **Modals/dialogs** (`sf-modal`): white header strip with object icon + title, footer bar with right-aligned actions, `#f3f3f3` body.
+- **Toasts**: leave shadcn as-is (out of scope), but ensure they render above the SLDS surface.
+- **Dark mode**: keep classic behavior. Lightning styles apply in light mode only; when the user is in dark mode we still render `.lightning-ui` but map neutrals to a dark SLDS palette (surface `#1b1b1b`, border `#3e3e3c`).
 
-### 1. List page — "Requisitions" object home
-```text
-┌ Utility bar: object icon + title "Requisitions" · count · New button ─────────┐
-│ List view selector ▼   Search   Filters   Sort   Refresh   Kanban/Table view │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ Row: REQ# · Title · Site · Owner · Amount · Stage pill · Age · Actions ▾     │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-- Compact Lightning-density rows (desktop table, mobile cards preserved).
-- Stage pill uses SLDS-style rounded chip with our Navy accents.
-- Kept: search, all filters, pending-only, TRF vs vendor differentiation, KPIs (moved into a slim strip above table).
+All tokens live under `.lightning-ui` so classic mode is untouched.
 
-### 2. Detail page — Lightning record page
-```text
-┌ Highlights Panel ────────────────────────────────────────────────────────────┐
-│ [icon] REQ-0026  Rmx Concrete India                    [Advance] [More ▾]    │
-│ Site · Owner · Created · Amount · Payment status  · Bill To · Ship To        │
-├─ Path (stage bar) ───────────────────────────────────────────────────────────┤
-│ ● Requisition → ● Approved → ○ Quote Requested → ○ … → ○ Closed              │
-├─ Tabs: Details | Vendor Comparison | GRNs | Invoices | Payments | Activity ─┤
-│ Two-column field grid, inline-edit where allowed today (delivery date,       │
-│ payment terms, rates once unlocked).                                         │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-- Vendor accordion → **Related tab per topic**; each tab shows the current accordion body as a Lightning related list with row-level actions.
-- Mobile: tabs collapse into a horizontal scroller; Path becomes vertical timeline (reuse existing).
-- All current actions (Advance, Revert, Record Payment, Receive Goods, Add Invoice, Reopen quote, WhatsApp share, PDF) stay — repositioned into Highlights Panel button group + row overflow menus.
+## New shared components (`src/components/procurement/lightning/`)
 
-### 3. Vendor 360° — Lightning record page
-- Same Highlights + Path-less header; tabs: Overview, Requisitions, Quotations, POs, GRNs, Invoices, Payments, Documents, Performance (current tabs).
-- Related lists restyled with SLDS row density; KPI tiles restyled as Lightning "report tiles".
+Additive, opt-in via `isLightning(mode)`:
 
-## Design tokens (hybrid)
+- `RecordHeader.tsx` — replaces the ad-hoc header we added; renders object icon, eyebrow, title, subtitle, inline field row, action cluster, and a slot for the `PathBar` directly beneath.
+- `RelatedList.tsx` — wraps a titled card with count, optional "New"/"View All" actions, and children (table or empty state).
+- `SldsTable.tsx` — thin wrapper over shadcn `Table` that applies dense SLDS classes (used inside RelatedList).
+- `SldsTabs.tsx` — wraps shadcn `Tabs` with SLDS underline styling and sticky top offset.
+- `SldsDialog.tsx` — wraps shadcn `Dialog` with SLDS header/footer chrome; existing dialogs opt in by swapping their outer wrapper when `isLightning`.
 
-Add a scoped token layer in `src/index.css` under `.lightning-ui` class (only applied when toggle is on):
-- Surfaces: `--sf-surface: #fff`, `--sf-surface-alt: #f3f3f3`, `--sf-border: #e5e5e5`.
-- Text: `--sf-text: #181818`, `--sf-text-weak: #706e6b`.
-- Accent (hybrid): primary/link use existing Navy; success/warn/error keep SLDS semantics.
-- Typography: SF/Inter fallback stack, 13px base, 12px meta, 15/17px headings — matches Lightning density.
-- Radius: 4px cards, 12px pills.
-- Shadows: subtle `0 2px 2px rgba(0,0,0,.05)` on cards.
+Each component falls back to today's classic markup when the mode is off, so we can wrap render blocks with a single conditional per file.
 
-No hardcoded hexes in components — all via new CSS variables and Tailwind arbitrary values referencing them.
+## Per-screen changes
 
-## Toggle mechanism
+### Procurement list (`Procurement.tsx`)
+- Wrap in `sf-app-surface` when Lightning is on.
+- Replace current header row with `RecordHeader` (icon = ShoppingCart, title = "Procurement", subtitle = "<count> orders", actions = New Requisition + Salesforce Import + Lightning toggle).
+- Filter/search bar becomes an SLDS "list view controls" strip (white, bordered, dense).
+- Card grid becomes an SLDS list view table on desktop (dense rows, columns: PR #, Status pill, Site, Owner, Amount, Updated, row actions). Keep the current card layout on mobile so the responsive story survives.
 
-- New user preference `ui_mode: 'classic' | 'lightning'` stored in `localStorage` (`bb.ui.procurement`).
-- Toggle in Procurement page header ("Lightning view" switch) + persisted per user.
-- Wrap the three redesigned pages in a `<LightningShell>` that applies the `.lightning-ui` class and swaps layout components; classic renders existing components unchanged.
+### Procurement detail (`ProcurementDetail.tsx`)
+This is the bulk of the work. In Lightning mode:
+- Swap the current dialog wrapper for `SldsDialog` (full-height on desktop, SLDS chrome).
+- Render `RecordHeader` with PO/TRF number, status badge, key fields (Site, Vendor summary, Grand Total, Owner, Created), and the existing action buttons (Advance, Revert, Download, Share).
+- Directly under, render `PathBar` using existing `stepFlow`/`stepIndex`.
+- Convert the body into `SldsTabs` with tabs: **Details**, **Vendor Comparison**, **Vendors** (per-vendor accordion dashboard), **GRNs**, **Invoices**, **Payments**, **Activity** (audit trail). Each tab body uses `RelatedList` cards.
+- The vendor-centric accordion (finalized vendors with Quote/GRNs/Invoices/Financials/Audit sub-sections) stays intact — it just moves inside the "Vendors" tab and each sub-section becomes an SLDS related list card.
+- All existing handlers, automation, and gating (`computeAutoTarget`, quote versioning, rate-source logic, permission checks) are reused unchanged.
+- Mobile: tabs stack; header collapses; PathBar switches to the existing vertical timeline component.
 
-## New files
+### Vendor 360° (`VendorDetail.tsx`)
+- Wrap in `LightningShell` + `sf-app-surface` (finish the pending edit).
+- `RecordHeader` with vendor icon, name, status badge, performance flag, key fields (Category, Payment terms, Total spend, Open POs, Rating).
+- Convert existing tabs to `SldsTabs`; each tab body wrapped in `RelatedList` cards (Requisitions, Quotations, POs, GRNs, Invoices, Payments, Documents, Performance).
+- Cards inside tabs become dense SLDS tables with the existing click-through navigation preserved.
 
-- `src/components/procurement/lightning/HighlightsPanel.tsx`
-- `src/components/procurement/lightning/PathBar.tsx`
-- `src/components/procurement/lightning/RelatedTabs.tsx`
-- `src/components/procurement/lightning/ListShell.tsx`
-- `src/components/procurement/lightning/RecordField.tsx` (label + value + inline-edit slot)
-- `src/hooks/useUiMode.ts`
-- Token additions in `src/index.css`
+### Vendors list (`Vendors.tsx`)
+- Same treatment as Procurement list: `RecordHeader`, SLDS list view controls, dense table on desktop, cards on mobile.
+- Add the same Lightning toggle in the header so users can flip modes from either entry point.
 
-## Changed files
+### Supporting dialogs
+- Wrap each in `SldsDialog` when `isLightning`. Content grids inside (form rows, tables) reuse `SldsTable` where applicable.
+- No field logic, validation, or submit flow changes.
 
-- `src/pages/Procurement.tsx` — render `ListShell` when Lightning mode; keep current tree otherwise.
-- `src/components/procurement/ProcurementDetail.tsx` — extract body sections (Vendor Comparison, GRNs, Invoices, Payments, Audit) into slots consumed either by current accordion (classic) or `RelatedTabs` (Lightning). No logic changes to handlers.
-- `src/pages/VendorDetail.tsx` — same slot extraction; Lightning shell wraps.
+## Toggle & persistence
+- `useUiMode` already persists per-browser under `bb.ui.procurement`. Reuse as-is.
+- Add a small "Lightning" toggle in the Vendors list header too (Procurement list and detail already have one).
 
-## Preservation checklist (must remain identical)
+## Not changing
+- Business logic, edge functions, DB schema, RLS, permissions, automation, computeAutoTarget, quote versioning, status flows, notifications, PDF/WhatsApp share.
+- Navigation routes, deep-link query params, keyboard shortcuts.
+- Classic mode — every surface renders exactly as today when the toggle is off.
 
-- Status automation (`computeAutoTarget`), vendor rollups, ₹1 tolerance, geofencing.
-- Advance/Revert permissions, Record Payment flow, GRN → Invoice ordering rule, quote versioning.
-- Deep links (`?po=`, tab/vendor query params), search, filters, KPI values.
-- Salesforce import, PDF, WhatsApp share, attachments.
-- Mobile responsiveness parity or better.
+## Technical notes
+- All conditional rendering is `isLightning(mode) ? <Lightning …/> : <Classic …/>` at the top of each render block; no prop-drilling of the mode past one level.
+- CSS additions live under `.lightning-ui` — no risk of leaking into other modules.
+- No new dependencies.
+- Files touched (approx.):
+  - `src/index.css` (extend `.lightning-ui`)
+  - `src/components/procurement/lightning/{RecordHeader,RelatedList,SldsTable,SldsTabs,SldsDialog}.tsx` (new)
+  - `src/pages/Procurement.tsx`
+  - `src/pages/Vendors.tsx`
+  - `src/pages/VendorDetail.tsx`
+  - `src/components/procurement/ProcurementDetail.tsx`
+  - Light wrapper swaps in `GRNForm.tsx`, `GRNDetail.tsx`, `InvoiceForm.tsx`, `ReceiveGoodsDialog.tsx`, `OpenGRNPicker.tsx`, `SalesforceImportDialog.tsx`, `SalesforceBulkImportDialog.tsx`
 
-## Out of scope
-
-- No DB migrations, no edge function edits, no route changes, no permission changes.
-- No changes to GRN form, Invoice form, Payment form internals — only their container chrome.
-- Other modules (Activities, Attendance, etc.) untouched.
-
-## Verification
-
-- Toggle off → pixel-equivalent to current UI (regression check).
-- Toggle on → visual QA against provided Salesforce screenshots on desktop + mobile.
-- Smoke test each action: Advance, Revert, Assign vendor, Record Payment, Receive Goods, Add Invoice, Reopen quote, PDF, WhatsApp, deep-link from Vendor 360°.
+## Rollout
+1. Land CSS tokens + new shared Lightning components.
+2. Migrate Procurement list → detail → Vendor 360 → Vendors list → supporting dialogs, in that order.
+3. Manual QA in both modes at each step to confirm classic UI is unchanged.
