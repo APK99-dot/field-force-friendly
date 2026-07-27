@@ -647,6 +647,50 @@ export default function CreativeActivityForm({
                 </div>
               </div>
 
+              {/* Activity date */}
+              <div className="rounded-2xl bg-card border border-border px-3 sm:px-4 py-2.5 shadow-sm flex items-center gap-2 min-w-0">
+                <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                <label className="text-xs font-semibold text-muted-foreground shrink-0">Activity Date</label>
+                <input
+                  type="date"
+                  value={activityDate}
+                  onChange={(e) => setActivityDate(e.target.value)}
+                  max={format(new Date(), "yyyy-MM-dd")}
+                  className="flex-1 min-w-0 bg-transparent text-sm outline-none text-right"
+                />
+              </div>
+
+              {/* Activity check-in status banner */}
+              {isEdit && editActivity && ((editActivity as any).check_in_at || (editActivity as any).check_in_within_site !== null) && (
+                <div className={cn(
+                  "rounded-2xl border px-3 sm:px-4 py-2.5 shadow-sm text-xs min-w-0",
+                  (editActivity as any).check_in_within_site === true
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900 dark:text-emerald-200"
+                    : (editActivity as any).check_in_within_site === false
+                    ? "bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-200"
+                    : "bg-muted/40 border-border text-foreground",
+                )}>
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {(editActivity as any).check_in_within_site === true && "Within Site"}
+                    {(editActivity as any).check_in_within_site === false && "Outside Site"}
+                    {(editActivity as any).check_in_within_site == null && "Checked In"}
+                    {(editActivity as any).check_in_distance_m != null && (
+                      <span className="font-normal text-muted-foreground">· {(editActivity as any).check_in_distance_m}m from site</span>
+                    )}
+                  </div>
+                  {(editActivity as any).check_in_at && (
+                    <div className="text-[11px] mt-0.5 opacity-80">
+                      In: {format(parseISO((editActivity as any).check_in_at), "MMM d, h:mm a")}
+                      {(editActivity as any).check_out_at && ` · Out: ${format(parseISO((editActivity as any).check_out_at), "h:mm a")}`}
+                    </div>
+                  )}
+                  {(editActivity as any).check_in_address && (
+                    <div className="text-[11px] mt-0.5 opacity-80 break-words">{(editActivity as any).check_in_address}</div>
+                  )}
+                </div>
+              )}
+
               {/* Status / description with inline icon rail */}
               <div className="rounded-2xl bg-card border border-border px-3 sm:px-4 py-3 shadow-sm min-w-0 max-w-full overflow-hidden">
                 <div className="flex items-start gap-3 min-w-0">
