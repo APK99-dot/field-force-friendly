@@ -1399,25 +1399,41 @@ export default function ProcurementDetail({
         </DialogHeader>
 
         <div className="space-y-4 py-4 px-6 lg:px-8 overflow-y-auto flex-1 w-full 2xl:max-w-[98vw] 2xl:mx-auto">
-          {lightning && (
-            <>
-              <HighlightsPanel
-                icon={<FileText className="h-5 w-5" />}
-                eyebrow={isTransfer ? "Internal Transfer" : "Purchase Order"}
-                title={order.po_number || (isTransfer ? "(No TRF #)" : "(No PO #)")}
-                subtitle={(order as any).requisition_name || vendorName || siteName}
-                fields={[
-                  { label: "Status", value: order.status },
-                  { label: "Site", value: siteName || "—" },
-                  { label: "Vendor", value: vendorName || "—" },
-                  { label: "Order Date", value: order.order_date ? new Date(order.order_date).toLocaleDateString("en-GB") : "—" },
-                  { label: "Amount", value: fmtAmt(Number((order as any).total_amount || 0)) },
-                  { label: "Payment Terms", value: (order as any).payment_terms || "—" },
-                ]}
-              />
-              <PathBar steps={stepFlow} currentIndex={stepIndex} />
-            </>
-          )}
+          {lightning && (() => {
+            const resolvedSite = isTransfer
+              ? [siteName(order.transfer_from_site_id), siteName(order.site_id)].filter(Boolean).join(" → ") || "—"
+              : (siteName(order.site_id) || "—");
+            const vendorNamesFromSummaries = (vendorSummaries || [])
+              .map((v: any) => vendorName(v.vendor_id))
+              .filter(Boolean);
+            const resolvedVendor = isTransfer
+              ? "—"
+              : (vendorNamesFromSummaries.length
+                  ? (vendorNamesFromSummaries.length > 2
+                      ? `${vendorNamesFromSummaries.slice(0, 2).join(", ")} +${vendorNamesFromSummaries.length - 2}`
+                      : vendorNamesFromSummaries.join(", "))
+                  : (vendorName(order.vendor_id) || "—"));
+            return (
+              <>
+                <HighlightsPanel
+                  icon={<FileText className="h-5 w-5" />}
+                  eyebrow={isTransfer ? "Internal Transfer" : "Purchase Order"}
+                  title={order.po_number || (isTransfer ? "(No TRF #)" : "(No PO #)")}
+                  subtitle={(order as any).requisition_name || resolvedVendor || resolvedSite}
+                  fields={[
+                    { label: "Status", value: order.status },
+                    { label: "Requisition #", value: (order as any).requisition_number || "—" },
+                    { label: "Site", value: resolvedSite },
+                    { label: "Vendor", value: resolvedVendor },
+                    { label: "Order Date", value: order.order_date ? new Date(order.order_date).toLocaleDateString("en-GB") : "—" },
+                    { label: "Amount", value: fmtAmt(Number((order as any).total_amount || 0)) },
+                    { label: "Payment Terms", value: (order as any).payment_terms || "—" },
+                  ]}
+                />
+                <PathBar steps={stepFlow} currentIndex={stepIndex} />
+              </>
+            );
+          })()}
           {/* Stepper + stage controls */}
           {order.status !== "Rejected" && (
             <div className="space-y-3">
