@@ -1,35 +1,38 @@
-Two issues, both caused by how Salesforce-imported procurement records were mapped:
+# Redesign: Dashboard Activity Calendar → "Executive PM Grid"
 
-## 1. Vendor / PO amount showing ₹0.00
+Scope: `src/components/dashboard/WorkforceActivityCalendar.tsx` only. Keep upstream data flow (`activities`, `anchorDate` from `WorkforceOverviewSection`) unchanged.
 
-The PO list card and the vendor rows on the detail read `procurement_orders.total_amount`. All Salesforce-imported POs (PO-0025 to PO-0034) currently have `total_amount = 0` despite their line items carrying real rates (e.g. PO-0033 computed line total ≈ ₹2,52,866, stored total_amount = 0). The importer never populated the header total.
+## What changes visually
 
-**Fix**
-- Update `supabase/functions/import-salesforce-procurement/index.ts` to set `total_amount = sum(qty × rate)` across imported line items when writing/updating the `procurement_orders` row (both on the initial write and on the final status update). Do the same in `supabase/functions/bulk-import-salesforce-procurement/index.ts` if it writes header totals independently.
-- Backfill existing rows with a one-shot SQL update:
-  ```sql
-  UPDATE procurement_orders po
-  SET total_amount = sub.total
-  FROM (SELECT procurement_id, SUM(COALESCE(rate,0)*COALESCE(qty,0)) AS total
-        FROM procurement_items GROUP BY procurement_id) sub
-  WHERE sub.procurement_id = po.id
-    AND po.salesforce_id IS NOT NULL
-    AND COALESCE(po.total_amount,0) = 0;
-  ```
+- **Card frame**: white surface, `rounded-2xl`, subtle soft shadow, hairline navy border. Sora for the title, Manrope for everything else (loaded via `<link>` in the component, matched to prototype).
+- **Header row**:
+  - Left: title "Activity Calendar" (Sora, bold, navy `#0B1E3F`) + subtitle "<Month YYYY> • N active tasks" (count = activities in month).
+  - Right: segmented month stepper `[◀ | Month YYYY | ▶]` + solid navy "Today" pill.
+- **Weekday header**: soft `#F5F7FB` band, 11px uppercase slate labels.
+- **Day cells**: `min-h-[140px]`, hairline `#E9EEF7` gridlines. Out-of-month cells muted (`bg-[#F5F7FB]/30`, `text-slate-300`). In-month cells show date number top-left.
+- **Today cell spotlight**: `bg-[#0B1E3F]/5` with a `border-2 border-[#D4A34A]/30` overlay ring and a small gold "TODAY" caps label top-right; date number switches to bold navy.
+- **Event pills** (per activity): compact card with a 4px left color bar + tinted bg + name (bold) + site (muted). Status → colors:
+  - `planned` → `bg-[#E9EEF7]` / bar `#1E3A6B` / text `#1E3A6B`
+  - `in_progress` → `bg-[#FEF3C7]` / bar `#D4A34A` / text `#92400E`
+  - `completed` → `bg-[#DCFCE7]` / bar `#22C55E` / text `#166534`
+  - Hover: `brightness-95`. Keeps existing `navigate('/activities?id=…')` behavior and `title` tooltip.
+  - Overflow: after 3 pills, show a `+N more` chip (still same-day, no popover — click bubbles to the first extra activity's page for now; matches current "just navigate" pattern).
+- **Footer legend bar**: `#F5F7FB/50` background, three dot+label chips (Planned navy, In Progress gold, Completed green). Legend removed from the header (moved to footer per prototype).
+- **Mobile**: cells shrink to `min-h-[96px]`, pill font sizes step down, header stacks (title above controls). Horizontal scroll kept via `overflow-x-auto` + `min-w-[720px]` inner grid so the 7-col layout never collapses.
 
-## 2. "Receive goods first" hides existing invoices
+## Behavior
 
-In `src/components/procurement/ProcurementDetail.tsx` (lines ~1950-1991) the Invoices accordion renders "Receive goods first — invoices can be added after the first GRN." whenever `!hasGrn`, so imported invoices (which have no GRN in Salesforce) never appear and can't be opened. The "1 Invoices" chip is populated from `vInvs`, but the list itself is suppressed.
+- Add **prev / next month** state internal to `WorkforceActivityCalendar` (default = `anchorDate` prop, resets when `anchorDate` prop changes). "Today" resets to `new Date()`. Active-tasks count = `activities.length` filtered to the visible month.
+- All existing props and click-through preserved. No new data fetches.
 
-**Fix (UI only, no schema change)**
-- Always render the `vInvs` list when it is non-empty, regardless of `hasGrn`. The gating rule stays only on the "Add Invoice" button (keep it disabled with the "Receive goods first" tooltip when there's no GRN and no existing invoice for that vendor).
-- New rendering order inside the accordion content:
-  1. If `vInvs.length > 0` → render the existing clickable invoice list (opens `GRNDetail`/invoice dialog as today), so the imported invoice and its attachments are reachable.
-  2. Else if `!hasGrn` → show the existing "Receive goods first…" hint.
-  3. Else → "No invoices for this vendor yet."
-- Also relax the "Add Invoice" gate for PO records that already have imported invoices (i.e. enable the button when `vInvs.length > 0` even without a GRN) so users can add follow-up invoices to Salesforce-migrated POs.
+## Technical notes
 
-## Verification
-- Reload `/procurement`: PO-0033 (single item ≈ ₹2.52L) shows non-zero amount on the list card and vendor row.
-- Open PO-0034 → Invoices accordion shows the imported invoice; clicking opens the invoice with its Salesforce attachment.
-- Newly imported / re-imported Salesforce records get `total_amount` set correctly on the first pass.
+- No new dependencies. Uses `date-fns` already in the file.
+- Sora + Manrope loaded once via a `<link rel="stylesheet">` injected at module scope (guarded so it only appends once). Applied via inline `style={{ fontFamily }}` on the card root so tokens stay untouched — no global font override.
+- Colors used inline (hex) match the prototype exactly, since the surrounding component set already uses semantic tokens like `bg-info` in other places; the calendar becomes a self-contained styled surface consistent with the picked direction. `text-primary` retained where already tokenized.
+- Keep `WorkforceOverviewSection.tsx` untouched; it still passes `anchorDate` and `activities`.
+
+## Out of scope
+
+- No week/day toggle, no drag-drop, no new schema.
+- No changes to `WorkforceOverviewSection`, filters, KPI cards, or attendance table.
