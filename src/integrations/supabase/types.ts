@@ -386,6 +386,63 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_mirror_audit: {
+        Row: {
+          created_at: string
+          destination_table: string
+          error_message: string | null
+          http_status: number | null
+          id: number
+          row_count: number
+          source_table: string
+          status: string
+          trace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          destination_table: string
+          error_message?: string | null
+          http_status?: number | null
+          id?: number
+          row_count?: number
+          source_table: string
+          status: string
+          trace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          destination_table?: string
+          error_message?: string | null
+          http_status?: number | null
+          id?: number
+          row_count?: number
+          source_table?: string
+          status?: string
+          trace_id?: string | null
+        }
+        Relationships: []
+      }
+      backup_mirror_state: {
+        Row: {
+          last_run_at: string | null
+          last_synced_at: string
+          table_name: string
+          updated_at: string
+        }
+        Insert: {
+          last_run_at?: string | null
+          last_synced_at?: string
+          table_name: string
+          updated_at?: string
+        }
+        Update: {
+          last_run_at?: string | null
+          last_synced_at?: string
+          table_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       beat_allowances: {
         Row: {
           beat_id: string
