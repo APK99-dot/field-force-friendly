@@ -662,6 +662,7 @@ export default function Vendors() {
         </AlertDialogContent>
       </AlertDialog>
     </motion.div>
+    </LightningShell>
   );
 }
 
