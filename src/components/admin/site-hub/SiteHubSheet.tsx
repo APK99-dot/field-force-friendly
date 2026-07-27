@@ -28,8 +28,9 @@ import SiteGallery from "@/components/admin/site-hub/SiteGallery";
 import SiteDocuments from "@/components/admin/site-hub/SiteDocuments";
 import SiteMilestoneList from "@/components/admin/site-hub/SiteMilestoneList";
 import SiteActivityList from "@/components/admin/site-hub/SiteActivityList";
-import ActivityDetailsDialog from "@/components/activities/ActivityDetailsDialog";
+import { useNavigate } from "react-router-dom";
 import type { Activity } from "@/hooks/useActivities";
+
 
 export interface HubSite {
   id: string;
@@ -65,7 +66,9 @@ interface Props {
 
 export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChanged }: Props) {
   const { loading, milestones, activities, assignedUsers, gallery, documents, attendanceByActivity, reload } = useSiteHub(open ? site?.id ?? null : null);
-  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+  const navigate = useNavigate();
+  const openActivity = (a: Activity) => navigate(`/activities?id=${a.id}`);
+
   const [status, setStatus] = useState<string | null>(null);
   const [savingStatus, setSavingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -156,7 +159,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
 
   const openActivityById = (id: string) => {
     const a = activities.find((x) => x.id === id);
-    if (a) setSelectedActivity(a);
+    if (a) openActivity(a);
   };
 
   const handleSaveMilestone = async () => {
@@ -376,7 +379,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                   </TabsContent>
 
                   <TabsContent value="milestones" className="mt-0">
-                    <SiteMilestoneList siteId={site!.id} milestones={milestones} activities={activities} onChanged={reload} onAddSubMilestone={openAddSubMilestone} onEditMilestone={openEditMilestone} onOpenActivity={setSelectedActivity} />
+                    <SiteMilestoneList siteId={site!.id} milestones={milestones} activities={activities} onChanged={reload} onAddSubMilestone={openAddSubMilestone} onEditMilestone={openEditMilestone} onOpenActivity={openActivity} />
                   </TabsContent>
 
 
@@ -385,7 +388,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                   </TabsContent>
 
                   <TabsContent value="activities" className="mt-0">
-                    <SiteActivityList activities={activities} onOpen={setSelectedActivity} />
+                    <SiteActivityList activities={activities} onOpen={openActivity} />
                   </TabsContent>
 
                   <TabsContent value="documents" className="mt-0">
@@ -469,12 +472,8 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
         </DialogContent>
       </Dialog>
 
-      <ActivityDetailsDialog
-        activity={selectedActivity}
-        open={!!selectedActivity}
-        onClose={() => setSelectedActivity(null)}
-        attendance={selectedActivity ? attendanceByActivity[selectedActivity.id] : null}
-      />
+
+
     </>
   );
 }

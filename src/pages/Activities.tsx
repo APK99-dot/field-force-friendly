@@ -67,7 +67,7 @@ import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import ActivityReportGenerator from "@/components/activities/ActivityReportGenerator";
 import ActivityPhotoManager from "@/components/activities/ActivityPhotoManager";
-import ActivityDetailsDialog from "@/components/activities/ActivityDetailsDialog";
+
 import { MultiUserPicker } from "@/components/pm/MultiUserPicker";
 import { milestoneStatusLabel } from "@/components/admin/SiteMilestonesDialog";
 import OpenGRNPicker from "@/components/procurement/OpenGRNPicker";
@@ -455,7 +455,9 @@ export default function Activities() {
     if (!id || loading || activities.length === 0) return;
     const found = activities.find((a) => a.id === id);
     if (found) {
-      setDetailsActivity(found);
+      setCreativeEditActivity(found);
+      setShowCreativeForm(true);
+
       // Remove the id param so refreshing won't reopen it
       const next = new URLSearchParams(searchParams);
       next.delete("id");
@@ -639,15 +641,16 @@ export default function Activities() {
   const [creativeEditActivity, setCreativeEditActivity] = useState<ActivityType | null>(null);
 
   const openStandardForm = () => {
+    // legacy — no longer used; kept as no-op to preserve helper references.
     setForm({ ...defaultForm, activity_date: dateStr, owner_user_id: currentUserId });
     setEditingId(null);
     setFormAttendance(null);
-    setShowForm(true);
     fetchAttendanceForDate(currentUserId, dateStr).then(setFormAttendance).catch(() => {});
   };
 
   const handleOpenCreate = () => {
-    setShowFormChooser(true);
+    setCreativeEditActivity(null);
+    setShowCreativeForm(true);
   };
 
   const handleCheckIn = async () => {
@@ -685,44 +688,10 @@ export default function Activities() {
   };
 
   const handleOpenEdit = (a: ActivityType) => {
-    // Route back to creative form if that's how it was saved
-    if ((a as any).source_form === "creative") {
-      setCreativeEditActivity(a);
-      setShowCreativeForm(true);
-      return;
-    }
-    setForm({
-      activity_name: a.activity_name,
-      activity_type: a.activity_type,
-      custom_activity_name: a.activity_type?.trim().toLowerCase() === "other" ? a.activity_name : "",
-      activity_date: a.activity_date,
-      start_time: a.start_time ? format(parseISO(a.start_time), "HH:mm") : "",
-      end_time: a.end_time ? format(parseISO(a.end_time), "HH:mm") : "",
-      duration_type: a.duration_type || "hour_based",
-      half_day_type: (a as any).half_day_type || "",
-      from_date: a.from_date || "",
-      to_date: a.to_date || "",
-      recurrence_pattern: "daily",
-      recurrence_interval: 1,
-      recurrence_start_date: a.activity_date || format(new Date(), "yyyy-MM-dd"),
-      recurrence_end_date: "",
-      recurrence_no_end: false,
-      description: a.description || "",
-      site_id: a.site_id || "",
-      milestone_id: a.milestone_id || "",
-      milestone_progress: 0,
-      grn_po_id: (a as any).grn_po_id || "",
-      site_flag: "",
-      site_status: "",
-      location_address: a.location_address || "",
-      total_hours: a.total_hours || 0,
-      owner_user_id: a.user_id,
-      assigned_user_ids: Array.isArray((a as any).assigned_user_ids) ? (a as any).assigned_user_ids : [],
-      photos: a.photo_urls || [],
-    });
-    setEditingId(a.id);
-    setShowForm(true);
+    setCreativeEditActivity(a);
+    setShowCreativeForm(true);
   };
+
 
   const handleSave = async () => {
     if (cfgRequireActivityType && !form.activity_type) return;
@@ -1013,7 +982,7 @@ export default function Activities() {
                   isAdmin={isAdmin}
                   onEdit={handleOpenEdit}
                   onDelete={handleDelete}
-                  onOpenDetails={setDetailsActivity}
+                  onOpenDetails={(a) => { setCreativeEditActivity(a); setShowCreativeForm(true); }}
                   onReceiveGoods={(poId) => setReceivePoId(poId)}
                   onStatusChanged={() => fetchActivities()}
                   updateActivity={updateActivity}
@@ -1036,49 +1005,8 @@ export default function Activities() {
         )}
       </motion.div>
 
-      {/* Form Style Chooser */}
-      <Dialog open={showFormChooser} onOpenChange={setShowFormChooser}>
-        <DialogContent className="max-w-md p-0 overflow-hidden rounded-2xl">
-          <div className="p-5 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white">
-            <h3 className="text-lg font-semibold">How do you want to log?</h3>
-            <p className="text-xs text-white/80 mt-0.5">Pick the form style that suits your flow</p>
-          </div>
-          <div className="p-4 grid grid-cols-1 gap-3">
-            <button
-              onClick={() => { setShowFormChooser(false); openStandardForm(); }}
-              className="group text-left rounded-xl border border-border p-4 hover:border-primary hover:bg-primary/5 transition-all"
-            >
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-105 transition">
-                  <LayoutList className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-sm">Standard Form</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Full detailed form with dates, milestones, GRN, recurring options and every field.
-                  </p>
-                </div>
-              </div>
-            </button>
-            <button
-              onClick={() => { setShowFormChooser(false); setShowCreativeForm(true); }}
-              className="group text-left rounded-xl border border-transparent p-4 bg-gradient-to-br from-fuchsia-50 to-pink-50 dark:from-fuchsia-950/30 dark:to-pink-950/30 hover:from-fuchsia-100 hover:to-pink-100 dark:hover:from-fuchsia-950/50 dark:hover:to-pink-950/50 transition-all ring-1 ring-fuchsia-200/60 dark:ring-fuchsia-900/60"
-            >
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 via-fuchsia-600 to-pink-600 text-white flex items-center justify-center group-hover:scale-105 transition shadow-md">
-                  <Sparkles className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-sm">Creative Feed <Badge className="ml-1 bg-fuchsia-600 hover:bg-fuchsia-600 text-[9px] px-1.5 py-0 rounded-full">NEW</Badge></p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Social-style quick post — pick a project, drop a status, tag people, snap a photo.
-                  </p>
-                </div>
-              </div>
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
+
+
 
       <CreativeActivityForm
         open={showCreativeForm}
@@ -1099,455 +1027,13 @@ export default function Activities() {
         fetchAttendanceForDate={fetchAttendanceForDate}
         onCreated={() => fetchActivities()}
         editActivity={creativeEditActivity}
+        onDelete={async (id) => { await deleteActivity(id); fetchActivities(); }}
+
       />
 
 
-      {/* Create/Edit Activity Dialog */}
-      <Dialog open={showForm} onOpenChange={(open) => { if (!open) { if (isRecording) { stopRecording(); } clearRecording(); setVoiceToTextMode(false); } setShowForm(open); }}>
-        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Activity" : "Log New Activity"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 mt-2">
-            {/* Check-in for the record's date */}
-            {!editingId && cfgCheckIn && (
-              <div className="rounded-lg border p-3 flex items-center justify-between gap-3">
-                {formAttendance?.check_in_time ? (
-                  <p className="text-xs text-success flex items-center gap-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Checked in at {format(parseISO(formAttendance.check_in_time), "h:mm a")}
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5" /> Not checked in yet
-                  </p>
-                )}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={formAttendance?.check_in_time ? "outline" : "default"}
-                  disabled={checkingIn || !!formAttendance?.check_in_time}
-                  onClick={handleCheckIn}
-                >
-                  {checkingIn ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogIn className="h-3.5 w-3.5" />}
-                  <span className="ml-1.5">{formAttendance?.check_in_time ? "Checked in" : "Check in"}</span>
-                </Button>
-              </div>
-            )}
-            {/* Activity Owner - only for managers/admins */}
-            {canAssign && !editingId && (
-              <div>
-                <Label className="text-xs font-medium">Activity Owner</Label>
-                <Select value={form.owner_user_id} onValueChange={(v) => setForm({ ...form, owner_user_id: v })}>
-                  <SelectTrigger>
-                    <Users className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                    <SelectValue placeholder="Select owner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.full_name || "Unknown"} {u.id === currentUserId ? "(You)" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div>
-              <Label className="text-xs">Project / Site</Label>
-              <Select value={form.site_id} onValueChange={(v) => {
-                if (v === "__add_new_site__") {
-                  setShowAddSiteDialog(true);
-                  return;
-                }
-                setForm({ ...form, site_id: v, milestone_id: "" });
-              }}>
-                <SelectTrigger><SelectValue placeholder="Select site (optional)" /></SelectTrigger>
-                <SelectContent>
-                  {sites.filter(s => s.is_active).map((s) => <SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>)}
-                  <Separator className="my-1" />
-                  <SelectItem value="__add_new_site__" className="text-primary font-medium">
-                    <span className="flex items-center gap-1.5"><Plus className="h-3.5 w-3.5" />Add new site...</span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              {form.site_status && form.site_id !== "__add_new_site__" && (
-                <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
-                  Site Status:
-                  <Badge variant="outline" className="text-[10px] capitalize">{form.site_status}</Badge>
-                </p>
-              )}
-            </div>
-            {/* Milestone selection (read-only, sourced from Site master) */}
-            {form.site_id && form.site_id !== "__add_new_site__" && (
-              <div>
-                <Label className="text-xs">Milestone</Label>
-                {siteMilestones.length === 0 ? (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    No active milestones for this site. Add milestones in Projects / Sites.
-                  </p>
-                ) : (
-                  <Select
-                    value={form.milestone_id || "__none__"}
-                    onValueChange={(v) => {
-                      const id = v === "__none__" ? "" : v;
-                      const sel = siteMilestones.find((m) => m.id === id);
-                      setForm({ ...form, milestone_id: id, milestone_progress: sel ? sel.percent_complete : 0 });
-                    }}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select milestone (optional)" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      {siteMilestones.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {(() => {
-                  const sel = siteMilestones.find((m) => m.id === form.milestone_id);
-                  if (!sel) return null;
-                  return (
-                    <div className="mt-2 border rounded-lg p-2.5 bg-muted/30 space-y-2 text-xs">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px]">{milestoneStatusLabel(sel.status)}</Badge>
-                        <span className="text-muted-foreground">{sel.percent_complete}% complete</span>
-                      </div>
-                      <div className="text-muted-foreground">
-                        Planned: {format(new Date(sel.start_date), "dd MMM yyyy")} → {format(new Date(sel.end_date), "dd MMM yyyy")}
-                      </div>
-                      {(sel.actual_start_date || sel.actual_end_date) && (
-                        <div className="text-muted-foreground">
-                          Actual: {sel.actual_start_date ? format(new Date(sel.actual_start_date), "dd MMM yyyy") : "—"} → {sel.actual_end_date ? format(new Date(sel.actual_end_date), "dd MMM yyyy") : "—"}
-                        </div>
-                      )}
-                      {sel.notes && <p className="text-muted-foreground italic">{sel.notes}</p>}
-                      <div className="border-t pt-2 space-y-1.5">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Update milestone progress</span>
-                          <span className="font-semibold text-foreground tabular-nums">{form.milestone_progress}%</span>
-                        </div>
-                        <Slider
-                          value={[form.milestone_progress]}
-                          min={0}
-                          max={100}
-                          step={1}
-                          onValueChange={(v) => setForm({ ...form, milestone_progress: v[0] })}
-                        />
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-            {form.site_id && form.site_id !== "__add_new_site__" && (
-              <div>
-                <Label className="text-xs flex items-center gap-1.5 mb-2">Site Flag</Label>
-                <div className="flex items-center gap-3">
-                  {(["green", "orange", "red"] as SiteFlag[]).map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setForm({ ...form, site_flag: f })}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-colors ${
-                        form.site_flag === f ? "border-primary bg-primary/10 font-medium" : "border-border hover:bg-muted/50"
-                      }`}
-                    >
-                      <span className={`inline-block rounded-full h-3 w-3 ${FLAG_CONFIG[f].color}`} />
-                      {FLAG_CONFIG[f].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Activity Type {cfgRequireActivityType ? "*" : ""}</Label>
-                <Select value={form.activity_type} onValueChange={(v) => {
-                    if (v === "__add_new__") {
-                      navigate("/activity-types");
-                      return;
-                    }
-                    setForm({ ...form, activity_type: v });
-                  }}>
-                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                  <SelectContent side="bottom" align="start" className="max-h-60 overflow-y-auto">
-                    {activityTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    <Separator className="my-1" />
-                    <SelectItem value="__add_new__" className="text-primary font-medium">
-                      <span className="flex items-center gap-1.5"><Plus className="h-3.5 w-3.5" />Add new type...</span>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {canAssign && (
-              <div>
-                <MultiUserPicker
-                  label="Assign To"
-                  compact
-                  selectedUsers={users
-                    .filter((u) => form.assigned_user_ids.includes(u.id))
-                    .map((u) => ({ id: u.id, full_name: u.id === currentUserId ? `${u.full_name || "You"} (You)` : u.full_name || "Unknown" }))}
-                  onAdd={(u) =>
-                    setForm((prev: any) => ({
-                      ...prev,
-                      assigned_user_ids: prev.assigned_user_ids.includes(u.id) ? prev.assigned_user_ids : [...prev.assigned_user_ids, u.id],
-                    }))
-                  }
-                  onRemove={(id) =>
-                    setForm((prev: any) => ({
-                      ...prev,
-                      assigned_user_ids: prev.assigned_user_ids.filter((uid: string) => uid !== id),
-                    }))
-                  }
-                />
-              </div>
-            )}
-            {form.activity_type.trim().toLowerCase() === "other" && (
-              <div>
-                <Label className="text-xs">Custom Activity Name *</Label>
-                <Input
-                  value={form.custom_activity_name}
-                  onChange={(e) => setForm({ ...form, custom_activity_name: e.target.value })}
-                  placeholder="Enter custom activity name"
-                  maxLength={100}
-                />
-              </div>
-            )}
-            {form.activity_type.trim().toLowerCase().includes("grn") && (
-              <OpenGRNPicker
-                siteId={form.site_id && form.site_id !== "__add_new_site__" ? form.site_id : ""}
-                value={form.grn_po_id}
-                onChange={(poId) => setForm({ ...form, grn_po_id: poId })}
-              />
-            )}
-            <div>
-              <Label className="text-xs">Activity Date</Label>
-              <Input type="date" value={form.activity_date} min={cfgAllowBackdated ? undefined : format(new Date(), "yyyy-MM-dd")} onChange={(e) => setForm({ ...form, activity_date: e.target.value })} />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <Label className="text-xs">Description</Label>
-                {cfgVoiceNote && (
-                <Popover open={micMenuOpen} onOpenChange={setMicMenuOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className={`h-7 w-7 p-0 rounded-full ${isRecording || isTranscribing ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-foreground"}`}
-                      title="Voice options"
-                    >
-                      <Mic className="h-4 w-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-52 p-1" align="end">
-                    <button
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
-                      disabled={isTranscribing || isStartingRecording}
-                      onClick={() => {
-                        void handleMicOptionClick('text');
-                      }}
-                    >
-                      {isStartingRecording ? <Loader2 className="h-4 w-4 animate-spin" /> : isRecording && voiceToTextMode ? <Square className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
-                      {isStartingRecording ? 'Starting...' : isRecording && voiceToTextMode ? "Stop & Transcribe" : isTranscribing ? "Transcribing..." : "Voice to Text"}
-                    </button>
-                    <button
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors"
-                      disabled={isTranscribing || isStartingRecording}
-                      onClick={() => {
-                        void handleMicOptionClick('audio');
-                      }}
-                    >
-                      {isStartingRecording ? <Loader2 className="h-4 w-4 animate-spin" /> : isRecording && !voiceToTextMode ? <Square className="h-4 w-4 text-destructive" /> : <AudioLines className="h-4 w-4" />}
-                      {isStartingRecording ? 'Starting...' : isRecording && !voiceToTextMode ? "Stop Recording" : "Record Audio"}
-                    </button>
-                  </PopoverContent>
-                </Popover>
-                )}
-              </div>
-              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Activity details..." rows={3} />
-              {isTranscribing && (
-                <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-primary/10 border border-primary/20">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span className="text-xs font-medium text-primary">Transcribing audio...</span>
-                </div>
-              )}
-              {isRecording && (
-                <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
-                  <span className="text-xs font-medium text-destructive">Recording {formatDuration(elapsed)}</span>
-                  <Button type="button" variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => stopRecording()}>
-                    <Square className="h-3 w-3 mr-1" /> Stop
-                  </Button>
-                </div>
-              )}
-              {isFinalizing && (
-                <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-primary/10 border border-primary/20">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span className="text-xs font-medium text-primary">Finalizing recording...</span>
-                </div>
-              )}
-              {recording && !isRecording && (
-                <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-muted border">
-                  <audio ref={audioPreviewRef} src={recording.url} onEnded={() => setIsPlayingPreview(false)} />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    onClick={() => {
-                      if (isPlayingPreview) {
-                        audioPreviewRef.current?.pause();
-                        setIsPlayingPreview(false);
-                      } else {
-                        audioPreviewRef.current?.play();
-                        setIsPlayingPreview(true);
-                      }
-                    }}
-                  >
-                    {isPlayingPreview ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                  </Button>
-                  <span className="text-xs text-muted-foreground">Audio ({formatDuration(recording.duration)})</span>
-                  <Button type="button" variant="ghost" size="sm" className="ml-auto h-6 w-6 p-0 text-destructive" onClick={clearRecording} title="Delete recording">
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
-            </div>
-            {cfgPhotoUpload && (
-            <div>
-              <Label className="text-xs">Photos</Label>
-              <div className="mt-1">
-                <ActivityPhotoManager
-                  photos={form.photos}
-                  editable
-                  allowCamera={cfgTakePhoto}
-                  allowUpload={cfgUploadGallery}
-                  onChange={(photos) => setForm((f) => ({ ...f, photos }))}
-                />
-              </div>
-            </div>
-            )}
-            <Collapsible>
 
-              <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 rounded-md border bg-muted/50 text-sm font-medium hover:bg-muted transition-colors">
-                <span>Others</span>
-                <ChevronDown className="h-4 w-4 transition-transform duration-200 [&[data-state=open]>svg]:rotate-180" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-3 pt-3">
 
-                <div>
-                  <Label className="text-xs">Duration Type</Label>
-                  <Select value={form.duration_type} onValueChange={(v) => setForm(prev => ({ ...prev, duration_type: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="hour_based">Hour Based</SelectItem>
-                      <SelectItem value="half_day">Half Day</SelectItem>
-                      <SelectItem value="full_day">Full Day</SelectItem>
-                      <SelectItem value="multiple_days">Multiple Days</SelectItem>
-                      <SelectItem value="recurring">Recurring</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {form.duration_type === "recurring" && (
-                  <div className="space-y-3 rounded-md border bg-muted/30 p-3">
-                    <div>
-                      <Label className="text-xs">Repeat</Label>
-                      <Select value={form.recurrence_pattern} onValueChange={(v) => setForm(prev => ({ ...prev, recurrence_pattern: v }))}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="daily">Daily</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
-                          <SelectItem value="monthly">Monthly</SelectItem>
-                          <SelectItem value="custom">Custom Interval</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {form.recurrence_pattern === "custom" && (
-                      <div>
-                        <Label className="text-xs">Every N days *</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={form.recurrence_interval}
-                          onChange={(e) => setForm({ ...form, recurrence_interval: Math.max(1, parseInt(e.target.value) || 1) })}
-                        />
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs">Start Date *</Label>
-                        <Input type="date" value={form.recurrence_start_date} onChange={(e) => setForm({ ...form, recurrence_start_date: e.target.value })} />
-                      </div>
-                      <div>
-                        <Label className="text-xs">End Date {form.recurrence_no_end ? "" : "*"}</Label>
-                        <Input type="date" value={form.recurrence_end_date} min={form.recurrence_start_date || undefined} disabled={form.recurrence_no_end} onChange={(e) => setForm({ ...form, recurrence_end_date: e.target.value })} />
-                      </div>
-                    </div>
-                    <label className="flex items-center gap-2 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={form.recurrence_no_end}
-                        onChange={(e) => setForm({ ...form, recurrence_no_end: e.target.checked })}
-                      />
-                      No End Date (generate next 90 days)
-                    </label>
-                  </div>
-                )}
-                {form.duration_type === "half_day" && (
-                  <div>
-                    <Label className="text-xs">Half Day Period</Label>
-                    <Select value={form.half_day_type} onValueChange={(v) => setForm(prev => ({ ...prev, half_day_type: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Select half day period" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="first_half">First Half</SelectItem>
-                        <SelectItem value="second_half">Second Half</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {form.duration_type === "multiple_days" && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs">From Date *</Label>
-                      <Input type="date" value={form.from_date} onChange={(e) => setForm({ ...form, from_date: e.target.value })} />
-                    </div>
-                    <div>
-                      <Label className="text-xs">To Date *</Label>
-                      <Input type="date" value={form.to_date} min={form.from_date || undefined} onChange={(e) => setForm({ ...form, to_date: e.target.value })} />
-                    </div>
-                    {form.from_date && form.to_date && (
-                      <div className="col-span-2">
-                        <p className="text-xs text-muted-foreground">
-                          Total Days: <span className="font-semibold text-foreground">{Math.max(1, Math.ceil((new Date(form.to_date).getTime() - new Date(form.from_date).getTime()) / 86400000) + 1)}</span>
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {form.duration_type === "hour_based" && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs">Start Time</Label>
-                      <Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
-                    </div>
-                    <div>
-                      <Label className="text-xs">End Time</Label>
-                      <Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
-                    </div>
-                  </div>
-                )}
-              </CollapsibleContent>
-            </Collapsible>
-            <Button className="w-full" onClick={handleSave} disabled={saving || (cfgRequireActivityType && !form.activity_type) || (form.activity_type.trim().toLowerCase() === "other" && !form.custom_activity_name.trim()) || isFinalizing || isRecording}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {saving ? "Saving..." : editingId ? "Update Activity" : "Log Activity"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
 
       {/* Add New Site Dialog */}
@@ -1572,20 +1058,8 @@ export default function Activities() {
         </DialogContent>
       </Dialog>
 
-      {/* Activity Details Dialog */}
-      <ActivityDetailsDialog
-        activity={detailsActivity}
-        open={!!detailsActivity}
-        onClose={() => setDetailsActivity(null)}
-        onSavePhotos={async (photos) => {
-          if (!detailsActivity) return;
-          await updateActivity(detailsActivity.id, { photo_urls: photos });
-          setDetailsActivity({ ...detailsActivity, photo_urls: photos });
-          fetchActivities();
-        }}
-        onEdit={handleOpenEdit}
-        onDelete={handleDelete}
-      />
+
+
 
       {/* Receive Goods (GRN) Dialog */}
       {receivePoId && (
