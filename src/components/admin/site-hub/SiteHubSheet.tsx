@@ -28,8 +28,9 @@ import SiteGallery from "@/components/admin/site-hub/SiteGallery";
 import SiteDocuments from "@/components/admin/site-hub/SiteDocuments";
 import SiteMilestoneList from "@/components/admin/site-hub/SiteMilestoneList";
 import SiteActivityList from "@/components/admin/site-hub/SiteActivityList";
-import ActivityDetailsDialog from "@/components/activities/ActivityDetailsDialog";
+import { useNavigate } from "react-router-dom";
 import type { Activity } from "@/hooks/useActivities";
+
 
 export interface HubSite {
   id: string;
