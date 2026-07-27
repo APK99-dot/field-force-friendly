@@ -1,102 +1,58 @@
-# Full Salesforce Lightning Redesign — Procurement Module
+## Procurement Detail — header, stepper, and audit trail fixes
 
-The current Lightning toggle only restyled the outer header. This plan extends the SLDS-inspired treatment across every Procurement surface so the entire module feels like a Salesforce Lightning app when the toggle is on. No business logic, data, permissions, or navigation changes — pure UI.
+Three targeted fixes in `src/components/procurement/ProcurementDetail.tsx` (plus a small tweak in `src/components/procurement/lightning/LightningShell.tsx` and `src/index.css` for path styling). No business logic, permissions, or data model changes.
 
-## Scope (all screens)
+### 1) Site & Vendor empty in the Lightning record header — bug fix
 
-1. **Procurement list** (`src/pages/Procurement.tsx`)
-2. **Procurement detail** (`src/components/procurement/ProcurementDetail.tsx`) — the largest surface
-3. **Vendor 360°** (`src/pages/VendorDetail.tsx`)
-4. **Vendors list** (`src/pages/Vendors.tsx`) — for consistency when navigating from Vendor 360
-5. **Supporting dialogs** rendered inside the above: `GRNForm`, `GRNDetail`, `InvoiceForm`, `ReceiveGoodsDialog`, `OpenGRNPicker`, `SalesforceImportDialog`, `SalesforceBulkImportDialog`, `VendorRating`
+`vendorName` and `siteName` are **functions** (`(id) => string`) passed in as props, but the Lightning `HighlightsPanel` is currently using them as if they were strings (`siteName || "—"`, `vendorName || "—"`), which always renders a truthy function reference and then falls back to empty when React coerces it.
 
-Out of scope: GRN standalone page (`pages/GRN.tsx`) and non-procurement modules stay classic.
+Fix in the `HighlightsPanel` fields block (~line 1408–1416):
 
-## Design system additions (`src/index.css`, `.lightning-ui` scope)
+- `subtitle`: resolve to `vendorName(order.vendor_id) || siteName(order.site_id) || order.requisition_name`.
+- `Site`: `siteName(order.site_id) || "—"` — for internal transfers, show `From → To` using `transfer_from_site_id` and `site_id`.
+- `Vendor`: use the derived finalized/summary vendor list already computed in the component (`summaryVendorIds` / `vendorSummaries`) so it reflects post-approval assignments; fall back to `order.vendor_id`. For internal transfers, render `—` (no vendor concept).
+- Also add `Requisition #` and `Owner` (created-by name) as fields, matching Salesforce highlights.
 
-Extend the existing `.lightning-ui` layer with the SLDS primitives we still need:
+### 2) Stepper labels getting truncated
 
-- **App-level chrome**: subtle grey app background (`#f3f3f3`), white record surface, 1px `#dddbda` borders, 2px radius, SLDS shadow ramp.
-- **Typography**: 13px base, 11px uppercase labels with 0.05em tracking, `#080707` headings, `#3e3e3c` body, `#706e6b` meta.
-- **Record header** (`sf-record-header`): compact 2-row layout — object icon tile + eyebrow/title/subtitle, right-aligned action cluster, followed by inline field row with vertical dividers.
-- **Path bar** (already added): tighten chevron sizing, add hover, "Mark Status as Complete" affordance stays classic (still driven by existing Advance button).
-- **Related lists** (`sf-related-list`): card with header strip (icon + title + count + "View All"), dense table (32px rows, 11px header caps, hover row, zebra optional), inline row actions dropdown.
-- **Tabs** (`sf-tabs`): underline tabs in SLDS blue (`#0176d3`), 40px tall, sticky under the header when scrolling.
-- **Buttons**: brand (`#0176d3` bg / white text), neutral (white / border / `#0176d3` text), destructive (`#ba0517`). Height 32px, radius 4px.
-- **Badges/pills** (`sf-badge`): neutral grey by default; success/warning/error/info variants that map to existing status colors without changing hues drastically.
-- **Modals/dialogs** (`sf-modal`): white header strip with object icon + title, footer bar with right-aligned actions, `#f3f3f3` body.
-- **Toasts**: leave shadcn as-is (out of scope), but ensure they render above the SLDS surface.
-- **Dark mode**: keep classic behavior. Lightning styles apply in light mode only; when the user is in dark mode we still render `.lightning-ui` but map neutrals to a dark SLDS palette (surface `#1b1b1b`, border `#3e3e3c`).
+Root cause: desktop chip column is locked to `max-w-[110px]` with `whitespace-nowrap`, so "Requisition Approved" and "Invoice Received" clip.
 
-All tokens live under `.lightning-ui` so classic mode is untouched.
+Changes to the desktop horizontal stepper (classic mode, ~line 1452–1471):
 
-## New shared components (`src/components/procurement/lightning/`)
+- Drop `max-w-[110px]` and `whitespace-nowrap` on the chip; allow the chip to size to its content with `px-2.5 py-1`.
+- Make the row horizontally scrollable on smaller desktops (`overflow-x-auto`) so long lifecycles never wrap awkwardly.
+- Increase per-step column min width to fit meta lines (`min-w-[132px]`).
 
-Additive, opt-in via `isLightning(mode)`:
+For Lightning mode, update `.sf-path` in `src/index.css` and `PathBar` in `LightningShell.tsx` so each chevron step:
 
-- `RecordHeader.tsx` — replaces the ad-hoc header we added; renders object icon, eyebrow, title, subtitle, inline field row, action cluster, and a slot for the `PathBar` directly beneath.
-- `RelatedList.tsx` — wraps a titled card with count, optional "New"/"View All" actions, and children (table or empty state).
-- `SldsTable.tsx` — thin wrapper over shadcn `Table` that applies dense SLDS classes (used inside RelatedList).
-- `SldsTabs.tsx` — wraps shadcn `Tabs` with SLDS underline styling and sticky top offset.
-- `SldsDialog.tsx` — wraps shadcn `Dialog` with SLDS header/footer chrome; existing dialogs opt in by swapping their outer wrapper when `isLightning`.
+- Uses `white-space: nowrap` on the label but allows the strip to horizontally scroll on narrow widths.
+- Reserves enough padding for the longest SLDS-style label.
 
-Each component falls back to today's classic markup when the mode is off, so we can wrap render blocks with a single conditional per file.
+Mobile vertical timeline already wraps correctly — no change.
 
-## Per-screen changes
+### 3) Complete audit trail (who / when / remarks) — full timeline section
 
-### Procurement list (`Procurement.tsx`)
-- Wrap in `sf-app-surface` when Lightning is on.
-- Replace current header row with `RecordHeader` (icon = ShoppingCart, title = "Procurement", subtitle = "<count> orders", actions = New Requisition + Salesforce Import + Lightning toggle).
-- Filter/search bar becomes an SLDS "list view controls" strip (white, bordered, dense).
-- Card grid becomes an SLDS list view table on desktop (dense rows, columns: PR #, Status pill, Site, Owner, Amount, Updated, row actions). Keep the current card layout on mobile so the responsive story survives.
+Today only `historyByStatus` (latest entry per status) is shown as tiny meta under each chip. Add a proper "Stage History" related list that surfaces every transition in chronological order, similar to Salesforce's activity/history related list.
 
-### Procurement detail (`ProcurementDetail.tsx`)
-This is the bulk of the work. In Lightning mode:
-- Swap the current dialog wrapper for `SldsDialog` (full-height on desktop, SLDS chrome).
-- Render `RecordHeader` with PO/TRF number, status badge, key fields (Site, Vendor summary, Grand Total, Owner, Created), and the existing action buttons (Advance, Revert, Download, Share).
-- Directly under, render `PathBar` using existing `stepFlow`/`stepIndex`.
-- Convert the body into `SldsTabs` with tabs: **Details**, **Vendor Comparison**, **Vendors** (per-vendor accordion dashboard), **GRNs**, **Invoices**, **Payments**, **Activity** (audit trail). Each tab body uses `RelatedList` cards.
-- The vendor-centric accordion (finalized vendors with Quote/GRNs/Invoices/Financials/Audit sub-sections) stays intact — it just moves inside the "Vendors" tab and each sub-section becomes an SLDS related list card.
-- All existing handlers, automation, and gating (`computeAutoTarget`, quote versioning, rate-source logic, permission checks) are reused unchanged.
-- Mobile: tabs stack; header collapses; PathBar switches to the existing vertical timeline component.
+Add a new **Stage History** card rendered directly under the stepper in both classic and Lightning modes:
 
-### Vendor 360° (`VendorDetail.tsx`)
-- Wrap in `LightningShell` + `sf-app-surface` (finish the pending edit).
-- `RecordHeader` with vendor icon, name, status badge, performance flag, key fields (Category, Payment terms, Total spend, Open POs, Rating).
-- Convert existing tabs to `SldsTabs`; each tab body wrapped in `RelatedList` cards (Requisitions, Quotations, POs, GRNs, Invoices, Payments, Documents, Performance).
-- Cards inside tabs become dense SLDS tables with the existing click-through navigation preserved.
+- Iterates the full `stageHistory` array (already loaded from `order.stage_history`), sorted ascending by `moved_at`.
+- One row per transition showing:
+  - Status badge (using `statusColor`)
+  - Actor: `moved_by_name` — with a small "System" pill when `auto === true`
+  - Date + time: `moved_at` formatted as `dd MMM yyyy, HH:mm` (locale `en-GB`)
+  - Remarks: `note` (if any), rendered in italic muted text
+- Empty state: "No stage transitions recorded yet." when the array is empty.
+- In Lightning mode wrap in the SLDS related-list card styling (`sf-related-list`), matching the other tabs.
 
-### Vendors list (`Vendors.tsx`)
-- Same treatment as Procurement list: `RecordHeader`, SLDS list view controls, dense table on desktop, cards on mobile.
-- Add the same Lightning toggle in the header so users can flip modes from either entry point.
+The per-chip meta under the stepper stays (still useful glanceable info), but the full audit is now the source of truth beneath it.
 
-### Supporting dialogs
-- Wrap each in `SldsDialog` when `isLightning`. Content grids inside (form rows, tables) reuse `SldsTable` where applicable.
-- No field logic, validation, or submit flow changes.
+### Files touched
 
-## Toggle & persistence
-- `useUiMode` already persists per-browser under `bb.ui.procurement`. Reuse as-is.
-- Add a small "Lightning" toggle in the Vendors list header too (Procurement list and detail already have one).
+- `src/components/procurement/ProcurementDetail.tsx` — fix HighlightsPanel field values, widen desktop stepper chips, add Stage History card component + render.
+- `src/components/procurement/lightning/LightningShell.tsx` — minor `PathBar` markup tweak to prevent label clipping.
+- `src/index.css` — extend `.sf-path` / `.sf-path-step` under `.lightning-ui` for nowrap + horizontal scroll.
 
-## Not changing
-- Business logic, edge functions, DB schema, RLS, permissions, automation, computeAutoTarget, quote versioning, status flows, notifications, PDF/WhatsApp share.
-- Navigation routes, deep-link query params, keyboard shortcuts.
-- Classic mode — every surface renders exactly as today when the toggle is off.
+### Not changing
 
-## Technical notes
-- All conditional rendering is `isLightning(mode) ? <Lightning …/> : <Classic …/>` at the top of each render block; no prop-drilling of the mode past one level.
-- CSS additions live under `.lightning-ui` — no risk of leaking into other modules.
-- No new dependencies.
-- Files touched (approx.):
-  - `src/index.css` (extend `.lightning-ui`)
-  - `src/components/procurement/lightning/{RecordHeader,RelatedList,SldsTable,SldsTabs,SldsDialog}.tsx` (new)
-  - `src/pages/Procurement.tsx`
-  - `src/pages/Vendors.tsx`
-  - `src/pages/VendorDetail.tsx`
-  - `src/components/procurement/ProcurementDetail.tsx`
-  - Light wrapper swaps in `GRNForm.tsx`, `GRNDetail.tsx`, `InvoiceForm.tsx`, `ReceiveGoodsDialog.tsx`, `OpenGRNPicker.tsx`, `SalesforceImportDialog.tsx`, `SalesforceBulkImportDialog.tsx`
-
-## Rollout
-1. Land CSS tokens + new shared Lightning components.
-2. Migrate Procurement list → detail → Vendor 360 → Vendors list → supporting dialogs, in that order.
-3. Manual QA in both modes at each step to confirm classic UI is unchanged.
+- `stage_history` schema, how transitions are recorded, `computeAutoTarget`, permissions, PDF/WhatsApp share, or any other workflow. This is presentation-only.

@@ -382,8 +382,8 @@
   box-shadow: var(--sf-shadow);
 }
 .lightning-ui .sf-path-step {
-  flex: 1 1 0;
-  min-width: 120px;
+  flex: 1 1 auto;
+  min-width: 160px;
   position: relative;
   padding: 10px 22px 10px 30px;
   background: #ecebea;
@@ -410,8 +410,7 @@
 }
 .lightning-ui .sf-path-label {
   display: inline-block;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* =========================================================================

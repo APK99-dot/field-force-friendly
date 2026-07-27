@@ -1399,25 +1399,41 @@ export default function ProcurementDetail({
         </DialogHeader>
 
         <div className="space-y-4 py-4 px-6 lg:px-8 overflow-y-auto flex-1 w-full 2xl:max-w-[98vw] 2xl:mx-auto">
-          {lightning && (
-            <>
-              <HighlightsPanel
-                icon={<FileText className="h-5 w-5" />}
-                eyebrow={isTransfer ? "Internal Transfer" : "Purchase Order"}
-                title={order.po_number || (isTransfer ? "(No TRF #)" : "(No PO #)")}
-                subtitle={(order as any).requisition_name || vendorName || siteName}
-                fields={[
-                  { label: "Status", value: order.status },
-                  { label: "Site", value: siteName || "—" },
-                  { label: "Vendor", value: vendorName || "—" },
-                  { label: "Order Date", value: order.order_date ? new Date(order.order_date).toLocaleDateString("en-GB") : "—" },
-                  { label: "Amount", value: fmtAmt(Number((order as any).total_amount || 0)) },
-                  { label: "Payment Terms", value: (order as any).payment_terms || "—" },
-                ]}
-              />
-              <PathBar steps={stepFlow} currentIndex={stepIndex} />
-            </>
-          )}
+          {lightning && (() => {
+            const resolvedSite = isTransfer
+              ? [siteName(order.transfer_from_site_id), siteName(order.site_id)].filter(Boolean).join(" → ") || "—"
+              : (siteName(order.site_id) || "—");
+            const vendorNamesFromSummaries = (vendorSummaries || [])
+              .map((v: any) => vendorName(v.vendor_id))
+              .filter(Boolean);
+            const resolvedVendor = isTransfer
+              ? "—"
+              : (vendorNamesFromSummaries.length
+                  ? (vendorNamesFromSummaries.length > 2
+                      ? `${vendorNamesFromSummaries.slice(0, 2).join(", ")} +${vendorNamesFromSummaries.length - 2}`
+                      : vendorNamesFromSummaries.join(", "))
+                  : (vendorName(order.vendor_id) || "—"));
+            return (
+              <>
+                <HighlightsPanel
+                  icon={<FileText className="h-5 w-5" />}
+                  eyebrow={isTransfer ? "Internal Transfer" : "Purchase Order"}
+                  title={order.po_number || (isTransfer ? "(No TRF #)" : "(No PO #)")}
+                  subtitle={(order as any).requisition_name || resolvedVendor || resolvedSite}
+                  fields={[
+                    { label: "Status", value: order.status },
+                    { label: "Requisition #", value: (order as any).requisition_number || "—" },
+                    { label: "Site", value: resolvedSite },
+                    { label: "Vendor", value: resolvedVendor },
+                    { label: "Order Date", value: order.order_date ? new Date(order.order_date).toLocaleDateString("en-GB") : "—" },
+                    { label: "Amount", value: fmtAmt(Number((order as any).total_amount || 0)) },
+                    { label: "Payment Terms", value: (order as any).payment_terms || "—" },
+                  ]}
+                />
+                <PathBar steps={stepFlow} currentIndex={stepIndex} />
+              </>
+            );
+          })()}
           {/* Stepper + stage controls */}
           {order.status !== "Rejected" && (
             <div className="space-y-3">
@@ -1449,14 +1465,14 @@ export default function ProcurementDetail({
                   </ol>
 
                   {/* Desktop: horizontal chips */}
-                  <div className="hidden sm:flex items-start gap-1 flex-wrap pb-1">
+                  <div className="hidden sm:flex items-start gap-1 pb-1 overflow-x-auto">
                     {stepFlow.map((s, i) => {
                       const h = historyByStatus[s];
                       const when = h?.moved_at ? new Date(h.moved_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : null;
                       return (
                         <div key={s} className="flex items-start shrink-0">
-                          <div className="flex flex-col items-center gap-1 max-w-[110px]">
-                            <span className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
+                          <div className="flex flex-col items-center gap-1 min-w-[140px] px-1">
+                            <span className={`text-[10px] px-2.5 py-1 rounded-full whitespace-nowrap ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
                             {i <= stepIndex && h && (
                               <span className="text-[9px] text-muted-foreground text-center leading-tight">
                                 {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
@@ -1464,7 +1480,7 @@ export default function ProcurementDetail({
                               </span>
                             )}
                           </div>
-                          {i < stepFlow.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground mt-1.5" />}
+                          {i < stepFlow.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground mt-1.5 shrink-0" />}
                         </div>
                       );
                     })}
@@ -1500,7 +1516,42 @@ export default function ProcurementDetail({
 
           )}
 
-
+          {/* Stage History — full audit trail */}
+          <Card>
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-semibold">Stage History</div>
+                <div className="text-[11px] text-muted-foreground">{stageHistory.length} {stageHistory.length === 1 ? "entry" : "entries"}</div>
+              </div>
+              {stageHistory.length === 0 ? (
+                <div className="text-xs text-muted-foreground italic py-2">No stage transitions recorded yet.</div>
+              ) : (
+                <ol className="space-y-2">
+                  {[...stageHistory]
+                    .sort((a, b) => new Date(a.moved_at).getTime() - new Date(b.moved_at).getTime())
+                    .map((h, idx) => {
+                      const dt = h.moved_at ? new Date(h.moved_at) : null;
+                      const when = dt && !isNaN(dt.getTime())
+                        ? dt.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+                        : "—";
+                      return (
+                        <li key={idx} className="flex flex-wrap items-start gap-2 text-xs border-b last:border-b-0 pb-2 last:pb-0">
+                          <Badge variant="outline" className={`text-[10px] ${statusColor(h.status)}`}>{h.status}</Badge>
+                          <span className="text-foreground font-medium">{h.moved_by_name || "—"}</span>
+                          {h.auto && (
+                            <span className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">System</span>
+                          )}
+                          <span className="text-muted-foreground ml-auto">{when}</span>
+                          {h.note && (
+                            <div className="w-full text-[11px] text-muted-foreground italic pl-1">"{h.note}"</div>
+                          )}
+                        </li>
+                      );
+                    })}
+                </ol>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Header info */}
           <Card>
