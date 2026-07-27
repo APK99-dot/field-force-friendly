@@ -30,6 +30,8 @@ import GRNDetail from "./GRNDetail";
 
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 import { resolveInvoiceFileUrl } from "@/utils/invoiceAttachments";
+import { useUiMode, isLightning } from "@/hooks/useUiMode";
+import { HighlightsPanel, PathBar } from "@/components/procurement/lightning/LightningShell";
 
 export interface StageHistoryEntry {
   status: string;
@@ -185,6 +187,8 @@ export default function ProcurementDetail({
   const procCfg = useModuleConfig("procurement");
   const canEditRatesPostApproval = procCfg.canDo("editRatesAfterApproval");
   const { profile: currentProfile, isAdmin } = useUserProfile();
+  const [uiMode] = useUiMode();
+  const lightning = isLightning(uiMode);
   const [grns, setGrns] = useState<GrnRow[]>([]);
   const [grnItems, setGrnItems] = useState<GrnItemRow[]>([]);
   const [invoices, setInvoices] = useState<InvRow[]>([]);
@@ -1385,7 +1389,7 @@ export default function ProcurementDetail({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col">
+      <DialogContent className={`max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col ${lightning ? "lightning-ui" : ""}`}>
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             {order.po_number || (isTransfer ? "(No TRF #)" : "(No PO #)")}
@@ -1395,6 +1399,25 @@ export default function ProcurementDetail({
         </DialogHeader>
 
         <div className="space-y-4 py-4 px-6 lg:px-8 overflow-y-auto flex-1 w-full 2xl:max-w-[98vw] 2xl:mx-auto">
+          {lightning && (
+            <>
+              <HighlightsPanel
+                icon={<FileText className="h-5 w-5" />}
+                eyebrow={isTransfer ? "Internal Transfer" : "Purchase Order"}
+                title={order.po_number || (isTransfer ? "(No TRF #)" : "(No PO #)")}
+                subtitle={(order as any).requisition_name || vendorName || siteName}
+                fields={[
+                  { label: "Status", value: order.status },
+                  { label: "Site", value: siteName || "—" },
+                  { label: "Vendor", value: vendorName || "—" },
+                  { label: "Order Date", value: order.order_date ? new Date(order.order_date).toLocaleDateString("en-GB") : "—" },
+                  { label: "Amount", value: fmtAmt(Number((order as any).total_amount || 0)) },
+                  { label: "Payment Terms", value: (order as any).payment_terms || "—" },
+                ]}
+              />
+              <PathBar steps={stepFlow} currentIndex={stepIndex} />
+            </>
+          )}
           {/* Stepper + stage controls */}
           {order.status !== "Rejected" && (
             <div className="space-y-3">

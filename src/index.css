@@ -203,3 +203,214 @@
     background-color: hsl(var(--muted-foreground) / 0.5);
   }
 }
+
+/* =========================================================================
+   Salesforce Lightning UI layer (scoped under .lightning-ui)
+   Hybrid theme: keeps Navy brand primary, borrows SLDS neutrals + density.
+   ========================================================================= */
+.lightning-ui {
+  --sf-surface: #ffffff;
+  --sf-surface-alt: #f3f3f3;
+  --sf-surface-shell: #f3f2f2;
+  --sf-border: #e5e5e5;
+  --sf-border-strong: #c9c9c9;
+  --sf-text: #181818;
+  --sf-text-weak: #706e6b;
+  --sf-link: #0176d3;
+  --sf-success: #2e844a;
+  --sf-warning: #dd7a01;
+  --sf-error: #ba0517;
+  --sf-radius: 4px;
+  --sf-shadow: 0 2px 2px rgba(0, 0, 0, 0.05);
+  font-family: "Salesforce Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Inter, system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--sf-text);
+  background: var(--sf-surface-shell);
+  min-height: 100%;
+}
+
+/* Cards → Lightning "region" panels */
+.lightning-ui [class*="rounded-lg border bg-card"],
+.lightning-ui .sf-card {
+  background: var(--sf-surface);
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius);
+  box-shadow: var(--sf-shadow);
+}
+
+/* Headings tighter */
+.lightning-ui h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.lightning-ui h2 { font-size: 15px; font-weight: 700; }
+.lightning-ui h3 { font-size: 14px; font-weight: 600; }
+
+/* Tables: denser, thin borders */
+.lightning-ui table { font-size: 12px; }
+.lightning-ui thead th {
+  background: var(--sf-surface-alt);
+  color: var(--sf-text-weak);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+  border-bottom: 1px solid var(--sf-border);
+}
+.lightning-ui tbody tr { border-bottom: 1px solid var(--sf-border); }
+.lightning-ui tbody tr:hover { background: #fafaf9; }
+
+/* Tabs: underline style */
+.lightning-ui [role="tablist"] {
+  background: transparent;
+  border-bottom: 1px solid var(--sf-border);
+  border-radius: 0;
+  gap: 0;
+  padding: 0;
+  height: auto;
+}
+.lightning-ui [role="tab"] {
+  background: transparent !important;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--sf-text-weak);
+  font-size: 13px;
+  padding: 8px 14px;
+  box-shadow: none !important;
+}
+.lightning-ui [role="tab"][data-state="active"] {
+  color: var(--sf-link);
+  border-bottom-color: var(--sf-link);
+  background: transparent !important;
+}
+
+/* Badges: SLDS pill shape */
+.lightning-ui .badge,
+.lightning-ui [class*="inline-flex items-center rounded"] {
+  border-radius: 12px;
+}
+
+/* Buttons: keep sizing but flatten shadow */
+.lightning-ui button {
+  box-shadow: none;
+}
+
+/* Inputs */
+.lightning-ui input,
+.lightning-ui textarea,
+.lightning-ui select {
+  background: var(--sf-surface);
+  border-color: var(--sf-border-strong);
+  border-radius: var(--sf-radius);
+}
+
+/* Dialog full-screen sheet: soft shell tint so panels pop */
+.lightning-ui [role="dialog"] > div:not([role]) { background: var(--sf-surface-shell); }
+
+/* ---- Highlights Panel ---- */
+.lightning-ui .sf-highlights {
+  background: var(--sf-surface);
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius);
+  padding: 14px 18px;
+  box-shadow: var(--sf-shadow);
+}
+.lightning-ui .sf-object-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: var(--sf-link);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.lightning-ui .sf-eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sf-text-weak);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.lightning-ui .sf-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--sf-text);
+}
+.lightning-ui .sf-subtitle {
+  font-size: 12px;
+  color: var(--sf-text-weak);
+  margin-top: 2px;
+}
+.lightning-ui .sf-field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--sf-border);
+}
+@media (min-width: 640px) {
+  .lightning-ui .sf-field-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .lightning-ui .sf-field-row { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+.lightning-ui .sf-field-label {
+  font-size: 11px;
+  color: var(--sf-text-weak);
+  margin-bottom: 2px;
+}
+.lightning-ui .sf-field-value {
+  font-size: 13px;
+  color: var(--sf-text);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+/* ---- Path (chevron stage bar) ---- */
+.lightning-ui .sf-path {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-x: auto;
+  border-radius: var(--sf-radius);
+  background: var(--sf-surface);
+  border: 1px solid var(--sf-border);
+  box-shadow: var(--sf-shadow);
+}
+.lightning-ui .sf-path-step {
+  flex: 1 1 0;
+  min-width: 120px;
+  position: relative;
+  padding: 10px 22px 10px 30px;
+  background: #ecebea;
+  color: var(--sf-text-weak);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%);
+}
+.lightning-ui .sf-path-step:first-child {
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%);
+  padding-left: 18px;
+}
+.lightning-ui .sf-path-step:last-child {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 14px 50%);
+}
+.lightning-ui .sf-path-done {
+  background: #cfe3d4;
+  color: #194e2b;
+}
+.lightning-ui .sf-path-current {
+  background: var(--sf-link);
+  color: #fff;
+}
+.lightning-ui .sf-path-label {
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+

@@ -21,6 +21,37 @@ import {
 } from "lucide-react";
 import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
 import { resolveInvoiceFileUrl } from "@/utils/invoiceAttachments";
+import { LightningShell, LightningToggle, HighlightsPanel } from "@/components/procurement/lightning/LightningShell";
+import { useUiMode, isLightning } from "@/hooks/useUiMode";
+
+function VendorHeaderBar({ vendor, flag }: { vendor: any; flag: { className: string; emoji: string; label: string } }) {
+  const [uiMode] = useUiMode();
+  if (isLightning(uiMode)) {
+    return (
+      <HighlightsPanel
+        icon={<Briefcase className="h-5 w-5" />}
+        eyebrow="Vendor"
+        title={vendor.name}
+        subtitle={[vendor.city, vendor.state].filter(Boolean).join(", ") || undefined}
+        fields={[
+          { label: "Status", value: <Badge variant="outline" className={`text-[10px] ${statusColor(vendor.status)}`}>{vendor.status}</Badge> },
+          { label: "Rating", value: <span>{flag.emoji} {flag.label}</span> },
+          { label: "Phone", value: vendor.phone?.[0] || "—" },
+          { label: "Email", value: vendor.email?.[0] || "—" },
+          { label: "GSTIN", value: vendor.gstin || "—" },
+          { label: "PAN", value: vendor.pan || "—" },
+        ]}
+      />
+    );
+  }
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <h1 className="text-xl font-bold">{vendor.name}</h1>
+      <Badge variant="outline" className={`text-xs ${statusColor(vendor.status)}`}>{vendor.status}</Badge>
+      <Badge variant="outline" className={`text-[10px] ${flag.className}`}>{flag.emoji} {flag.label}</Badge>
+    </div>
+  );
+}
 
 function toStringArray(val: any): string[] {
   if (Array.isArray(val)) return val.map(String).filter(Boolean);
@@ -321,16 +352,16 @@ export default function VendorDetail() {
   const pos = (orders as any[]).filter((o) => !!o.po_number);
 
   return (
+    <LightningShell>
     <motion.div className="space-y-4 p-4 pb-24 max-w-5xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <Button variant="ghost" size="sm" className="gap-1.5 -ml-2" onClick={() => navigate("/vendors")}>
-        <ArrowLeft className="h-4 w-4" /> Back to Vendor Management
-      </Button>
-
-      <div className="flex items-center gap-2 flex-wrap">
-        <h1 className="text-xl font-bold">{vendor.name}</h1>
-        <Badge variant="outline" className={`text-xs ${statusColor(vendor.status)}`}>{vendor.status}</Badge>
-        <Badge variant="outline" className={`text-[10px] ${flag.className}`}>{flag.emoji} {flag.label}</Badge>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <Button variant="ghost" size="sm" className="gap-1.5 -ml-2" onClick={() => navigate("/vendors")}>
+          <ArrowLeft className="h-4 w-4" /> Back to Vendor Management
+        </Button>
+        <LightningToggle />
       </div>
+
+      <VendorHeaderBar vendor={vendor} flag={flag} />
 
       <div className="flex gap-2">
         {vendor.phone[0] && (
@@ -348,6 +379,7 @@ export default function VendorDetail() {
           </a>
         )}
       </div>
+
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="w-full h-auto flex-wrap justify-start gap-1">
@@ -655,5 +687,6 @@ export default function VendorDetail() {
         </div>
       )}
     </motion.div>
+    </LightningShell>
   );
 }

@@ -1,69 +1,106 @@
+# Salesforce Lightning Redesign – Procurement Module
 
-# Extend the backup mirror to GPS, Activity, Site and Procurement tables
+Rework the Procurement list, Procurement detail, and Vendor 360° pages to look and feel like Salesforce Lightning record pages while preserving every existing workflow, data operation, and permission check. Ships behind a per-user toggle so users can switch back to the current UI.
 
-Purely additive: the existing six mirrored tables, their watermarks, the edge function's sync logic, and the two cron jobs stay exactly as they are. No business logic, triggers, or app code is touched.
+## Goals
 
-## Tables to add (21)
+- Adopt Lightning's visual grammar: Highlights Panel header, Path (stage bar), Related-lists-as-tabs, compact utility bar.
+- Keep all existing business logic, RPCs, mutations, status automation, geofencing, vendor comparison math, and DB schema untouched.
+- Hybrid theme: current Navy & Gold brand tokens for primary/accent; borrow Lightning's neutral surfaces, borders, and typography scale for structure.
 
-Verified against the live schema, with row counts and the change key each one can use.
+## Scope
 
-**GPS**
-| Table | Rows | Change key | Mode |
-|---|---|---|---|
-| gps_tracking | 355 | `timestamp` | incremental (append-only) |
-| gps_tracking_stops | 0 | `timestamp` | incremental |
+Redesigned:
+- `src/pages/Procurement.tsx` (list)
+- `src/components/procurement/ProcurementDetail.tsx` (detail)
+- `src/pages/VendorDetail.tsx` (vendor 360°)
 
-**Activity module**
-| Table | Rows | Change key | Mode |
-|---|---|---|---|
-| activity_events | 21 | `created_at` | full refresh |
-| activity_types_master | 10 | `created_at` | full refresh |
+Not changed: schema, edge functions, hooks, GRN/Invoice/Payment forms internals, permissions, routes.
 
-**Sites**
-| Table | Rows | Change key | Mode |
-|---|---|---|---|
-| project_sites | 4 | `updated_at` | incremental |
-| site_milestones | 8 | `updated_at` | incremental |
-| site_milestone_comments | 3 | `updated_at` | incremental |
-| site_files | 1 | `updated_at` | incremental |
-| site_assignments | 3 | `assigned_at` | full refresh |
+## UX Blueprint
 
-**Procurement (all 13 `procurement_*` tables)**
-| Table | Rows | Change key | Mode |
-|---|---|---|---|
-| procurement_orders | 30 | `updated_at` | incremental |
-| procurement_items | 88 | `updated_at` | incremental |
-| procurement_vendor_quotes | 48 | `updated_at` | incremental |
-| procurement_vendor_quote_items | 82 | `updated_at` | incremental |
-| procurement_vendor_feedback | 6 | `updated_at` | incremental |
-| procurement_grns | 9 | `updated_at` | incremental |
-| procurement_grn_items | 12 | `updated_at` | incremental |
-| procurement_invoices | 18 | `updated_at` | incremental |
-| procurement_invoice_items | 5 | `created_at` | full refresh |
-| procurement_invoice_payments | 20 | `created_at` | full refresh |
-| procurement_invoice_attachments | 0 | `created_at` | full refresh |
-| procurement_attachments | 0 | `created_at` | full refresh |
-| procurement_import_runs | 1 | `started_at` | full refresh |
+### 1. List page — "Requisitions" object home
+```text
+┌ Utility bar: object icon + title "Requisitions" · count · New button ─────────┐
+│ List view selector ▼   Search   Filters   Sort   Refresh   Kanban/Table view │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Row: REQ# · Title · Site · Owner · Amount · Stage pill · Age · Actions ▾     │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+- Compact Lightning-density rows (desktop table, mobile cards preserved).
+- Stage pill uses SLDS-style rounded chip with our Navy accents.
+- Kept: search, all filters, pending-only, TRF vs vendor differentiation, KPIs (moved into a slim strip above table).
 
-### Why two modes
-Several of these tables have no `updated_at` column, so a watermark on `created_at` would silently miss later edits (an activity's status change, for example, would never reach the mirror). Every such table is tiny (≤ 21 rows today), so they are marked **full refresh**: each run re-reads all rows and upserts them by primary key. Cost is negligible and correctness is guaranteed. Tables that do have `updated_at`, plus the append-only GPS tables, stay on the existing efficient watermark path.
+### 2. Detail page — Lightning record page
+```text
+┌ Highlights Panel ────────────────────────────────────────────────────────────┐
+│ [icon] REQ-0026  Rmx Concrete India                    [Advance] [More ▾]    │
+│ Site · Owner · Created · Amount · Payment status  · Bill To · Ship To        │
+├─ Path (stage bar) ───────────────────────────────────────────────────────────┤
+│ ● Requisition → ● Approved → ○ Quote Requested → ○ … → ○ Closed              │
+├─ Tabs: Details | Vendor Comparison | GRNs | Invoices | Payments | Activity ─┤
+│ Two-column field grid, inline-edit where allowed today (delivery date,       │
+│ payment terms, rates once unlocked).                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+- Vendor accordion → **Related tab per topic**; each tab shows the current accordion body as a Lightning related list with row-level actions.
+- Mobile: tabs collapse into a horizontal scroller; Path becomes vertical timeline (reuse existing).
+- All current actions (Advance, Revert, Record Payment, Receive Goods, Add Invoice, Reopen quote, WhatsApp share, PDF) stay — repositioned into Highlights Panel button group + row overflow menus.
 
-## Work items
+### 3. Vendor 360° — Lightning record page
+- Same Highlights + Path-less header; tabs: Overview, Requisitions, Quotations, POs, GRNs, Invoices, Payments, Documents, Performance (current tabs).
+- Related lists restyled with SLDS row density; KPI tiles restyled as Lightning "report tiles".
 
-1. **New external-schema script** — `docs/external-backup-schema-phase2.sql`, same shape as the existing one: `create table if not exists public.builders_<name>` mirroring the source columns, `add column if not exists` guards, RLS enabled with no policies, `grant all ... to service_role`. You run this once in the external project's SQL editor. The original script is left untouched.
+## Design tokens (hybrid)
 
-2. **Edge function `backup-mirror`** — extend the `TABLES` allowlist with the 21 entries above (explicit column allowlists, as today) and add an optional `mode: "full"` flag per spec. Full-refresh tables ignore the watermark and page through everything each run. Existing entries and the sync/audit/watermark machinery are unchanged.
+Add a scoped token layer in `src/index.css` under `.lightning-ui` class (only applied when toggle is on):
+- Surfaces: `--sf-surface: #fff`, `--sf-surface-alt: #f3f3f3`, `--sf-border: #e5e5e5`.
+- Text: `--sf-text: #181818`, `--sf-text-weak: #706e6b`.
+- Accent (hybrid): primary/link use existing Navy; success/warn/error keep SLDS semantics.
+- Typography: SF/Inter fallback stack, 13px base, 12px meta, 15/17px headings — matches Lightning density.
+- Radius: 4px cards, 12px pills.
+- Shadows: subtle `0 2px 2px rgba(0,0,0,.05)` on cards.
 
-3. **Cron** — no change needed. Both jobs already call the function with no table filter, so the new entries are picked up automatically on the 1:00 PM and 6:00 PM IST weekday runs.
+No hardcoded hexes in components — all via new CSS variables and Tailwind arbitrary values referencing them.
 
-4. **Backfill and verify** — after you confirm the SQL script has run, trigger a one-off `backfill`, then a `status` call comparing local vs external counts for all 27 tables.
+## Toggle mechanism
 
-## Notes
+- New user preference `ui_mode: 'classic' | 'lightning'` stored in `localStorage` (`bb.ui.procurement`).
+- Toggle in Procurement page header ("Lightning view" switch) + persisted per user.
+- Wrap the three redesigned pages in a `<LightningShell>` that applies the `.lightning-ui` class and swaps layout components; classic renders existing components unchanged.
 
-- Storage buckets (site photos, procurement attachments, activity photos) are **not** mirrored — only the database rows that reference them. Say the word if you want file mirroring too; that is a separate, larger piece of work.
-- `gps_tracking` is the only table with meaningful growth. It is append-only and paged at 500 rows, so incremental runs stay cheap.
-- Direction stays strictly one-way: this project → external project.
+## New files
 
-## Your one manual step
+- `src/components/procurement/lightning/HighlightsPanel.tsx`
+- `src/components/procurement/lightning/PathBar.tsx`
+- `src/components/procurement/lightning/RelatedTabs.tsx`
+- `src/components/procurement/lightning/ListShell.tsx`
+- `src/components/procurement/lightning/RecordField.tsx` (label + value + inline-edit slot)
+- `src/hooks/useUiMode.ts`
+- Token additions in `src/index.css`
 
-Run `docs/external-backup-schema-phase2.sql` in the external project's SQL editor once the file is created, then tell me and I will run the backfill and verification.
+## Changed files
+
+- `src/pages/Procurement.tsx` — render `ListShell` when Lightning mode; keep current tree otherwise.
+- `src/components/procurement/ProcurementDetail.tsx` — extract body sections (Vendor Comparison, GRNs, Invoices, Payments, Audit) into slots consumed either by current accordion (classic) or `RelatedTabs` (Lightning). No logic changes to handlers.
+- `src/pages/VendorDetail.tsx` — same slot extraction; Lightning shell wraps.
+
+## Preservation checklist (must remain identical)
+
+- Status automation (`computeAutoTarget`), vendor rollups, ₹1 tolerance, geofencing.
+- Advance/Revert permissions, Record Payment flow, GRN → Invoice ordering rule, quote versioning.
+- Deep links (`?po=`, tab/vendor query params), search, filters, KPI values.
+- Salesforce import, PDF, WhatsApp share, attachments.
+- Mobile responsiveness parity or better.
+
+## Out of scope
+
+- No DB migrations, no edge function edits, no route changes, no permission changes.
+- No changes to GRN form, Invoice form, Payment form internals — only their container chrome.
+- Other modules (Activities, Attendance, etc.) untouched.
+
+## Verification
+
+- Toggle off → pixel-equivalent to current UI (regression check).
+- Toggle on → visual QA against provided Salesforce screenshots on desktop + mobile.
+- Smoke test each action: Advance, Revert, Assign vendor, Record Payment, Receive Goods, Add Invoice, Reopen quote, PDF, WhatsApp, deep-link from Vendor 360°.
