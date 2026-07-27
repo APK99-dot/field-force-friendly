@@ -5136,6 +5136,53 @@ export type Database = {
           },
         ]
       }
+      site_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number | null
+          id: string
+          kind: string
+          mime_type: string | null
+          site_id: string
+          storage_key: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size?: number | null
+          id?: string
+          kind: string
+          mime_type?: string | null
+          site_id: string
+          storage_key: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          site_id?: string
+          storage_key?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_files_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "project_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       site_milestone_comments: {
         Row: {
           content: string
