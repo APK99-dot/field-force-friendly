@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
 import { resolveInvoiceFileUrl } from "@/utils/invoiceAttachments";
+import { LightningShell, LightningToggle, HighlightsPanel } from "@/components/procurement/lightning/LightningShell";
+import { useUiMode, isLightning } from "@/hooks/useUiMode";
 
 function toStringArray(val: any): string[] {
   if (Array.isArray(val)) return val.map(String).filter(Boolean);
