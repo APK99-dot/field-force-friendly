@@ -404,33 +404,33 @@ export default function CreativeActivityForm({
   return (
     <TooltipProvider delayDuration={200}>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="p-0 gap-0 max-w-[520px] max-h-[92vh] overflow-hidden rounded-2xl border-0 shadow-2xl">
-          <div className="flex flex-col max-h-[92vh]">
+        <DialogContent className="p-0 gap-0 w-[calc(100vw-1rem)] sm:w-[min(640px,calc(100vw-2rem))] max-w-none max-h-[92vh] overflow-hidden rounded-2xl border-0 shadow-2xl">
+          <div className="flex min-w-0 max-w-full flex-col max-h-[92vh] overflow-hidden">
             {/* Header */}
-            <div className="relative px-5 py-4 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="relative px-4 sm:px-5 py-4 pr-12 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white flex items-center justify-between min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <div className="h-9 w-9 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
                   <Sparkles className="h-4 w-4" />
                 </div>
-                <div>
-                  <h2 className="text-base font-semibold leading-tight">{isEdit ? "Edit Post" : "New Post"}</h2>
-                  <p className="text-[11px] text-white/80">Share what's happening on the ground</p>
+                <div className="min-w-0">
+                  <h2 className="text-base font-semibold leading-tight truncate">{isEdit ? "Edit Post" : "New Post"}</h2>
+                  <p className="text-[11px] text-white/80 truncate">Share what's happening on the ground</p>
                 </div>
               </div>
             </div>
 
-            <div className="overflow-y-auto overflow-x-hidden flex-1 bg-muted/40 p-3 space-y-3 min-w-0">
+            <div className="overflow-y-auto overflow-x-hidden flex-1 bg-muted/40 p-3 sm:p-4 space-y-3 min-w-0 max-w-full">
               {/* Details panel — visible in edit/view */}
               {isEdit && editActivity && (
-                <div className="rounded-2xl bg-card border border-border px-4 py-3 shadow-sm space-y-3 overflow-hidden">
-                  <div className="flex items-start justify-between gap-2">
+                <div className="rounded-2xl bg-card border border-border px-3 sm:px-4 py-3 shadow-sm space-y-3 overflow-hidden min-w-0 max-w-full">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 min-w-0">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       {editActivity.activity_code && (
                         <Badge variant="secondary" className="font-mono text-[10px] shrink-0">{editActivity.activity_code}</Badge>
                       )}
-                      <span className="text-sm font-semibold truncate min-w-0">{editActivity.activity_name}</span>
+                      <span className="text-sm font-semibold min-w-0 break-words [overflow-wrap:anywhere]">{editActivity.activity_name}</span>
                     </div>
-                    <div className={cn("inline-flex items-center gap-1.5 px-2 h-6 rounded-full text-[10px] font-semibold uppercase tracking-wider border shrink-0 whitespace-nowrap",
+                    <div className={cn("inline-flex items-center gap-1.5 px-2 h-6 rounded-full text-[10px] font-semibold uppercase tracking-wider border shrink-0 whitespace-nowrap self-start max-w-full",
                       status === "completed" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900" :
                       status === "in_progress" ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900" :
                       "bg-muted text-muted-foreground border-border")}
@@ -440,30 +440,30 @@ export default function CreativeActivityForm({
                     </div>
                   </div>
                   {editActivity.user_full_name && (
-                    <p className="text-[11px] text-muted-foreground">By {editActivity.user_full_name}</p>
+                    <p className="text-[11px] text-muted-foreground break-words [overflow-wrap:anywhere]">By {editActivity.user_full_name}</p>
                   )}
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] min-w-0">
                     {editActivity.activity_date && (
-                      <div className="flex items-center gap-1.5 text-muted-foreground"><Calendar className="h-3 w-3" />{format(parseISO(editActivity.activity_date), "MMM d, yyyy")}</div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground min-w-0"><Calendar className="h-3 w-3 shrink-0" /><span className="min-w-0 break-words">{format(parseISO(editActivity.activity_date), "MMM d, yyyy")}</span></div>
                     )}
                     {editActivity.total_hours ? (
-                      <div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3 w-3" />{editActivity.total_hours}h</div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground min-w-0"><Clock className="h-3 w-3 shrink-0" /><span className="min-w-0 break-words">{editActivity.total_hours}h</span></div>
                     ) : null}
                     {editActivity.start_time && (
-                      <div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3 w-3" />Start {format(parseISO(editActivity.start_time), "h:mm a")}</div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground min-w-0"><Clock className="h-3 w-3 shrink-0" /><span className="min-w-0 break-words">Start {format(parseISO(editActivity.start_time), "h:mm a")}</span></div>
                     )}
                     {editActivity.end_time && (
-                      <div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3 w-3" />End {format(parseISO(editActivity.end_time), "h:mm a")}</div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground min-w-0"><Clock className="h-3 w-3 shrink-0" /><span className="min-w-0 break-words">End {format(parseISO(editActivity.end_time), "h:mm a")}</span></div>
                     )}
                   </div>
                   {editActivity.location_address && (
-                    <p className="text-[11px] flex items-start gap-1.5 text-muted-foreground"><MapPin className="h-3 w-3 mt-0.5 shrink-0" /><span className="min-w-0">{editActivity.location_address}</span></p>
+                    <p className="text-[11px] flex items-start gap-1.5 text-muted-foreground min-w-0"><MapPin className="h-3 w-3 mt-0.5 shrink-0" /><span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere]">{editActivity.location_address}</span></p>
                   )}
                   {editActivity.milestone_name && (
-                    <div className="text-[11px] text-muted-foreground"><span className="font-medium text-foreground">Milestone:</span> {editActivity.milestone_name}</div>
+                    <div className="text-[11px] text-muted-foreground break-words [overflow-wrap:anywhere]"><span className="font-medium text-foreground">Milestone:</span> {editActivity.milestone_name}</div>
                   )}
                   {attendance && (attendance.check_in_time || attendance.check_out_time) && (
-                    <div className="text-[11px] text-muted-foreground space-y-0.5 pt-1 border-t border-border/60">
+                    <div className="text-[11px] text-muted-foreground space-y-0.5 pt-1 border-t border-border/60 min-w-0">
                       {attendance.check_in_time && <p>Check-in: {format(parseISO(attendance.check_in_time), "MMM d, h:mm a")}</p>}
                       {attendance.check_out_time && <p>Check-out: {format(parseISO(attendance.check_out_time), "MMM d, h:mm a")}</p>}
                     </div>
@@ -490,17 +490,21 @@ export default function CreativeActivityForm({
                   )}
                   {/* Timeline */}
                   {(editActivity.status_history || []).length > 0 && (
-                    <div className="pt-2 border-t border-border/60">
+                    <div className="pt-2 border-t border-border/60 min-w-0 max-w-full overflow-hidden">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Timeline</p>
-                      <div className="space-y-1">
+                      <div className="space-y-2 min-w-0">
                         {[...editActivity.status_history]
                           .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
                         .map((h, i) => (
-                          <div key={i} className="flex items-center gap-2 text-[11px] min-w-0">
-                            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_DOT[h.status] || "bg-muted-foreground")} />
-                            <span className="font-medium shrink-0">{STATUS_LABELS[h.status] || h.status}</span>
-                            <span className="text-muted-foreground shrink-0">· {format(parseISO(h.at), "MMM d, h:mm a")}</span>
-                            {h.address && <span className="text-muted-foreground truncate min-w-0">· {h.address}</span>}
+                          <div key={i} className="grid grid-cols-[0.375rem_minmax(0,1fr)] items-start gap-2 text-[11px] min-w-0 max-w-full">
+                            <span className={cn("mt-1.5 h-1.5 w-1.5 rounded-full", STATUS_DOT[h.status] || "bg-muted-foreground")} />
+                            <div className="min-w-0 max-w-full">
+                              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0">
+                                <span className="font-medium break-words [overflow-wrap:anywhere]">{STATUS_LABELS[h.status] || h.status}</span>
+                                <span className="text-muted-foreground break-words">· {format(parseISO(h.at), "MMM d, h:mm a")}</span>
+                              </div>
+                              {h.address && <p className="text-muted-foreground break-words [overflow-wrap:anywhere]">{h.address}</p>}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -508,12 +512,12 @@ export default function CreativeActivityForm({
                   )}
                   {/* Attachments */}
                   {editActivity.attachment_urls && editActivity.attachment_urls.length > 0 && (
-                    <div className="pt-2 border-t border-border/60">
+                    <div className="pt-2 border-t border-border/60 min-w-0">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Attachments</p>
                       <div className="space-y-1">
                         {editActivity.attachment_urls.map((u, i) => (
-                          <a key={i} href={u} target="_blank" rel="noreferrer" className="text-[11px] text-primary hover:underline flex items-center gap-1.5">
-                            <Paperclip className="h-3 w-3" /> Attachment {i + 1}
+                          <a key={i} href={u} target="_blank" rel="noreferrer" className="text-[11px] text-primary hover:underline flex items-center gap-1.5 min-w-0">
+                            <Paperclip className="h-3 w-3 shrink-0" /> <span className="min-w-0 truncate">Attachment {i + 1}</span>
                           </a>
                         ))}
                       </div>
@@ -523,12 +527,12 @@ export default function CreativeActivityForm({
               )}
 
 
-              <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-fuchsia-50 dark:from-indigo-950/30 dark:to-fuchsia-950/30 border border-indigo-100 dark:border-indigo-900/50 px-4 pt-4 pb-3 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
+              <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-fuchsia-50 dark:from-indigo-950/30 dark:to-fuchsia-950/30 border border-indigo-100 dark:border-indigo-900/50 px-3 sm:px-4 pt-4 pb-3 shadow-sm min-w-0 max-w-full overflow-hidden">
+                <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
                   <p className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Project</p>
                   {selectedProject && (
                     <button
-                      className="text-[11px] text-muted-foreground hover:text-foreground"
+                      className="text-[11px] text-muted-foreground hover:text-foreground shrink-0"
                       onClick={() => setProjectId("")}
                     >
                       Clear
@@ -544,7 +548,7 @@ export default function CreativeActivityForm({
                     className="pl-9 h-9 rounded-full bg-background/80 border-0"
                   />
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
+                <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 -mx-1 px-1 scrollbar-none max-w-full">
                   {filteredProjects.length === 0 && (
                     <p className="text-xs text-muted-foreground py-4">No projects found</p>
                   )}
