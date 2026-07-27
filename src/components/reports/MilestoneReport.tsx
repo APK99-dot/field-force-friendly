@@ -5,8 +5,10 @@ import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { ReportShell, SummaryCards } from "./ReportShell";
+import { Flag, CheckCircle2, AlertTriangle, Timer, TrendingUp, MapPin } from "lucide-react";
+import { ReportShell } from "./ReportShell";
 import { ReportChartCard } from "./ReportChartCard";
+import { KpiGrid, ChartGrid, KpiItem } from "./KpiCards";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
 import { useReportContext, DateRangePill } from "@/components/analytics/ReportContext";
@@ -96,13 +98,19 @@ export default function MilestoneReport() {
     }
   };
 
-  const summary = useMemo(() => {
+  const kpis: KpiItem[] = useMemo(() => {
     const delayed = rows.filter((r) => r.delayed).length;
+    const completed = rows.filter((r) => r.status === "completed").length;
+    const inProgress = rows.filter((r) => r.status === "in_progress").length;
+    const avgProgress = rows.length ? rows.reduce((s, r) => s + r.percent_complete, 0) / rows.length : 0;
+    const sites = new Set(rows.map((r) => r.site)).size;
     return [
-      { label: "Total Milestones", value: String(rows.length) },
-      { label: "On Track", value: String(rows.length - delayed) },
-      { label: "Delayed", value: String(delayed) },
-      { label: "Completed", value: String(rows.filter((r) => r.status === "completed").length) },
+      { label: "Total Milestones", value: String(rows.length), icon: Flag, tone: "primary" },
+      { label: "Completed", value: String(completed), icon: CheckCircle2, tone: "success" },
+      { label: "In Progress", value: String(inProgress), icon: Timer, tone: "info" },
+      { label: "Delayed", value: String(delayed), icon: AlertTriangle, tone: "danger" },
+      { label: "Avg Progress", value: `${avgProgress.toFixed(1)}%`, icon: TrendingUp, tone: "warning" },
+      { label: "Sites", value: String(sites), icon: MapPin, tone: "muted" },
     ];
   }, [rows]);
 
@@ -129,6 +137,24 @@ export default function MilestoneReport() {
       m.set(k, (m.get(k) || 0) + 1);
     });
     return order.filter((k) => m.has(k)).map((name) => ({ name, value: m.get(name) as number }));
+  }, [rows]);
+
+  const bySite = useMemo(() => {
+    type A = { total: number; completed: number; delayed: number };
+    const m = new Map<string, A>();
+    rows.forEach((r) => {
+      const e = m.get(r.site) || { total: 0, completed: 0, delayed: 0 };
+      e.total += 1;
+      if (r.status === "completed") e.completed += 1;
+      if (r.delayed) e.delayed += 1;
+      m.set(r.site, e);
+    });
+    return Array.from(m.entries()).map(([name, v]) => ({
+      name,
+      Completed: v.completed,
+      Delayed: v.delayed,
+      Pending: v.total - v.completed - v.delayed,
+    }));
   }, [rows]);
 
   const download = async () => {
@@ -163,7 +189,7 @@ export default function MilestoneReport() {
           `${r.percent_complete}%`,
           r.delayed ? "Delayed" : r.status.replace(/_/g, " "),
         ]),
-        summary,
+        summary: kpis.map((k) => ({ label: k.label, value: k.value })),
       });
       toast.success("PDF downloaded");
     } catch {
@@ -192,22 +218,37 @@ export default function MilestoneReport() {
           <DateField label="To Date" value={to} onChange={setTo} />
         </>
       }
-      summary={<SummaryCards items={summary} />}
+      summary={<KpiGrid items={kpis} cols={6} />}
       chart={
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="space-y-4">
+          <ChartGrid cols={2}>
+            <ReportChartCard
+              title="Milestone Completion"
+              description="Completion percentage per milestone"
+              type="hbar"
+              data={chartData}
+              height={Math.max(260, chartData.length * 30)}
+              formatValue={(v) => `${v}%`}
+            />
+            <ReportChartCard
+              title="Status Breakdown"
+              description="Milestones by status"
+              type="donut"
+              data={statusChart}
+              height={300}
+            />
+          </ChartGrid>
           <ReportChartCard
-            title="Milestone Completion"
-            description="Completion percentage per milestone"
-            type="hbar"
-            data={chartData}
-            height={Math.max(260, chartData.length * 32)}
-            formatValue={(v) => `${v}%`}
-          />
-          <ReportChartCard
-            title="Status Breakdown"
-            description="Milestones by status"
-            type="pie"
-            data={statusChart}
+            title="Milestones by Site"
+            description="Completed, delayed and pending distribution per site"
+            type="stackedBar"
+            data={bySite}
+            height={Math.max(260, bySite.length * 34)}
+            series={[
+              { key: "Completed", label: "Completed", color: "hsl(160 64% 42%)" },
+              { key: "Pending", label: "Pending", color: "hsl(35 90% 55%)" },
+              { key: "Delayed", label: "Delayed", color: "hsl(0 75% 60%)" },
+            ]}
           />
         </div>
       }

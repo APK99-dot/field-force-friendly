@@ -3,8 +3,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { CalendarDays, CheckCircle2, Timer, XCircle, Users, Sigma } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { ReportShell, SummaryCards } from "./ReportShell";
+import { ReportShell } from "./ReportShell";
+import { ReportChartCard } from "./ReportChartCard";
+import { KpiGrid, ChartGrid, KpiItem } from "./KpiCards";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
 import { generateReportPdf } from "./reportPdf";
@@ -29,8 +32,8 @@ const STATUS = [
 
 const statusBadge = (s: string) => {
   const map: Record<string, string> = {
-    approved: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+    pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
     rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   };
   return <Badge className={map[s] || "bg-muted text-muted-foreground"}>{s}</Badge>;
@@ -102,14 +105,52 @@ export default function LeaveReport() {
     }
   };
 
-  const summary = useMemo(() => {
+  const kpis: KpiItem[] = useMemo(() => {
     const days = rows.reduce((s, r) => s + r.total_days, 0);
+    const approved = rows.filter((r) => r.status === "approved").length;
+    const pending = rows.filter((r) => r.status === "pending").length;
+    const rejected = rows.filter((r) => r.status === "rejected").length;
+    const rate = rows.length ? (approved / rows.length) * 100 : 0;
+    const employees = new Set(rows.map((r) => r.user_id)).size;
     return [
-      { label: "Total Applications", value: String(rows.length) },
-      { label: "Approved", value: String(rows.filter((r) => r.status === "approved").length) },
-      { label: "Pending", value: String(rows.filter((r) => r.status === "pending").length) },
-      { label: "Total Days", value: String(days) },
+      { label: "Applications", value: String(rows.length), icon: CalendarDays, tone: "primary" },
+      { label: "Approved", value: String(approved), sub: `${rate.toFixed(1)}% rate`, icon: CheckCircle2, tone: "success" },
+      { label: "Pending", value: String(pending), icon: Timer, tone: "warning" },
+      { label: "Rejected", value: String(rejected), icon: XCircle, tone: "danger" },
+      { label: "Total Days", value: String(days), icon: Sigma, tone: "info" },
+      { label: "Employees", value: String(employees), icon: Users, tone: "muted" },
     ];
+  }, [rows]);
+
+  const byType = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => m.set(r.leave_type, (m.get(r.leave_type) || 0) + r.total_days));
+    return Array.from(m.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [rows]);
+
+  const byEmployee = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => m.set(r.full_name, (m.get(r.full_name) || 0) + r.total_days));
+    return Array.from(m.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10);
+  }, [rows]);
+
+  const byMonth = useMemo(() => {
+    const m = new Map<string, { Approved: number; Pending: number; Rejected: number }>();
+    rows.forEach((r) => {
+      const key = format(new Date(r.from_date), "MMM yyyy");
+      const e = m.get(key) || { Approved: 0, Pending: 0, Rejected: 0 };
+      if (r.status === "approved") e.Approved += r.total_days;
+      else if (r.status === "pending") e.Pending += r.total_days;
+      else if (r.status === "rejected") e.Rejected += r.total_days;
+      m.set(key, e);
+    });
+    return Array.from(m.entries()).map(([name, v]) => ({ name, ...v }));
+  }, [rows]);
+
+  const statusDist = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => m.set(r.status, (m.get(r.status) || 0) + 1));
+    return Array.from(m.entries()).map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value }));
   }, [rows]);
 
   const download = async () => {
@@ -143,7 +184,7 @@ export default function LeaveReport() {
           r.status,
           r.approved_by_name,
         ]),
-        summary,
+        summary: kpis.map((k) => ({ label: k.label, value: k.value })),
       });
       toast.success("PDF downloaded");
     } catch {
@@ -156,7 +197,7 @@ export default function LeaveReport() {
   return (
     <ReportShell
       title="Leave Report"
-      description="Leave applications with type, duration and approval status."
+      description="Applications, days consumed and approval trends by leave type."
       loading={loading || scope.loading}
       downloading={downloading}
       generated={generated}
@@ -178,7 +219,46 @@ export default function LeaveReport() {
           <SelectField label="Status" value={status} onChange={setStatus} allLabel="All Statuses" options={STATUS} />
         </>
       }
-      summary={<SummaryCards items={summary} />}
+      summary={<KpiGrid items={kpis} cols={6} />}
+      chart={
+        <div className="space-y-4">
+          <ReportChartCard
+            title="Leave Days by Month"
+            description="Approved, Pending and Rejected days trend"
+            type="stackedBar"
+            data={byMonth}
+            height={280}
+            series={[
+              { key: "Approved", label: "Approved", color: "hsl(160 64% 42%)" },
+              { key: "Pending", label: "Pending", color: "hsl(35 90% 55%)" },
+              { key: "Rejected", label: "Rejected", color: "hsl(0 75% 60%)" },
+            ]}
+          />
+          <ChartGrid cols={2}>
+            <ReportChartCard
+              title="Days by Leave Type"
+              description="Distribution of total days across leave types"
+              type="hbar"
+              data={byType}
+              height={Math.max(260, byType.length * 32)}
+            />
+            <ReportChartCard
+              title="Application Status"
+              description="Share of applications by status"
+              type="donut"
+              data={statusDist}
+              height={280}
+            />
+          </ChartGrid>
+          <ReportChartCard
+            title="Top Leave Consumers"
+            description="Employees with highest leave days in range"
+            type="hbar"
+            data={byEmployee}
+            height={Math.max(240, byEmployee.length * 30)}
+          />
+        </div>
+      }
       table={
         <Table>
           <TableHeader>
