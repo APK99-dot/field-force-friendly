@@ -309,6 +309,7 @@ export default function CreativeActivityForm({
       toast.error("Add a project, type, or description to post");
       return;
     }
+    if (isEdit && !editActivity) return;
     setSaving(true);
     try {
       // Upload voice recording (audio mode) as attachment
@@ -316,7 +317,11 @@ export default function CreativeActivityForm({
       if (recording && !voiceToTextMode) {
         const { data: { user } } = await supabase.auth.getUser();
         const extension = recording.fileExtension || (recording.mimeType.includes("mp4") ? "m4a" : recording.mimeType.includes("ogg") ? "ogg" : "webm");
-        const fileName = `${user!.id}/${Date.now()}.${extension}`;
+        if (!user?.id) {
+          toast.error("Please sign in to add audio");
+          return;
+        }
+        const fileName = `${user.id}/${Date.now()}.${extension}`;
         const { error: uploadErr } = await supabase.storage
           .from("activity-audio")
           .upload(fileName, recording.blob, { contentType: recording.mimeType || "audio/webm" });
@@ -331,7 +336,7 @@ export default function CreativeActivityForm({
       const payload: any = {
         activity_name: activityType || "Activity Update",
         activity_type: activityType || "General Activity",
-        activity_date: isEdit ? editActivity!.activity_date : dateStr,
+        activity_date: isEdit ? editActivity.activity_date : dateStr,
         description: description || null,
         site_id: projectId || null,
         photo_urls: photos,
@@ -341,7 +346,7 @@ export default function CreativeActivityForm({
       };
 
       if (isEdit && updateActivity) {
-        await updateActivity(editActivity!.id, payload);
+        await updateActivity(editActivity.id, payload);
         toast.success("Post updated");
       } else {
         payload.status = "planned";
@@ -602,8 +607,8 @@ export default function CreativeActivityForm({
               </div>
 
               {/* Status / description with inline icon rail */}
-              <div className="rounded-2xl bg-card border border-border px-4 py-3 shadow-sm">
-                <div className="flex items-start gap-3">
+              <div className="rounded-2xl bg-card border border-border px-3 sm:px-4 py-3 shadow-sm min-w-0 max-w-full overflow-hidden">
+                <div className="flex items-start gap-3 min-w-0">
                   <div
                     className={cn(
                       "h-10 w-10 rounded-full bg-gradient-to-br flex items-center justify-center text-white text-sm font-semibold shrink-0",
@@ -621,12 +626,12 @@ export default function CreativeActivityForm({
                         : "What's happening in your project?"
                     }
                     rows={3}
-                    className="resize-none border-0 bg-transparent focus-visible:ring-0 shadow-none px-0 text-[15px] placeholder:text-muted-foreground/70"
+                    className="min-w-0 flex-1 resize-none border-0 bg-transparent focus-visible:ring-0 shadow-none px-0 text-[15px] placeholder:text-muted-foreground/70 break-words [overflow-wrap:anywhere]"
                   />
                 </div>
 
                 {/* Icon action rail — under description */}
-                <div className="mt-2 pt-2 border-t border-border/60 flex items-center gap-1">
+                <div className="mt-2 pt-2 border-t border-border/60 flex flex-wrap items-center gap-1 min-w-0 max-w-full">
                   {/* Photo */}
                   {cfgTakePhoto && (
                     <>
@@ -759,7 +764,7 @@ export default function CreativeActivityForm({
                   </DropdownMenu>
 
                   {isRecording && (
-                    <span className="text-[11px] text-red-600 font-medium ml-1">
+                    <span className="text-[11px] text-red-600 font-medium ml-1 min-w-0 break-words">
                       {voiceToTextMode ? "Listening" : "Recording"} · {formatDuration(elapsed)}
                     </span>
                   )}
@@ -767,7 +772,7 @@ export default function CreativeActivityForm({
 
                 {/* Photos preview */}
                 {photos.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mt-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 min-w-0">
                     {photos.map((ph) => (
                       <div
                         key={ph.url}
@@ -798,9 +803,9 @@ export default function CreativeActivityForm({
                 )}
 
                 {recording && !voiceToTextMode && !isRecording && (
-                  <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-2 py-1.5 text-xs">
-                    <AudioLines className="h-3.5 w-3.5 text-violet-600" />
-                    <span className="flex-1">Audio note · {formatDuration(recording.duration)}</span>
+                  <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-2 py-1.5 text-xs min-w-0">
+                    <AudioLines className="h-3.5 w-3.5 text-violet-600 shrink-0" />
+                    <span className="flex-1 min-w-0 truncate">Audio note · {formatDuration(recording.duration)}</span>
                     <button
                       onClick={() => clearRecording()}
                       className="text-muted-foreground hover:text-destructive"
@@ -813,11 +818,11 @@ export default function CreativeActivityForm({
               </div>
 
               {/* Activity type chips */}
-              <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-100 dark:border-amber-900/50 px-4 py-3 shadow-sm">
+              <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-100 dark:border-amber-900/50 px-3 sm:px-4 py-3 shadow-sm min-w-0 max-w-full overflow-hidden">
                 <p className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 mb-2">
                   Activity Type
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 min-w-0">
                   {activityTypes.length === 0 && (
                     <p className="text-xs text-muted-foreground">No activity types configured</p>
                   )}
@@ -828,7 +833,7 @@ export default function CreativeActivityForm({
                         key={t}
                         onClick={() => setActivityType(active ? "" : t)}
                         className={cn(
-                          "px-3.5 h-8 rounded-full text-xs font-medium border transition-all",
+                            "max-w-full px-3.5 min-h-8 h-auto py-1.5 rounded-full text-xs font-medium border transition-all whitespace-normal break-words [overflow-wrap:anywhere]",
                           active
                             ? "bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white border-transparent shadow-md"
                             : "bg-white dark:bg-background border-amber-200 dark:border-amber-900/60 text-foreground hover:border-fuchsia-400 hover:text-fuchsia-600"
@@ -843,19 +848,19 @@ export default function CreativeActivityForm({
 
               {/* Assign */}
               {canAssign && (
-                <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/50 px-4 py-3 shadow-sm">
+                <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/50 px-3 sm:px-4 py-3 shadow-sm min-w-0 max-w-full overflow-hidden">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                     Assign
                   </p>
                   <button
                     onClick={() => setAssignOpen((v) => !v)}
-                    className="w-full h-11 rounded-xl border border-border bg-background/60 hover:bg-background flex items-center gap-2 px-3 text-sm transition"
+                    className="w-full min-h-11 rounded-xl border border-border bg-background/60 hover:bg-background flex items-center gap-2 px-3 py-2 text-sm transition min-w-0"
                   >
                     <Users className="h-4 w-4 text-muted-foreground" />
                     {assignedIds.length === 0 ? (
-                      <span className="text-muted-foreground">Add people</span>
+                      <span className="text-muted-foreground min-w-0 truncate">Add people</span>
                     ) : (
-                      <div className="flex -space-x-2">
+                      <div className="flex -space-x-2 min-w-0">
                         {assignedIds.slice(0, 4).map((id) => {
                           const u = users.find((x) => x.id === id);
                           return (
@@ -881,7 +886,7 @@ export default function CreativeActivityForm({
                   </button>
 
                   {assignOpen && (
-                    <div className="mt-2 rounded-xl border border-border bg-background/70 p-3 space-y-2">
+                    <div className="mt-2 rounded-xl border border-border bg-background/70 p-3 space-y-2 min-w-0 max-w-full overflow-hidden">
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                         <Input
@@ -903,13 +908,13 @@ export default function CreativeActivityForm({
                                 )
                               }
                               className={cn(
-                                "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm",
+                                "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm min-w-0",
                                 active ? "bg-primary/10" : "hover:bg-background"
                               )}
                             >
                               <div
                                 className={cn(
-                                  "h-7 w-7 rounded-full bg-gradient-to-br text-white text-[10px] flex items-center justify-center font-semibold",
+                                  "h-7 w-7 rounded-full bg-gradient-to-br text-white text-[10px] flex items-center justify-center font-semibold shrink-0",
                                   gradientFor(u.id)
                                 )}
                               >
