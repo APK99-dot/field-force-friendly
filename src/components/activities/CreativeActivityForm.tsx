@@ -177,6 +177,7 @@ export default function CreativeActivityForm({
       setProjectSearch("");
       setDescription("");
       setActivityType("");
+      setActivityDate(format(new Date(), "yyyy-MM-dd"));
       setAssignedIds([]);
       setRisk("green");
       setPhotos([]);
@@ -192,9 +193,11 @@ export default function CreativeActivityForm({
       setProjectId(editActivity.site_id || "");
       setDescription(editActivity.description || "");
       setActivityType(editActivity.activity_type || "");
+      setActivityDate(editActivity.activity_date || format(new Date(), "yyyy-MM-dd"));
       setAssignedIds(Array.isArray((editActivity as any).assigned_user_ids) ? (editActivity as any).assigned_user_ids : []);
       setPhotos(editActivity.photo_urls || []);
       setStatus(editActivity.status || "planned");
+      setCheckedIn(!!(editActivity as any).check_in_at);
 
       // resolve photo previews
       (editActivity.photo_urls || []).forEach(async (ph) => {
@@ -203,13 +206,10 @@ export default function CreativeActivityForm({
           setPhotoPreviews((prev) => ({ ...prev, [ph.url]: url }));
         } catch {}
       });
+    } else {
+      setCheckedIn(false);
     }
-    if (currentUserId && cfgCheckIn) {
-      fetchAttendanceForDate(currentUserId, dateStr)
-        .then((r) => setCheckedIn(!!r?.check_in_time))
-        .catch(() => {});
-    }
-  }, [open, currentUserId, cfgCheckIn, dateStr, fetchAttendanceForDate, editActivity, clearRecording]);
+  }, [open, editActivity, clearRecording]);
 
   const filteredProjects = useMemo(() => {
     const q = projectSearch.trim().toLowerCase();
