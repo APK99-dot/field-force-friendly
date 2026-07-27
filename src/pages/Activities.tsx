@@ -1027,6 +1027,8 @@ export default function Activities() {
         fetchAttendanceForDate={fetchAttendanceForDate}
         onCreated={() => fetchActivities()}
         editActivity={creativeEditActivity}
+        onDelete={async (id) => { await deleteActivity(id); fetchActivities(); }}
+
       />
 
 
