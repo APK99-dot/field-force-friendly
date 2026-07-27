@@ -119,6 +119,8 @@ export default function CreativeActivityForm({
   fetchAttendanceForDate,
   onCreated,
   editActivity,
+  onDelete,
+  attendance,
 }: Props) {
   const isEdit = !!editActivity;
   const [projectId, setProjectId] = useState("");
@@ -131,7 +133,11 @@ export default function CreativeActivityForm({
   const [photoPreviews, setPhotoPreviews] = useState<Record<string, string>>({});
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<string>("planned");
+  const [changingStatus, setChangingStatus] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [checkedIn, setCheckedIn] = useState(false);
+
   const [checkingIn, setCheckingIn] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignSearch, setAssignSearch] = useState("");
