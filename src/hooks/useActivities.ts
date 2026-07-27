@@ -73,7 +73,7 @@ export function useActivities() {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<{ id: string; full_name: string }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
-  const [sites, setSites] = useState<{ id: string; site_name: string; is_active: boolean; image_url: string | null }[]>([]);
+  const [sites, setSites] = useState<{ id: string; site_name: string; is_active: boolean; image_url: string | null; base_lat: number | null; base_lng: number | null; base_address: string | null; geofence_radius_m: number }[]>([]);
   const { toast } = useToast();
 
   const fetchActivities = useCallback(async (filters?: ActivityFilters) => {
