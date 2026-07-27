@@ -1,38 +1,48 @@
-# Redesign: Dashboard Activity Calendar → "Executive PM Grid"
+## Goal
 
-Scope: `src/components/dashboard/WorkforceActivityCalendar.tsx` only. Keep upstream data flow (`activities`, `anchorDate` from `WorkforceOverviewSection`) unchanged.
+Every weekday at 1:00 PM and 6:00 PM IST, copy rows from six critical tables in this project into `builders_*` tables in the external Supabase project (`ylvhhlykyojudldcmzou`), incrementally (only rows changed since the last successful run).
 
-## What changes visually
+## Tables mirrored
 
-- **Card frame**: white surface, `rounded-2xl`, subtle soft shadow, hairline navy border. Sora for the title, Manrope for everything else (loaded via `<link>` in the component, matched to prototype).
-- **Header row**:
-  - Left: title "Activity Calendar" (Sora, bold, navy `#0B1E3F`) + subtitle "<Month YYYY> • N active tasks" (count = activities in month).
-  - Right: segmented month stepper `[◀ | Month YYYY | ▶]` + solid navy "Today" pill.
-- **Weekday header**: soft `#F5F7FB` band, 11px uppercase slate labels.
-- **Day cells**: `min-h-[140px]`, hairline `#E9EEF7` gridlines. Out-of-month cells muted (`bg-[#F5F7FB]/30`, `text-slate-300`). In-month cells show date number top-left.
-- **Today cell spotlight**: `bg-[#0B1E3F]/5` with a `border-2 border-[#D4A34A]/30` overlay ring and a small gold "TODAY" caps label top-right; date number switches to bold navy.
-- **Event pills** (per activity): compact card with a 4px left color bar + tinted bg + name (bold) + site (muted). Status → colors:
-  - `planned` → `bg-[#E9EEF7]` / bar `#1E3A6B` / text `#1E3A6B`
-  - `in_progress` → `bg-[#FEF3C7]` / bar `#D4A34A` / text `#92400E`
-  - `completed` → `bg-[#DCFCE7]` / bar `#22C55E` / text `#166534`
-  - Hover: `brightness-95`. Keeps existing `navigate('/activities?id=…')` behavior and `title` tooltip.
-  - Overflow: after 3 pills, show a `+N more` chip (still same-day, no popover — click bubbles to the first extra activity's page for now; matches current "just navigate" pattern).
-- **Footer legend bar**: `#F5F7FB/50` background, three dot+label chips (Planned navy, In Progress gold, Completed green). Legend removed from the header (moved to footer per prototype).
-- **Mobile**: cells shrink to `min-h-[96px]`, pill font sizes step down, header stacks (title above controls). Horizontal scroll kept via `overflow-x-auto` + `min-w-[720px]` inner grid so the 7-col layout never collapses.
 
-## Behavior
+| Source (this project)          | Destination (external)        | Change key                             |
+| ------------------------------ | ----------------------------- | -------------------------------------- |
+| `users` (10 cols)              | `builders_users`              | `updated_at`                           |
+| `employees` (17 cols)          | `builders_employees`          | `updated_at`                           |
+| `attendance` (21 cols)         | `builders_attendance`         | `updated_at`                           |
+| `profiles` (13 cols)           | `builders_profiles`           | `updated_at`                           |
+| `leave_applications` (16 cols) | `builders_leave_applications` | `updated_at`                           |
+| `user_roles` (4 cols)          | `builders_user_roles`         | `assigned_at` (no `updated_at` column) |
 
-- Add **prev / next month** state internal to `WorkforceActivityCalendar` (default = `anchorDate` prop, resets when `anchorDate` prop changes). "Today" resets to `new Date()`. Active-tasks count = `activities.length` filtered to the visible month.
-- All existing props and click-through preserved. No new data fetches.
 
-## Technical notes
+Primary keys are carried over unchanged, so every push is an idempotent upsert (`Prefer: resolution=merge-duplicates`). Re-running a sync never duplicates rows.
 
-- No new dependencies. Uses `date-fns` already in the file.
-- Sora + Manrope loaded once via a `<link rel="stylesheet">` injected at module scope (guarded so it only appends once). Applied via inline `style={{ fontFamily }}` on the card root so tokens stay untouched — no global font override.
-- Colors used inline (hex) match the prototype exactly, since the surrounding component set already uses semantic tokens like `bg-info` in other places; the calendar becomes a self-contained styled surface consistent with the picked direction. `text-primary` retained where already tokenized.
-- Keep `WorkforceOverviewSection.tsx` untouched; it still passes `anchorDate` and `activities`.
+## How it differs from Trayi
 
-## Out of scope
+Trayi mirrors in real time: a Postgres trigger fires `pg_net` on every row write. Here you asked for a scheduled batch, so instead of per-row triggers we use a single pg_cron job that calls one edge function which pulls changed rows and pushes them in batches. Fewer moving parts, no write-path overhead, and one audit row per table per run.
 
-- No week/day toggle, no drag-drop, no new schema.
-- No changes to `WorkforceOverviewSection`, filters, KPI cards, or attendance table.
+## What gets built
+
+1. **External schema script** — `docs/external-backup-schema.sql`, run once by you in the external project's SQL editor. Creates the six `builders_*` tables (matching column types, `id` as primary key, RLS enabled with no public policies so only the service key can read/write) and is safe to re-run.
+2. **Secret** — `BACKUP_MIRROR_SERVICE_KEY`: the external project's service-role key, stored securely. I'll request it once the tables exist.
+3. **Edge function** — `supabase/functions/backup-mirror/index.ts`:
+  - Reads the last successful watermark per table from a local `backup_mirror_state` table.
+  - Selects rows where the change key is greater than that watermark, ordered and paged at 500 rows per batch (keeps runs well under the function timeout even on a first full backfill).
+  - Strips to an allowlist of columns per table, then upserts into `builders_<table>`.
+  - Writes one row per table per run into `backup_mirror_audit` (trace id, row count, status, HTTP status, error text) and advances the watermark only on success — a failed table retries its full delta next run.
+  - Supports `{"action":"backfill"}` for an admin-triggered first full copy and `{"action":"status"}` returning external row counts vs local counts.
+4. **Local tables** (migration) — `backup_mirror_state` (table name, last synced timestamp) and `backup_mirror_audit` (run log), both service-role only.
+5. **Cron job** — pg_cron + pg_net, schedule `30 12 * * 1-5` (UTC) = 6:00 PM IST and `30 07 * * 1-5` (UTC), Monday–Friday. Registered via a data statement so the function URL and key aren't baked into a shared migration.
+
+## Operational notes
+
+- **First run**: I'll trigger a manual backfill so the external tables start in sync; the nightly job then only carries deltas.
+- **Failure visibility**: `backup_mirror_audit` shows every run. If a night fails, the next run picks up the same delta automatically — no data loss, just delay.
+- **Holidays**: the job runs every Mon–Fri regardless of holidays; a no-change day simply pushes zero rows.
+- **Direction**: strictly one-way (this project → external). Nothing is read back into the app.
+- **Deleted rows**: an upsert mirror does not remove rows deleted in the source. Given this project blocks hard deletes (`prevent_client_hard_delete`) and uses deactivation instead, deactivated records mirror across correctly as updates.
+
+## What I need from you
+
+- Run the generated SQL script in the external project once.
+- Provide the external project's service-role key when I request it.
