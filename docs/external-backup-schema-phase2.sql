@@ -547,7 +547,7 @@ create table if not exists public.builders_project_sites (
   end_date date,
   flag text,
   "status" text,
-  attachment_urls uuid[],
+  attachment_urls text[],
   image_url text
 );
 
@@ -563,7 +563,7 @@ alter table public.builders_project_sites add column if not exists start_date da
 alter table public.builders_project_sites add column if not exists end_date date;
 alter table public.builders_project_sites add column if not exists flag text;
 alter table public.builders_project_sites add column if not exists "status" text;
-alter table public.builders_project_sites add column if not exists attachment_urls uuid[];
+alter table public.builders_project_sites add column if not exists attachment_urls text[];
 alter table public.builders_project_sites add column if not exists image_url text;
 
 -- -------------------------------------------- site_assignments
