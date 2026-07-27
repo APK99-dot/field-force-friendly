@@ -419,18 +419,18 @@ export default function CreativeActivityForm({
               </div>
             </div>
 
-            <div className="overflow-y-auto flex-1 bg-muted/40 p-3 space-y-3">
+            <div className="overflow-y-auto overflow-x-hidden flex-1 bg-muted/40 p-3 space-y-3 min-w-0">
               {/* Details panel — visible in edit/view */}
               {isEdit && editActivity && (
-                <div className="rounded-2xl bg-card border border-border px-4 py-3 shadow-sm space-y-3">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2 min-w-0">
+                <div className="rounded-2xl bg-card border border-border px-4 py-3 shadow-sm space-y-3 overflow-hidden">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       {editActivity.activity_code && (
-                        <Badge variant="secondary" className="font-mono text-[10px]">{editActivity.activity_code}</Badge>
+                        <Badge variant="secondary" className="font-mono text-[10px] shrink-0">{editActivity.activity_code}</Badge>
                       )}
-                      <span className="text-sm font-semibold truncate">{editActivity.activity_name}</span>
+                      <span className="text-sm font-semibold truncate min-w-0">{editActivity.activity_name}</span>
                     </div>
-                    <div className={cn("inline-flex items-center gap-1.5 px-2 h-6 rounded-full text-[10px] font-semibold uppercase tracking-wider border",
+                    <div className={cn("inline-flex items-center gap-1.5 px-2 h-6 rounded-full text-[10px] font-semibold uppercase tracking-wider border shrink-0 whitespace-nowrap",
                       status === "completed" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900" :
                       status === "in_progress" ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900" :
                       "bg-muted text-muted-foreground border-border")}
