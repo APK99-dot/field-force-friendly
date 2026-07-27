@@ -92,3 +92,8 @@ export async function deleteSiteFile(id: string, storageKey: string): Promise<vo
   if (error) throw error;
   await supabase.storage.from(BUCKET).remove([storageKey]).catch(() => {});
 }
+
+export async function renameSiteFile(id: string, newName: string): Promise<void> {
+  const { error } = await supabase.from("site_files").update({ file_name: newName }).eq("id", id);
+  if (error) throw error;
+}
