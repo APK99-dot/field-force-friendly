@@ -1419,7 +1419,7 @@ export default function ProcurementDetail({
             </>
           )}
           {/* Stepper + stage controls */}
-          {order.status !== "Rejected" && (
+          {order.status !== "Rejected" && !lightning && (
             <div className="space-y-3">
               {/* Mobile: vertical timeline */}
               <ol className="sm:hidden space-y-2 border-l pl-3">
