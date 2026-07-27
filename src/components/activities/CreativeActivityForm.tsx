@@ -25,12 +25,17 @@ import {
   Square,
   AudioLines,
   TrendingUp,
+  Clock,
+  Calendar,
+  Trash2,
+  Paperclip,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { uploadActivityPhoto, resolveActivityPhotoUrl } from "@/utils/activityPhotos";
 import type { Activity as ActivityType, ActivityPhotoEntry, ActivityStatusEntry } from "@/hooks/useActivities";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
+
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { supabase } from "@/integrations/supabase/client";
 
