@@ -38,6 +38,7 @@ export interface HubSite {
   start_date: string;
   end_date: string | null;
   status: string;
+  image_url?: string | null;
 }
 
 const STATUSES: { value: string; label: string }[] = [
