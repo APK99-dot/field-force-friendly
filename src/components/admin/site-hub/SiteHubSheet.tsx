@@ -153,12 +153,6 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
     }
   };
 
-  const openDoc = async (stored: string) => {
-    const url = await getSiteAttachmentUrl(stored);
-    if (url) window.open(url, "_blank");
-    else toast.error("Could not open file");
-  };
-
   const openActivityById = (id: string) => {
     const a = activities.find((x) => x.id === id);
     if (a) setSelectedActivity(a);
