@@ -30,6 +30,8 @@ import GRNDetail from "./GRNDetail";
 
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 import { resolveInvoiceFileUrl } from "@/utils/invoiceAttachments";
+import { useUiMode, isLightning } from "@/hooks/useUiMode";
+import { HighlightsPanel, PathBar } from "@/components/procurement/lightning/LightningShell";
 
 export interface StageHistoryEntry {
   status: string;
