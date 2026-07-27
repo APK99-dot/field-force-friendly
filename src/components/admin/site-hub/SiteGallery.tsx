@@ -1,10 +1,19 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { ImageIcon, User, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ImageIcon, User, Clock, Trash2, Download } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { toast } from "sonner";
 import { resolveActivityPhotoUrl } from "@/utils/activityPhotos";
-import { getSiteAttachmentUrl } from "@/utils/siteAttachments";
+import { getSiteAttachmentUrl, deleteSiteFile } from "@/utils/siteAttachments";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useAdminAccess } from "@/hooks/useAdminAccess";
+import SiteFileDropzone from "./SiteFileDropzone";
 import type { HubGalleryPhoto } from "@/hooks/useSiteHub";
 
 async function resolve(photo: HubGalleryPhoto): Promise<string> {
@@ -16,9 +25,11 @@ interface GalleryThumbProps {
   photo: HubGalleryPhoto;
   onOpen: (photo: HubGalleryPhoto, url: string) => void;
   onActivityClick?: (activityId: string) => void;
+  canDelete: boolean;
+  onDelete: (photo: HubGalleryPhoto) => void;
 }
 
-function GalleryThumb({ photo, onOpen, onActivityClick }: GalleryThumbProps) {
+function GalleryThumb({ photo, onOpen, onActivityClick, canDelete, onDelete }: GalleryThumbProps) {
   const [url, setUrl] = useState("");
   useEffect(() => {
     let active = true;
@@ -27,14 +38,24 @@ function GalleryThumb({ photo, onOpen, onActivityClick }: GalleryThumbProps) {
   }, [photo]);
 
   return (
-    <div className="group rounded-lg overflow-hidden border bg-card flex flex-col">
+    <div className="group rounded-lg overflow-hidden border bg-card flex flex-col relative">
+      {canDelete && photo.fileId && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(photo); }}
+          className="absolute top-1.5 right-1.5 z-10 rounded-full bg-background/90 border p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+          aria-label="Delete photo"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
       <button
         type="button"
         onClick={() => url && onOpen(photo, url)}
         className="relative aspect-square bg-muted overflow-hidden"
       >
         {url ? (
-          <img src={url} alt={photo.label || "Activity photo"} loading="lazy"
+          <img src={url} alt={photo.label || "Site photo"} loading="lazy"
             className="h-full w-full object-cover transition-transform group-hover:scale-105" />
         ) : (
           <div className="h-full w-full flex items-center justify-center text-muted-foreground">
@@ -70,24 +91,64 @@ function GalleryThumb({ photo, onOpen, onActivityClick }: GalleryThumbProps) {
 }
 
 interface SiteGalleryProps {
+  siteId: string;
   gallery: HubGalleryPhoto[];
   onActivityClick?: (activityId: string) => void;
+  onChanged: () => void;
 }
 
-export default function SiteGallery({ gallery, onActivityClick }: SiteGalleryProps) {
+export default function SiteGallery({ siteId, gallery, onActivityClick, onChanged }: SiteGalleryProps) {
   const [preview, setPreview] = useState<{ photo: HubGalleryPhoto; url: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<HubGalleryPhoto | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const { userId } = useCurrentUser();
+  const { hasAdminAccess } = useAdminAccess();
 
-  if (gallery.length === 0) {
-    return <p className="text-sm text-muted-foreground py-8 text-center">No photos uploaded yet.</p>;
-  }
+  const canDeletePhoto = (p: HubGalleryPhoto) =>
+    !!p.fileId && (hasAdminAccess || (!!userId && p.uploadedById === userId));
+
+  const handleDelete = async () => {
+    if (!confirmDelete?.fileId) return;
+    setDeleting(true);
+    try {
+      await deleteSiteFile(confirmDelete.fileId, confirmDelete.storageKey);
+      toast.success("Photo deleted");
+      onChanged();
+    } catch (err: any) {
+      toast.error(err.message ?? "Delete failed");
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(null);
+    }
+  };
 
   return (
-    <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {gallery.map((p, i) => (
-          <GalleryThumb key={`${p.storageKey}-${i}`} photo={p} onOpen={(photo, url) => setPreview({ photo, url })} onActivityClick={onActivityClick} />
-        ))}
-      </div>
+    <div className="space-y-4">
+      <SiteFileDropzone
+        siteId={siteId}
+        kind="photo"
+        onUploaded={onChanged}
+        label="Drag & drop photos here"
+        helper="or click to select multiple images (JPG, PNG, HEIC, WebP…)"
+        accept="image/*"
+      />
+
+      {gallery.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-6 text-center">No photos uploaded yet.</p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {gallery.map((p, i) => (
+            <GalleryThumb
+              key={`${p.storageKey}-${i}`}
+              photo={p}
+              onOpen={(photo, url) => setPreview({ photo, url })}
+              onActivityClick={onActivityClick}
+              canDelete={canDeletePhoto(p)}
+              onDelete={setConfirmDelete}
+            />
+          ))}
+        </div>
+      )}
 
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
         <DialogContent className="max-w-2xl p-2">
@@ -102,11 +163,34 @@ export default function SiteGallery({ gallery, onActivityClick }: SiteGalleryPro
                     {preview.photo.activityCode}
                   </Badge>
                 )}
+                <Button
+                  size="sm" variant="outline" className="ml-auto h-7"
+                  onClick={() => window.open(preview.url, "_blank")}
+                >
+                  <Download className="h-3.5 w-3.5 mr-1" /> Download
+                </Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
-    </>
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete photo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the photo from this site. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }
