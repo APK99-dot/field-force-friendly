@@ -1419,54 +1419,58 @@ export default function ProcurementDetail({
             </>
           )}
           {/* Stepper + stage controls */}
-          {order.status !== "Rejected" && !lightning && (
+          {order.status !== "Rejected" && (
             <div className="space-y-3">
-              {/* Mobile: vertical timeline */}
-              <ol className="sm:hidden space-y-2 border-l pl-3">
-                {stepFlow.map((s, i) => {
-                  const h = historyByStatus[s];
-                  const when = h?.moved_at ? new Date(h.moved_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : null;
-                  const active = i <= stepIndex;
-                  return (
-                    <li key={s} className="relative">
-                      <span className={`absolute -left-[17px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-background ${active ? "bg-primary" : "bg-muted-foreground/30"}`} />
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap ${active ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
-                        {active && h && (
-                          <span className="text-[10px] text-muted-foreground">
-                            {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
-                          </span>
-                        )}
-                      </div>
-                      {active && h?.note && (
-                        <div className="text-[10px] text-muted-foreground italic mt-0.5">{h.note}</div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ol>
+              {!lightning && (
+                <>
+                  {/* Mobile: vertical timeline */}
+                  <ol className="sm:hidden space-y-2 border-l pl-3">
+                    {stepFlow.map((s, i) => {
+                      const h = historyByStatus[s];
+                      const when = h?.moved_at ? new Date(h.moved_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : null;
+                      const active = i <= stepIndex;
+                      return (
+                        <li key={s} className="relative">
+                          <span className={`absolute -left-[17px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-background ${active ? "bg-primary" : "bg-muted-foreground/30"}`} />
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap ${active ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
+                            {active && h && (
+                              <span className="text-[10px] text-muted-foreground">
+                                {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
+                              </span>
+                            )}
+                          </div>
+                          {active && h?.note && (
+                            <div className="text-[10px] text-muted-foreground italic mt-0.5">{h.note}</div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
 
-              {/* Desktop: horizontal chips */}
-              <div className="hidden sm:flex items-start gap-1 flex-wrap pb-1">
-                {stepFlow.map((s, i) => {
-                  const h = historyByStatus[s];
-                  const when = h?.moved_at ? new Date(h.moved_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : null;
-                  return (
-                    <div key={s} className="flex items-start shrink-0">
-                      <div className="flex flex-col items-center gap-1 max-w-[110px]">
-                        <span className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
-                        {i <= stepIndex && h && (
-                          <span className="text-[9px] text-muted-foreground text-center leading-tight">
-                            {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
-                            {h.note ? <><br/><span className="italic">{h.note}</span></> : null}
-                          </span>
-                        )}
-                      </div>
-                      {i < stepFlow.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground mt-1.5" />}
-                    </div>
-                  );
-                })}
-              </div>
+                  {/* Desktop: horizontal chips */}
+                  <div className="hidden sm:flex items-start gap-1 flex-wrap pb-1">
+                    {stepFlow.map((s, i) => {
+                      const h = historyByStatus[s];
+                      const when = h?.moved_at ? new Date(h.moved_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : null;
+                      return (
+                        <div key={s} className="flex items-start shrink-0">
+                          <div className="flex flex-col items-center gap-1 max-w-[110px]">
+                            <span className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
+                            {i <= stepIndex && h && (
+                              <span className="text-[9px] text-muted-foreground text-center leading-tight">
+                                {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
+                                {h.note ? <><br/><span className="italic">{h.note}</span></> : null}
+                              </span>
+                            )}
+                          </div>
+                          {i < stepFlow.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground mt-1.5" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
 
               <div className="flex items-center gap-3 flex-wrap">
                 {nextStage && (
@@ -1495,6 +1499,7 @@ export default function ProcurementDetail({
             </div>
 
           )}
+
 
 
           {/* Header info */}
