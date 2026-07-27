@@ -159,7 +159,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
 
   const openActivityById = (id: string) => {
     const a = activities.find((x) => x.id === id);
-    if (a) setSelectedActivity(a);
+    if (a) openActivity(a);
   };
 
   const handleSaveMilestone = async () => {
