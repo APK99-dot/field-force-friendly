@@ -22,6 +22,16 @@ export type Database = {
           activity_type: string
           assigned_user_ids: Json
           attachment_urls: Json | null
+          check_in_address: string | null
+          check_in_at: string | null
+          check_in_distance_m: number | null
+          check_in_lat: number | null
+          check_in_lng: number | null
+          check_in_within_site: boolean | null
+          check_out_address: string | null
+          check_out_at: string | null
+          check_out_lat: number | null
+          check_out_lng: number | null
           created_at: string
           description: string | null
           duration_type: string | null
@@ -59,6 +69,16 @@ export type Database = {
           activity_type: string
           assigned_user_ids?: Json
           attachment_urls?: Json | null
+          check_in_address?: string | null
+          check_in_at?: string | null
+          check_in_distance_m?: number | null
+          check_in_lat?: number | null
+          check_in_lng?: number | null
+          check_in_within_site?: boolean | null
+          check_out_address?: string | null
+          check_out_at?: string | null
+          check_out_lat?: number | null
+          check_out_lng?: number | null
           created_at?: string
           description?: string | null
           duration_type?: string | null
@@ -96,6 +116,16 @@ export type Database = {
           activity_type?: string
           assigned_user_ids?: Json
           attachment_urls?: Json | null
+          check_in_address?: string | null
+          check_in_at?: string | null
+          check_in_distance_m?: number | null
+          check_in_lat?: number | null
+          check_in_lng?: number | null
+          check_in_within_site?: boolean | null
+          check_out_address?: string | null
+          check_out_at?: string | null
+          check_out_lat?: number | null
+          check_out_lng?: number | null
           created_at?: string
           description?: string | null
           duration_type?: string | null
@@ -4837,12 +4867,16 @@ export type Database = {
       project_sites: {
         Row: {
           attachment_urls: string[]
+          base_address: string | null
+          base_lat: number | null
+          base_lng: number | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
           description: string | null
           end_date: string | null
           flag: string | null
+          geofence_radius_m: number
           id: string
           image_url: string | null
           is_active: boolean
@@ -4854,12 +4888,16 @@ export type Database = {
         }
         Insert: {
           attachment_urls?: string[]
+          base_address?: string | null
+          base_lat?: number | null
+          base_lng?: number | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           description?: string | null
           end_date?: string | null
           flag?: string | null
+          geofence_radius_m?: number
           id?: string
           image_url?: string | null
           is_active?: boolean
@@ -4871,12 +4909,16 @@ export type Database = {
         }
         Update: {
           attachment_urls?: string[]
+          base_address?: string | null
+          base_lat?: number | null
+          base_lng?: number | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           description?: string | null
           end_date?: string | null
           flag?: string | null
+          geofence_radius_m?: number
           id?: string
           image_url?: string | null
           is_active?: boolean
