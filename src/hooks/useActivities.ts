@@ -401,5 +401,7 @@ export function useActivities() {
     fetchAttendanceForDate,
     checkInForDate,
     fetchGPSTrackingForDate,
+    checkInActivity,
+    checkOutActivity,
   };
 }
