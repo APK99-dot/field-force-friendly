@@ -14,7 +14,7 @@ const SOURCE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const PAGE_SIZE = 500;
 const EPOCH = "1970-01-01T00:00:00Z";
 
-type TableSpec = { changeKey: string; columns: string[] };
+type TableSpec = { changeKey: string; columns: string[]; full?: boolean };
 
 // Allowlist of columns to mirror per table. Extras are stripped so the
 // external table only needs these columns.
@@ -64,6 +64,191 @@ const TABLES: Record<string, TableSpec> = {
       "id", "user_id", "leave_type_id", "from_date", "to_date", "total_days",
       "reason", "status", "approved_by", "approved_at", "applied_date",
       "approved_date", "is_half_day", "half_day_period", "created_at", "updated_at",
+    ],
+  },
+
+  // ---- phase 2 (additive): GPS, Activity module, Sites, Procurement ----
+  // Tables flagged `full: true` have no updated_at column, so a watermark on
+  // created_at would miss later edits. They are small, so every run re-reads
+  // and upserts all rows by primary key.
+  activity_events: {
+    changeKey: "created_at",
+    full: true,
+    columns: [
+      "id", "user_id", "activity_type", "activity_name", "activity_date",
+      "duration_type", "start_time", "end_time", "from_date", "to_date",
+      "total_days", "half_day_type", "remarks", "retailer_id", "visit_id",
+      "created_at", "description", "status", "project_id", "location_lat",
+      "location_lng", "location_address", "attachment_urls", "total_hours",
+      "site_id", "status_changed_at", "status_change_lat", "status_change_lng",
+      "milestone_id", "status_history", "photo_urls", "activity_code", "grn_po_id",
+      "assigned_user_ids", "source_form",
+    ],
+  },
+  activity_types_master: {
+    changeKey: "created_at",
+    full: true,
+    columns: [
+      "id", "name", "is_active", "created_by", "created_at", "sort_order",
+      "details",
+    ],
+  },
+  gps_tracking: {
+    changeKey: "timestamp",
+    columns: [
+      "id", "user_id", "latitude", "longitude", "accuracy", "timestamp", "date",
+      "speed", "heading",
+    ],
+  },
+  gps_tracking_stops: {
+    changeKey: "timestamp",
+    columns: [
+      "id", "user_id", "latitude", "longitude", "reason", "duration_minutes",
+      "timestamp",
+    ],
+  },
+  procurement_attachments: {
+    changeKey: "created_at",
+    full: true,
+    columns: [
+      "id", "po_id", "vendor_id", "scope", "file_name", "file_path", "file_size",
+      "content_type", "salesforce_id", "source", "created_by", "created_at",
+    ],
+  },
+  procurement_grn_items: {
+    changeKey: "updated_at",
+    columns: [
+      "id", "grn_id", "procurement_item_id", "product_id", "ordered_qty",
+      "received_qty", "created_at", "updated_at",
+    ],
+  },
+  procurement_grns: {
+    changeKey: "updated_at",
+    columns: [
+      "id", "po_id", "grn_number", "receipt_date", "received_by", "status",
+      "remarks", "created_by", "created_at", "updated_at", "photos", "vendor_id",
+    ],
+  },
+  procurement_import_runs: {
+    changeKey: "started_at",
+    full: true,
+    columns: [
+      "id", "requested_from", "requested_to", "started_at", "finished_at", "total",
+      "created", "updated", "failed", "summary", "triggered_by",
+    ],
+  },
+  procurement_invoice_attachments: {
+    changeKey: "created_at",
+    full: true,
+    columns: [
+      "id", "invoice_id", "file_name", "file_size", "file_path", "created_by",
+      "created_at", "salesforce_id",
+    ],
+  },
+  procurement_invoice_items: {
+    changeKey: "created_at",
+    full: true,
+    columns: [
+      "id", "invoice_id", "procurement_item_id", "product_id", "invoiced_rate",
+      "invoiced_qty", "created_at",
+    ],
+  },
+  procurement_invoice_payments: {
+    changeKey: "created_at",
+    full: true,
+    columns: [
+      "id", "invoice_id", "reference_number", "bank_name", "amount",
+      "payment_date", "created_by", "created_at", "notes", "salesforce_id",
+    ],
+  },
+  procurement_invoices: {
+    changeKey: "updated_at",
+    columns: [
+      "id", "po_id", "invoice_number", "invoice_date", "invoice_amount",
+      "created_by", "created_at", "updated_at", "vendor_id", "salesforce_id",
+    ],
+  },
+  procurement_items: {
+    changeKey: "updated_at",
+    columns: [
+      "id", "procurement_id", "product_id", "rate", "qty", "amount", "created_at",
+      "updated_at", "uom", "vendor_ids", "rate_source", "rate_source_vendor_id",
+      "salesforce_id",
+    ],
+  },
+  procurement_orders: {
+    changeKey: "updated_at",
+    columns: [
+      "id", "order_date", "vendor_id", "po_number", "site_id", "entity_id",
+      "status", "grn_number", "grn_status", "total_amount", "created_by",
+      "created_at", "updated_at", "expected_delivery_date", "payment_terms",
+      "estimated_budget", "bill_to", "ship_to", "vendor_ids", "requisition_notes",
+      "bill_to_address_id", "ship_to_address_id", "bill_to_gst", "ship_to_gst",
+      "source_type", "transfer_from_site_id", "stage_history", "requisition_name",
+      "terms_and_conditions", "requisition_number", "salesforce_id",
+    ],
+  },
+  procurement_vendor_feedback: {
+    changeKey: "updated_at",
+    columns: [
+      "id", "grn_id", "vendor_id", "po_id", "delivery_timeliness",
+      "material_quality", "quantity_accuracy", "overall_experience", "comments",
+      "created_by", "created_at", "updated_at",
+    ],
+  },
+  procurement_vendor_quote_items: {
+    changeKey: "updated_at",
+    columns: [
+      "id", "quote_id", "procurement_item_id", "rate", "discount_pct",
+      "rate_after_discount", "delivery_commitment_date", "is_selected",
+      "created_at", "updated_at", "quality_notes", "salesforce_id",
+    ],
+  },
+  procurement_vendor_quotes: {
+    changeKey: "updated_at",
+    columns: [
+      "id", "po_id", "vendor_id", "token", "status", "vendor_payment_term",
+      "notes", "submitted_at", "created_by", "created_at", "updated_at",
+      "procurement_item_ids", "change_request_notes", "attachments",
+      "terms_accepted_at", "first_submitted_at", "last_resubmitted_at",
+      "reopened_at", "reopened_by", "term_responses", "version", "is_latest",
+      "salesforce_id",
+    ],
+  },
+  project_sites: {
+    changeKey: "updated_at",
+    columns: [
+      "id", "site_name", "site_code", "description", "is_active", "deleted_at",
+      "created_by", "created_at", "updated_at", "start_date", "end_date", "flag",
+      "status", "attachment_urls", "image_url",
+    ],
+  },
+  site_assignments: {
+    changeKey: "assigned_at",
+    full: true,
+    columns: [
+      "id", "site_id", "user_id", "assigned_at", "assigned_by",
+    ],
+  },
+  site_files: {
+    changeKey: "updated_at",
+    columns: [
+      "id", "site_id", "kind", "storage_key", "file_name", "file_size",
+      "mime_type", "uploaded_by", "created_at", "updated_at",
+    ],
+  },
+  site_milestone_comments: {
+    changeKey: "updated_at",
+    columns: [
+      "id", "milestone_id", "user_id", "content", "created_at", "updated_at",
+    ],
+  },
+  site_milestones: {
+    changeKey: "updated_at",
+    columns: [
+      "id", "site_id", "name", "start_date", "end_date", "status", "priority",
+      "created_at", "updated_at", "actual_start_date", "actual_end_date",
+      "percent_complete", "notes", "is_active", "at_risk", "parent_id",
     ],
   },
 };
@@ -178,7 +363,7 @@ async function pushRows(table: string, rows: Record<string, unknown>[], cols: st
 }
 
 async function syncTable(table: string, spec: TableSpec, traceId: string, full: boolean) {
-  const since = full ? EPOCH : await getWatermark(table);
+  const since = full || spec.full ? EPOCH : await getWatermark(table);
   const destination = `builders_${table}`;
   let offset = 0;
   let total = 0;
