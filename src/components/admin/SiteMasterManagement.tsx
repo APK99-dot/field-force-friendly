@@ -410,6 +410,10 @@ export default function SiteMasterManagement() {
         is_active: form.status !== "dropped",
         attachment_urls: attachments,
         image_url: form.image_url || null,
+        base_lat: form.base_lat ? Number(form.base_lat) : null,
+        base_lng: form.base_lng ? Number(form.base_lng) : null,
+        base_address: form.base_address || null,
+        geofence_radius_m: form.geofence_radius_m ? Number(form.geofence_radius_m) : 100,
       };
 
       let userIds = [...selectedUserIds];
