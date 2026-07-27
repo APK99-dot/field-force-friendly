@@ -358,6 +358,44 @@ export default function CreativeActivityForm({
     }
   };
 
+  const handleStatusChange = async (newStatus: string) => {
+    if (!isEdit || !editActivity || !updateActivity || newStatus === status) return;
+    setChangingStatus(true);
+    try {
+      const now = new Date().toISOString();
+      const history = [
+        ...(editActivity.status_history || []),
+        { status: newStatus, at: now } as ActivityStatusEntry,
+      ];
+      const updates: any = { status: newStatus, status_history: history };
+      if (newStatus === "in_progress" && !editActivity.start_time) updates.start_time = now;
+      if (newStatus === "completed") updates.end_time = now;
+      await updateActivity(editActivity.id, updates);
+      setStatus(newStatus);
+      toast.success(`Marked as ${STATUS_LABELS[newStatus] || newStatus}`);
+      onCreated?.();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update status");
+    } finally {
+      setChangingStatus(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!isEdit || !editActivity || !onDelete) return;
+    if (!confirm("Delete this post?")) return;
+    setDeleting(true);
+    try {
+      await onDelete(editActivity.id);
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+
   const selectedProject = projects.find((p) => p.id === projectId);
   const currentRisk = RISK_OPTIONS.find((r) => r.key === risk)!;
 
