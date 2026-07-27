@@ -187,6 +187,8 @@ export default function ProcurementDetail({
   const procCfg = useModuleConfig("procurement");
   const canEditRatesPostApproval = procCfg.canDo("editRatesAfterApproval");
   const { profile: currentProfile, isAdmin } = useUserProfile();
+  const [uiMode] = useUiMode();
+  const lightning = isLightning(uiMode);
   const [grns, setGrns] = useState<GrnRow[]>([]);
   const [grnItems, setGrnItems] = useState<GrnItemRow[]>([]);
   const [invoices, setInvoices] = useState<InvRow[]>([]);
