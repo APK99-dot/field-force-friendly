@@ -239,14 +239,42 @@ export default function CreativeActivityForm({
     }
   };
 
-  const handleCheckIn = async () => {
+  const handleActivityCheckIn = async () => {
+    if (!isEdit || !editActivity || !checkInActivity) {
+      toast.error("Save the post first to check in for this activity");
+      return;
+    }
     setCheckingIn(true);
     try {
-      await checkInForDate(currentUserId, dateStr);
+      const site = selectedProject
+        ? {
+            base_lat: selectedProject.base_lat ?? null,
+            base_lng: selectedProject.base_lng ?? null,
+            geofence_radius_m: selectedProject.geofence_radius_m ?? 100,
+          }
+        : null;
+      const res = await checkInActivity(editActivity.id, site);
       setCheckedIn(true);
-      toast.success("Checked in");
+      if (res?.within_site === true) toast.success(`Checked in · Within site (${res.distance_m}m)`);
+      else if (res?.within_site === false) toast.warning(`Checked in · Outside site (${res.distance_m}m)`);
+      else toast.success("Checked in");
+      onCreated?.();
     } catch (err: any) {
       toast.error(err.message || "Check-in failed");
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const handleActivityCheckOut = async () => {
+    if (!isEdit || !editActivity || !checkOutActivity) return;
+    setCheckingIn(true);
+    try {
+      await checkOutActivity(editActivity.id);
+      toast.success("Checked out");
+      onCreated?.();
+    } catch (err: any) {
+      toast.error(err.message || "Check-out failed");
     } finally {
       setCheckingIn(false);
     }
