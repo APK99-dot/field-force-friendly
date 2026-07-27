@@ -25,12 +25,26 @@ export interface HubAssignedUser {
 
 export interface HubGalleryPhoto {
   kind: "activity" | "site";
-  storageKey: string; // path for resolving
+  storageKey: string;
   uploadedBy: string;
+  uploadedById?: string | null;
   at: string | null;
   activityCode: string | null;
   activityId: string | null;
-  label: string; // file name for site docs
+  label: string;
+  fileId?: string;
+  fileSize?: number | null;
+}
+
+export interface HubDocument {
+  id?: string;
+  stored: string;
+  name: string;
+  uploadedBy?: string;
+  uploadedById?: string | null;
+  at?: string | null;
+  size?: number | null;
+  source: "site_files" | "legacy";
 }
 
 export interface HubAttendance {
@@ -46,14 +60,14 @@ export function useSiteHub(siteId: string | null) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [assignedUsers, setAssignedUsers] = useState<HubAssignedUser[]>([]);
   const [gallery, setGallery] = useState<HubGalleryPhoto[]>([]);
-  const [documents, setDocuments] = useState<{ stored: string; name: string }[]>([]);
+  const [documents, setDocuments] = useState<HubDocument[]>([]);
   const [attendanceByActivity, setAttendanceByActivity] = useState<Record<string, HubAttendance>>({});
 
   const load = useCallback(async () => {
     if (!siteId) return;
     setLoading(true);
     try {
-      const [msRes, actRes, assignRes, siteRes] = await Promise.all([
+      const [msRes, actRes, assignRes, siteRes, filesRes] = await Promise.all([
         supabase.from("site_milestones").select("*").eq("site_id", siteId).order("start_date"),
         supabase
           .from("activity_events")
@@ -63,6 +77,7 @@ export function useSiteHub(siteId: string | null) {
           .order("created_at", { ascending: false }),
         supabase.from("site_assignments").select("user_id").eq("site_id", siteId),
         supabase.from("project_sites").select("attachment_urls").eq("id", siteId).maybeSingle(),
+        supabase.from("site_files").select("*").eq("site_id", siteId).order("created_at", { ascending: false }),
       ]);
 
       const ms: HubMilestone[] = (msRes.data || []).map((m: any) => ({
@@ -85,10 +100,10 @@ export function useSiteHub(siteId: string | null) {
       const msMap: Record<string, { name: string; status: string }> = {};
       ms.forEach((m) => { msMap[m.id] = { name: m.name, status: m.status }; });
 
-      // user names for activities + assignments
       const assignIds = (assignRes.data || []).map((a: any) => a.user_id);
       const actUserIds = rawActs.map((a: any) => a.user_id);
-      const allUserIds = [...new Set([...assignIds, ...actUserIds])];
+      const fileUserIds = (filesRes.data || []).map((f: any) => f.uploaded_by).filter(Boolean);
+      const allUserIds = [...new Set([...assignIds, ...actUserIds, ...fileUserIds])];
       const userMap: Record<string, string> = {};
       if (allUserIds.length > 0) {
         const { data: usersData } = await supabase.from("users").select("id, full_name").in("id", allUserIds);
@@ -108,14 +123,17 @@ export function useSiteHub(siteId: string | null) {
 
       setAssignedUsers(assignIds.map((id: string) => ({ id, full_name: userMap[id] || "Unknown" })));
 
-      // Build gallery: activity photos + site image attachments
+      // Build gallery from activity photos + site_files (photo kind) + legacy site attachments (images only)
       const galleryItems: HubGalleryPhoto[] = [];
+      const docs: HubDocument[] = [];
+
       mappedActs.forEach((a) => {
         (a.photo_urls || []).forEach((p: ActivityPhotoEntry) => {
           galleryItems.push({
             kind: "activity",
             storageKey: p.url,
             uploadedBy: a.user_full_name || "Unknown",
+            uploadedById: a.user_id,
             at: p.at || null,
             activityCode: a.activity_code,
             activityId: a.id,
@@ -124,8 +142,37 @@ export function useSiteHub(siteId: string | null) {
         });
       });
 
+      (filesRes.data || []).forEach((f: any) => {
+        const who = f.uploaded_by ? (userMap[f.uploaded_by] || "Unknown") : "Unknown";
+        if (f.kind === "photo") {
+          galleryItems.push({
+            kind: "site",
+            storageKey: f.storage_key,
+            uploadedBy: who,
+            uploadedById: f.uploaded_by,
+            at: f.created_at,
+            activityCode: null,
+            activityId: null,
+            label: f.file_name,
+            fileId: f.id,
+            fileSize: f.file_size,
+          });
+        } else {
+          docs.push({
+            id: f.id,
+            stored: f.storage_key,
+            name: f.file_name,
+            uploadedBy: who,
+            uploadedById: f.uploaded_by,
+            at: f.created_at,
+            size: f.file_size,
+            source: "site_files",
+          });
+        }
+      });
+
+      // Legacy attachments (pre-site_files) — keep visible for backwards compat.
       const siteAttachments: string[] = (siteRes.data?.attachment_urls as string[]) || [];
-      const docs: { stored: string; name: string }[] = [];
       siteAttachments.forEach((stored) => {
         const name = attachmentName(stored);
         if (IMAGE_RE.test(name) || IMAGE_RE.test(attachmentPath(stored))) {
@@ -139,15 +186,15 @@ export function useSiteHub(siteId: string | null) {
             label: name,
           });
         } else {
-          docs.push({ stored, name });
+          docs.push({ stored, name, source: "legacy" });
         }
       });
-      // sort gallery newest first
+
       galleryItems.sort((x, y) => (y.at || "").localeCompare(x.at || ""));
+      docs.sort((x, y) => (y.at || "").localeCompare(x.at || ""));
       setGallery(galleryItems);
       setDocuments(docs);
 
-      // attendance for check-in/out per activity (user + date)
       const attMap: Record<string, HubAttendance> = {};
       const attKeys = [...new Set(mappedActs.map((a) => `${a.user_id}|${a.activity_date}`))];
       if (attKeys.length > 0) {

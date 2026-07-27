@@ -17,15 +17,15 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Loader2, Edit, Users, Download, Building2, Image as ImageIcon,
-  Target, Activity as ActivityIcon, FileText, X, Plus,
+  Loader2, Edit, Users, Building2, Image as ImageIcon,
+  Target, Activity as ActivityIcon, X, Plus,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { getSiteAttachmentUrl } from "@/utils/siteAttachments";
 import { useSiteHub } from "@/hooks/useSiteHub";
 import { MILESTONE_STATUSES } from "@/components/admin/SiteMilestonesDialog";
 import SiteGallery from "@/components/admin/site-hub/SiteGallery";
+import SiteDocuments from "@/components/admin/site-hub/SiteDocuments";
 import SiteMilestoneList from "@/components/admin/site-hub/SiteMilestoneList";
 import SiteActivityList from "@/components/admin/site-hub/SiteActivityList";
 import ActivityDetailsDialog from "@/components/activities/ActivityDetailsDialog";
@@ -151,12 +151,6 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
       toast.success("Status updated");
       onStatusChanged?.();
     }
-  };
-
-  const openDoc = async (stored: string) => {
-    const url = await getSiteAttachmentUrl(stored);
-    if (url) window.open(url, "_blank");
-    else toast.error("Could not open file");
   };
 
   const openActivityById = (id: string) => {
@@ -382,7 +376,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
 
 
                   <TabsContent value="gallery" className="mt-0">
-                    <SiteGallery gallery={gallery} onActivityClick={openActivityById} />
+                    <SiteGallery siteId={site!.id} gallery={gallery} onActivityClick={openActivityById} onChanged={reload} />
                   </TabsContent>
 
                   <TabsContent value="activities" className="mt-0">
@@ -390,21 +384,9 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                   </TabsContent>
 
                   <TabsContent value="documents" className="mt-0">
-                    {documents.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-8 text-center">No documents uploaded.</p>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                        {documents.map((d, i) => (
-                          <button key={i} type="button" onClick={() => openDoc(d.stored)}
-                            className="flex items-center gap-2 text-sm text-primary hover:underline w-full text-left border rounded-lg px-3 py-2.5">
-                            <FileText className="h-4 w-4 shrink-0" />
-                            <span className="truncate flex-1">{d.name}</span>
-                            <Download className="h-4 w-4 shrink-0" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    <SiteDocuments siteId={site!.id} documents={documents} onChanged={reload} />
                   </TabsContent>
+
 
                 </div>
               </div>
