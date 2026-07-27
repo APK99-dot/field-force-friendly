@@ -1,48 +1,69 @@
-## Goal
 
-Every weekday at 1:00 PM and 6:00 PM IST, copy rows from six critical tables in this project into `builders_*` tables in the external Supabase project (`ylvhhlykyojudldcmzou`), incrementally (only rows changed since the last successful run).
+# Extend the backup mirror to GPS, Activity, Site and Procurement tables
 
-## Tables mirrored
+Purely additive: the existing six mirrored tables, their watermarks, the edge function's sync logic, and the two cron jobs stay exactly as they are. No business logic, triggers, or app code is touched.
 
+## Tables to add (21)
 
-| Source (this project)          | Destination (external)        | Change key                             |
-| ------------------------------ | ----------------------------- | -------------------------------------- |
-| `users` (10 cols)              | `builders_users`              | `updated_at`                           |
-| `employees` (17 cols)          | `builders_employees`          | `updated_at`                           |
-| `attendance` (21 cols)         | `builders_attendance`         | `updated_at`                           |
-| `profiles` (13 cols)           | `builders_profiles`           | `updated_at`                           |
-| `leave_applications` (16 cols) | `builders_leave_applications` | `updated_at`                           |
-| `user_roles` (4 cols)          | `builders_user_roles`         | `assigned_at` (no `updated_at` column) |
+Verified against the live schema, with row counts and the change key each one can use.
 
+**GPS**
+| Table | Rows | Change key | Mode |
+|---|---|---|---|
+| gps_tracking | 355 | `timestamp` | incremental (append-only) |
+| gps_tracking_stops | 0 | `timestamp` | incremental |
 
-Primary keys are carried over unchanged, so every push is an idempotent upsert (`Prefer: resolution=merge-duplicates`). Re-running a sync never duplicates rows.
+**Activity module**
+| Table | Rows | Change key | Mode |
+|---|---|---|---|
+| activity_events | 21 | `created_at` | full refresh |
+| activity_types_master | 10 | `created_at` | full refresh |
 
-## How it differs from Trayi
+**Sites**
+| Table | Rows | Change key | Mode |
+|---|---|---|---|
+| project_sites | 4 | `updated_at` | incremental |
+| site_milestones | 8 | `updated_at` | incremental |
+| site_milestone_comments | 3 | `updated_at` | incremental |
+| site_files | 1 | `updated_at` | incremental |
+| site_assignments | 3 | `assigned_at` | full refresh |
 
-Trayi mirrors in real time: a Postgres trigger fires `pg_net` on every row write. Here you asked for a scheduled batch, so instead of per-row triggers we use a single pg_cron job that calls one edge function which pulls changed rows and pushes them in batches. Fewer moving parts, no write-path overhead, and one audit row per table per run.
+**Procurement (all 13 `procurement_*` tables)**
+| Table | Rows | Change key | Mode |
+|---|---|---|---|
+| procurement_orders | 30 | `updated_at` | incremental |
+| procurement_items | 88 | `updated_at` | incremental |
+| procurement_vendor_quotes | 48 | `updated_at` | incremental |
+| procurement_vendor_quote_items | 82 | `updated_at` | incremental |
+| procurement_vendor_feedback | 6 | `updated_at` | incremental |
+| procurement_grns | 9 | `updated_at` | incremental |
+| procurement_grn_items | 12 | `updated_at` | incremental |
+| procurement_invoices | 18 | `updated_at` | incremental |
+| procurement_invoice_items | 5 | `created_at` | full refresh |
+| procurement_invoice_payments | 20 | `created_at` | full refresh |
+| procurement_invoice_attachments | 0 | `created_at` | full refresh |
+| procurement_attachments | 0 | `created_at` | full refresh |
+| procurement_import_runs | 1 | `started_at` | full refresh |
 
-## What gets built
+### Why two modes
+Several of these tables have no `updated_at` column, so a watermark on `created_at` would silently miss later edits (an activity's status change, for example, would never reach the mirror). Every such table is tiny (≤ 21 rows today), so they are marked **full refresh**: each run re-reads all rows and upserts them by primary key. Cost is negligible and correctness is guaranteed. Tables that do have `updated_at`, plus the append-only GPS tables, stay on the existing efficient watermark path.
 
-1. **External schema script** — `docs/external-backup-schema.sql`, run once by you in the external project's SQL editor. Creates the six `builders_*` tables (matching column types, `id` as primary key, RLS enabled with no public policies so only the service key can read/write) and is safe to re-run.
-2. **Secret** — `BACKUP_MIRROR_SERVICE_KEY`: the external project's service-role key, stored securely. I'll request it once the tables exist.
-3. **Edge function** — `supabase/functions/backup-mirror/index.ts`:
-  - Reads the last successful watermark per table from a local `backup_mirror_state` table.
-  - Selects rows where the change key is greater than that watermark, ordered and paged at 500 rows per batch (keeps runs well under the function timeout even on a first full backfill).
-  - Strips to an allowlist of columns per table, then upserts into `builders_<table>`.
-  - Writes one row per table per run into `backup_mirror_audit` (trace id, row count, status, HTTP status, error text) and advances the watermark only on success — a failed table retries its full delta next run.
-  - Supports `{"action":"backfill"}` for an admin-triggered first full copy and `{"action":"status"}` returning external row counts vs local counts.
-4. **Local tables** (migration) — `backup_mirror_state` (table name, last synced timestamp) and `backup_mirror_audit` (run log), both service-role only.
-5. **Cron job** — pg_cron + pg_net, schedule `30 12 * * 1-5` (UTC) = 6:00 PM IST and `30 07 * * 1-5` (UTC), Monday–Friday. Registered via a data statement so the function URL and key aren't baked into a shared migration.
+## Work items
 
-## Operational notes
+1. **New external-schema script** — `docs/external-backup-schema-phase2.sql`, same shape as the existing one: `create table if not exists public.builders_<name>` mirroring the source columns, `add column if not exists` guards, RLS enabled with no policies, `grant all ... to service_role`. You run this once in the external project's SQL editor. The original script is left untouched.
 
-- **First run**: I'll trigger a manual backfill so the external tables start in sync; the nightly job then only carries deltas.
-- **Failure visibility**: `backup_mirror_audit` shows every run. If a night fails, the next run picks up the same delta automatically — no data loss, just delay.
-- **Holidays**: the job runs every Mon–Fri regardless of holidays; a no-change day simply pushes zero rows.
-- **Direction**: strictly one-way (this project → external). Nothing is read back into the app.
-- **Deleted rows**: an upsert mirror does not remove rows deleted in the source. Given this project blocks hard deletes (`prevent_client_hard_delete`) and uses deactivation instead, deactivated records mirror across correctly as updates.
+2. **Edge function `backup-mirror`** — extend the `TABLES` allowlist with the 21 entries above (explicit column allowlists, as today) and add an optional `mode: "full"` flag per spec. Full-refresh tables ignore the watermark and page through everything each run. Existing entries and the sync/audit/watermark machinery are unchanged.
 
-## What I need from you
+3. **Cron** — no change needed. Both jobs already call the function with no table filter, so the new entries are picked up automatically on the 1:00 PM and 6:00 PM IST weekday runs.
 
-- Run the generated SQL script in the external project once.
-- Provide the external project's service-role key when I request it.
+4. **Backfill and verify** — after you confirm the SQL script has run, trigger a one-off `backfill`, then a `status` call comparing local vs external counts for all 27 tables.
+
+## Notes
+
+- Storage buckets (site photos, procurement attachments, activity photos) are **not** mirrored — only the database rows that reference them. Say the word if you want file mirroring too; that is a separate, larger piece of work.
+- `gps_tracking` is the only table with meaningful growth. It is append-only and paged at 500 rows, so incremental runs stay cheap.
+- Direction stays strictly one-way: this project → external project.
+
+## Your one manual step
+
+Run `docs/external-backup-schema-phase2.sql` in the external project's SQL editor once the file is created, then tell me and I will run the backfill and verification.
