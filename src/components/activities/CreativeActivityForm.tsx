@@ -309,6 +309,7 @@ export default function CreativeActivityForm({
       toast.error("Add a project, type, or description to post");
       return;
     }
+    if (isEdit && !editActivity) return;
     setSaving(true);
     try {
       // Upload voice recording (audio mode) as attachment
@@ -316,7 +317,11 @@ export default function CreativeActivityForm({
       if (recording && !voiceToTextMode) {
         const { data: { user } } = await supabase.auth.getUser();
         const extension = recording.fileExtension || (recording.mimeType.includes("mp4") ? "m4a" : recording.mimeType.includes("ogg") ? "ogg" : "webm");
-        const fileName = `${user!.id}/${Date.now()}.${extension}`;
+        if (!user?.id) {
+          toast.error("Please sign in to add audio");
+          return;
+        }
+        const fileName = `${user.id}/${Date.now()}.${extension}`;
         const { error: uploadErr } = await supabase.storage
           .from("activity-audio")
           .upload(fileName, recording.blob, { contentType: recording.mimeType || "audio/webm" });
@@ -331,7 +336,7 @@ export default function CreativeActivityForm({
       const payload: any = {
         activity_name: activityType || "Activity Update",
         activity_type: activityType || "General Activity",
-        activity_date: isEdit ? editActivity!.activity_date : dateStr,
+        activity_date: isEdit ? editActivity.activity_date : dateStr,
         description: description || null,
         site_id: projectId || null,
         photo_urls: photos,
@@ -341,7 +346,7 @@ export default function CreativeActivityForm({
       };
 
       if (isEdit && updateActivity) {
-        await updateActivity(editActivity!.id, payload);
+        await updateActivity(editActivity.id, payload);
         toast.success("Post updated");
       } else {
         payload.status = "planned";
@@ -404,33 +409,33 @@ export default function CreativeActivityForm({
   return (
     <TooltipProvider delayDuration={200}>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="p-0 gap-0 max-w-[520px] max-h-[92vh] overflow-hidden rounded-2xl border-0 shadow-2xl">
-          <div className="flex flex-col max-h-[92vh]">
+        <DialogContent className="p-0 gap-0 w-[calc(100vw-1rem)] sm:w-[min(640px,calc(100vw-2rem))] max-w-none max-h-[92vh] overflow-hidden rounded-2xl border-0 shadow-2xl">
+          <div className="flex min-w-0 max-w-full flex-col max-h-[92vh] overflow-hidden">
             {/* Header */}
-            <div className="relative px-5 py-4 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="relative px-4 sm:px-5 py-4 pr-12 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white flex items-center justify-between min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <div className="h-9 w-9 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
                   <Sparkles className="h-4 w-4" />
                 </div>
-                <div>
-                  <h2 className="text-base font-semibold leading-tight">{isEdit ? "Edit Post" : "New Post"}</h2>
-                  <p className="text-[11px] text-white/80">Share what's happening on the ground</p>
+                <div className="min-w-0">
+                  <h2 className="text-base font-semibold leading-tight truncate">{isEdit ? "Edit Post" : "New Post"}</h2>
+                  <p className="text-[11px] text-white/80 truncate">Share what's happening on the ground</p>
                 </div>
               </div>
             </div>
 
-            <div className="overflow-y-auto overflow-x-hidden flex-1 bg-muted/40 p-3 space-y-3 min-w-0">
+            <div className="overflow-y-auto overflow-x-hidden flex-1 bg-muted/40 p-3 sm:p-4 space-y-3 min-w-0 max-w-full">
               {/* Details panel — visible in edit/view */}
               {isEdit && editActivity && (
-                <div className="rounded-2xl bg-card border border-border px-4 py-3 shadow-sm space-y-3 overflow-hidden">
-                  <div className="flex items-start justify-between gap-2">
+                <div className="rounded-2xl bg-card border border-border px-3 sm:px-4 py-3 shadow-sm space-y-3 overflow-hidden min-w-0 max-w-full">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 min-w-0">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       {editActivity.activity_code && (
                         <Badge variant="secondary" className="font-mono text-[10px] shrink-0">{editActivity.activity_code}</Badge>
                       )}
-                      <span className="text-sm font-semibold truncate min-w-0">{editActivity.activity_name}</span>
+                      <span className="text-sm font-semibold min-w-0 break-words [overflow-wrap:anywhere]">{editActivity.activity_name}</span>
                     </div>
-                    <div className={cn("inline-flex items-center gap-1.5 px-2 h-6 rounded-full text-[10px] font-semibold uppercase tracking-wider border shrink-0 whitespace-nowrap",
+                    <div className={cn("inline-flex items-center gap-1.5 px-2 h-6 rounded-full text-[10px] font-semibold uppercase tracking-wider border shrink-0 whitespace-nowrap self-start max-w-full",
                       status === "completed" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900" :
                       status === "in_progress" ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900" :
                       "bg-muted text-muted-foreground border-border")}
@@ -440,30 +445,30 @@ export default function CreativeActivityForm({
                     </div>
                   </div>
                   {editActivity.user_full_name && (
-                    <p className="text-[11px] text-muted-foreground">By {editActivity.user_full_name}</p>
+                    <p className="text-[11px] text-muted-foreground break-words [overflow-wrap:anywhere]">By {editActivity.user_full_name}</p>
                   )}
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] min-w-0">
                     {editActivity.activity_date && (
-                      <div className="flex items-center gap-1.5 text-muted-foreground"><Calendar className="h-3 w-3" />{format(parseISO(editActivity.activity_date), "MMM d, yyyy")}</div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground min-w-0"><Calendar className="h-3 w-3 shrink-0" /><span className="min-w-0 break-words">{format(parseISO(editActivity.activity_date), "MMM d, yyyy")}</span></div>
                     )}
                     {editActivity.total_hours ? (
-                      <div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3 w-3" />{editActivity.total_hours}h</div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground min-w-0"><Clock className="h-3 w-3 shrink-0" /><span className="min-w-0 break-words">{editActivity.total_hours}h</span></div>
                     ) : null}
                     {editActivity.start_time && (
-                      <div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3 w-3" />Start {format(parseISO(editActivity.start_time), "h:mm a")}</div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground min-w-0"><Clock className="h-3 w-3 shrink-0" /><span className="min-w-0 break-words">Start {format(parseISO(editActivity.start_time), "h:mm a")}</span></div>
                     )}
                     {editActivity.end_time && (
-                      <div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3 w-3" />End {format(parseISO(editActivity.end_time), "h:mm a")}</div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground min-w-0"><Clock className="h-3 w-3 shrink-0" /><span className="min-w-0 break-words">End {format(parseISO(editActivity.end_time), "h:mm a")}</span></div>
                     )}
                   </div>
                   {editActivity.location_address && (
-                    <p className="text-[11px] flex items-start gap-1.5 text-muted-foreground"><MapPin className="h-3 w-3 mt-0.5 shrink-0" /><span className="min-w-0">{editActivity.location_address}</span></p>
+                    <p className="text-[11px] flex items-start gap-1.5 text-muted-foreground min-w-0"><MapPin className="h-3 w-3 mt-0.5 shrink-0" /><span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere]">{editActivity.location_address}</span></p>
                   )}
                   {editActivity.milestone_name && (
-                    <div className="text-[11px] text-muted-foreground"><span className="font-medium text-foreground">Milestone:</span> {editActivity.milestone_name}</div>
+                    <div className="text-[11px] text-muted-foreground break-words [overflow-wrap:anywhere]"><span className="font-medium text-foreground">Milestone:</span> {editActivity.milestone_name}</div>
                   )}
                   {attendance && (attendance.check_in_time || attendance.check_out_time) && (
-                    <div className="text-[11px] text-muted-foreground space-y-0.5 pt-1 border-t border-border/60">
+                    <div className="text-[11px] text-muted-foreground space-y-0.5 pt-1 border-t border-border/60 min-w-0">
                       {attendance.check_in_time && <p>Check-in: {format(parseISO(attendance.check_in_time), "MMM d, h:mm a")}</p>}
                       {attendance.check_out_time && <p>Check-out: {format(parseISO(attendance.check_out_time), "MMM d, h:mm a")}</p>}
                     </div>
@@ -490,17 +495,21 @@ export default function CreativeActivityForm({
                   )}
                   {/* Timeline */}
                   {(editActivity.status_history || []).length > 0 && (
-                    <div className="pt-2 border-t border-border/60">
+                    <div className="pt-2 border-t border-border/60 min-w-0 max-w-full overflow-hidden">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Timeline</p>
-                      <div className="space-y-1">
+                      <div className="space-y-2 min-w-0">
                         {[...editActivity.status_history]
                           .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
                         .map((h, i) => (
-                          <div key={i} className="flex items-center gap-2 text-[11px] min-w-0">
-                            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", STATUS_DOT[h.status] || "bg-muted-foreground")} />
-                            <span className="font-medium shrink-0">{STATUS_LABELS[h.status] || h.status}</span>
-                            <span className="text-muted-foreground shrink-0">· {format(parseISO(h.at), "MMM d, h:mm a")}</span>
-                            {h.address && <span className="text-muted-foreground truncate min-w-0">· {h.address}</span>}
+                          <div key={i} className="grid grid-cols-[0.375rem_minmax(0,1fr)] items-start gap-2 text-[11px] min-w-0 max-w-full">
+                            <span className={cn("mt-1.5 h-1.5 w-1.5 rounded-full", STATUS_DOT[h.status] || "bg-muted-foreground")} />
+                            <div className="min-w-0 max-w-full">
+                              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0">
+                                <span className="font-medium break-words [overflow-wrap:anywhere]">{STATUS_LABELS[h.status] || h.status}</span>
+                                <span className="text-muted-foreground break-words">· {format(parseISO(h.at), "MMM d, h:mm a")}</span>
+                              </div>
+                              {h.address && <p className="text-muted-foreground break-words [overflow-wrap:anywhere]">{h.address}</p>}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -508,12 +517,12 @@ export default function CreativeActivityForm({
                   )}
                   {/* Attachments */}
                   {editActivity.attachment_urls && editActivity.attachment_urls.length > 0 && (
-                    <div className="pt-2 border-t border-border/60">
+                    <div className="pt-2 border-t border-border/60 min-w-0">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Attachments</p>
                       <div className="space-y-1">
                         {editActivity.attachment_urls.map((u, i) => (
-                          <a key={i} href={u} target="_blank" rel="noreferrer" className="text-[11px] text-primary hover:underline flex items-center gap-1.5">
-                            <Paperclip className="h-3 w-3" /> Attachment {i + 1}
+                          <a key={i} href={u} target="_blank" rel="noreferrer" className="text-[11px] text-primary hover:underline flex items-center gap-1.5 min-w-0">
+                            <Paperclip className="h-3 w-3 shrink-0" /> <span className="min-w-0 truncate">Attachment {i + 1}</span>
                           </a>
                         ))}
                       </div>
@@ -523,12 +532,12 @@ export default function CreativeActivityForm({
               )}
 
 
-              <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-fuchsia-50 dark:from-indigo-950/30 dark:to-fuchsia-950/30 border border-indigo-100 dark:border-indigo-900/50 px-4 pt-4 pb-3 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
+              <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-fuchsia-50 dark:from-indigo-950/30 dark:to-fuchsia-950/30 border border-indigo-100 dark:border-indigo-900/50 px-3 sm:px-4 pt-4 pb-3 shadow-sm min-w-0 max-w-full overflow-hidden">
+                <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
                   <p className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Project</p>
                   {selectedProject && (
                     <button
-                      className="text-[11px] text-muted-foreground hover:text-foreground"
+                      className="text-[11px] text-muted-foreground hover:text-foreground shrink-0"
                       onClick={() => setProjectId("")}
                     >
                       Clear
@@ -544,7 +553,7 @@ export default function CreativeActivityForm({
                     className="pl-9 h-9 rounded-full bg-background/80 border-0"
                   />
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
+                <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 -mx-1 px-1 scrollbar-none max-w-full">
                   {filteredProjects.length === 0 && (
                     <p className="text-xs text-muted-foreground py-4">No projects found</p>
                   )}
@@ -598,8 +607,8 @@ export default function CreativeActivityForm({
               </div>
 
               {/* Status / description with inline icon rail */}
-              <div className="rounded-2xl bg-card border border-border px-4 py-3 shadow-sm">
-                <div className="flex items-start gap-3">
+              <div className="rounded-2xl bg-card border border-border px-3 sm:px-4 py-3 shadow-sm min-w-0 max-w-full overflow-hidden">
+                <div className="flex items-start gap-3 min-w-0">
                   <div
                     className={cn(
                       "h-10 w-10 rounded-full bg-gradient-to-br flex items-center justify-center text-white text-sm font-semibold shrink-0",
@@ -617,12 +626,12 @@ export default function CreativeActivityForm({
                         : "What's happening in your project?"
                     }
                     rows={3}
-                    className="resize-none border-0 bg-transparent focus-visible:ring-0 shadow-none px-0 text-[15px] placeholder:text-muted-foreground/70"
+                    className="min-w-0 flex-1 resize-none border-0 bg-transparent focus-visible:ring-0 shadow-none px-0 text-[15px] placeholder:text-muted-foreground/70 break-words [overflow-wrap:anywhere]"
                   />
                 </div>
 
                 {/* Icon action rail — under description */}
-                <div className="mt-2 pt-2 border-t border-border/60 flex items-center gap-1">
+                <div className="mt-2 pt-2 border-t border-border/60 flex flex-wrap items-center gap-1 min-w-0 max-w-full">
                   {/* Photo */}
                   {cfgTakePhoto && (
                     <>
@@ -755,7 +764,7 @@ export default function CreativeActivityForm({
                   </DropdownMenu>
 
                   {isRecording && (
-                    <span className="text-[11px] text-red-600 font-medium ml-1">
+                    <span className="text-[11px] text-red-600 font-medium ml-1 min-w-0 break-words">
                       {voiceToTextMode ? "Listening" : "Recording"} · {formatDuration(elapsed)}
                     </span>
                   )}
@@ -763,7 +772,7 @@ export default function CreativeActivityForm({
 
                 {/* Photos preview */}
                 {photos.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mt-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 min-w-0">
                     {photos.map((ph) => (
                       <div
                         key={ph.url}
@@ -794,9 +803,9 @@ export default function CreativeActivityForm({
                 )}
 
                 {recording && !voiceToTextMode && !isRecording && (
-                  <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-2 py-1.5 text-xs">
-                    <AudioLines className="h-3.5 w-3.5 text-violet-600" />
-                    <span className="flex-1">Audio note · {formatDuration(recording.duration)}</span>
+                  <div className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-2 py-1.5 text-xs min-w-0">
+                    <AudioLines className="h-3.5 w-3.5 text-violet-600 shrink-0" />
+                    <span className="flex-1 min-w-0 truncate">Audio note · {formatDuration(recording.duration)}</span>
                     <button
                       onClick={() => clearRecording()}
                       className="text-muted-foreground hover:text-destructive"
@@ -809,11 +818,11 @@ export default function CreativeActivityForm({
               </div>
 
               {/* Activity type chips */}
-              <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-100 dark:border-amber-900/50 px-4 py-3 shadow-sm">
+              <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-100 dark:border-amber-900/50 px-3 sm:px-4 py-3 shadow-sm min-w-0 max-w-full overflow-hidden">
                 <p className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 mb-2">
                   Activity Type
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 min-w-0">
                   {activityTypes.length === 0 && (
                     <p className="text-xs text-muted-foreground">No activity types configured</p>
                   )}
@@ -824,7 +833,7 @@ export default function CreativeActivityForm({
                         key={t}
                         onClick={() => setActivityType(active ? "" : t)}
                         className={cn(
-                          "px-3.5 h-8 rounded-full text-xs font-medium border transition-all",
+                            "max-w-full px-3.5 min-h-8 h-auto py-1.5 rounded-full text-xs font-medium border transition-all whitespace-normal break-words [overflow-wrap:anywhere]",
                           active
                             ? "bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white border-transparent shadow-md"
                             : "bg-white dark:bg-background border-amber-200 dark:border-amber-900/60 text-foreground hover:border-fuchsia-400 hover:text-fuchsia-600"
@@ -839,19 +848,19 @@ export default function CreativeActivityForm({
 
               {/* Assign */}
               {canAssign && (
-                <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/50 px-4 py-3 shadow-sm">
+                <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/50 px-3 sm:px-4 py-3 shadow-sm min-w-0 max-w-full overflow-hidden">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                     Assign
                   </p>
                   <button
                     onClick={() => setAssignOpen((v) => !v)}
-                    className="w-full h-11 rounded-xl border border-border bg-background/60 hover:bg-background flex items-center gap-2 px-3 text-sm transition"
+                    className="w-full min-h-11 rounded-xl border border-border bg-background/60 hover:bg-background flex items-center gap-2 px-3 py-2 text-sm transition min-w-0"
                   >
                     <Users className="h-4 w-4 text-muted-foreground" />
                     {assignedIds.length === 0 ? (
-                      <span className="text-muted-foreground">Add people</span>
+                      <span className="text-muted-foreground min-w-0 truncate">Add people</span>
                     ) : (
-                      <div className="flex -space-x-2">
+                      <div className="flex -space-x-2 min-w-0">
                         {assignedIds.slice(0, 4).map((id) => {
                           const u = users.find((x) => x.id === id);
                           return (
@@ -877,7 +886,7 @@ export default function CreativeActivityForm({
                   </button>
 
                   {assignOpen && (
-                    <div className="mt-2 rounded-xl border border-border bg-background/70 p-3 space-y-2">
+                    <div className="mt-2 rounded-xl border border-border bg-background/70 p-3 space-y-2 min-w-0 max-w-full overflow-hidden">
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                         <Input
@@ -899,13 +908,13 @@ export default function CreativeActivityForm({
                                 )
                               }
                               className={cn(
-                                "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm",
+                                "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm min-w-0",
                                 active ? "bg-primary/10" : "hover:bg-background"
                               )}
                             >
                               <div
                                 className={cn(
-                                  "h-7 w-7 rounded-full bg-gradient-to-br text-white text-[10px] flex items-center justify-center font-semibold",
+                                  "h-7 w-7 rounded-full bg-gradient-to-br text-white text-[10px] flex items-center justify-center font-semibold shrink-0",
                                   gradientFor(u.id)
                                 )}
                               >
@@ -924,24 +933,24 @@ export default function CreativeActivityForm({
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-3 border-t border-border/60 bg-background flex items-center justify-between gap-3">
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+            <div className="px-3 sm:px-4 py-3 border-t border-border/60 bg-background flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 min-w-0 max-w-full overflow-hidden safe-bottom">
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap min-w-0 max-w-full">
                 {selectedProject && (
-                  <Badge variant="secondary" className="rounded-full text-[10px] px-2 py-0">
-                    {selectedProject.name}
+                  <Badge variant="secondary" className="rounded-full text-[10px] px-2 py-0 max-w-full min-w-0">
+                    <span className="min-w-0 truncate">{selectedProject.name}</span>
                   </Badge>
                 )}
                 {activityType && (
-                  <Badge className="rounded-full text-[10px] px-2 py-0 bg-fuchsia-600 hover:bg-fuchsia-600">
-                    {activityType}
+                  <Badge className="rounded-full text-[10px] px-2 py-0 bg-fuchsia-600 hover:bg-fuchsia-600 max-w-full min-w-0">
+                    <span className="min-w-0 truncate">{activityType}</span>
                   </Badge>
                 )}
-                <Badge variant="outline" className="rounded-full text-[10px] px-2 py-0 gap-1">
+                <Badge variant="outline" className="rounded-full text-[10px] px-2 py-0 gap-1 shrink-0">
                   <span className={cn("h-2 w-2 rounded-full", currentRisk.dot)} />
                   {currentRisk.label}
                 </Badge>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-end gap-2 shrink-0 w-full sm:w-auto">
                 {isEdit && onDelete && (
                   <Button
                     onClick={handleDelete}
@@ -957,7 +966,7 @@ export default function CreativeActivityForm({
                 <Button
                   onClick={handlePost}
                   disabled={!canPost || saving}
-                  className="rounded-full h-10 px-5 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white hover:brightness-110 shadow-md"
+                  className="rounded-full h-10 px-5 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 text-white hover:brightness-110 shadow-md min-w-0"
                 >
                   {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
                   {isEdit ? "Save" : "Post"}
