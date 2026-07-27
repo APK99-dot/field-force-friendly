@@ -240,8 +240,12 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
             </button>
             <div className="max-w-6xl mx-auto w-full">
               <div className="flex items-start gap-4 pr-10">
-                <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl bg-primary-foreground/15 flex items-center justify-center shrink-0 mt-1">
-                  <Building2 className="h-7 w-7 sm:h-8 sm:w-8" />
+                <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-xl bg-primary-foreground/15 flex items-center justify-center shrink-0 mt-1 overflow-hidden ring-1 ring-primary-foreground/20">
+                  {site?.image_url ? (
+                    <img src={site.image_url} alt={site.site_name} className="h-full w-full object-cover" />
+                  ) : (
+                    <Building2 className="h-7 w-7 sm:h-8 sm:w-8" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <h2 className="text-xl sm:text-2xl font-bold truncate leading-tight">{site?.site_name}</h2>
