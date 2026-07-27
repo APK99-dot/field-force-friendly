@@ -4,13 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { ReportShell, SummaryCards } from "./ReportShell";
+import { ReportShell } from "./ReportShell";
 import { ReportChartCard } from "./ReportChartCard";
+import { KpiGrid, ChartGrid, KpiItem } from "./KpiCards";
 import { DateField, SelectField } from "./ReportFilters";
 import { useReportScope } from "./useReportScope";
 import { useReportContext, DateRangePill } from "@/components/analytics/ReportContext";
 import { generateReportPdf } from "./reportPdf";
-import { X } from "lucide-react";
+import { X, ShoppingCart, IndianRupee, CheckCircle2, Clock, Building2, Package } from "lucide-react";
 
 interface Row {
   id: string;
