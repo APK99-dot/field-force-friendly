@@ -43,7 +43,7 @@ function GalleryThumb({ photo, onOpen, onActivityClick, canDelete, onDelete }: G
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onDelete(photo); }}
-          className="absolute top-1.5 right-1.5 z-10 rounded-full bg-background/90 border p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+          className="absolute top-1.5 right-1.5 z-10 rounded-full bg-background/90 border p-1 shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground"
           aria-label="Delete photo"
         >
           <Trash2 className="h-3.5 w-3.5" />
