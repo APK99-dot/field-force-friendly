@@ -202,6 +202,22 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background-color: hsl(var(--muted-foreground) / 0.5);
   }
+
+  .proc-stage-label {
+    font-family: inherit !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+    text-align: center !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    padding: 0 10px;
+    min-height: 20px;
+  }
 }
 
 /* =========================================================================
@@ -388,9 +404,11 @@
   padding: 10px 22px 10px 30px;
   background: #ecebea;
   color: var(--sf-text-weak);
-  font-size: 12px;
-  font-weight: 600;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%);
 }
 .lightning-ui .sf-path-step:first-child {
@@ -409,8 +427,8 @@
   color: #fff;
 }
 .lightning-ui .sf-path-label {
-  display: inline-block;
-  white-space: nowrap;
+  width: 100%;
+  color: inherit;
 }
 
 /* =========================================================================
