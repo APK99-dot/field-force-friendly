@@ -178,7 +178,7 @@ export default function SiteGallery({ siteId, gallery, onActivityClick, onChange
           <AlertDialogHeader>
             <AlertDialogTitle>Delete photo?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove the photo from this site. This action cannot be undone.
+              Are you sure you want to delete this photo? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
