@@ -173,6 +173,7 @@ export default function CreativeActivityForm({
     formatDuration,
   } = useAudioRecorder();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
   const dateStr = format(new Date(), "yyyy-MM-dd");
 
   useEffect(() => {
