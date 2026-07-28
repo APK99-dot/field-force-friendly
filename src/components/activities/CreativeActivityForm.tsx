@@ -1157,6 +1157,110 @@ export default function CreativeActivityForm({
                 </div>
               </div>
 
+              {/* GRN — Goods Receipt (only when Activity Type contains "GRN") */}
+              {isGrnType && (
+                <div className="rounded-2xl bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-950/30 dark:to-cyan-950/30 border border-sky-100 dark:border-sky-900/50 px-3 sm:px-4 py-3 shadow-sm min-w-0 max-w-full overflow-hidden space-y-3">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-wider text-sky-700 dark:text-sky-300">Goods Receipt (GRN)</p>
+                    {grnPoNumber && (
+                      <Badge variant="outline" className="text-[10px]">{grnPoNumber}</Badge>
+                    )}
+                  </div>
+
+                  {!projectId ? (
+                    <p className="text-xs text-muted-foreground">Select a Project/Site above to see open Purchase Orders.</p>
+                  ) : (
+                    <OpenGRNPicker siteId={projectId} value={grnPoId} onChange={setGrnPoId} />
+                  )}
+
+                  {grnPoId && (
+                    grnLoadingPo ? (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading PO items…
+                      </div>
+                    ) : grnItems.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No line items on this PO.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="rounded-xl border border-border bg-background/70 overflow-hidden">
+                          <div className="hidden sm:grid grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/50">
+                            <div>Item</div>
+                            <div className="text-right">Ordered</div>
+                            <div className="text-right">Prev. Recd</div>
+                            <div className="text-right">Pending</div>
+                            <div className="text-right">Receive Now</div>
+                          </div>
+                          <div className="divide-y divide-border">
+                            {grnItems.map((it) => {
+                              const pending = Math.max(0, it.ordered - it.prevReceived);
+                              const recvVal = grnRecv[it.id] || "";
+                              const recvNum = parseFloat(recvVal) || 0;
+                              const over = recvNum > pending;
+                              const done = pending <= 0;
+                              return (
+                                <div
+                                  key={it.id}
+                                  className="grid grid-cols-2 sm:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] gap-2 px-3 py-2 items-center text-xs min-w-0"
+                                >
+                                  <div className="col-span-2 sm:col-span-1 min-w-0">
+                                    <div className="font-medium break-words [overflow-wrap:anywhere]">{it.product_name}</div>
+                                    {it.uom && <div className="text-[10px] text-muted-foreground">UOM: {it.uom}</div>}
+                                  </div>
+                                  <div className="text-right sm:text-right">
+                                    <div className="sm:hidden text-[10px] text-muted-foreground">Ordered</div>
+                                    {it.ordered}
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="sm:hidden text-[10px] text-muted-foreground">Prev</div>
+                                    {it.prevReceived}
+                                  </div>
+                                  <div className={cn("text-right font-medium", done ? "text-emerald-600" : "text-foreground")}>
+                                    <div className="sm:hidden text-[10px] text-muted-foreground">Pending</div>
+                                    {pending}
+                                  </div>
+                                  <div>
+                                    <div className="sm:hidden text-[10px] text-muted-foreground">Receive</div>
+                                    <Input
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={0}
+                                      max={pending}
+                                      step="any"
+                                      disabled={done}
+                                      value={recvVal}
+                                      onChange={(e) => setGrnRecv((s) => ({ ...s, [it.id]: e.target.value }))}
+                                      className={cn("h-8 text-right text-xs", over && "border-destructive focus-visible:ring-destructive")}
+                                      placeholder={done ? "Received" : "0"}
+                                    />
+                                    {over && (
+                                      <div className="text-[10px] text-destructive mt-0.5">Exceeds pending</div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <Textarea
+                          value={grnRemarks}
+                          onChange={(e) => setGrnRemarks(e.target.value)}
+                          placeholder="GRN remarks (optional)"
+                          rows={2}
+                          className="text-sm bg-background/70"
+                        />
+                        {isEdit && (
+                          <p className="text-[11px] text-muted-foreground">
+                            This activity is linked to {grnPoNumber || "the selected PO"}. To record another receipt, create a new GRN activity.
+                          </p>
+                        )}
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+
+
+
               {/* Assign */}
               {canAssign && (
                 <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/50 px-3 sm:px-4 py-3 shadow-sm min-w-0 max-w-full overflow-hidden">
