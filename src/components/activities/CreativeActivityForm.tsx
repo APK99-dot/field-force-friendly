@@ -39,6 +39,8 @@ import { format, parseISO } from "date-fns";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import CameraCapture from "@/components/CameraCapture";
+import { isNative, takeNativePhoto } from "@/utils/nativePermissions";
 
 type ProjectOpt = {
   id: string;
@@ -171,6 +173,7 @@ export default function CreativeActivityForm({
     formatDuration,
   } = useAudioRecorder();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
   const dateStr = format(new Date(), "yyyy-MM-dd");
 
   useEffect(() => {
@@ -224,13 +227,10 @@ export default function CreativeActivityForm({
     return q ? users.filter((u) => u.full_name.toLowerCase().includes(q)) : users;
   }, [users, assignSearch]);
 
-  const handlePhotoPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
+  const uploadPhotoBlob = useCallback(async (blob: Blob) => {
     setUploadingPhoto(true);
     try {
-      const entry = await uploadActivityPhoto(file);
+      const entry = await uploadActivityPhoto(blob);
       setPhotos((p) => [...p, entry]);
       const url = await resolveActivityPhotoUrl(entry.url);
       setPhotoPreviews((prev) => ({ ...prev, [entry.url]: url }));
@@ -239,7 +239,35 @@ export default function CreativeActivityForm({
     } finally {
       setUploadingPhoto(false);
     }
+  }, []);
+
+  const handlePhotoPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    await uploadPhotoBlob(file);
   };
+
+  const handleOpenCamera = useCallback(async () => {
+    // Native (Capacitor): use device camera plugin directly
+    if (isNative()) {
+      const blob = await takeNativePhoto();
+      if (blob) {
+        await uploadPhotoBlob(blob);
+        return;
+      }
+    }
+    // Web: prefer getUserMedia webcam via CameraCapture modal
+    const hasMedia = typeof navigator !== "undefined"
+      && !!navigator.mediaDevices
+      && typeof navigator.mediaDevices.getUserMedia === "function";
+    if (hasMedia) {
+      setShowCamera(true);
+      return;
+    }
+    // Fallback: file picker
+    fileInputRef.current?.click();
+  }, [uploadPhotoBlob]);
 
   const handleActivityCheckIn = async () => {
     if (!isEdit || !editActivity || !checkInActivity) {
@@ -742,7 +770,7 @@ export default function CreativeActivityForm({
                         <TooltipTrigger asChild>
                           <button
                             type="button"
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={handleOpenCamera}
                             disabled={uploadingPhoto}
                             className="h-9 w-9 rounded-full flex items-center justify-center text-fuchsia-600 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/30 disabled:opacity-60 transition"
                             aria-label="Add photo"
@@ -1092,6 +1120,12 @@ export default function CreativeActivityForm({
           </div>
         </DialogContent>
       </Dialog>
+      <CameraCapture
+        open={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={(blob) => { void uploadPhotoBlob(blob); }}
+        title="Take Photo"
+      />
     </TooltipProvider>
   );
 }
