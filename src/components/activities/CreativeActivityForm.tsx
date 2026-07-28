@@ -227,13 +227,10 @@ export default function CreativeActivityForm({
     return q ? users.filter((u) => u.full_name.toLowerCase().includes(q)) : users;
   }, [users, assignSearch]);
 
-  const handlePhotoPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
+  const uploadPhotoBlob = useCallback(async (blob: Blob) => {
     setUploadingPhoto(true);
     try {
-      const entry = await uploadActivityPhoto(file);
+      const entry = await uploadActivityPhoto(blob);
       setPhotos((p) => [...p, entry]);
       const url = await resolveActivityPhotoUrl(entry.url);
       setPhotoPreviews((prev) => ({ ...prev, [entry.url]: url }));
@@ -242,7 +239,35 @@ export default function CreativeActivityForm({
     } finally {
       setUploadingPhoto(false);
     }
+  }, []);
+
+  const handlePhotoPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    await uploadPhotoBlob(file);
   };
+
+  const handleOpenCamera = useCallback(async () => {
+    // Native (Capacitor): use device camera plugin directly
+    if (isNative()) {
+      const blob = await takeNativePhoto();
+      if (blob) {
+        await uploadPhotoBlob(blob);
+        return;
+      }
+    }
+    // Web: prefer getUserMedia webcam via CameraCapture modal
+    const hasMedia = typeof navigator !== "undefined"
+      && !!navigator.mediaDevices
+      && typeof navigator.mediaDevices.getUserMedia === "function";
+    if (hasMedia) {
+      setShowCamera(true);
+      return;
+    }
+    // Fallback: file picker
+    fileInputRef.current?.click();
+  }, [uploadPhotoBlob]);
 
   const handleActivityCheckIn = async () => {
     if (!isEdit || !editActivity || !checkInActivity) {
