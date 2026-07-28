@@ -1120,6 +1120,12 @@ export default function CreativeActivityForm({
           </div>
         </DialogContent>
       </Dialog>
+      <CameraCapture
+        open={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={(blob) => { void uploadPhotoBlob(blob); }}
+        title="Take Photo"
+      />
     </TooltipProvider>
   );
 }
