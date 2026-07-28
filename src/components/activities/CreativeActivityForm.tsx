@@ -474,6 +474,34 @@ export default function CreativeActivityForm({
       return;
     }
     if (isEdit && !editActivity) return;
+
+    // GRN validation — only enforced for GRN activity type on new posts
+    let grnRowsToInsert: { it: GrnLineItem; received: number; remarks: string }[] = [];
+    if (isGrnType && !isEdit) {
+      if (!grnPoId) {
+        toast.error("Select a Purchase Order to receive against");
+        return;
+      }
+      grnRowsToInsert = grnItems
+        .map((it) => ({
+          it,
+          received: parseFloat(grnRecv[it.id]) || 0,
+          remarks: (grnItemRemarks[it.id] || "").trim(),
+        }))
+        .filter((r) => r.received > 0);
+      if (grnRowsToInsert.length === 0) {
+        toast.error("Enter received quantity for at least one item");
+        return;
+      }
+      for (const r of grnRowsToInsert) {
+        const pending = Math.max(0, r.it.ordered - r.it.prevReceived);
+        if (r.received > pending + 1e-9) {
+          toast.error(`Received qty for ${r.it.product_name} exceeds pending (${pending})`);
+          return;
+        }
+      }
+    }
+
     setSaving(true);
     try {
       // Upload voice recording (audio mode) as attachment
@@ -505,6 +533,7 @@ export default function CreativeActivityForm({
         site_id: projectId || null,
         photo_urls: photos,
         source_form: "creative",
+        grn_po_id: isGrnType ? (grnPoId || null) : null,
         ...(canAssign ? { assigned_user_ids: assignedIds } : {}),
         ...(attachmentUrls.length > 0 ? { attachment_urls: attachmentUrls } : {}),
       };
@@ -516,7 +545,53 @@ export default function CreativeActivityForm({
         payload.status = "planned";
         payload.status_history = [{ status: "planned", at: new Date().toISOString() } as ActivityStatusEntry];
         await createActivity(payload);
-        toast.success("Posted to your activity feed");
+
+        // Create the GRN record + items + advance PO status
+        if (isGrnType && grnPoId && grnRowsToInsert.length > 0) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const priorReceived = grnItems.reduce((s, it) => s + it.prevReceived, 0);
+            const ordered = grnItems.reduce((s, it) => s + it.ordered, 0);
+            const thisReceipt = grnRowsToInsert.reduce((s, r) => s + r.received, 0);
+            const cumulative = priorReceived + thisReceipt;
+            const grnStatus = cumulative >= ordered && ordered > 0 ? "Fully Received" : "Partially Received";
+
+            const { data: grn, error: grnErr } = await supabase
+              .from("procurement_grns")
+              .insert({
+                po_id: grnPoId,
+                receipt_date: activityDate,
+                received_by: currentProfile?.full_name || null,
+                remarks: grnRemarks.trim() || null,
+                status: grnStatus,
+                created_by: user?.id || null,
+              })
+              .select("id")
+              .single();
+            if (grnErr) throw grnErr;
+
+            const itemRows = grnRowsToInsert.map((r) => ({
+              grn_id: grn.id,
+              procurement_item_id: r.it.id,
+              product_id: r.it.product_id,
+              ordered_qty: r.it.ordered,
+              received_qty: r.received,
+              remarks: r.remarks || null,
+            }));
+            const { error: ie } = await supabase.from("procurement_grn_items").insert(itemRows);
+            if (ie) throw ie;
+
+            const next = receiptDrivenStatus(ordered, cumulative, "");
+            if (next) {
+              await supabase.from("procurement_orders").update({ status: next }).eq("id", grnPoId);
+            }
+            toast.success("Goods Receipt recorded");
+          } catch (grnErr: any) {
+            toast.error("Post saved, but GRN failed: " + (grnErr.message || "unknown error"));
+          }
+        } else {
+          toast.success("Posted to your activity feed");
+        }
       }
       onCreated?.();
       onOpenChange(false);
@@ -526,6 +601,7 @@ export default function CreativeActivityForm({
       setSaving(false);
     }
   };
+
 
   const handleStatusChange = async (newStatus: string) => {
     if (!isEdit || !editActivity || !updateActivity || newStatus === status) return;
