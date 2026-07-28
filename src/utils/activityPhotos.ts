@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { compressImage } from "@/utils/imageCompressor";
 import { getCurrentPosition } from "@/utils/nativePermissions";
 import type { ActivityPhotoEntry } from "@/hooks/useActivities";
@@ -95,11 +96,11 @@ export async function deleteActivityPhoto(activityId: string, storageKey: string
     .maybeSingle();
   if (readError) throw readError;
 
-  const photos = Array.isArray(data?.photo_urls) ? data.photo_urls as ActivityPhotoEntry[] : [];
+  const photos = Array.isArray(data?.photo_urls) ? data.photo_urls as unknown as ActivityPhotoEntry[] : [];
   const next = photos.filter((photo) => photo.url !== storageKey);
   const { error: updateError } = await supabase
     .from("activity_events")
-    .update({ photo_urls: next })
+    .update({ photo_urls: next as unknown as Json })
     .eq("id", activityId);
   if (updateError) throw updateError;
 
