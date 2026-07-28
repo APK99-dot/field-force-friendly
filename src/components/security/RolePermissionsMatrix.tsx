@@ -196,19 +196,11 @@ export default function RolePermissionsMatrix() {
             </Select>
           </div>
 
-          {isSystemAdmin && (
-            <div className="mb-4 p-3 rounded-lg bg-muted/50 border border-border">
-              <p className="text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">System Administrator</span> has all permissions granted automatically and cannot be modified.
-              </p>
-            </div>
-          )}
-
           {selectedProfileId ? (
             <HierarchicalPermissionEditor
               permissions={permissions}
               definitions={definitions}
-              readOnly={isSystemAdmin}
+              readOnly={false}
               onChange={handleChange}
             />
           ) : (
