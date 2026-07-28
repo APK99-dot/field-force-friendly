@@ -41,6 +41,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import CameraCapture from "@/components/CameraCapture";
 import { isNative, takeNativePhoto } from "@/utils/nativePermissions";
+import OpenGRNPicker from "@/components/procurement/OpenGRNPicker";
+import { receiptDrivenStatus } from "@/lib/procurement";
+
+interface GrnLineItem {
+  id: string;
+  product_id: string | null;
+  product_name: string;
+  ordered: number;
+  prevReceived: number;
+  uom: string | null;
+}
 
 type ProjectOpt = {
   id: string;
@@ -176,6 +187,16 @@ export default function CreativeActivityForm({
   const [showCamera, setShowCamera] = useState(false);
   const dateStr = format(new Date(), "yyyy-MM-dd");
 
+  // ---- GRN inline state ----
+  const isGrnType = activityType.trim().toLowerCase().includes("grn");
+  const [grnPoId, setGrnPoId] = useState("");
+  const [grnPoNumber, setGrnPoNumber] = useState("");
+  const [grnItems, setGrnItems] = useState<GrnLineItem[]>([]);
+  const [grnRecv, setGrnRecv] = useState<Record<string, string>>({});
+  const [grnItemRemarks, setGrnItemRemarks] = useState<Record<string, string>>({});
+  const [grnRemarks, setGrnRemarks] = useState("");
+  const [grnLoadingPo, setGrnLoadingPo] = useState(false);
+
   useEffect(() => {
     if (!open) {
       setProjectId("");
@@ -191,6 +212,12 @@ export default function CreativeActivityForm({
       setAssignSearch("");
       clearRecording();
       setVoiceToTextMode(false);
+      setGrnPoId("");
+      setGrnPoNumber("");
+      setGrnItems([]);
+      setGrnRecv({});
+      setGrnItemRemarks({});
+      setGrnRemarks("");
       return;
     }
     // Prefill on edit
@@ -203,6 +230,7 @@ export default function CreativeActivityForm({
       setPhotos(editActivity.photo_urls || []);
       setStatus(editActivity.status || "planned");
       setCheckedIn(!!(editActivity as any).check_in_at);
+      setGrnPoId((editActivity as any).grn_po_id || "");
 
       // resolve photo previews
       (editActivity.photo_urls || []).forEach(async (ph) => {
@@ -215,6 +243,71 @@ export default function CreativeActivityForm({
       setCheckedIn(false);
     }
   }, [open, editActivity, clearRecording]);
+
+  // Load PO items + already-received qty whenever a PO is selected for GRN
+  useEffect(() => {
+    if (!isGrnType || !grnPoId) {
+      setGrnItems([]);
+      setGrnPoNumber("");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setGrnLoadingPo(true);
+      try {
+        const { data: po } = await supabase
+          .from("procurement_orders")
+          .select("po_number, procurement_items(id, product_id, qty, uom)")
+          .eq("id", grnPoId)
+          .single();
+        if (cancelled) return;
+        const raw = ((po as any)?.procurement_items || []) as any[];
+        const productIds = [...new Set(raw.map((r) => r.product_id).filter(Boolean))];
+        let pmap: Record<string, string> = {};
+        if (productIds.length) {
+          const { data: prods } = await supabase.from("master_products").select("id, name").in("id", productIds);
+          (prods || []).forEach((p: any) => { pmap[p.id] = p.name; });
+        }
+        // already received per procurement_item_id
+        const { data: grns } = await supabase
+          .from("procurement_grns")
+          .select("procurement_grn_items(procurement_item_id, received_qty)")
+          .eq("po_id", grnPoId);
+        const rmap: Record<string, number> = {};
+        ((grns || []) as any[]).forEach((g) => {
+          (g.procurement_grn_items || []).forEach((gi: any) => {
+            if (gi.procurement_item_id) rmap[gi.procurement_item_id] = (rmap[gi.procurement_item_id] || 0) + Number(gi.received_qty || 0);
+          });
+        });
+        if (cancelled) return;
+        setGrnPoNumber((po as any)?.po_number || "");
+        setGrnItems(raw.map((r) => ({
+          id: r.id,
+          product_id: r.product_id,
+          product_name: r.product_id ? (pmap[r.product_id] || "Product") : "Item",
+          ordered: Number(r.qty || 0),
+          prevReceived: Number(rmap[r.id] || 0),
+          uom: r.uom,
+        })));
+        setGrnRecv({});
+        setGrnItemRemarks({});
+      } finally {
+        if (!cancelled) setGrnLoadingPo(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isGrnType, grnPoId]);
+
+  // Reset GRN selection when activity type flips away from GRN
+  useEffect(() => {
+    if (!isGrnType) {
+      setGrnPoId("");
+      setGrnItems([]);
+      setGrnRecv({});
+      setGrnItemRemarks({});
+      setGrnRemarks("");
+    }
+  }, [isGrnType]);
 
   const filteredProjects = useMemo(() => {
     const q = projectSearch.trim().toLowerCase();
@@ -381,6 +474,34 @@ export default function CreativeActivityForm({
       return;
     }
     if (isEdit && !editActivity) return;
+
+    // GRN validation — only enforced for GRN activity type on new posts
+    let grnRowsToInsert: { it: GrnLineItem; received: number; remarks: string }[] = [];
+    if (isGrnType && !isEdit) {
+      if (!grnPoId) {
+        toast.error("Select a Purchase Order to receive against");
+        return;
+      }
+      grnRowsToInsert = grnItems
+        .map((it) => ({
+          it,
+          received: parseFloat(grnRecv[it.id]) || 0,
+          remarks: (grnItemRemarks[it.id] || "").trim(),
+        }))
+        .filter((r) => r.received > 0);
+      if (grnRowsToInsert.length === 0) {
+        toast.error("Enter received quantity for at least one item");
+        return;
+      }
+      for (const r of grnRowsToInsert) {
+        const pending = Math.max(0, r.it.ordered - r.it.prevReceived);
+        if (r.received > pending + 1e-9) {
+          toast.error(`Received qty for ${r.it.product_name} exceeds pending (${pending})`);
+          return;
+        }
+      }
+    }
+
     setSaving(true);
     try {
       // Upload voice recording (audio mode) as attachment
@@ -412,6 +533,7 @@ export default function CreativeActivityForm({
         site_id: projectId || null,
         photo_urls: photos,
         source_form: "creative",
+        grn_po_id: isGrnType ? (grnPoId || null) : null,
         ...(canAssign ? { assigned_user_ids: assignedIds } : {}),
         ...(attachmentUrls.length > 0 ? { attachment_urls: attachmentUrls } : {}),
       };
@@ -423,7 +545,52 @@ export default function CreativeActivityForm({
         payload.status = "planned";
         payload.status_history = [{ status: "planned", at: new Date().toISOString() } as ActivityStatusEntry];
         await createActivity(payload);
-        toast.success("Posted to your activity feed");
+
+        // Create the GRN record + items + advance PO status
+        if (isGrnType && grnPoId && grnRowsToInsert.length > 0) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const priorReceived = grnItems.reduce((s, it) => s + it.prevReceived, 0);
+            const ordered = grnItems.reduce((s, it) => s + it.ordered, 0);
+            const thisReceipt = grnRowsToInsert.reduce((s, r) => s + r.received, 0);
+            const cumulative = priorReceived + thisReceipt;
+            const grnStatus = cumulative >= ordered && ordered > 0 ? "Fully Received" : "Partially Received";
+
+            const { data: grn, error: grnErr } = await supabase
+              .from("procurement_grns")
+              .insert({
+                po_id: grnPoId,
+                receipt_date: activityDate,
+                received_by: currentProfile?.full_name || null,
+                remarks: grnRemarks.trim() || null,
+                status: grnStatus,
+                created_by: user?.id || null,
+              })
+              .select("id")
+              .single();
+            if (grnErr) throw grnErr;
+
+            const itemRows = grnRowsToInsert.map((r) => ({
+              grn_id: grn.id,
+              procurement_item_id: r.it.id,
+              product_id: r.it.product_id,
+              ordered_qty: r.it.ordered,
+              received_qty: r.received,
+            }));
+            const { error: ie } = await supabase.from("procurement_grn_items").insert(itemRows);
+            if (ie) throw ie;
+
+            const next = receiptDrivenStatus(ordered, cumulative, "");
+            if (next) {
+              await supabase.from("procurement_orders").update({ status: next }).eq("id", grnPoId);
+            }
+            toast.success("Goods Receipt recorded");
+          } catch (grnErr: any) {
+            toast.error("Post saved, but GRN failed: " + (grnErr.message || "unknown error"));
+          }
+        } else {
+          toast.success("Posted to your activity feed");
+        }
       }
       onCreated?.();
       onOpenChange(false);
@@ -433,6 +600,7 @@ export default function CreativeActivityForm({
       setSaving(false);
     }
   };
+
 
   const handleStatusChange = async (newStatus: string) => {
     if (!isEdit || !editActivity || !updateActivity || newStatus === status) return;
@@ -988,6 +1156,110 @@ export default function CreativeActivityForm({
                   })}
                 </div>
               </div>
+
+              {/* GRN — Goods Receipt (only when Activity Type contains "GRN") */}
+              {isGrnType && (
+                <div className="rounded-2xl bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-950/30 dark:to-cyan-950/30 border border-sky-100 dark:border-sky-900/50 px-3 sm:px-4 py-3 shadow-sm min-w-0 max-w-full overflow-hidden space-y-3">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-wider text-sky-700 dark:text-sky-300">Goods Receipt (GRN)</p>
+                    {grnPoNumber && (
+                      <Badge variant="outline" className="text-[10px]">{grnPoNumber}</Badge>
+                    )}
+                  </div>
+
+                  {!projectId ? (
+                    <p className="text-xs text-muted-foreground">Select a Project/Site above to see open Purchase Orders.</p>
+                  ) : (
+                    <OpenGRNPicker siteId={projectId} value={grnPoId} onChange={setGrnPoId} />
+                  )}
+
+                  {grnPoId && (
+                    grnLoadingPo ? (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading PO items…
+                      </div>
+                    ) : grnItems.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No line items on this PO.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="rounded-xl border border-border bg-background/70 overflow-hidden">
+                          <div className="hidden sm:grid grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/50">
+                            <div>Item</div>
+                            <div className="text-right">Ordered</div>
+                            <div className="text-right">Prev. Recd</div>
+                            <div className="text-right">Pending</div>
+                            <div className="text-right">Receive Now</div>
+                          </div>
+                          <div className="divide-y divide-border">
+                            {grnItems.map((it) => {
+                              const pending = Math.max(0, it.ordered - it.prevReceived);
+                              const recvVal = grnRecv[it.id] || "";
+                              const recvNum = parseFloat(recvVal) || 0;
+                              const over = recvNum > pending;
+                              const done = pending <= 0;
+                              return (
+                                <div
+                                  key={it.id}
+                                  className="grid grid-cols-2 sm:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] gap-2 px-3 py-2 items-center text-xs min-w-0"
+                                >
+                                  <div className="col-span-2 sm:col-span-1 min-w-0">
+                                    <div className="font-medium break-words [overflow-wrap:anywhere]">{it.product_name}</div>
+                                    {it.uom && <div className="text-[10px] text-muted-foreground">UOM: {it.uom}</div>}
+                                  </div>
+                                  <div className="text-right sm:text-right">
+                                    <div className="sm:hidden text-[10px] text-muted-foreground">Ordered</div>
+                                    {it.ordered}
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="sm:hidden text-[10px] text-muted-foreground">Prev</div>
+                                    {it.prevReceived}
+                                  </div>
+                                  <div className={cn("text-right font-medium", done ? "text-emerald-600" : "text-foreground")}>
+                                    <div className="sm:hidden text-[10px] text-muted-foreground">Pending</div>
+                                    {pending}
+                                  </div>
+                                  <div>
+                                    <div className="sm:hidden text-[10px] text-muted-foreground">Receive</div>
+                                    <Input
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={0}
+                                      max={pending}
+                                      step="any"
+                                      disabled={done}
+                                      value={recvVal}
+                                      onChange={(e) => setGrnRecv((s) => ({ ...s, [it.id]: e.target.value }))}
+                                      className={cn("h-8 text-right text-xs", over && "border-destructive focus-visible:ring-destructive")}
+                                      placeholder={done ? "Received" : "0"}
+                                    />
+                                    {over && (
+                                      <div className="text-[10px] text-destructive mt-0.5">Exceeds pending</div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <Textarea
+                          value={grnRemarks}
+                          onChange={(e) => setGrnRemarks(e.target.value)}
+                          placeholder="GRN remarks (optional)"
+                          rows={2}
+                          className="text-sm bg-background/70"
+                        />
+                        {isEdit && (
+                          <p className="text-[11px] text-muted-foreground">
+                            This activity is linked to {grnPoNumber || "the selected PO"}. To record another receipt, create a new GRN activity.
+                          </p>
+                        )}
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+
+
 
               {/* Assign */}
               {canAssign && (
