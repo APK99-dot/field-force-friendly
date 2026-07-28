@@ -187,6 +187,16 @@ export default function CreativeActivityForm({
   const [showCamera, setShowCamera] = useState(false);
   const dateStr = format(new Date(), "yyyy-MM-dd");
 
+  // ---- GRN inline state ----
+  const isGrnType = activityType.trim().toLowerCase().includes("grn");
+  const [grnPoId, setGrnPoId] = useState("");
+  const [grnPoNumber, setGrnPoNumber] = useState("");
+  const [grnItems, setGrnItems] = useState<GrnLineItem[]>([]);
+  const [grnRecv, setGrnRecv] = useState<Record<string, string>>({});
+  const [grnItemRemarks, setGrnItemRemarks] = useState<Record<string, string>>({});
+  const [grnRemarks, setGrnRemarks] = useState("");
+  const [grnLoadingPo, setGrnLoadingPo] = useState(false);
+
   useEffect(() => {
     if (!open) {
       setProjectId("");
