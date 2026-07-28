@@ -65,7 +65,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { useModuleConfig } from "@/hooks/useModuleConfig";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
-import ActivityReportGenerator from "@/components/activities/ActivityReportGenerator";
+
 import ActivityPhotoManager from "@/components/activities/ActivityPhotoManager";
 
 import { MultiUserPicker } from "@/components/pm/MultiUserPicker";
