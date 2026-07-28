@@ -34,6 +34,24 @@ export async function removeSiteAttachment(stored: string): Promise<void> {
   await supabase.storage.from(BUCKET).remove([path]);
 }
 
+export async function deleteLegacySiteAttachment(siteId: string, stored: string): Promise<void> {
+  const { data, error: readError } = await supabase
+    .from("project_sites")
+    .select("attachment_urls")
+    .eq("id", siteId)
+    .maybeSingle();
+  if (readError) throw readError;
+
+  const next = ((data?.attachment_urls as string[] | null) || []).filter((item) => item !== stored);
+  const { error: updateError } = await supabase
+    .from("project_sites")
+    .update({ attachment_urls: next })
+    .eq("id", siteId);
+  if (updateError) throw updateError;
+
+  await removeSiteAttachment(stored).catch(() => {});
+}
+
 const IMAGE_MIME_OR_EXT = /^image\/|\.(jpe?g|png|gif|webp|bmp|heic|heif|avif)$/i;
 
 export function isImageFile(file: { type?: string; name: string }): boolean {

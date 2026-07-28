@@ -11,9 +11,10 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { getSiteAttachmentUrl, getSiteFileSignedUrl, deleteSiteFile, renameSiteFile } from "@/utils/siteAttachments";
+import { getSiteAttachmentUrl, getSiteFileSignedUrl, deleteSiteFile, renameSiteFile, deleteLegacySiteAttachment } from "@/utils/siteAttachments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 import SiteFileDropzone from "./SiteFileDropzone";
 import type { HubDocument } from "@/hooks/useSiteHub";
 
@@ -37,10 +38,20 @@ export default function SiteDocuments({ siteId, documents, onChanged }: Props) {
   const [renameValue, setRenameValue] = useState("");
   const [savingRename, setSavingRename] = useState(false);
   const { userId } = useCurrentUser();
-  const { hasAdminAccess } = useAdminAccess();
+  const { isAdmin } = useUserProfile();
+  const { hasPermission } = useProfilePermissions();
+
+  const canManageSiteFiles =
+    isAdmin ||
+    hasPermission("action_projects_delete_site", "delete") ||
+    hasPermission("action_projects_edit_site", "edit") ||
+    hasPermission("module_projects_sites", "delete");
 
   const isOwnerOrAdmin = (d: HubDocument) =>
-    d.source === "site_files" && !!d.id && (hasAdminAccess || (!!userId && d.uploadedById === userId));
+    d.source === "site_files" && !!d.id && (canManageSiteFiles || (!!userId && d.uploadedById === userId));
+
+  const canDeleteDocument = (d: HubDocument) =>
+    d.source === "legacy" ? canManageSiteFiles : isOwnerOrAdmin(d);
 
   const openDoc = async (d: HubDocument) => {
     const url = d.source === "site_files"
@@ -51,10 +62,14 @@ export default function SiteDocuments({ siteId, documents, onChanged }: Props) {
   };
 
   const handleDelete = async () => {
-    if (!confirmDelete?.id) return;
+    if (!confirmDelete) return;
     setDeleting(true);
     try {
-      await deleteSiteFile(confirmDelete.id, confirmDelete.stored);
+      if (confirmDelete.source === "site_files" && confirmDelete.id) {
+        await deleteSiteFile(confirmDelete.id, confirmDelete.stored);
+      } else {
+        await deleteLegacySiteAttachment(siteId, confirmDelete.stored);
+      }
       toast.success("Document deleted");
       onChanged();
     } catch (err: any) {
@@ -139,7 +154,7 @@ export default function SiteDocuments({ siteId, documents, onChanged }: Props) {
                     <Pencil className="h-4 w-4" />
                   </Button>
                 )}
-                {isOwnerOrAdmin(d) && (
+                {canDeleteDocument(d) && (
                   <Button
                     size="icon" variant="ghost"
                     className="h-8 w-8 text-destructive hover:text-destructive"
@@ -160,7 +175,7 @@ export default function SiteDocuments({ siteId, documents, onChanged }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete document?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <span className="font-medium">{confirmDelete?.name}</span>? This action cannot be undone.
+              Are you sure you want to delete this document? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
