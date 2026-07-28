@@ -233,7 +233,7 @@ export default function Activities() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState<"timeline" | "gps" | "activity">("activity");
   const [searchQuery, setSearchQuery] = useState("");
-  const [reportFiltersOpen, setReportFiltersOpen] = useState(false);
+  
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
