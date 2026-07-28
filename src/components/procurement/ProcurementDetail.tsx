@@ -1987,28 +1987,6 @@ export default function ProcurementDetail({
                                 <td></td>
                                 <td colSpan={6} className="p-2">
                                   <div className="max-h-[75vh] overflow-y-auto pr-1 space-y-2">
-                                    {/* Header: vendor + status pill + summary chips */}
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                      <span className="text-xs font-semibold">{row.vendor_id ? vendorName(row.vendor_id) : "Unassigned vendor"}</span>
-                                      {qsLabel && (
-                                        <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${qsCls}`}>{qsLabel}</span>
-                                      )}
-                                      {progressPill && (
-                                        <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${progressPill.cls}`}>{progressPill.label}</span>
-                                      )}
-                                      {!isTransfer && row.vendor_id && (
-                                        <>
-                                          <span className="inline-flex items-center rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground"><Truck className="h-2.5 w-2.5 mr-0.5" />{vGrns.length} GRN</span>
-                                          <span className="inline-flex items-center rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground"><FileText className="h-2.5 w-2.5 mr-0.5" />{vInvs.length} Invoices</span>
-                                          {paidTotal > 0 && (
-                                            <span className="inline-flex items-center rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">{fmtAmt(paidTotal)} Paid</span>
-                                          )}
-                                          {invoicedTotal > 0 && (
-                                            <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${balanceDue > 1 ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300" : "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300"}`}>Balance {fmtAmt(balanceDue)}</span>
-                                          )}
-                                        </>
-                                      )}
-                                    </div>
 
                                     {/* Compact timeline */}
                                     {quote && (quote.first_submitted_at || quote.reopened_at || quote.last_resubmitted_at || qStatus === "changes_requested") && (
