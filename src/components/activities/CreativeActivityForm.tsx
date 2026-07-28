@@ -576,7 +576,6 @@ export default function CreativeActivityForm({
               product_id: r.it.product_id,
               ordered_qty: r.it.ordered,
               received_qty: r.received,
-              remarks: r.remarks || null,
             }));
             const { error: ie } = await supabase.from("procurement_grn_items").insert(itemRows);
             if (ie) throw ie;
