@@ -86,3 +86,27 @@ export async function resolveActivityPhotoUrl(pathOrUrl: string): Promise<string
   }
   return "";
 }
+
+export async function deleteActivityPhoto(activityId: string, storageKey: string): Promise<void> {
+  const { data, error: readError } = await supabase
+    .from("activity_events")
+    .select("photo_urls")
+    .eq("id", activityId)
+    .maybeSingle();
+  if (readError) throw readError;
+
+  const photos = Array.isArray(data?.photo_urls) ? data.photo_urls as ActivityPhotoEntry[] : [];
+  const next = photos.filter((photo) => photo.url !== storageKey);
+  const { error: updateError } = await supabase
+    .from("activity_events")
+    .update({ photo_urls: next })
+    .eq("id", activityId);
+  if (updateError) throw updateError;
+
+  if (!/^https?:\/\//i.test(storageKey)) {
+    const match = storageKey.match(/activity-photos\/(.+?)(\?|$)/);
+    const path = match ? match[1] : storageKey;
+    await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
+    signedUrlCache.delete(path);
+  }
+}

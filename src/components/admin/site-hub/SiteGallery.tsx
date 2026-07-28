@@ -9,10 +9,11 @@ import { Button } from "@/components/ui/button";
 import { ImageIcon, User, Clock, Trash2, Download } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
-import { resolveActivityPhotoUrl } from "@/utils/activityPhotos";
-import { getSiteAttachmentUrl, deleteSiteFile } from "@/utils/siteAttachments";
+import { deleteActivityPhoto, resolveActivityPhotoUrl } from "@/utils/activityPhotos";
+import { getSiteAttachmentUrl, deleteSiteFile, deleteLegacySiteAttachment } from "@/utils/siteAttachments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useAdminAccess } from "@/hooks/useAdminAccess";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 import SiteFileDropzone from "./SiteFileDropzone";
 import type { HubGalleryPhoto } from "@/hooks/useSiteHub";
 
@@ -39,7 +40,7 @@ function GalleryThumb({ photo, onOpen, onActivityClick, canDelete, onDelete }: G
 
   return (
     <div className="group rounded-lg overflow-hidden border bg-card flex flex-col relative">
-      {canDelete && photo.fileId && (
+      {canDelete && (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onDelete(photo); }}
@@ -102,16 +103,32 @@ export default function SiteGallery({ siteId, gallery, onActivityClick, onChange
   const [confirmDelete, setConfirmDelete] = useState<HubGalleryPhoto | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { userId } = useCurrentUser();
-  const { hasAdminAccess } = useAdminAccess();
+  const { isAdmin } = useUserProfile();
+  const { hasPermission } = useProfilePermissions();
 
-  const canDeletePhoto = (p: HubGalleryPhoto) =>
-    !!p.fileId && (hasAdminAccess || (!!userId && p.uploadedById === userId));
+  const canManageSiteFiles =
+    isAdmin ||
+    hasPermission("action_projects_delete_site", "delete") ||
+    hasPermission("action_projects_edit_site", "edit") ||
+    hasPermission("module_projects_sites", "delete");
+
+  const canDeletePhoto = (p: HubGalleryPhoto) => {
+    if (p.kind === "activity") return isAdmin || (!!userId && p.uploadedById === userId);
+    if (p.fileId) return canManageSiteFiles || (!!userId && p.uploadedById === userId);
+    return canManageSiteFiles;
+  };
 
   const handleDelete = async () => {
-    if (!confirmDelete?.fileId) return;
+    if (!confirmDelete) return;
     setDeleting(true);
     try {
-      await deleteSiteFile(confirmDelete.fileId, confirmDelete.storageKey);
+      if (confirmDelete.kind === "activity" && confirmDelete.activityId) {
+        await deleteActivityPhoto(confirmDelete.activityId, confirmDelete.storageKey);
+      } else if (confirmDelete.fileId) {
+        await deleteSiteFile(confirmDelete.fileId, confirmDelete.storageKey);
+      } else {
+        await deleteLegacySiteAttachment(siteId, confirmDelete.storageKey);
+      }
       toast.success("Photo deleted");
       onChanged();
     } catch (err: any) {
