@@ -38,6 +38,7 @@ import { format, parseISO } from "date-fns";
 
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 type ProjectOpt = {
   id: string;
