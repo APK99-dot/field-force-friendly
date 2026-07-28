@@ -2028,237 +2028,256 @@ export default function ProcurementDetail({
                                       </div>
                                     )}
 
-                                    {/* Workflow accordion — GRNs & Invoices are primary */}
-                                    <Accordion type="single" collapsible defaultValue={(focus?.vendorId && focus.vendorId === row.vendor_id && focus.section) ? focus.section : (!isTransfer && row.vendor_id ? "grns" : "quote")} className="w-full">
-                                      {!isTransfer && row.vendor_id && (
-                                        <AccordionItem value="grns" className="border rounded-md bg-background mb-1.5">
-                                          <div className="flex items-center justify-between pr-2">
-                                            <AccordionTrigger className="flex-1 px-2 py-1.5 hover:no-underline">
-                                              <span className="flex items-center gap-1.5 text-xs font-medium"><Truck className="h-3.5 w-3.5" />Goods Receipts <span className="text-muted-foreground font-normal">({vGrns.length})</span></span>
-                                            </AccordionTrigger>
-                                            {canReceive && (
-                                              <Button
-                                                size="sm" variant="outline" className="h-6 text-[11px] shrink-0"
-                                                onClick={(e) => { e.stopPropagation(); setScopedVendorId(row.vendor_id!); setGrnVendorId(row.vendor_id!); setGrnOpen(true); }}
-                                              >
-                                                <Plus className="h-3 w-3 mr-1" />Receive Goods
-                                              </Button>
+                                    {/* Workflow tabs — GRNs & Invoices are primary */}
+                                    {(() => {
+                                      const showVendorTabs = !isTransfer && !!row.vendor_id;
+                                      const showFinancials = !isTransfer && !!finSummary;
+                                      const focusedSection = focus?.vendorId && focus.vendorId === row.vendor_id ? focus.section : null;
+                                      const defaultTab =
+                                        focusedSection && ["grns", "invoices", "financials", "quote"].includes(focusedSection)
+                                          ? focusedSection
+                                          : showVendorTabs
+                                            ? "grns"
+                                            : "quote";
+                                      return (
+                                        <Tabs defaultValue={defaultTab} className="w-full">
+                                          <TabsList className="w-full flex flex-wrap justify-start h-auto p-1 bg-muted/60 rounded-md">
+                                            {showVendorTabs && (
+                                              <TabsTrigger value="grns" className="text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                                <Truck className="h-3.5 w-3.5 mr-1.5" />Goods Receipts
+                                                <span className="ml-1 text-muted-foreground font-normal">({vGrns.length})</span>
+                                              </TabsTrigger>
                                             )}
-                                          </div>
-                                          <AccordionContent className="px-2 pb-2">
-                                            {vGrns.length === 0 ? (
-                                              <p className="text-[11px] text-muted-foreground">No goods received from this vendor yet.</p>
-                                            ) : (
-                                              <div className="border rounded divide-y max-h-40 overflow-y-auto">
-                                                {vGrns.map((g) => (
-                                                  <div
-                                                    key={g.id} role="button" tabIndex={0}
-                                                    onClick={() => setSelectedGrn(g)}
-                                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedGrn(g); } }}
-                                                    className="flex items-center justify-between px-2 py-1 text-[11px] cursor-pointer hover:bg-muted/60"
-                                                  >
-                                                    <div>
-                                                      <div className="font-medium">{g.grn_number}</div>
-                                                      <div className="text-[10px] text-muted-foreground">{g.receipt_date}{g.received_by ? ` · ${g.received_by}` : ""}</div>
-                                                    </div>
-                                                    <Badge variant="outline" className={`text-[10px] ${statusColor(g.status)}`}>{g.status}</Badge>
-                                                  </div>
-                                                ))}
-                                              </div>
+                                            {showVendorTabs && (
+                                              <TabsTrigger value="invoices" className="text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                                <FileText className="h-3.5 w-3.5 mr-1.5" />Invoices
+                                                <span className="ml-1 text-muted-foreground font-normal">({vInvs.length})</span>
+                                              </TabsTrigger>
                                             )}
-                                          </AccordionContent>
-                                        </AccordionItem>
-                                      )}
+                                            {showFinancials && (
+                                              <TabsTrigger value="financials" className="text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                                Financial Summary
+                                              </TabsTrigger>
+                                            )}
+                                            <TabsTrigger value="quote" className="text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                              Quote Details
+                                            </TabsTrigger>
+                                          </TabsList>
 
-                                      {!isTransfer && row.vendor_id && (
-                                        <AccordionItem value="invoices" className="border rounded-md bg-background mb-1.5">
-                                          <div className="flex items-center justify-between pr-2">
-                                            <AccordionTrigger className="flex-1 px-2 py-1.5 hover:no-underline">
-                                              <span className="flex items-center gap-1.5 text-xs font-medium"><FileText className="h-3.5 w-3.5" />Invoices <span className="text-muted-foreground font-normal">({vInvs.length})</span></span>
-                                            </AccordionTrigger>
-                                            {canInvoice && (
-                                              <Button
-                                                size="sm" variant="outline" className="h-6 text-[11px] shrink-0"
-                                                disabled={!hasGrn && vInvs.length === 0}
-                                                title={!hasGrn && vInvs.length === 0 ? "Receive goods first" : "Add Invoice"}
-                                                onClick={(e) => { e.stopPropagation(); if (!hasGrn && vInvs.length === 0) return; setScopedVendorId(row.vendor_id!); setInvVendorId(row.vendor_id!); setInvOpen(true); }}
-                                              >
-                                                <Plus className="h-3 w-3 mr-1" />Add Invoice
-                                              </Button>
-                                            )}
-                                          </div>
-                                          <AccordionContent className="px-2 pb-2">
-                                            {vInvs.length > 0 ? (
-                                              <div className="border rounded divide-y max-h-40 overflow-y-auto">
-                                                {vInvs.map((i) => (
-                                                  <div
-                                                    key={i.id} role="button" tabIndex={0}
-                                                    onClick={() => setSelectedInvoiceId(i.id)}
-                                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedInvoiceId(i.id); } }}
-                                                    className="flex items-center justify-between px-2 py-1 text-[11px] cursor-pointer hover:bg-muted/60"
+                                          {showVendorTabs && (
+                                            <TabsContent value="grns" className="mt-2 border rounded-md bg-background p-2">
+                                              <div className="flex items-center justify-between mb-2">
+                                                <span className="flex items-center gap-1.5 text-xs font-medium"><Truck className="h-3.5 w-3.5" />Goods Receipts <span className="text-muted-foreground font-normal">({vGrns.length})</span></span>
+                                                {canReceive && (
+                                                  <Button
+                                                    size="sm" variant="outline" className="h-6 text-[11px] shrink-0"
+                                                    onClick={(e) => { e.stopPropagation(); setScopedVendorId(row.vendor_id!); setGrnVendorId(row.vendor_id!); setGrnOpen(true); }}
                                                   >
-                                                    <div>
-                                                      <div className="font-medium">{i.invoice_number}</div>
-                                                      <div className="text-[10px] text-muted-foreground">{i.invoice_date}</div>
-                                                    </div>
-                                                    <div className="font-medium">{fmtAmt(i.invoice_amount)}</div>
-                                                  </div>
-                                                ))}
+                                                    <Plus className="h-3 w-3 mr-1" />Receive Goods
+                                                  </Button>
+                                                )}
                                               </div>
-                                            ) : !hasGrn ? (
-                                              <p className="text-[11px] text-muted-foreground">Receive goods first — invoices can be added after the first GRN.</p>
-                                            ) : (
-                                              <p className="text-[11px] text-muted-foreground">No invoices for this vendor yet.</p>
-                                            )}
-                                          </AccordionContent>
-                                        </AccordionItem>
-                                      )}
-
-                                      {!isTransfer && finSummary && (
-                                        <AccordionItem value="financials" className="border rounded-md bg-background mb-1.5">
-                                          <AccordionTrigger className="px-2 py-1.5 hover:no-underline">
-                                            <span className="text-xs font-medium">Financial Summary</span>
-                                          </AccordionTrigger>
-                                          <AccordionContent className="px-2 pb-2">
-                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                                              <div><span className="text-muted-foreground">PO Value: </span><span className="font-medium">{fmtAmt(finSummary.line_amount)}</span></div>
-                                              <div><span className="text-muted-foreground">Invoiced: </span><span className="font-medium">{fmtAmt(finSummary.invoiced_total)}</span></div>
-                                              <div><span className="text-muted-foreground">Paid: </span><span className="font-medium">{fmtAmt(finSummary.paid_total)}</span></div>
-                                              <div><span className="text-muted-foreground">Outstanding: </span>
-                                                <span className={`font-semibold ${finSummary.balance_due > 1 ? "text-red-600" : "text-green-600"}`}>{fmtAmt(finSummary.balance_due)}</span>
-                                              </div>
-                                            </div>
-                                            {finSummary.payments.length > 0 && (
-                                              <div className="pt-2 mt-2 border-t">
-                                                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Payment Schedule</div>
-                                                <div className="max-h-32 overflow-y-auto space-y-0.5">
-                                                  {finSummary.payments.map((p, i) => (
-                                                    <div key={i} className="flex items-center justify-between text-[11px]">
-                                                      <span>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</span>
-                                                      <span className="font-medium">{fmtAmt(p.amount)}</span>
+                                              {vGrns.length === 0 ? (
+                                                <p className="text-[11px] text-muted-foreground">No goods received from this vendor yet.</p>
+                                              ) : (
+                                                <div className="border rounded divide-y max-h-40 overflow-y-auto">
+                                                  {vGrns.map((g) => (
+                                                    <div
+                                                      key={g.id} role="button" tabIndex={0}
+                                                      onClick={() => setSelectedGrn(g)}
+                                                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedGrn(g); } }}
+                                                      className="flex items-center justify-between px-2 py-1 text-[11px] cursor-pointer hover:bg-muted/60"
+                                                    >
+                                                      <div>
+                                                        <div className="font-medium">{g.grn_number}</div>
+                                                        <div className="text-[10px] text-muted-foreground">{g.receipt_date}{g.received_by ? ` · ${g.received_by}` : ""}</div>
+                                                      </div>
+                                                      <Badge variant="outline" className={`text-[10px] ${statusColor(g.status)}`}>{g.status}</Badge>
                                                     </div>
                                                   ))}
                                                 </div>
-                                              </div>
-                                            )}
-                                          </AccordionContent>
-                                        </AccordionItem>
-                                      )}
-
-                                      <AccordionItem value="quote" className="border rounded-md bg-background">
-                                        <AccordionTrigger className="px-2 py-1.5 hover:no-underline">
-                                          <span className="text-xs font-medium">Quote Details</span>
-                                        </AccordionTrigger>
-                                        <AccordionContent className="px-2 pb-2 space-y-2">
-                                          {/* Items in scope — truncated */}
-                                          <div>
-                                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Assigned items</div>
-                                            {scopedLines.length === 0 ? (
-                                              <p className="text-[11px] text-muted-foreground">No items selected.</p>
-                                            ) : scopedLines.length <= 2 ? (
-                                              <div className="space-y-0.5">
-                                                {scopedLines.map((l) => {
-                                                  const qi = quote?.procurement_vendor_quote_items?.find((x) => x.procurement_item_id === l.id);
-                                                  const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
-                                                  return (
-                                                    <div key={l.id} className="flex items-center gap-2 text-[11px]">
-                                                      <span className="flex-1 truncate"><span className="font-medium">{productName(l.product_id)}</span> · Qty {l.qty}</span>
-                                                      <span className="w-20 text-right">{rate != null ? fmtAmt(rate) : <span className="text-muted-foreground">—</span>}</span>
-                                                    </div>
-                                                  );
-                                                })}
-                                              </div>
-                                            ) : (
-                                              <div className="text-[11px] flex items-center gap-1 flex-wrap">
-                                                <span className="font-medium">{productName(scopedLines[0].product_id)}</span>,
-                                                <span className="font-medium">{productName(scopedLines[1].product_id)}</span>
-                                                <Popover>
-                                                  <PopoverTrigger asChild>
-                                                    <button type="button" className="text-primary hover:underline">+{scopedLines.length - 2} more</button>
-                                                  </PopoverTrigger>
-                                                  <PopoverContent align="start" className="w-72 p-2 max-h-56 overflow-y-auto">
-                                                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">All assigned items</div>
-                                                    <div className="space-y-0.5">
-                                                      {scopedLines.map((l) => {
-                                                        const qi = quote?.procurement_vendor_quote_items?.find((x) => x.procurement_item_id === l.id);
-                                                        const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
-                                                        return (
-                                                          <div key={l.id} className="flex items-center gap-2 text-[11px] border-b last:border-b-0 py-1">
-                                                            <span className="flex-1 truncate"><span className="font-medium">{productName(l.product_id)}</span> · Qty {l.qty}</span>
-                                                            <span className="w-20 text-right">{rate != null ? fmtAmt(rate) : <span className="text-muted-foreground">—</span>}</span>
-                                                          </div>
-                                                        );
-                                                      })}
-                                                    </div>
-                                                  </PopoverContent>
-                                                </Popover>
-                                              </div>
-                                            )}
-                                          </div>
-
-                                          {quote?.notes?.trim() && (
-                                            <div>
-                                              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Vendor Remarks</div>
-                                              <p className="text-[11px] whitespace-pre-line">{quote.notes}</p>
-                                            </div>
+                                              )}
+                                            </TabsContent>
                                           )}
 
-                                          {quote?.attachments && quote.attachments.length > 0 && (
-                                            <div>
-                                              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Attachments</div>
-                                              <ul className="space-y-0.5 max-h-32 overflow-y-auto">
-                                                {quote.attachments.map((a, i) => (
-                                                  <li key={i} className="text-[11px]">
-                                                    <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80 break-all">
-                                                      {a.name || `Attachment ${i + 1}`}
-                                                    </a>
-                                                    {typeof a.size === "number" && a.size > 0 && (
-                                                      <span className="text-muted-foreground"> · {(a.size / 1024).toFixed(0)} KB</span>
-                                                    )}
-                                                  </li>
-                                                ))}
-                                              </ul>
-                                            </div>
+                                          {showVendorTabs && (
+                                            <TabsContent value="invoices" className="mt-2 border rounded-md bg-background p-2">
+                                              <div className="flex items-center justify-between mb-2">
+                                                <span className="flex items-center gap-1.5 text-xs font-medium"><FileText className="h-3.5 w-3.5" />Invoices <span className="text-muted-foreground font-normal">({vInvs.length})</span></span>
+                                                {canInvoice && (
+                                                  <Button
+                                                    size="sm" variant="outline" className="h-6 text-[11px] shrink-0"
+                                                    disabled={!hasGrn && vInvs.length === 0}
+                                                    title={!hasGrn && vInvs.length === 0 ? "Receive goods first" : "Add Invoice"}
+                                                    onClick={(e) => { e.stopPropagation(); if (!hasGrn && vInvs.length === 0) return; setScopedVendorId(row.vendor_id!); setInvVendorId(row.vendor_id!); setInvOpen(true); }}
+                                                  >
+                                                    <Plus className="h-3 w-3 mr-1" />Add Invoice
+                                                  </Button>
+                                                )}
+                                              </div>
+                                              {vInvs.length > 0 ? (
+                                                <div className="border rounded divide-y max-h-40 overflow-y-auto">
+                                                  {vInvs.map((i) => (
+                                                    <div
+                                                      key={i.id} role="button" tabIndex={0}
+                                                      onClick={() => setSelectedInvoiceId(i.id)}
+                                                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedInvoiceId(i.id); } }}
+                                                      className="flex items-center justify-between px-2 py-1 text-[11px] cursor-pointer hover:bg-muted/60"
+                                                    >
+                                                      <div>
+                                                        <div className="font-medium">{i.invoice_number}</div>
+                                                        <div className="text-[10px] text-muted-foreground">{i.invoice_date}</div>
+                                                      </div>
+                                                      <div className="font-medium">{fmtAmt(i.invoice_amount)}</div>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              ) : !hasGrn ? (
+                                                <p className="text-[11px] text-muted-foreground">Receive goods first — invoices can be added after the first GRN.</p>
+                                              ) : (
+                                                <p className="text-[11px] text-muted-foreground">No invoices for this vendor yet.</p>
+                                              )}
+                                            </TabsContent>
                                           )}
 
-                                          {/* Quote History — every submitted/reopened version */}
-                                          {row.vendor_id && (vendorQuoteHistoryByVendor[row.vendor_id]?.length || 0) > 0 && (
+                                          {showFinancials && (
+                                            <TabsContent value="financials" className="mt-2 border rounded-md bg-background p-2">
+                                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                                                <div><span className="text-muted-foreground">PO Value: </span><span className="font-medium">{fmtAmt(finSummary!.line_amount)}</span></div>
+                                                <div><span className="text-muted-foreground">Invoiced: </span><span className="font-medium">{fmtAmt(finSummary!.invoiced_total)}</span></div>
+                                                <div><span className="text-muted-foreground">Paid: </span><span className="font-medium">{fmtAmt(finSummary!.paid_total)}</span></div>
+                                                <div><span className="text-muted-foreground">Outstanding: </span>
+                                                  <span className={`font-semibold ${finSummary!.balance_due > 1 ? "text-red-600" : "text-green-600"}`}>{fmtAmt(finSummary!.balance_due)}</span>
+                                                </div>
+                                              </div>
+                                              {finSummary!.payments.length > 0 && (
+                                                <div className="pt-2 mt-2 border-t">
+                                                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Payment Schedule</div>
+                                                  <div className="max-h-32 overflow-y-auto space-y-0.5">
+                                                    {finSummary!.payments.map((p, i) => (
+                                                      <div key={i} className="flex items-center justify-between text-[11px]">
+                                                        <span>{p.payment_date || "—"}{p.reference_number ? ` · ${p.reference_number}` : ""}</span>
+                                                        <span className="font-medium">{fmtAmt(p.amount)}</span>
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </TabsContent>
+                                          )}
+
+                                          <TabsContent value="quote" className="mt-2 border rounded-md bg-background p-2 space-y-2">
+                                            {/* Items in scope — truncated */}
                                             <div>
-                                              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Quote History</div>
-                                              <div className="border rounded divide-y max-h-40 overflow-y-auto">
-                                                {vendorQuoteHistoryByVendor[row.vendor_id].map((h) => {
-                                                  const sLabel =
-                                                    h.status === "submitted" ? "Submitted" :
-                                                    h.status === "changes_requested" ? "T&C Changes" :
-                                                    h.status === "reopened" ? "Reopened (Draft)" :
-                                                    h.status === "draft" ? "Draft" : h.status;
-                                                  const sCls =
-                                                    h.status === "submitted" ? "bg-emerald-100 text-emerald-700 border-emerald-300" :
-                                                    h.status === "changes_requested" ? "bg-amber-100 text-amber-700 border-amber-300" :
-                                                    h.status === "reopened" ? "bg-blue-100 text-blue-700 border-blue-300" :
-                                                    "bg-muted text-muted-foreground border-border";
-                                                  const when = h.submitted_at || h.last_resubmitted_at || h.reopened_at || h.first_submitted_at;
-                                                  return (
-                                                    <div key={h.id} className="flex items-center gap-2 px-2 py-1 text-[11px]">
-                                                      <span className="font-semibold w-8">V{h.version || 1}</span>
-                                                      <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${sCls}`}>{sLabel}</span>
-                                                      {h.is_latest && (
-                                                        <span className="inline-flex items-center rounded bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Active</span>
+                                              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Assigned items</div>
+                                              {scopedLines.length === 0 ? (
+                                                <p className="text-[11px] text-muted-foreground">No items selected.</p>
+                                              ) : scopedLines.length <= 2 ? (
+                                                <div className="space-y-0.5">
+                                                  {scopedLines.map((l) => {
+                                                    const qi = quote?.procurement_vendor_quote_items?.find((x) => x.procurement_item_id === l.id);
+                                                    const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
+                                                    return (
+                                                      <div key={l.id} className="flex items-center gap-2 text-[11px]">
+                                                        <span className="flex-1 truncate"><span className="font-medium">{productName(l.product_id)}</span> · Qty {l.qty}</span>
+                                                        <span className="w-20 text-right">{rate != null ? fmtAmt(rate) : <span className="text-muted-foreground">—</span>}</span>
+                                                      </div>
+                                                    );
+                                                  })}
+                                                </div>
+                                              ) : (
+                                                <div className="text-[11px] flex items-center gap-1 flex-wrap">
+                                                  <span className="font-medium">{productName(scopedLines[0].product_id)}</span>,
+                                                  <span className="font-medium">{productName(scopedLines[1].product_id)}</span>
+                                                  <Popover>
+                                                    <PopoverTrigger asChild>
+                                                      <button type="button" className="text-primary hover:underline">+{scopedLines.length - 2} more</button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent align="start" className="w-72 p-2 max-h-56 overflow-y-auto">
+                                                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">All assigned items</div>
+                                                      <div className="space-y-0.5">
+                                                        {scopedLines.map((l) => {
+                                                          const qi = quote?.procurement_vendor_quote_items?.find((x) => x.procurement_item_id === l.id);
+                                                          const rate = qi ? Number(qi.rate_after_discount ?? qi.rate) || 0 : null;
+                                                          return (
+                                                            <div key={l.id} className="flex items-center gap-2 text-[11px] border-b last:border-b-0 py-1">
+                                                              <span className="flex-1 truncate"><span className="font-medium">{productName(l.product_id)}</span> · Qty {l.qty}</span>
+                                                              <span className="w-20 text-right">{rate != null ? fmtAmt(rate) : <span className="text-muted-foreground">—</span>}</span>
+                                                            </div>
+                                                          );
+                                                        })}
+                                                      </div>
+                                                    </PopoverContent>
+                                                  </Popover>
+                                                </div>
+                                              )}
+                                            </div>
+
+                                            {quote?.notes?.trim() && (
+                                              <div>
+                                                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Vendor Remarks</div>
+                                                <p className="text-[11px] whitespace-pre-line">{quote.notes}</p>
+                                              </div>
+                                            )}
+
+                                            {quote?.attachments && quote.attachments.length > 0 && (
+                                              <div>
+                                                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Attachments</div>
+                                                <ul className="space-y-0.5 max-h-32 overflow-y-auto">
+                                                  {quote.attachments.map((a, i) => (
+                                                    <li key={i} className="text-[11px]">
+                                                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80 break-all">
+                                                        {a.name || `Attachment ${i + 1}`}
+                                                      </a>
+                                                      {typeof a.size === "number" && a.size > 0 && (
+                                                        <span className="text-muted-foreground"> · {(a.size / 1024).toFixed(0)} KB</span>
                                                       )}
-                                                      <span className="text-muted-foreground ml-auto">{when ? fmtDT(when) : "—"}</span>
-                                                      <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => setViewQuoteId(h.id)}>
-                                                        View
-                                                      </Button>
-                                                    </div>
-                                                  );
-                                                })}
+                                                    </li>
+                                                  ))}
+                                                </ul>
                                               </div>
-                                              <p className="mt-1 text-[10px] text-muted-foreground">Latest version is the active quote used for PO generation. Older versions are read-only.</p>
-                                            </div>
-                                          )}
-                                        </AccordionContent>
-                                      </AccordionItem>
-                                    </Accordion>
+                                            )}
+
+                                            {/* Quote History — every submitted/reopened version */}
+                                            {row.vendor_id && (vendorQuoteHistoryByVendor[row.vendor_id]?.length || 0) > 0 && (
+                                              <div>
+                                                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Quote History</div>
+                                                <div className="border rounded divide-y max-h-40 overflow-y-auto">
+                                                  {vendorQuoteHistoryByVendor[row.vendor_id].map((h) => {
+                                                    const sLabel =
+                                                      h.status === "submitted" ? "Submitted" :
+                                                      h.status === "changes_requested" ? "T&C Changes" :
+                                                      h.status === "reopened" ? "Reopened (Draft)" :
+                                                      h.status === "draft" ? "Draft" : h.status;
+                                                    const sCls =
+                                                      h.status === "submitted" ? "bg-emerald-100 text-emerald-700 border-emerald-300" :
+                                                      h.status === "changes_requested" ? "bg-amber-100 text-amber-700 border-amber-300" :
+                                                      h.status === "reopened" ? "bg-blue-100 text-blue-700 border-blue-300" :
+                                                      "bg-muted text-muted-foreground border-border";
+                                                    const when = h.submitted_at || h.last_resubmitted_at || h.reopened_at || h.first_submitted_at;
+                                                    return (
+                                                      <div key={h.id} className="flex items-center gap-2 px-2 py-1 text-[11px]">
+                                                        <span className="font-semibold w-8">V{h.version || 1}</span>
+                                                        <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${sCls}`}>{sLabel}</span>
+                                                        {h.is_latest && (
+                                                          <span className="inline-flex items-center rounded bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Active</span>
+                                                        )}
+                                                        <span className="text-muted-foreground ml-auto">{when ? fmtDT(when) : "—"}</span>
+                                                        <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => setViewQuoteId(h.id)}>
+                                                          View
+                                                        </Button>
+                                                      </div>
+                                                    );
+                                                  })}
+                                                </div>
+                                                <p className="mt-1 text-[10px] text-muted-foreground">Latest version is the active quote used for PO generation. Older versions are read-only.</p>
+                                              </div>
+                                            )}
+                                          </TabsContent>
+                                        </Tabs>
+                                      );
+                                    })()}
+
                                   </div>
                                 </td>
                               </tr>
