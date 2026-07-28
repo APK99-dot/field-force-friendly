@@ -1450,7 +1450,7 @@ export default function ProcurementDetail({
                         <li key={s} className="relative">
                           <span className={`absolute -left-[17px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-background ${active ? "bg-primary" : "bg-muted-foreground/30"}`} />
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className={`text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap ${active ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
+                            <span className={`inline-flex items-center h-5 px-2.5 rounded-full whitespace-nowrap text-[11px] font-medium leading-none tracking-normal ${active ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
                             {active && h && (
                               <span className="text-[10px] text-muted-foreground">
                                 {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
