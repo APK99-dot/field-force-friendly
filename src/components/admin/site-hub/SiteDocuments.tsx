@@ -160,7 +160,7 @@ export default function SiteDocuments({ siteId, documents, onChanged }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete document?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove <span className="font-medium">{confirmDelete?.name}</span> from this site.
+              Are you sure you want to delete <span className="font-medium">{confirmDelete?.name}</span>? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
