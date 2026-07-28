@@ -70,9 +70,6 @@ export default function RolePermissionsMatrix() {
     }
   }, [profilesQuery.data, selectedProfileId]);
 
-  const selectedProfile = profilesQuery.data?.find((p) => p.id === selectedProfileId);
-  const isSystemAdmin = selectedProfile?.profile_name === "System Administrator";
-
   // Fetch permissions for selected profile
   const permsQuery = useQuery({
     queryKey: ["profile-permissions-hierarchical", selectedProfileId],
@@ -91,11 +88,6 @@ export default function RolePermissionsMatrix() {
   useEffect(() => {
     if (definitions.length === 0) return;
 
-    if (isSystemAdmin) {
-      setPermissions(buildAllEnabledFromDefinitions(definitions));
-      setIsDirty(false);
-      return;
-    }
     const base = buildPermissionsFromDefinitions(definitions);
     if (permsQuery.data) {
       for (const row of permsQuery.data) {
@@ -112,7 +104,7 @@ export default function RolePermissionsMatrix() {
     }
     setPermissions(base);
     setIsDirty(false);
-  }, [permsQuery.data, isSystemAdmin, selectedProfileId, definitions]);
+  }, [permsQuery.data, selectedProfileId, definitions]);
 
   const handleChange = useCallback((updated: PermissionState) => {
     setPermissions(updated);
