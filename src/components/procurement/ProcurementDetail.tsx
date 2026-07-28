@@ -1473,7 +1473,7 @@ export default function ProcurementDetail({
                       return (
                         <div key={s} className="flex items-start shrink-0">
                           <div className="flex flex-col items-center gap-1 min-w-[140px] px-1">
-                            <span className={`text-[10px] px-2.5 py-1 rounded-full whitespace-nowrap ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
+                            <span className={`inline-flex items-center justify-center h-5 px-2.5 rounded-full whitespace-nowrap text-[11px] font-medium leading-none tracking-normal ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
                             {i <= stepIndex && h && (
                               <span className="text-[9px] text-muted-foreground text-center leading-tight">
                                 {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
