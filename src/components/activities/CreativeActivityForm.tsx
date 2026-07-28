@@ -39,6 +39,8 @@ import { format, parseISO } from "date-fns";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import CameraCapture from "@/components/CameraCapture";
+import { isNative, takeNativePhoto } from "@/utils/nativePermissions";
 
 type ProjectOpt = {
   id: string;
