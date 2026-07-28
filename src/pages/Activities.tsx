@@ -39,7 +39,7 @@ import {
   AlertCircle,
   Plus,
   Search,
-  Filter,
+  
   Trash2,
   Edit,
   Loader2,
@@ -65,7 +65,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { useModuleConfig } from "@/hooks/useModuleConfig";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
-import ActivityReportGenerator from "@/components/activities/ActivityReportGenerator";
+
 import ActivityPhotoManager from "@/components/activities/ActivityPhotoManager";
 
 import { MultiUserPicker } from "@/components/pm/MultiUserPicker";
@@ -233,7 +233,7 @@ export default function Activities() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState<"timeline" | "gps" | "activity">("activity");
   const [searchQuery, setSearchQuery] = useState("");
-  const [reportFiltersOpen, setReportFiltersOpen] = useState(false);
+  
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -926,36 +926,20 @@ export default function Activities() {
         </div>
       </motion.div>
 
-      {/* Search + Filters + New Button */}
+      {/* Search + New Button */}
       <motion.div variants={item} className="px-4 space-y-3">
         <div className="flex items-center gap-2">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search..." className="pl-9 w-full" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
-          {(isAdmin || hasSubordinates) && (
-            <Button
-              variant={reportFiltersOpen ? "secondary" : "outline"}
-              size="sm"
-              className="shrink-0 px-2.5 sm:px-3"
-              onClick={() => setReportFiltersOpen((open) => !open)}
-            >
-              <Filter className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Filters</span>
-            </Button>
-          )}
           <Button className="gradient-hero text-primary-foreground shrink-0 px-2.5 sm:px-3" onClick={handleOpenCreate}>
             <Plus className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">New</span>
           </Button>
         </div>
       </motion.div>
 
-      {/* Activity Report Generator - visible to admins and managers with subordinates */}
-      {(isAdmin || hasSubordinates) && (
-        <motion.div variants={item} className="px-4">
-          <ActivityReportGenerator isAdmin={!!isAdmin} filtersOpen={reportFiltersOpen} onFiltersOpenChange={setReportFiltersOpen} />
-        </motion.div>
-      )}
+
 
 
       {/* Content based on active tab */}
