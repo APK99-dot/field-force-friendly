@@ -23,6 +23,11 @@ export const APP_MODULES: AppModule[] = [
   { name: "module_goods_receipt", label: "Goods Receipt", sort_order: 9 },
   { name: "module_master_data", label: "Master Data", sort_order: 10 },
   { name: "module_reports", label: "Reports", sort_order: 11 },
+  { name: "module_customers", label: "Customers", sort_order: 12 },
+  { name: "module_leads", label: "Leads", sort_order: 13 },
+  { name: "module_events", label: "Events", sort_order: 14 },
+  { name: "module_opportunities", label: "Opportunities", sort_order: 15 },
+  { name: "module_vendors", label: "Vendors", sort_order: 16 },
 ];
 
 export function getAppModuleNames(): string[] {
