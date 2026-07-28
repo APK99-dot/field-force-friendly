@@ -167,7 +167,7 @@ export default function RolePermissionsMatrix() {
             <Button
               size="sm"
               className="shrink-0 self-end sm:self-auto"
-              disabled={!isDirty || isSystemAdmin || saveMutation.isPending}
+              disabled={!isDirty || saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
             >
               {saveMutation.isPending ? (
