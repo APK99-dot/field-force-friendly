@@ -136,6 +136,7 @@ export default function CreativeActivityForm({
   attendance,
 }: Props) {
   const isEdit = !!editActivity;
+  const { profile: currentProfile, initials: currentInitials } = useUserProfile();
   const [projectId, setProjectId] = useState("");
   const [projectSearch, setProjectSearch] = useState("");
   const [description, setDescription] = useState("");
