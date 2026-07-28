@@ -5,6 +5,18 @@ import { Zap } from "lucide-react";
 import { useUiMode, isLightning } from "@/hooks/useUiMode";
 import { cn } from "@/lib/utils";
 
+export const stageLabelBaseClass = "proc-stage-label";
+
+export function StageLabel({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <span className={cn(stageLabelBaseClass, className)}>{children}</span>;
+}
+
 /**
  * Wraps a page in the Lightning design token layer when the toggle is on.
  * All child styling stays the same when off — this is a purely additive shell.
@@ -103,7 +115,7 @@ export function PathBar({
         const state = i < currentIndex ? "done" : i === currentIndex ? "current" : "todo";
         return (
           <li key={s} className={`sf-path-step sf-path-${state}`}>
-            <span className="sf-path-label">{s}</span>
+            <StageLabel className="sf-path-label">{s}</StageLabel>
           </li>
         );
       })}

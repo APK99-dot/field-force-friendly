@@ -31,7 +31,7 @@ import GRNDetail from "./GRNDetail";
 import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "@/lib/addresses";
 import { resolveInvoiceFileUrl } from "@/utils/invoiceAttachments";
 import { useUiMode, isLightning } from "@/hooks/useUiMode";
-import { HighlightsPanel, PathBar } from "@/components/procurement/lightning/LightningShell";
+import { HighlightsPanel, PathBar, StageLabel } from "@/components/procurement/lightning/LightningShell";
 
 export interface StageHistoryEntry {
   status: string;
@@ -1450,7 +1450,7 @@ export default function ProcurementDetail({
                         <li key={s} className="relative">
                           <span className={`absolute -left-[17px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-background ${active ? "bg-primary" : "bg-muted-foreground/30"}`} />
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className={`inline-flex items-center h-5 px-2.5 rounded-full whitespace-nowrap text-[11px] font-medium leading-none tracking-normal ${active ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
+                            <StageLabel className={`inline-flex h-5 rounded-full ${active ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</StageLabel>
                             {active && h && (
                               <span className="text-[10px] text-muted-foreground">
                                 {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
@@ -1473,7 +1473,7 @@ export default function ProcurementDetail({
                       return (
                         <div key={s} className="flex items-start shrink-0">
                           <div className="flex flex-col items-center gap-1 min-w-[140px] px-1">
-                            <span className={`inline-flex items-center justify-center h-5 px-2.5 rounded-full whitespace-nowrap text-[11px] font-medium leading-none tracking-normal ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</span>
+                            <StageLabel className={`inline-flex h-5 rounded-full ${i <= stepIndex ? statusColor(s) : "bg-muted text-muted-foreground"}`}>{s}</StageLabel>
                             {i <= stepIndex && h && (
                               <span className="text-[9px] text-muted-foreground text-center leading-tight">
                                 {h.moved_by_name || "—"}{when ? `, ${when}` : ""}
