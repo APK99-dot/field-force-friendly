@@ -41,6 +41,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import CameraCapture from "@/components/CameraCapture";
 import { isNative, takeNativePhoto } from "@/utils/nativePermissions";
+import OpenGRNPicker from "@/components/procurement/OpenGRNPicker";
+import { receiptDrivenStatus } from "@/lib/procurement";
+
+interface GrnLineItem {
+  id: string;
+  product_id: string | null;
+  product_name: string;
+  ordered: number;
+  prevReceived: number;
+  uom: string | null;
+}
 
 type ProjectOpt = {
   id: string;
