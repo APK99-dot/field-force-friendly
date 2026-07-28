@@ -70,9 +70,6 @@ export default function RolePermissionsMatrix() {
     }
   }, [profilesQuery.data, selectedProfileId]);
 
-  const selectedProfile = profilesQuery.data?.find((p) => p.id === selectedProfileId);
-  const isSystemAdmin = selectedProfile?.profile_name === "System Administrator";
-
   // Fetch permissions for selected profile
   const permsQuery = useQuery({
     queryKey: ["profile-permissions-hierarchical", selectedProfileId],
@@ -91,11 +88,6 @@ export default function RolePermissionsMatrix() {
   useEffect(() => {
     if (definitions.length === 0) return;
 
-    if (isSystemAdmin) {
-      setPermissions(buildAllEnabledFromDefinitions(definitions));
-      setIsDirty(false);
-      return;
-    }
     const base = buildPermissionsFromDefinitions(definitions);
     if (permsQuery.data) {
       for (const row of permsQuery.data) {
@@ -112,7 +104,7 @@ export default function RolePermissionsMatrix() {
     }
     setPermissions(base);
     setIsDirty(false);
-  }, [permsQuery.data, isSystemAdmin, selectedProfileId, definitions]);
+  }, [permsQuery.data, selectedProfileId, definitions]);
 
   const handleChange = useCallback((updated: PermissionState) => {
     setPermissions(updated);
@@ -175,7 +167,7 @@ export default function RolePermissionsMatrix() {
             <Button
               size="sm"
               className="shrink-0 self-end sm:self-auto"
-              disabled={!isDirty || isSystemAdmin || saveMutation.isPending}
+              disabled={!isDirty || saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
             >
               {saveMutation.isPending ? (
@@ -204,19 +196,11 @@ export default function RolePermissionsMatrix() {
             </Select>
           </div>
 
-          {isSystemAdmin && (
-            <div className="mb-4 p-3 rounded-lg bg-muted/50 border border-border">
-              <p className="text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">System Administrator</span> has all permissions granted automatically and cannot be modified.
-              </p>
-            </div>
-          )}
-
           {selectedProfileId ? (
             <HierarchicalPermissionEditor
               permissions={permissions}
               definitions={definitions}
-              readOnly={isSystemAdmin}
+              readOnly={false}
               onChange={handleChange}
             />
           ) : (
