@@ -63,15 +63,15 @@ const allNavigationItems = [
   { icon: Navigation2, label: "GPS Track", href: "/gps-tracking", color: "from-purple-500 to-purple-600", module: "module_gps_tracking" },
   { icon: Receipt, label: "Expenses", href: "/expenses", color: "from-orange-500 to-orange-600", module: "module_expenses" },
   { icon: ClipboardList, label: "Activities", href: "/activities", color: "from-teal-500 to-teal-600", module: "module_activities" },
-  { icon: Building2, label: "Projects/Sites", href: "/sites", color: "from-cyan-500 to-cyan-600", module: null as string | null },
-  { icon: Users2, label: "My Team", href: "/my-team", color: "from-indigo-500 to-indigo-600", module: null as string | null },
+  { icon: Building2, label: "Projects/Sites", href: "/sites", color: "from-cyan-500 to-cyan-600", module: "module_projects_sites" },
+  { icon: Users2, label: "My Team", href: "/my-team", color: "from-indigo-500 to-indigo-600", module: "module_my_team" },
   { icon: ShoppingCart, label: "Procurement", href: "/procurement", color: "from-rose-500 to-rose-600", module: "module_procurement" },
-  { icon: Truck, label: "Goods Receipt", href: "/grn", color: "from-pink-500 to-pink-600", module: "module_procurement" },
-  { icon: Contact, label: "Customers", href: "/customers", color: "from-sky-500 to-sky-600", module: null as string | null },
-  { icon: UserPlus, label: "Leads", href: "/leads", color: "from-amber-500 to-amber-600", module: null as string | null },
-  { icon: CalendarDays, label: "Events", href: "/events", color: "from-fuchsia-500 to-fuchsia-600", module: null as string | null },
-  { icon: Target, label: "Opportunities", href: "/opportunities", color: "from-lime-500 to-lime-600", module: null as string | null },
-  { icon: FileBarChart, label: "Reports", href: "/reports", color: "from-teal-500 to-teal-600", module: null as string | null },
+  { icon: Truck, label: "Goods Receipt", href: "/grn", color: "from-pink-500 to-pink-600", module: "module_goods_receipt" },
+  { icon: Contact, label: "Customers", href: "/customers", color: "from-sky-500 to-sky-600", module: "module_customers" },
+  { icon: UserPlus, label: "Leads", href: "/leads", color: "from-amber-500 to-amber-600", module: "module_leads" },
+  { icon: CalendarDays, label: "Events", href: "/events", color: "from-fuchsia-500 to-fuchsia-600", module: "module_events" },
+  { icon: Target, label: "Opportunities", href: "/opportunities", color: "from-lime-500 to-lime-600", module: "module_opportunities" },
+  { icon: FileBarChart, label: "Reports", href: "/reports", color: "from-teal-500 to-teal-600", module: "module_reports" },
 ];
 
 const adminItems = [
