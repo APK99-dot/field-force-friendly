@@ -212,6 +212,12 @@ export default function CreativeActivityForm({
       setAssignSearch("");
       clearRecording();
       setVoiceToTextMode(false);
+      setGrnPoId("");
+      setGrnPoNumber("");
+      setGrnItems([]);
+      setGrnRecv({});
+      setGrnItemRemarks({});
+      setGrnRemarks("");
       return;
     }
     // Prefill on edit
@@ -224,6 +230,7 @@ export default function CreativeActivityForm({
       setPhotos(editActivity.photo_urls || []);
       setStatus(editActivity.status || "planned");
       setCheckedIn(!!(editActivity as any).check_in_at);
+      setGrnPoId((editActivity as any).grn_po_id || "");
 
       // resolve photo previews
       (editActivity.photo_urls || []).forEach(async (ph) => {
@@ -236,6 +243,71 @@ export default function CreativeActivityForm({
       setCheckedIn(false);
     }
   }, [open, editActivity, clearRecording]);
+
+  // Load PO items + already-received qty whenever a PO is selected for GRN
+  useEffect(() => {
+    if (!isGrnType || !grnPoId) {
+      setGrnItems([]);
+      setGrnPoNumber("");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setGrnLoadingPo(true);
+      try {
+        const { data: po } = await supabase
+          .from("procurement_orders")
+          .select("po_number, procurement_items(id, product_id, qty, uom)")
+          .eq("id", grnPoId)
+          .single();
+        if (cancelled) return;
+        const raw = ((po as any)?.procurement_items || []) as any[];
+        const productIds = [...new Set(raw.map((r) => r.product_id).filter(Boolean))];
+        let pmap: Record<string, string> = {};
+        if (productIds.length) {
+          const { data: prods } = await supabase.from("master_products").select("id, name").in("id", productIds);
+          (prods || []).forEach((p: any) => { pmap[p.id] = p.name; });
+        }
+        // already received per procurement_item_id
+        const { data: grns } = await supabase
+          .from("procurement_grns")
+          .select("procurement_grn_items(procurement_item_id, received_qty)")
+          .eq("po_id", grnPoId);
+        const rmap: Record<string, number> = {};
+        ((grns || []) as any[]).forEach((g) => {
+          (g.procurement_grn_items || []).forEach((gi: any) => {
+            if (gi.procurement_item_id) rmap[gi.procurement_item_id] = (rmap[gi.procurement_item_id] || 0) + Number(gi.received_qty || 0);
+          });
+        });
+        if (cancelled) return;
+        setGrnPoNumber((po as any)?.po_number || "");
+        setGrnItems(raw.map((r) => ({
+          id: r.id,
+          product_id: r.product_id,
+          product_name: r.product_id ? (pmap[r.product_id] || "Product") : "Item",
+          ordered: Number(r.qty || 0),
+          prevReceived: Number(rmap[r.id] || 0),
+          uom: r.uom,
+        })));
+        setGrnRecv({});
+        setGrnItemRemarks({});
+      } finally {
+        if (!cancelled) setGrnLoadingPo(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isGrnType, grnPoId]);
+
+  // Reset GRN selection when activity type flips away from GRN
+  useEffect(() => {
+    if (!isGrnType) {
+      setGrnPoId("");
+      setGrnItems([]);
+      setGrnRecv({});
+      setGrnItemRemarks({});
+      setGrnRemarks("");
+    }
+  }, [isGrnType]);
 
   const filteredProjects = useMemo(() => {
     const q = projectSearch.trim().toLowerCase();
