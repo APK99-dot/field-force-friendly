@@ -38,6 +38,7 @@ import { format, parseISO } from "date-fns";
 
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 type ProjectOpt = {
   id: string;
@@ -135,6 +136,7 @@ export default function CreativeActivityForm({
   attendance,
 }: Props) {
   const isEdit = !!editActivity;
+  const { profile: currentProfile, initials: currentInitials } = useUserProfile();
   const [projectId, setProjectId] = useState("");
   const [projectSearch, setProjectSearch] = useState("");
   const [description, setDescription] = useState("");
@@ -694,14 +696,22 @@ export default function CreativeActivityForm({
               {/* Status / description with inline icon rail */}
               <div className="rounded-2xl bg-card border border-border px-3 sm:px-4 py-3 shadow-sm min-w-0 max-w-full overflow-hidden">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div
-                    className={cn(
-                      "h-10 w-10 rounded-full bg-gradient-to-br flex items-center justify-center text-white text-sm font-semibold shrink-0",
-                      gradientFor(currentUserId || "me")
-                    )}
-                  >
-                    {initials("Me")}
-                  </div>
+                  {currentProfile?.profile_picture_url ? (
+                    <img
+                      src={currentProfile.profile_picture_url}
+                      alt={currentProfile.full_name || currentProfile.username || "Me"}
+                      className="h-10 w-10 rounded-full object-cover shrink-0 border border-border"
+                    />
+                  ) : (
+                    <div
+                      className={cn(
+                        "h-10 w-10 rounded-full bg-gradient-to-br flex items-center justify-center text-white text-sm font-semibold shrink-0",
+                        gradientFor(currentUserId || "me")
+                      )}
+                    >
+                      {currentInitials && currentInitials !== "??" ? currentInitials : initials(currentProfile?.full_name || currentProfile?.username || "Me")}
+                    </div>
+                  )}
                   <Textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
