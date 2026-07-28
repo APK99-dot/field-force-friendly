@@ -770,7 +770,7 @@ export default function CreativeActivityForm({
                         <TooltipTrigger asChild>
                           <button
                             type="button"
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={handleOpenCamera}
                             disabled={uploadingPhoto}
                             className="h-9 w-9 rounded-full flex items-center justify-center text-fuchsia-600 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/30 disabled:opacity-60 transition"
                             aria-label="Add photo"
