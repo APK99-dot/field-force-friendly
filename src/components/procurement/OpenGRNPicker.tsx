@@ -59,18 +59,22 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
       // Filter out fully-received POs using a batched pending-qty computation
       const poIds = rows.map((r) => r.id);
       if (poIds.length) {
-        const [{ data: itemsData }, { data: grnsData }] = await Promise.all([
-          supabase.from("procurement_items").select("id, po_id, qty").in("po_id", poIds),
-          supabase.from("procurement_grn_items").select("procurement_item_id, received_qty, procurement_grns!inner(po_id)").in("procurement_grns.po_id" as any, poIds),
-        ]);
+        const itemsRes: any = await supabase.from("procurement_items").select("id, po_id, qty").in("po_id", poIds);
+        const grnRes: any = await supabase.from("procurement_grns").select("id, po_id").in("po_id", poIds);
+        const grnIds = ((grnRes.data || []) as any[]).map((g) => g.id);
+        const grnPoById: Record<string, string> = {};
+        ((grnRes.data || []) as any[]).forEach((g) => { grnPoById[g.id] = g.po_id; });
+        let grnItemsData: any[] = [];
+        if (grnIds.length) {
+          const giRes: any = await supabase.from("procurement_grn_items").select("procurement_item_id, received_qty, grn_id").in("grn_id", grnIds);
+          grnItemsData = (giRes.data || []) as any[];
+        }
         const recvByItem: Record<string, number> = {};
-        ((grnsData || []) as any[]).forEach((g) => {
-          (g.procurement_grn_items || []).forEach((gi: any) => {
-            if (gi.procurement_item_id) recvByItem[gi.procurement_item_id] = (recvByItem[gi.procurement_item_id] || 0) + Number(gi.received_qty || 0);
-          });
+        grnItemsData.forEach((gi) => {
+          if (gi.procurement_item_id) recvByItem[gi.procurement_item_id] = (recvByItem[gi.procurement_item_id] || 0) + Number(gi.received_qty || 0);
         });
         const pendingByPo: Record<string, number> = {};
-        ((itemsData || []) as any[]).forEach((it) => {
+        ((itemsRes.data || []) as any[]).forEach((it) => {
           const pending = Number(it.qty || 0) - Number(recvByItem[it.id] || 0);
           pendingByPo[it.po_id] = (pendingByPo[it.po_id] || 0) + Math.max(0, pending);
         });
