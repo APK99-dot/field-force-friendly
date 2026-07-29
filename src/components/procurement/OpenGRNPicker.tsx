@@ -148,11 +148,18 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
         ) : filtered.map((p) => {
           const selected = value === p.id;
           return (
-            <button
-              type="button"
+            <div
               key={p.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onChange(selected ? "" : p.id)}
-              className={`w-full text-left p-2.5 flex items-center gap-2 transition-colors ${selected ? "bg-primary/10" : "hover:bg-muted/50"}`}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onChange(selected ? "" : p.id);
+                }
+              }}
+              className={`w-full cursor-pointer text-left p-2.5 flex items-center gap-2 transition-colors ${selected ? "bg-primary/10" : "hover:bg-muted/50"}`}
             >
               <div className={`h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${selected ? "bg-primary border-primary" : "border-muted-foreground/40"}`}>
                 {selected && <Check className="h-3 w-3 text-primary-foreground" />}
@@ -163,13 +170,23 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
                   {p.source_type === "internal_transfer" && <Badge variant="outline" className="text-[10px] bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Transfer</Badge>}
                   <Badge variant="outline" className={`text-[10px] ${statusColor(p.status)}`}>{p.status}</Badge>
                 </div>
+                <a
+                  href={`/procurement?po=${p.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  className="inline-block text-xs text-muted-foreground hover:underline mt-0.5"
+                >
+                  See more
+                </a>
                 <div className="text-[11px] text-muted-foreground truncate">
                   {p.source_type === "internal_transfer"
                     ? `${p.order_date}${p.transfer_from_name ? ` · From ${p.transfer_from_name}` : ""}`
                     : `${p.order_date}${p.vendor_name ? ` · ${p.vendor_name}` : ""} · ${fmtAmt(p.total_amount)}`}
                 </div>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
