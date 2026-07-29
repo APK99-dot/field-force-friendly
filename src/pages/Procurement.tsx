@@ -339,6 +339,7 @@ export default function Procurement() {
       bill_to_id: o.bill_to_address_id || "",
       ship_to_id: o.ship_to_address_id || "",
       expected_payment_terms: (o as any).payment_terms || "",
+      expected_delivery_date: (o as any).expected_delivery_date || "",
       terms_and_conditions: Array.isArray((o as any).terms_and_conditions) ? (o as any).terms_and_conditions : defaultTerms,
     });
     const items = (o.procurement_items || []).map((it) => ({
