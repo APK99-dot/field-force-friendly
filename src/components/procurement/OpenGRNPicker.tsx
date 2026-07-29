@@ -59,11 +59,9 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
       // Filter out fully-received POs using a batched pending-qty computation
       const poIds = rows.map((r) => r.id);
       if (poIds.length) {
-        const itemsRes: any = await (supabase.from("procurement_items") as any).select("id, po_id, qty").in("po_id", poIds);
+        const itemsRes: any = await (supabase.from("procurement_items") as any).select("id, procurement_id, qty").in("procurement_id", poIds);
         const grnRes: any = await (supabase.from("procurement_grns") as any).select("id, po_id").in("po_id", poIds);
         const grnIds = ((grnRes.data || []) as any[]).map((g) => g.id);
-        const grnPoById: Record<string, string> = {};
-        ((grnRes.data || []) as any[]).forEach((g) => { grnPoById[g.id] = g.po_id; });
         let grnItemsData: any[] = [];
         if (grnIds.length) {
           const giRes: any = await supabase.from("procurement_grn_items").select("procurement_item_id, received_qty, grn_id").in("grn_id", grnIds);
@@ -73,12 +71,17 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
         grnItemsData.forEach((gi) => {
           if (gi.procurement_item_id) recvByItem[gi.procurement_item_id] = (recvByItem[gi.procurement_item_id] || 0) + Number(gi.received_qty || 0);
         });
+        const itemsData = (itemsRes.data || []) as any[];
+        const poHasItems: Record<string, boolean> = {};
         const pendingByPo: Record<string, number> = {};
-        ((itemsRes.data || []) as any[]).forEach((it) => {
+        itemsData.forEach((it) => {
+          poHasItems[it.procurement_id] = true;
           const pending = Number(it.qty || 0) - Number(recvByItem[it.id] || 0);
-          pendingByPo[it.po_id] = (pendingByPo[it.po_id] || 0) + Math.max(0, pending);
+          pendingByPo[it.procurement_id] = (pendingByPo[it.procurement_id] || 0) + Math.max(0, pending);
         });
-        rows = rows.filter((r) => (pendingByPo[r.id] || 0) > 0);
+        // Hide only POs where every line item is fully received.
+        // If a PO has no items loaded (edge case), keep it visible.
+        rows = rows.filter((r) => !poHasItems[r.id] || (pendingByPo[r.id] || 0) > 0);
       }
       const vendorIds = [...new Set(rows.filter((r) => r.vendor_id).map((r) => r.vendor_id))];
       let vmap: Record<string, string> = {};
