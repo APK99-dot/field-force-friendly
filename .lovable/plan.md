@@ -1,58 +1,101 @@
-## Procurement Detail — header, stepper, and audit trail fixes
+## Goal
 
-Three targeted fixes in `src/components/procurement/ProcurementDetail.tsx` (plus a small tweak in `src/components/procurement/lightning/LightningShell.tsx` and `src/index.css` for path styling). No business logic, permissions, or data model changes.
+Add a full Purchase Order generation workflow to the Procurement module: on click, produce a branded A4 PO PDF, store it against the order, and expose Preview / Download / Print / Email actions plus a version history. All existing procurement, vendor, GRN, invoice, and status logic stays untouched.
 
-### 1) Site & Vendor empty in the Lightning record header — bug fix
+## Where things live today (verified)
 
-`vendorName` and `siteName` are **functions** (`(id) => string`) passed in as props, but the Lightning `HighlightsPanel` is currently using them as if they were strings (`siteName || "—"`, `vendorName || "—"`), which always renders a truthy function reference and then falls back to empty when React coerces it.
+- Stage flow already has `PO Issued`; the "Issue PO" transition (`Quote Received → PO Issued`) is in `src/lib/procurement.ts` and driven by the existing `advanceOpen` dialog in `src/components/procurement/ProcurementDetail.tsx`. PO Number auto-generation is handled by DB trigger `set_po_number()` — no change needed.
+- `jsPDF` is already used for the Quote Request PDF (`buildQuoteDoc` in `ProcurementDetail.tsx`); we'll reuse the same import.
+- `procurement_attachments` table already exists with `scope`, `file_name`, `file_path`, `content_type`, `created_by`, `created_at`. It has no `version` column yet.
+- `company_profile` table (used by `AppHeader` and `reportPdf`) supplies logo + company details.
+- Storage bucket `procurement-attachments` is already present.
 
-Fix in the `HighlightsPanel` fields block (~line 1408–1416):
+## Changes
 
-- `subtitle`: resolve to `vendorName(order.vendor_id) || siteName(order.site_id) || order.requisition_name`.
-- `Site`: `siteName(order.site_id) || "—"` — for internal transfers, show `From → To` using `transfer_from_site_id` and `site_id`.
-- `Vendor`: use the derived finalized/summary vendor list already computed in the component (`summaryVendorIds` / `vendorSummaries`) so it reflects post-approval assignments; fall back to `order.vendor_id`. For internal transfers, render `—` (no vendor concept).
-- Also add `Requisition #` and `Owner` (created-by name) as fields, matching Salesforce highlights.
+### 1. Database (one migration)
 
-### 2) Stepper labels getting truncated
+Add PO-document metadata to `procurement_attachments`:
 
-Root cause: desktop chip column is locked to `max-w-[110px]` with `whitespace-nowrap`, so "Requisition Approved" and "Invoice Received" clip.
+- `version INT` (nullable, only set for PO documents)
+- `notes TEXT` (optional regeneration reason)
+- Partial unique index on `(po_id, version)` where `scope = 'po_document'` so version numbers stay unique per PO.
 
-Changes to the desktop horizontal stepper (classic mode, ~line 1452–1471):
+No RLS changes — existing authenticated policies cover it.
 
-- Drop `max-w-[110px]` and `whitespace-nowrap` on the chip; allow the chip to size to its content with `px-2.5 py-1`.
-- Make the row horizontally scrollable on smaller desktops (`overflow-x-auto`) so long lifecycles never wrap awkwardly.
-- Increase per-step column min width to fit meta lines (`min-w-[132px]`).
+### 2. New helper: `src/utils/purchaseOrderPdf.ts`
 
-For Lightning mode, update `.sf-path` in `src/index.css` and `PathBar` in `LightningShell.tsx` so each chevron step:
+Pure function `buildPurchaseOrderPdf(order, items, vendor, company, siteName, productName)` → returns a `jsPDF` doc.
 
-- Uses `white-space: nowrap` on the label but allows the strip to horizontally scroll on narrow widths.
-- Reserves enough padding for the longest SLDS-style label.
+Layout (A4, portrait):
 
-Mobile vertical timeline already wraps correctly — no change.
+```text
+┌─────────────────────────────────────────────────┐
+│ [Logo]   Bharat Builders           PURCHASE ORDER│
+│          Address / GST / Phone     PO #: PO-0032 │
+│                                    Date: dd/mm/yy│
+├─────────────────────────────────────────────────┤
+│ Vendor:                    Ship To:              │
+│ <name / contact / phone>   <ship_to snapshot>    │
+│ <address / GST>            Bill To:              │
+│                            <bill_to snapshot>    │
+├─────────────────────────────────────────────────┤
+│ Site: <site>     Requisition: REQ-xxxx / date    │
+│ Expected Delivery: dd/mm/yy   Payment Terms: ... │
+├─────────────────────────────────────────────────┤
+│ # | Material | Description | Qty | UOM | Rate | Disc | Amount │
+│ ...line items (page-break aware)...              │
+├─────────────────────────────────────────────────┤
+│                          Subtotal / Discount     │
+│                          Grand Total  ₹ x,xxx.xx │
+├─────────────────────────────────────────────────┤
+│ Terms & Conditions (numbered list)               │
+├─────────────────────────────────────────────────┤
+│                          Authorised Signatory    │
+│                          ______________________  │
+└─────────────────────────────────────────────────┘
+```
 
-### 3) Complete audit trail (who / when / remarks) — full timeline section
+Uses `helvetica`, INR formatter already in `src/lib/procurement.ts` (`fmtAmt`), and `splitTextToSize` for wrapping. Logo pulled via `company_profile.logo_url` (fallback: the existing `src/assets/bb_logo.png`).
 
-Today only `historyByStatus` (latest entry per status) is shown as tiny meta under each chip. Add a proper "Stage History" related list that surfaces every transition in chronological order, similar to Salesforce's activity/history related list.
+### 3. `ProcurementDetail.tsx` — PO generation flow
 
-Add a new **Stage History** card rendered directly under the stepper in both classic and Lightning modes:
+Add a new **Purchase Order** section (only for vendor POs, only when `order.status` ∈ `PO Issued | Partially Received | Goods Received | Partially Invoiced | Invoice Received | Partially Paid | Paid | Closed`, or on the "Issue PO" advance action):
 
-- Iterates the full `stageHistory` array (already loaded from `order.stage_history`), sorted ascending by `moved_at`.
-- One row per transition showing:
-  - Status badge (using `statusColor`)
-  - Actor: `moved_by_name` — with a small "System" pill when `auto === true`
-  - Date + time: `moved_at` formatted as `dd MMM yyyy, HH:mm` (locale `en-GB`)
-  - Remarks: `note` (if any), rendered in italic muted text
-- Empty state: "No stage transitions recorded yet." when the array is empty.
-- In Lightning mode wrap in the SLDS related-list card styling (`sf-related-list`), matching the other tabs.
+- **State**: `poDocs` (list of attachments with `scope='po_document'`, ordered by version desc) loaded when the order opens.
+- **Generate/Regenerate PO** button (approver-gated):
+  1. Build PDF with helper.
+  2. Upload to `procurement-attachments/po/{po_id}/v{n}-{PO#}.pdf`.
+  3. Insert `procurement_attachments` row with `scope='po_document'`, `version = max+1`, `created_by = auth.uid()`.
+  4. Refresh `poDocs`.
+  5. If current status is `Quote Received`, also advance to `PO Issued` (reuses existing `advanceStage` path so audit remains intact).
+- **Auto-trigger on "Issue PO"**: hook into the existing advance-stage confirm so moving to `PO Issued` also generates v1 if no PO doc exists yet — keeps things one-click for the common path.
 
-The per-chip meta under the stepper stays (still useful glanceable info), but the full audit is now the source of truth beneath it.
+### 4. PO Document actions (per version row)
 
-### Files touched
+For each version, show: version, generated by, timestamp, and actions:
 
-- `src/components/procurement/ProcurementDetail.tsx` — fix HighlightsPanel field values, widen desktop stepper chips, add Stage History card component + render.
-- `src/components/procurement/lightning/LightningShell.tsx` — minor `PathBar` markup tweak to prevent label clipping.
-- `src/index.css` — extend `.sf-path` / `.sf-path-step` under `.lightning-ui` for nowrap + horizontal scroll.
+- **Preview** — opens the PDF in a modal via signed URL in an `<iframe>`.
+- **Download** — signed URL download.
+- **Print** — opens the signed URL in a hidden iframe and calls `contentWindow.print()`.
 
-### Not changing
+### 5. Audit & version history
 
-- `stage_history` schema, how transitions are recorded, `computeAutoTarget`, permissions, PDF/WhatsApp share, or any other workflow. This is presentation-only.
+- The attachment rows themselves are the audit log (who + when + version).
+- The section header shows "Latest: v{n} · generated by {name} on {date}" and expandable list of prior versions.
+- Every regenerate creates a new row; old files stay in storage and remain downloadable.
+
+### 6. Deep-link support
+
+Extend the existing `?po={id}&tab=…` handling so `?po={id}&tab=po-document` scrolls to the Purchase Order section (matches the existing pattern used for GRN/Invoice tabs).
+
+## Out of scope (per user instructions)
+
+- No changes to vendor selection, GRN, invoice, payment, or status/auto-advance logic.
+- No changes to `set_po_number()`, existing PDF (Quote Request), or WhatsApp share.
+- No new edge function; email uses `mailto:` for v1.
+
+## Files touched
+
+- `supabase/migrations/<new>.sql` — add `version`, `notes`, partial unique index.
+- `src/utils/purchaseOrderPdf.ts` — new PDF builder.
+- `src/components/procurement/ProcurementDetail.tsx` — new PO Document section, generation handler, hook into Issue-PO advance, deep-link tab.

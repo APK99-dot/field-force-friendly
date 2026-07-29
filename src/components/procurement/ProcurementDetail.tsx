@@ -25,6 +25,7 @@ import {
 } from "@/lib/procurement";
 import jsPDF from "jspdf";
 import { downloadPDF } from "@/utils/nativeDownload";
+import { buildPurchaseOrderPdf } from "@/utils/purchaseOrderPdf";
 import GRNForm, { type POItem } from "./GRNForm";
 import InvoiceForm from "./InvoiceForm";
 import GRNDetail from "./GRNDetail";
@@ -206,6 +207,9 @@ export default function ProcurementDetail({
   const [busy, setBusy] = useState(false);
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [revertOpen, setRevertOpen] = useState(false);
+  const [poDocs, setPoDocs] = useState<{ id: string; vendor_id: string | null; file_name: string; file_path: string; file_size: number | null; version: number | null; notes: string | null; created_at: string; created_by: string | null }[]>([]);
+  const [poDocBusy, setPoDocBusy] = useState<string | null>(null);
+  const [companyProfile, setCompanyProfile] = useState<any | null>(null);
 
   // Inline PO details editing (delivery date, payment terms, rates)
   const [poForm, setPoForm] = useState({ expected_delivery_date: "", payment_terms: "" });
@@ -800,9 +804,10 @@ export default function ProcurementDetail({
   );
 
   const fetchSub = useCallback(async () => {
-    const [g, inv] = await Promise.all([
+    const [g, inv, docs] = await Promise.all([
       supabase.from("procurement_grns").select("*, procurement_grn_items(*)").eq("po_id", order.id).order("created_at"),
       supabase.from("procurement_invoices").select("*, procurement_invoice_items(*), procurement_invoice_payments(*), procurement_invoice_attachments(*)").eq("po_id", order.id).order("created_at"),
+      supabase.from("procurement_attachments").select("id, vendor_id, file_name, file_path, file_size, version, notes, created_at, created_by").eq("po_id", order.id).eq("scope", "po_document").order("created_at", { ascending: false }),
     ]);
     const gRows = (g.data || []) as any[];
     setGrns(gRows.map((r) => ({ id: r.id, grn_number: r.grn_number, receipt_date: r.receipt_date, status: r.status, received_by: r.received_by, remarks: r.remarks, vendor_id: r.vendor_id ?? null, photos: r.photos ?? null })));
@@ -812,9 +817,167 @@ export default function ProcurementDetail({
     setInvItems(iRows.flatMap((r) => (r.procurement_invoice_items || []) as InvItemRow[]));
     setInvPayments(iRows.flatMap((r) => (r.procurement_invoice_payments || []).map((p: any) => ({ invoice_id: r.id, amount: Number(p.amount || 0), payment_date: p.payment_date, reference_number: p.reference_number, notes: p.notes ?? null }))));
     setInvAttachments(iRows.flatMap((r) => (r.procurement_invoice_attachments || []).map((a: any) => ({ id: a.id, invoice_id: r.id, file_name: a.file_name, file_path: a.file_path, file_size: a.file_size ?? null }))));
+    setPoDocs((docs.data || []) as any[]);
   }, [order.id]);
 
   useEffect(() => { if (open) fetchSub(); }, [open, fetchSub]);
+
+  // Load company profile once per open for PO branding
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from("company_profile").select("*").limit(1).maybeSingle();
+      if (!cancelled) setCompanyProfile(data || null);
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
+
+  // Purchase Order document helpers
+  const openPoAttachment = useCallback(async (att: { file_path: string; file_name: string }) => {
+    const { data, error } = await supabase.storage.from("procurement-attachments").createSignedUrl(att.file_path, 3600);
+    if (error || !data?.signedUrl) { toast.error("Could not open document"); return; }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }, []);
+
+  const downloadPoAttachment = useCallback(async (att: { file_path: string; file_name: string }) => {
+    const { data, error } = await supabase.storage.from("procurement-attachments").download(att.file_path);
+    if (error || !data) { toast.error("Could not download document"); return; }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url; a.download = att.file_name; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }, []);
+
+  const generatePoForVendor = useCallback(async (params: {
+    vendorId: string;
+    scopedLines: RateLine[];
+    quote?: VendorQuoteRow | null;
+  }) => {
+    const { vendorId, scopedLines, quote } = params;
+    if (!vendorId) { toast.error("No vendor selected"); return; }
+    if (!scopedLines.length) { toast.error("No line items assigned to this vendor"); return; }
+    setPoDocBusy(vendorId);
+    try {
+      // Fetch full vendor record for contact + address + gst
+      const { data: v } = await supabase
+        .from("vendors")
+        .select("name, address, gst_number, phone, email, contact_person")
+        .eq("id", vendorId)
+        .maybeSingle();
+
+      const flatten = (val: any): string | null => {
+        if (val == null) return null;
+        if (typeof val === "string") return val;
+        if (Array.isArray(val)) return val.filter(Boolean).map(String).join(", ") || null;
+        if (typeof val === "object") {
+          const arr = Object.values(val).filter(Boolean).map(String);
+          return arr.length ? arr.join(", ") : null;
+        }
+        return String(val);
+      };
+
+      // Build line items using quote rate first, else procurement_items rate
+      const items = scopedLines.map((l) => {
+        const qi = quote?.procurement_vendor_quote_items?.find((x) => x.procurement_item_id === l.id);
+        const rateAfter = qi ? Number((qi as any).rate_after_discount) : NaN;
+        const rateBefore = qi ? Number(qi.rate) : NaN;
+        const rate = Number.isFinite(rateAfter) && rateAfter > 0
+          ? rateAfter
+          : Number.isFinite(rateBefore) && rateBefore > 0
+            ? rateBefore
+            : Number((l as any).rate || 0);
+        const discountAmt =
+          qi && Number.isFinite(rateBefore) && rateBefore > 0 && Number.isFinite(rateAfter)
+            ? Math.max(0, (rateBefore - rateAfter) * Number(l.qty || 0))
+            : 0;
+        return {
+          product_name: productName(l.product_id) || "-",
+          description: null,
+          qty: Number(l.qty || 0),
+          uom: (l as any).uom || null,
+          rate,
+          discount: discountAmt,
+        };
+      });
+
+      const nextVersion = (poDocs.filter((d) => d.vendor_id === vendorId).reduce((m, d) => Math.max(m, Number(d.version || 0)), 0)) + 1;
+
+      const doc = await buildPurchaseOrderPdf({
+        order: {
+          po_number: order.po_number,
+          order_date: order.order_date,
+          expected_delivery_date: order.expected_delivery_date,
+          payment_terms: order.payment_terms || (quote as any)?.payment_terms || null,
+          bill_to: order.bill_to,
+          ship_to: order.ship_to,
+          requisition_number: (order as any).requisition_number || null,
+          requisition_name: reqName,
+          site_name: siteName(order.site_id) || null,
+          version: nextVersion,
+        },
+        vendor: {
+          name: v?.name || vendorName(vendorId),
+          contact_person: flatten(v?.contact_person),
+          phone: flatten(v?.phone),
+          email: flatten(v?.email),
+          address: v?.address || null,
+          gst_number: v?.gst_number || null,
+        },
+        company: {
+          company_name: companyProfile?.company_name || "Bharat Builders",
+          address: companyProfile?.address || null,
+          gst_number: companyProfile?.gst_number || null,
+          phone: companyProfile?.phone || null,
+          email: companyProfile?.email || null,
+          logo_url: companyProfile?.logo_url || null,
+        },
+        items,
+      });
+
+      const blob = doc.output("blob");
+      const safeVendor = (v?.name || vendorName(vendorId) || "vendor").replace(/[^a-zA-Z0-9-_]/g, "_");
+      const safePo = (order.po_number || "PO").replace(/[^a-zA-Z0-9-_]/g, "_");
+      const fileName = `PO-${safePo}-${safeVendor}-v${nextVersion}.pdf`;
+      const filePath = `${order.id}/po-documents/${vendorId}/${Date.now()}-v${nextVersion}.pdf`;
+
+      const { error: upErr } = await supabase.storage
+        .from("procurement-attachments")
+        .upload(filePath, blob, { contentType: "application/pdf", upsert: false });
+      if (upErr) throw upErr;
+
+      const { error: insErr } = await supabase.from("procurement_attachments").insert({
+        po_id: order.id,
+        vendor_id: vendorId,
+        scope: "po_document",
+        file_name: fileName,
+        file_path: filePath,
+        file_size: blob.size,
+        content_type: "application/pdf",
+        version: nextVersion,
+        source: "generated",
+        created_by: currentUserId || null,
+      });
+      if (insErr) throw insErr;
+
+      // Auto-advance to PO Issued if still pre-issue
+      const preIssue: string[] = ["Requisition", "Requisition Approved", "Quote Requested", "Quote Received"];
+      if (preIssue.includes(order.status)) {
+        try { await changeStatus("PO Issued" as ProcStatus, true); } catch { /* non-fatal */ }
+      }
+
+      toast.success(`Purchase Order v${nextVersion} generated`);
+      await fetchSub();
+      onChanged();
+    } catch (err: any) {
+      console.error("PO generation failed:", err);
+      toast.error(err?.message || "Failed to generate PO");
+    } finally {
+      setPoDocBusy(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.id, order.po_number, order.order_date, order.expected_delivery_date, order.payment_terms, order.bill_to, order.ship_to, order.site_id, order.status, poDocs, companyProfile, currentUserId, productName, vendorName, siteName, fetchSub, onChanged]);
+
 
   const receivedByItem = useMemo(() => {
     const m: Record<string, number> = {};
@@ -2033,15 +2196,24 @@ export default function ProcurementDetail({
                                       const showFinancials = !isTransfer && !!finSummary;
                                       const focusedSection = focus?.vendorId && focus.vendorId === row.vendor_id ? focus.section : null;
                                       const defaultTab =
-                                        focusedSection && ["quote", "grns", "invoices", "financials"].includes(focusedSection)
+                                        focusedSection && ["quote", "grns", "invoices", "financials", "po"].includes(focusedSection)
                                           ? focusedSection
                                           : "quote";
+                                      const vendorPoDocs = poDocs.filter((d) => d.vendor_id === row.vendor_id);
                                       return (
                                         <Tabs defaultValue={defaultTab} className="w-full">
                                           <TabsList className="w-full flex flex-wrap justify-start h-auto p-1 bg-muted/60 rounded-md">
                                             <TabsTrigger value="quote" className="text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">
                                               Quote Details
                                             </TabsTrigger>
+                                            {showVendorTabs && (
+                                              <TabsTrigger value="po" className="text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                                <FileText className="h-3.5 w-3.5 mr-1.5" />Purchase Order
+                                                {vendorPoDocs.length > 0 && (
+                                                  <span className="ml-1 text-muted-foreground font-normal">({vendorPoDocs.length})</span>
+                                                )}
+                                              </TabsTrigger>
+                                            )}
                                             {showVendorTabs && (
                                               <TabsTrigger value="grns" className="text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">
                                                 <Truck className="h-3.5 w-3.5 mr-1.5" />Goods Receipts
@@ -2060,6 +2232,99 @@ export default function ProcurementDetail({
                                               </TabsTrigger>
                                             )}
                                           </TabsList>
+
+                                          {showVendorTabs && (
+                                            <TabsContent value="po" className="mt-2 border rounded-md bg-background p-2">
+                                              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                                <div className="flex items-center gap-1.5 text-xs font-medium">
+                                                  <FileText className="h-3.5 w-3.5" />Purchase Order Documents
+                                                  {vendorPoDocs.length > 0 && (
+                                                    <span className="text-muted-foreground font-normal">({vendorPoDocs.length} version{vendorPoDocs.length === 1 ? "" : "s"})</span>
+                                                  )}
+                                                </div>
+                                                {poUnlocked && row.vendor_id && (
+                                                  <Button
+                                                    size="sm" variant="outline" className="h-7 text-[11px] gap-1 shrink-0"
+                                                    disabled={poDocBusy === row.vendor_id || scopedLines.length === 0}
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      generatePoForVendor({ vendorId: row.vendor_id!, scopedLines, quote });
+                                                    }}
+                                                    title={scopedLines.length === 0 ? "Assign line items first" : (vendorPoDocs.length > 0 ? "Regenerate a new version" : "Generate the Purchase Order PDF")}
+                                                  >
+                                                    <FileText className="h-3 w-3" />
+                                                    {poDocBusy === row.vendor_id
+                                                      ? "Generating…"
+                                                      : vendorPoDocs.length > 0 ? `Regenerate (v${(vendorPoDocs[0].version || 0) + 1})` : "Generate PO"}
+                                                  </Button>
+                                                )}
+                                              </div>
+                                              {vendorPoDocs.length === 0 ? (
+                                                <p className="text-[11px] text-muted-foreground">
+                                                  No Purchase Order generated yet. Once vendor rates are finalized, click <span className="font-medium">Generate PO</span> to create a printable, emailable PDF against this vendor.
+                                                </p>
+                                              ) : (
+                                                <div className="border rounded divide-y">
+                                                  {vendorPoDocs.map((att, idx) => {
+                                                    const vRec = vendors.find((x) => x.id === row.vendor_id);
+                                                    const emailStr = vRec?.email || "";
+                                                    return (
+                                                      <div key={att.id} className="flex flex-wrap items-center gap-2 px-2 py-1.5 text-[11px]">
+                                                        <span className="font-semibold w-8">v{att.version ?? "-"}</span>
+                                                        {idx === 0 && (
+                                                          <span className="inline-flex items-center rounded bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Current</span>
+                                                        )}
+                                                        <span className="truncate flex-1 min-w-0" title={att.file_name}>{att.file_name}</span>
+                                                        <span className="text-muted-foreground whitespace-nowrap">{fmtDT(att.created_at)}</span>
+                                                        <div className="flex items-center gap-1">
+                                                          <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={(e) => { e.stopPropagation(); openPoAttachment(att); }} title="Preview">
+                                                            Preview
+                                                          </Button>
+                                                          <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={(e) => { e.stopPropagation(); downloadPoAttachment(att); }} title="Download">
+                                                            <Download className="h-3 w-3" />
+                                                          </Button>
+                                                          <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={(e) => { e.stopPropagation(); openPoAttachment(att); }} title="Open to print">
+                                                            Print
+                                                          </Button>
+                                                          <Button
+                                                            type="button" size="sm" variant="ghost" className="h-6 px-2 text-[10px]"
+                                                            onClick={async (e) => {
+                                                              e.stopPropagation();
+                                                              const { data } = await supabase.storage.from("procurement-attachments").createSignedUrl(att.file_path, 3600 * 24);
+                                                              const link = data?.signedUrl || "";
+                                                              const subj = encodeURIComponent(`Purchase Order ${order.po_number || ""} - ${vendorName(row.vendor_id!)}`);
+                                                              const bodyLines = [
+                                                                `Dear ${vendorName(row.vendor_id!)},`,
+                                                                "",
+                                                                `Please find attached Purchase Order ${order.po_number || ""} for your reference.`,
+                                                                link ? `Download: ${link}` : "",
+                                                                "",
+                                                                `Site: ${siteName(order.site_id) || "-"}`,
+                                                                order.expected_delivery_date ? `Expected Delivery: ${order.expected_delivery_date}` : "",
+                                                                order.payment_terms ? `Payment Terms: ${order.payment_terms}` : "",
+                                                                "",
+                                                                "Regards,",
+                                                                companyProfile?.company_name || "Bharat Builders",
+                                                              ].filter(Boolean).join("\n");
+                                                              window.location.href = `mailto:${emailStr}?subject=${subj}&body=${encodeURIComponent(bodyLines)}`;
+                                                            }}
+                                                            title="Email to vendor"
+                                                          >
+                                                            <MessageCircle className="h-3 w-3" />
+                                                          </Button>
+                                                        </div>
+                                                      </div>
+                                                    );
+                                                  })}
+                                                </div>
+                                              )}
+                                              <p className="mt-2 text-[10px] text-muted-foreground">
+                                                Every generation creates a new version. The most recent version is marked <span className="font-medium">Current</span>. All versions are saved for audit.
+                                              </p>
+                                            </TabsContent>
+                                          )}
+
+
 
                                           {showVendorTabs && (
                                             <TabsContent value="grns" className="mt-2 border rounded-md bg-background p-2">
