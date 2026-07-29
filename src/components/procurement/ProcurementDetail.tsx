@@ -1653,16 +1653,13 @@ export default function ProcurementDetail({
                     </div>
                     <div>
                       <Label className="text-xs">Payment Terms</Label>
-                      <Select value={poForm.payment_terms || undefined} onValueChange={(v) => setPoForm((p) => ({ ...p, payment_terms: v }))} disabled={!poUnlocked}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Select terms" /></SelectTrigger>
-                        <SelectContent>
-                          {(PAYMENT_TERMS as readonly string[]).map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
-                          {poForm.payment_terms && !(PAYMENT_TERMS as readonly string[]).some((t) => t.toLowerCase() === poForm.payment_terms.toLowerCase()) && (
-                            <SelectItem key={poForm.payment_terms} value={poForm.payment_terms}>{poForm.payment_terms}</SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-
+                      <Input
+                        value={poForm.payment_terms}
+                        onChange={(e) => setPoForm((p) => ({ ...p, payment_terms: e.target.value }))}
+                        disabled={!poUnlocked}
+                        placeholder="e.g. Net 30, 50% Advance"
+                        className="h-9"
+                      />
                     </div>
                   </div>
                   {!poUnlocked && (
