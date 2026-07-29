@@ -925,7 +925,35 @@ export default function Procurement() {
                 </div>
               </section>
 
+              {/* Terms & Conditions — vendor purchase only, at the very end */}
+              {form.source_type !== "internal_transfer" && (
+                <section className="sf-card rounded-md border bg-card">
+                  <div className="px-4 sm:px-5 py-3 border-b flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-sm font-semibold">Terms &amp; Conditions</h2>
+                  </div>
+                  <div className="p-4 sm:p-5">
+                    <p className="text-[11px] text-muted-foreground mb-2">Auto-populated in order: Material-wise → Category-wise → Generic (from Admin → Configuration). Add or remove terms as needed before submitting.</p>
+                    <EditableListEditor
+                      items={form.terms_and_conditions}
+                      onChange={(next) => { setTermsUserEdited(true); setForm((p) => ({ ...p, terms_and_conditions: next })); }}
+                      placeholder="Add a term (e.g. Payment on receipt of goods)"
+                    />
+                    {termsUserEdited && (
+                      <button
+                        type="button"
+                        onClick={() => { setTermsUserEdited(false); setForm((p) => ({ ...p, terms_and_conditions: mergedTerms })); }}
+                        className="mt-2 text-[11px] text-primary hover:underline"
+                      >
+                        Reset to auto-populated terms
+                      </button>
+                    )}
+                  </div>
+                </section>
+              )}
+
               <div className="h-2" />
+
             </div>
           </div>
 
