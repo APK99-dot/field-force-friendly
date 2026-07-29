@@ -1762,11 +1762,11 @@ export default function ProcurementDetail({
                             ? { label: vLifecycle, cls: lifecycleColor(vLifecycle) }
                             : null;
                           const fmtDT = (iso?: string | null) => iso ? new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
-                          const hasFinalized = finalizedVendorIds.length > 0;
-                          const isDimmed = hasFinalized && (!row.vendor_id || !finalizedVendorIds.includes(row.vendor_id));
-                          return (
-                            <Fragment key={row.key}>
-                            <tr className={`border-t align-top ${isDimmed ? "opacity-50 grayscale" : ""}`} title={isDimmed ? "A vendor has been selected for this PO — this vendor is not active." : undefined}>
+                           const hasFinalized = finalizedVendorIds.length > 0;
+                           void hasFinalized; // vendors stay active regardless of finalization
+                           return (
+                             <Fragment key={row.key}>
+                             <tr className="border-t align-top">
                               <td className="p-2">
                                 <button
                                   type="button" className="text-muted-foreground hover:text-foreground"
