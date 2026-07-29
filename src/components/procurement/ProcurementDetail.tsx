@@ -2028,14 +2028,15 @@ export default function ProcurementDetail({
                                       const showFinancials = !isTransfer && !!finSummary;
                                       const focusedSection = focus?.vendorId && focus.vendorId === row.vendor_id ? focus.section : null;
                                       const defaultTab =
-                                        focusedSection && ["grns", "invoices", "financials", "quote"].includes(focusedSection)
+                                        focusedSection && ["quote", "grns", "invoices", "financials"].includes(focusedSection)
                                           ? focusedSection
-                                          : showVendorTabs
-                                            ? "grns"
-                                            : "quote";
+                                          : "quote";
                                       return (
                                         <Tabs defaultValue={defaultTab} className="w-full">
                                           <TabsList className="w-full flex flex-wrap justify-start h-auto p-1 bg-muted/60 rounded-md">
+                                            <TabsTrigger value="quote" className="text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                                              Quote Details
+                                            </TabsTrigger>
                                             {showVendorTabs && (
                                               <TabsTrigger value="grns" className="text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">
                                                 <Truck className="h-3.5 w-3.5 mr-1.5" />Goods Receipts
@@ -2053,9 +2054,6 @@ export default function ProcurementDetail({
                                                 Financial Summary
                                               </TabsTrigger>
                                             )}
-                                            <TabsTrigger value="quote" className="text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                                              Quote Details
-                                            </TabsTrigger>
                                           </TabsList>
 
                                           {showVendorTabs && (
