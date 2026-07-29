@@ -2988,52 +2988,86 @@ export default function ProcurementDetail({
           const latestItems = latest?.procurement_vendor_quote_items || [];
           const compare = latest && latest.id !== q.id;
           const findLatest = (pid: string | null) => latestItems.find((x) => x.procurement_item_id === pid);
+          const vendorVersions = allVendorQuotes
+            .filter((x) => x.vendor_id === q.vendor_id)
+            .sort((a, b) => (b.version || 1) - (a.version || 1));
+          let totalBefore = 0;
+          let totalAfter = 0;
+          items.forEach((it) => {
+            const line = rateLines.find((l) => l.id === it.procurement_item_id);
+            const qty = Number(line?.qty || 0);
+            const rate = Number(it.rate) || 0;
+            const after = Number(it.rate_after_discount ?? it.rate) || 0;
+            totalBefore += rate * qty;
+            totalAfter += after * qty;
+          });
+          const totalDiscount = totalBefore - totalAfter;
           return (
             <Dialog open={!!viewQuoteId} onOpenChange={(o) => { if (!o) setViewQuoteId(null); }}>
-              <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2 text-base">
-                    Quote V{q.version || 1} — {vendorName(q.vendor_id || "")}
-                    <span className="inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium bg-muted">{q.status}</span>
+              <DialogContent className="max-w-none w-[95vw] h-[95vh] p-0 flex flex-col gap-0 overflow-hidden">
+                <DialogHeader className="px-5 py-3 border-b bg-muted/30 shrink-0">
+                  <DialogTitle className="flex items-center gap-2 text-base flex-wrap">
+                    <span>Quote V{q.version || 1} — {vendorName(q.vendor_id || "")}</span>
+                    <span className="inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium bg-background">{q.status}</span>
                     {q.is_latest && <span className="inline-flex items-center rounded bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase">Active</span>}
+                    <span className="ml-auto text-[11px] font-normal text-muted-foreground">Quote ID: {q.id.slice(0, 8)}</span>
                   </DialogTitle>
                 </DialogHeader>
-                <div className="space-y-3 text-xs">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-xs">
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 rounded border bg-muted/20 p-3">
+                    <div><div className="text-[10px] uppercase text-muted-foreground">Vendor</div><div className="font-medium">{vendorName(q.vendor_id || "") || "—"}</div></div>
+                    <div><div className="text-[10px] uppercase text-muted-foreground">Version</div><div>V{q.version || 1}{q.is_latest ? " (Active)" : " (Archived)"}</div></div>
+                    <div><div className="text-[10px] uppercase text-muted-foreground">Status</div><div>{q.status}</div></div>
                     <div><div className="text-[10px] uppercase text-muted-foreground">Submitted</div><div>{q.submitted_at ? fmtDT(q.submitted_at) : "—"}</div></div>
                     <div><div className="text-[10px] uppercase text-muted-foreground">First Submitted</div><div>{q.first_submitted_at ? fmtDT(q.first_submitted_at) : "—"}</div></div>
                     <div><div className="text-[10px] uppercase text-muted-foreground">Reopened</div><div>{q.reopened_at ? fmtDT(q.reopened_at) : "—"}</div></div>
                     <div><div className="text-[10px] uppercase text-muted-foreground">Payment Terms</div><div>{q.vendor_payment_term || "—"}</div></div>
+                    <div className="md:col-span-3 lg:col-span-5"><div className="text-[10px] uppercase text-muted-foreground">Delivery Commitment</div><div>{items.map((it) => it.delivery_commitment_date).filter(Boolean)[0] || "—"}</div></div>
                   </div>
 
                   <div>
-                    <div className="text-[10px] uppercase text-muted-foreground mb-1">Rates{compare ? " (compared with active version)" : ""}</div>
+                    <div className="text-[10px] uppercase text-muted-foreground mb-1">Line Items{compare ? " (compared with active version)" : ""}</div>
                     <div className="border rounded overflow-x-auto">
                       <table className="w-full text-[11px]">
                         <thead className="bg-muted/50 text-muted-foreground">
                           <tr>
-                            <th className="p-1.5 text-left">Item</th>
-                            <th className="p-1.5 text-right">Rate</th>
-                            <th className="p-1.5 text-right">Disc %</th>
-                            <th className="p-1.5 text-right">After Disc.</th>
-                            <th className="p-1.5">Delivery</th>
-                            {compare && <th className="p-1.5 text-right">Active After Disc.</th>}
+                            <th className="p-2 text-left">#</th>
+                            <th className="p-2 text-left">Item</th>
+                            <th className="p-2 text-right">Qty</th>
+                            <th className="p-2 text-left">UOM</th>
+                            <th className="p-2 text-right">Rate</th>
+                            <th className="p-2 text-right">Disc %</th>
+                            <th className="p-2 text-right">Disc Amt</th>
+                            <th className="p-2 text-right">After Disc.</th>
+                            <th className="p-2 text-right">Line Total</th>
+                            <th className="p-2">Delivery</th>
+                            {compare && <th className="p-2 text-right">Active After Disc.</th>}
                           </tr>
                         </thead>
                         <tbody>
-                          {items.map((it) => {
+                          {items.map((it, idx) => {
                             const line = rateLines.find((l) => l.id === it.procurement_item_id);
                             const l2 = compare ? findLatest(it.procurement_item_id) : null;
                             const diff = l2 ? Number(l2.rate_after_discount ?? l2.rate) - Number(it.rate_after_discount ?? it.rate) : 0;
+                            const qty = Number(line?.qty || 0);
+                            const rate = Number(it.rate) || 0;
+                            const after = Number(it.rate_after_discount ?? it.rate) || 0;
+                            const discAmt = (rate - after) * qty;
+                            const lineTotal = after * qty;
                             return (
                               <tr key={(it as any).id || `${q.id}-${it.procurement_item_id}`} className="border-t">
-                                <td className="p-1.5">{line ? productName(line.product_id) : it.procurement_item_id}</td>
-                                <td className="p-1.5 text-right">{fmtAmt(Number(it.rate) || 0)}</td>
-                                <td className="p-1.5 text-right">{Number(it.discount_pct) || 0}%</td>
-                                <td className="p-1.5 text-right">{fmtAmt(Number(it.rate_after_discount ?? it.rate) || 0)}</td>
-                                <td className="p-1.5">{it.delivery_commitment_date || "—"}</td>
+                                <td className="p-2 text-muted-foreground">{idx + 1}</td>
+                                <td className="p-2">{line ? productName(line.product_id) : it.procurement_item_id}</td>
+                                <td className="p-2 text-right">{qty || "—"}</td>
+                                <td className="p-2">{line?.uom || "—"}</td>
+                                <td className="p-2 text-right">{fmtAmt(rate)}</td>
+                                <td className="p-2 text-right">{Number(it.discount_pct) || 0}%</td>
+                                <td className="p-2 text-right">{fmtAmt(discAmt)}</td>
+                                <td className="p-2 text-right">{fmtAmt(after)}</td>
+                                <td className="p-2 text-right font-medium">{fmtAmt(lineTotal)}</td>
+                                <td className="p-2">{it.delivery_commitment_date || "—"}</td>
                                 {compare && (
-                                  <td className="p-1.5 text-right">
+                                  <td className="p-2 text-right">
                                     {l2 ? (
                                       <>
                                         {fmtAmt(Number(l2.rate_after_discount ?? l2.rate) || 0)}
@@ -3050,28 +3084,46 @@ export default function ProcurementDetail({
                             );
                           })}
                         </tbody>
+                        <tfoot className="bg-muted/30 font-medium">
+                          <tr className="border-t">
+                            <td colSpan={8} className="p-2 text-right text-muted-foreground">Total Before Discount</td>
+                            <td className="p-2 text-right">{fmtAmt(totalBefore)}</td>
+                            <td colSpan={compare ? 2 : 1}></td>
+                          </tr>
+                          <tr>
+                            <td colSpan={8} className="p-2 text-right text-muted-foreground">Total Discount</td>
+                            <td className="p-2 text-right text-emerald-700">− {fmtAmt(totalDiscount)}</td>
+                            <td colSpan={compare ? 2 : 1}></td>
+                          </tr>
+                          <tr className="border-t">
+                            <td colSpan={8} className="p-2 text-right text-sm font-semibold">Grand Total</td>
+                            <td className="p-2 text-right text-sm font-bold text-primary">{fmtAmt(totalAfter)}</td>
+                            <td colSpan={compare ? 2 : 1}></td>
+                          </tr>
+                        </tfoot>
                       </table>
                     </div>
                   </div>
 
-                  {q.notes && (
-                    <div>
-                      <div className="text-[10px] uppercase text-muted-foreground mb-0.5">Vendor Remarks</div>
-                      <p className="whitespace-pre-line">{q.notes}</p>
-                    </div>
-                  )}
-
-                  {q.change_request_notes && (
-                    <div>
-                      <div className="text-[10px] uppercase text-muted-foreground mb-0.5">Change Request Notes</div>
-                      <p className="whitespace-pre-line">{q.change_request_notes}</p>
-                    </div>
-                  )}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {q.notes && (
+                      <div className="rounded border p-3">
+                        <div className="text-[10px] uppercase text-muted-foreground mb-1">Vendor Remarks</div>
+                        <p className="whitespace-pre-line">{q.notes}</p>
+                      </div>
+                    )}
+                    {q.change_request_notes && (
+                      <div className="rounded border p-3">
+                        <div className="text-[10px] uppercase text-muted-foreground mb-1">Change Request Notes</div>
+                        <p className="whitespace-pre-line">{q.change_request_notes}</p>
+                      </div>
+                    )}
+                  </div>
 
                   {Array.isArray(q.term_responses) && q.term_responses.length > 0 && (
-                    <div>
-                      <div className="text-[10px] uppercase text-muted-foreground mb-0.5">Terms & Conditions Responses</div>
-                      <ul className="space-y-1">
+                    <div className="rounded border p-3">
+                      <div className="text-[10px] uppercase text-muted-foreground mb-2">Terms & Conditions Responses</div>
+                      <ul className="space-y-1.5">
                         {q.term_responses.map((r, i) => (
                           <li key={i} className="flex gap-2">
                             <span className={`shrink-0 mt-0.5 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ${r.response === "accept" ? "bg-emerald-100 text-emerald-800" : "bg-amber-200 text-amber-900"}`}>
@@ -3088,13 +3140,54 @@ export default function ProcurementDetail({
                   )}
 
                   {Array.isArray(q.attachments) && q.attachments.length > 0 && (
-                    <div>
-                      <div className="text-[10px] uppercase text-muted-foreground mb-0.5">Attachments</div>
+                    <div className="rounded border p-3">
+                      <div className="text-[10px] uppercase text-muted-foreground mb-1">Attachments</div>
                       <ul className="space-y-0.5">
                         {q.attachments.map((a, i) => (
                           <li key={i}><a className="text-primary underline break-all" href={a.url} target="_blank" rel="noreferrer">{a.name || `Attachment ${i + 1}`}</a></li>
                         ))}
                       </ul>
+                    </div>
+                  )}
+
+                  {vendorVersions.length > 1 && (
+                    <div className="rounded border p-3">
+                      <div className="text-[10px] uppercase text-muted-foreground mb-2">Quote History ({vendorVersions.length} versions)</div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-[11px]">
+                          <thead className="bg-muted/50 text-muted-foreground">
+                            <tr>
+                              <th className="p-1.5 text-left">Version</th>
+                              <th className="p-1.5 text-left">Status</th>
+                              <th className="p-1.5 text-left">Submitted</th>
+                              <th className="p-1.5 text-right">Grand Total</th>
+                              <th className="p-1.5"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {vendorVersions.map((v) => {
+                              const vTotal = (v.procurement_vendor_quote_items || []).reduce((s, it) => {
+                                const line = rateLines.find((l) => l.id === it.procurement_item_id);
+                                return s + (Number(it.rate_after_discount ?? it.rate) || 0) * Number(line?.qty || 0);
+                              }, 0);
+                              const isCurrent = v.id === q.id;
+                              return (
+                                <tr key={v.id} className={`border-t ${isCurrent ? "bg-primary/5" : ""}`}>
+                                  <td className="p-1.5 font-medium">V{v.version || 1}{v.is_latest && <span className="ml-1 text-[9px] text-primary">ACTIVE</span>}</td>
+                                  <td className="p-1.5">{v.status}</td>
+                                  <td className="p-1.5">{v.submitted_at ? fmtDT(v.submitted_at) : "—"}</td>
+                                  <td className="p-1.5 text-right">{fmtAmt(vTotal)}</td>
+                                  <td className="p-1.5 text-right">
+                                    {!isCurrent && (
+                                      <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => setViewQuoteId(v.id)}>View</Button>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
 
