@@ -101,6 +101,7 @@ const emptyForm = {
   bill_to_id: "",
   ship_to_id: "",
   expected_payment_terms: "",
+  expected_delivery_date: "",
   terms_and_conditions: [] as string[],
 };
 
@@ -338,6 +339,7 @@ export default function Procurement() {
       bill_to_id: o.bill_to_address_id || "",
       ship_to_id: o.ship_to_address_id || "",
       expected_payment_terms: (o as any).payment_terms || "",
+      expected_delivery_date: (o as any).expected_delivery_date || "",
       terms_and_conditions: Array.isArray((o as any).terms_and_conditions) ? (o as any).terms_and_conditions : defaultTerms,
     });
     const items = (o.procurement_items || []).map((it) => ({
@@ -421,6 +423,7 @@ export default function Procurement() {
         ship_to_gst: shipAddr?.gst_number || null,
         total_amount: isTransfer ? 0 : lineTotal,
         payment_terms: !isTransfer && form.expected_payment_terms.trim() ? form.expected_payment_terms.trim() : null,
+        expected_delivery_date: !isTransfer && form.expected_delivery_date ? form.expected_delivery_date : null,
         terms_and_conditions: isTransfer ? null : (form.terms_and_conditions.filter((t) => t.trim().length > 0)),
       };
 
@@ -707,7 +710,8 @@ export default function Procurement() {
                   <h2 className="text-sm font-semibold">Requisition Information</h2>
                 </div>
                 <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                  <div className="md:col-span-2">
+                  {/* Row 1: Requisition Name | Requested By */}
+                  <div>
                     <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                       Requisition Name <span className="text-destructive">*</span>
                     </Label>
@@ -718,35 +722,26 @@ export default function Procurement() {
                       className="h-9 mt-1"
                     />
                   </div>
-
-                  <div>
-                    <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Requisition Date</Label>
-                    <Input type="date" value={form.order_date} onChange={(e) => setForm((p) => ({ ...p, order_date: e.target.value }))} className="h-9 mt-1" />
-                  </div>
                   <div>
                     <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Requested By</Label>
                     <Input value={profile?.full_name || profile?.username || ""} readOnly disabled className="h-9 mt-1 bg-muted/50" />
                   </div>
 
+                  {/* Row 2: Requisition Date | Site */}
+                  <div>
+                    <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Requisition Date</Label>
+                    <Input type="date" value={form.order_date} onChange={(e) => setForm((p) => ({ ...p, order_date: e.target.value }))} className="h-9 mt-1" />
+                  </div>
                   {form.source_type === "internal_transfer" ? (
-                    <>
-                      <div>
-                        <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Transfer From Site</Label>
-                        <Select value={form.transfer_from_site_id} onValueChange={(v) => setForm((p) => ({ ...p, transfer_from_site_id: v }))}>
-                          <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Source site giving material" /></SelectTrigger>
-                          <SelectContent>{sites.map((s) => (<SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>))}</SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Transfer To Site</Label>
-                        <Select value={form.site_id} onValueChange={(v) => setForm((p) => ({ ...p, site_id: v }))}>
-                          <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Destination site receiving material" /></SelectTrigger>
-                          <SelectContent>{sites.map((s) => (<SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>))}</SelectContent>
-                        </Select>
-                      </div>
-                    </>
+                    <div>
+                      <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Transfer From Site</Label>
+                      <Select value={form.transfer_from_site_id} onValueChange={(v) => setForm((p) => ({ ...p, transfer_from_site_id: v }))}>
+                        <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Source site giving material" /></SelectTrigger>
+                        <SelectContent>{sites.map((s) => (<SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>))}</SelectContent>
+                      </Select>
+                    </div>
                   ) : (
-                    <div className="md:col-span-2">
+                    <div>
                       <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Site</Label>
                       <Select value={form.site_id} onValueChange={(v) => setForm((p) => ({ ...p, site_id: v }))}>
                         <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select site" /></SelectTrigger>
@@ -755,6 +750,87 @@ export default function Procurement() {
                     </div>
                   )}
 
+                  {form.source_type === "internal_transfer" && (
+                    <div className="md:col-span-2">
+                      <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Transfer To Site</Label>
+                      <Select value={form.site_id} onValueChange={(v) => setForm((p) => ({ ...p, site_id: v }))}>
+                        <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Destination site receiving material" /></SelectTrigger>
+                        <SelectContent>{sites.map((s) => (<SelectItem key={s.id} value={s.id}>{s.site_name}</SelectItem>))}</SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Row 3: Bill To | Ship To — vendor purchase only */}
+                  {form.source_type !== "internal_transfer" && cfgBillShipFields && (
+                    <>
+                      <div>
+                        <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Bill To</Label>
+                        <Select value={form.bill_to_id} onValueChange={(v) => setForm((p) => ({ ...p, bill_to_id: v }))}>
+                          <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select billing address" /></SelectTrigger>
+                          <SelectContent>{addressOptions.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}</SelectContent>
+                        </Select>
+                        {(() => {
+                          const a = form.bill_to_id ? findAddr(form.bill_to_id) : null;
+                          return a ? (
+                            <div className="mt-2 rounded-md border bg-muted/40 p-2.5 text-xs whitespace-pre-wrap text-muted-foreground">
+                              {formatAddressSnapshot(a)}
+                              {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
+                            </div>
+                          ) : null;
+                        })()}
+                      </div>
+                      <div>
+                        <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Ship To</Label>
+                        <Select value={form.ship_to_id} onValueChange={(v) => setForm((p) => ({ ...p, ship_to_id: v }))}>
+                          <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select delivery address" /></SelectTrigger>
+                          <SelectContent>{addressOptions.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}</SelectContent>
+                        </Select>
+                        {(() => {
+                          const a = form.ship_to_id ? findAddr(form.ship_to_id) : null;
+                          return a ? (
+                            <div className="mt-2 rounded-md border bg-muted/40 p-2.5 text-xs whitespace-pre-wrap text-muted-foreground">
+                              {formatAddressSnapshot(a)}
+                              {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
+                            </div>
+                          ) : null;
+                        })()}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Row 4: Expected Delivery Date | Payment Terms — vendor purchase only */}
+                  {form.source_type !== "internal_transfer" && (
+                    <>
+                      <div>
+                        <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Expected Delivery Date</Label>
+                        <Input
+                          type="date"
+                          value={form.expected_delivery_date}
+                          onChange={(e) => setForm((p) => ({ ...p, expected_delivery_date: e.target.value }))}
+                          className="h-9 mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Payment Terms</Label>
+                        <Input
+                          value={form.expected_payment_terms}
+                          onChange={(e) => setForm((p) => ({ ...p, expected_payment_terms: e.target.value }))}
+                          placeholder="e.g. Net 30, Advance 50%"
+                          className="h-9 mt-1"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Estimated Budget — optional per config */}
+                  {form.source_type !== "internal_transfer" && cfgBudgetField && (
+                    <div className="md:col-span-2">
+                      <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Estimated Budget (₹)</Label>
+                      <Input type="number" inputMode="decimal" value={form.estimated_budget} onChange={(e) => setForm((p) => ({ ...p, estimated_budget: e.target.value }))} placeholder="0" className="h-9 mt-1" />
+                    </div>
+                  )}
+
+                  {/* Row 5: Notes — full width */}
                   <div className="md:col-span-2">
                     <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                       {form.source_type === "internal_transfer" ? "Notes / Reason for Transfer" : "Notes / Reason for Requisition"}
@@ -770,93 +846,6 @@ export default function Procurement() {
                 </div>
               </section>
 
-              {/* Addresses — vendor purchase only */}
-              {form.source_type !== "internal_transfer" && cfgBillShipFields && (
-                <section className="sf-card rounded-md border bg-card">
-                  <div className="px-4 sm:px-5 py-3 border-b flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    <h2 className="text-sm font-semibold">Billing &amp; Delivery Addresses</h2>
-                  </div>
-                  <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                    <div>
-                      <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Bill To</Label>
-                      <Select value={form.bill_to_id} onValueChange={(v) => setForm((p) => ({ ...p, bill_to_id: v }))}>
-                        <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select billing address" /></SelectTrigger>
-                        <SelectContent>{addressOptions.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}</SelectContent>
-                      </Select>
-                      {(() => {
-                        const a = form.bill_to_id ? findAddr(form.bill_to_id) : null;
-                        return a ? (
-                          <div className="mt-2 rounded-md border bg-muted/40 p-2.5 text-xs whitespace-pre-wrap text-muted-foreground">
-                            {formatAddressSnapshot(a)}
-                            {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
-                          </div>
-                        ) : null;
-                      })()}
-                    </div>
-                    <div>
-                      <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Ship To</Label>
-                      <Select value={form.ship_to_id} onValueChange={(v) => setForm((p) => ({ ...p, ship_to_id: v }))}>
-                        <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="Select delivery address" /></SelectTrigger>
-                        <SelectContent>{addressOptions.map((a) => (<SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>))}</SelectContent>
-                      </Select>
-                      {(() => {
-                        const a = form.ship_to_id ? findAddr(form.ship_to_id) : null;
-                        return a ? (
-                          <div className="mt-2 rounded-md border bg-muted/40 p-2.5 text-xs whitespace-pre-wrap text-muted-foreground">
-                            {formatAddressSnapshot(a)}
-                            {a.gst_number && <div className="mt-1 font-medium text-foreground">GST: {a.gst_number}</div>}
-                          </div>
-                        ) : null;
-                      })()}
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              {/* Financial & Terms — vendor purchase only */}
-              {form.source_type !== "internal_transfer" && (
-                <section className="sf-card rounded-md border bg-card">
-                  <div className="px-4 sm:px-5 py-3 border-b flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-muted-foreground" />
-                    <h2 className="text-sm font-semibold">Budget &amp; Terms</h2>
-                  </div>
-                  <div className="p-4 sm:p-5 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                      {cfgBudgetField && (
-                        <div>
-                          <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Estimated Budget (₹)</Label>
-                          <Input type="number" inputMode="decimal" value={form.estimated_budget} onChange={(e) => setForm((p) => ({ ...p, estimated_budget: e.target.value }))} placeholder="0" className="h-9 mt-1" />
-                        </div>
-                      )}
-                      <div className={cfgBudgetField ? "" : "md:col-span-2"}>
-                        <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Expected Payment Terms</Label>
-                        <Input value={form.expected_payment_terms} onChange={(e) => setForm((p) => ({ ...p, expected_payment_terms: e.target.value }))} placeholder="e.g. Net 30, Advance 50%" className="h-9 mt-1" />
-                        <p className="text-[11px] text-muted-foreground mt-1">Shared with vendors on the Indent Order so they know your preferred terms.</p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Terms &amp; Conditions</Label>
-                      <p className="text-[11px] text-muted-foreground mt-1 mb-2">Auto-populated in order: Material-wise → Category-wise → Generic (from Admin → Configuration). Add or remove terms as needed before submitting.</p>
-                      <EditableListEditor
-                        items={form.terms_and_conditions}
-                        onChange={(next) => { setTermsUserEdited(true); setForm((p) => ({ ...p, terms_and_conditions: next })); }}
-                        placeholder="Add a term (e.g. Payment on receipt of goods)"
-                      />
-                      {termsUserEdited && (
-                        <button
-                          type="button"
-                          onClick={() => { setTermsUserEdited(false); setForm((p) => ({ ...p, terms_and_conditions: mergedTerms })); }}
-                          className="mt-2 text-[11px] text-primary hover:underline"
-                        >
-                          Reset to auto-populated terms
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </section>
-              )}
 
               {/* Line items */}
               <section className="sf-card rounded-md border bg-card">
@@ -936,7 +925,35 @@ export default function Procurement() {
                 </div>
               </section>
 
+              {/* Terms & Conditions — vendor purchase only, at the very end */}
+              {form.source_type !== "internal_transfer" && (
+                <section className="sf-card rounded-md border bg-card">
+                  <div className="px-4 sm:px-5 py-3 border-b flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-sm font-semibold">Terms &amp; Conditions</h2>
+                  </div>
+                  <div className="p-4 sm:p-5">
+                    <p className="text-[11px] text-muted-foreground mb-2">Auto-populated in order: Material-wise → Category-wise → Generic (from Admin → Configuration). Add or remove terms as needed before submitting.</p>
+                    <EditableListEditor
+                      items={form.terms_and_conditions}
+                      onChange={(next) => { setTermsUserEdited(true); setForm((p) => ({ ...p, terms_and_conditions: next })); }}
+                      placeholder="Add a term (e.g. Payment on receipt of goods)"
+                    />
+                    {termsUserEdited && (
+                      <button
+                        type="button"
+                        onClick={() => { setTermsUserEdited(false); setForm((p) => ({ ...p, terms_and_conditions: mergedTerms })); }}
+                        className="mt-2 text-[11px] text-primary hover:underline"
+                      >
+                        Reset to auto-populated terms
+                      </button>
+                    )}
+                  </div>
+                </section>
+              )}
+
               <div className="h-2" />
+
             </div>
           </div>
 
