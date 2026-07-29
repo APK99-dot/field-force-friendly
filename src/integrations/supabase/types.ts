@@ -3841,11 +3841,13 @@ export type Database = {
           file_path: string
           file_size: number | null
           id: string
+          notes: string | null
           po_id: string
           salesforce_id: string | null
           scope: string
           source: string | null
           vendor_id: string | null
+          version: number | null
         }
         Insert: {
           content_type?: string | null
@@ -3855,11 +3857,13 @@ export type Database = {
           file_path: string
           file_size?: number | null
           id?: string
+          notes?: string | null
           po_id: string
           salesforce_id?: string | null
           scope?: string
           source?: string | null
           vendor_id?: string | null
+          version?: number | null
         }
         Update: {
           content_type?: string | null
@@ -3869,11 +3873,13 @@ export type Database = {
           file_path?: string
           file_size?: number | null
           id?: string
+          notes?: string | null
           po_id?: string
           salesforce_id?: string | null
           scope?: string
           source?: string | null
           vendor_id?: string | null
+          version?: number | null
         }
         Relationships: [
           {
