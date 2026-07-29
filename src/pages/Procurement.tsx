@@ -423,6 +423,7 @@ export default function Procurement() {
         ship_to_gst: shipAddr?.gst_number || null,
         total_amount: isTransfer ? 0 : lineTotal,
         payment_terms: !isTransfer && form.expected_payment_terms.trim() ? form.expected_payment_terms.trim() : null,
+        expected_delivery_date: !isTransfer && form.expected_delivery_date ? form.expected_delivery_date : null,
         terms_and_conditions: isTransfer ? null : (form.terms_and_conditions.filter((t) => t.trim().length > 0)),
       };
 
