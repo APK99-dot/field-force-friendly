@@ -55,6 +55,31 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
           ? TRANSFER_OPEN.includes(r.status)
           : VENDOR_OPEN.includes(r.status)
       );
+
+      // Filter out fully-received POs using a batched pending-qty computation
+      const poIds = rows.map((r) => r.id);
+      if (poIds.length) {
+        const itemsRes: any = await (supabase.from("procurement_items") as any).select("id, po_id, qty").in("po_id", poIds);
+        const grnRes: any = await (supabase.from("procurement_grns") as any).select("id, po_id").in("po_id", poIds);
+        const grnIds = ((grnRes.data || []) as any[]).map((g) => g.id);
+        const grnPoById: Record<string, string> = {};
+        ((grnRes.data || []) as any[]).forEach((g) => { grnPoById[g.id] = g.po_id; });
+        let grnItemsData: any[] = [];
+        if (grnIds.length) {
+          const giRes: any = await supabase.from("procurement_grn_items").select("procurement_item_id, received_qty, grn_id").in("grn_id", grnIds);
+          grnItemsData = (giRes.data || []) as any[];
+        }
+        const recvByItem: Record<string, number> = {};
+        grnItemsData.forEach((gi) => {
+          if (gi.procurement_item_id) recvByItem[gi.procurement_item_id] = (recvByItem[gi.procurement_item_id] || 0) + Number(gi.received_qty || 0);
+        });
+        const pendingByPo: Record<string, number> = {};
+        ((itemsRes.data || []) as any[]).forEach((it) => {
+          const pending = Number(it.qty || 0) - Number(recvByItem[it.id] || 0);
+          pendingByPo[it.po_id] = (pendingByPo[it.po_id] || 0) + Math.max(0, pending);
+        });
+        rows = rows.filter((r) => (pendingByPo[r.id] || 0) > 0);
+      }
       const vendorIds = [...new Set(rows.filter((r) => r.vendor_id).map((r) => r.vendor_id))];
       let vmap: Record<string, string> = {};
       if (vendorIds.length) {
@@ -123,11 +148,18 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
         ) : filtered.map((p) => {
           const selected = value === p.id;
           return (
-            <button
-              type="button"
+            <div
               key={p.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onChange(selected ? "" : p.id)}
-              className={`w-full text-left p-2.5 flex items-center gap-2 transition-colors ${selected ? "bg-primary/10" : "hover:bg-muted/50"}`}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onChange(selected ? "" : p.id);
+                }
+              }}
+              className={`w-full cursor-pointer text-left p-2.5 flex items-center gap-2 transition-colors ${selected ? "bg-primary/10" : "hover:bg-muted/50"}`}
             >
               <div className={`h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${selected ? "bg-primary border-primary" : "border-muted-foreground/40"}`}>
                 {selected && <Check className="h-3 w-3 text-primary-foreground" />}
@@ -138,13 +170,23 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
                   {p.source_type === "internal_transfer" && <Badge variant="outline" className="text-[10px] bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Transfer</Badge>}
                   <Badge variant="outline" className={`text-[10px] ${statusColor(p.status)}`}>{p.status}</Badge>
                 </div>
+                <a
+                  href={`/procurement?po=${p.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  className="inline-block text-xs text-muted-foreground hover:underline mt-0.5"
+                >
+                  See more
+                </a>
                 <div className="text-[11px] text-muted-foreground truncate">
                   {p.source_type === "internal_transfer"
                     ? `${p.order_date}${p.transfer_from_name ? ` · From ${p.transfer_from_name}` : ""}`
                     : `${p.order_date}${p.vendor_name ? ` · ${p.vendor_name}` : ""} · ${fmtAmt(p.total_amount)}`}
                 </div>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
