@@ -55,6 +55,27 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
           ? TRANSFER_OPEN.includes(r.status)
           : VENDOR_OPEN.includes(r.status)
       );
+
+      // Filter out fully-received POs using a batched pending-qty computation
+      const poIds = rows.map((r) => r.id);
+      if (poIds.length) {
+        const [{ data: itemsData }, { data: grnsData }] = await Promise.all([
+          supabase.from("procurement_items").select("id, po_id, qty").in("po_id", poIds),
+          supabase.from("procurement_grns").select("po_id, procurement_grn_items(procurement_item_id, received_qty)").in("po_id", poIds),
+        ]);
+        const recvByItem: Record<string, number> = {};
+        ((grnsData || []) as any[]).forEach((g) => {
+          (g.procurement_grn_items || []).forEach((gi: any) => {
+            if (gi.procurement_item_id) recvByItem[gi.procurement_item_id] = (recvByItem[gi.procurement_item_id] || 0) + Number(gi.received_qty || 0);
+          });
+        });
+        const pendingByPo: Record<string, number> = {};
+        ((itemsData || []) as any[]).forEach((it) => {
+          const pending = Number(it.qty || 0) - Number(recvByItem[it.id] || 0);
+          pendingByPo[it.po_id] = (pendingByPo[it.po_id] || 0) + Math.max(0, pending);
+        });
+        rows = rows.filter((r) => (pendingByPo[r.id] || 0) > 0);
+      }
       const vendorIds = [...new Set(rows.filter((r) => r.vendor_id).map((r) => r.vendor_id))];
       let vmap: Record<string, string> = {};
       if (vendorIds.length) {
