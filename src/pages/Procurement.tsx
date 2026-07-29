@@ -659,7 +659,7 @@ export default function Procurement() {
           </DialogHeader>
 
           <div className={`overflow-y-auto flex-1 w-full ${lightning ? "bg-[var(--sf-surface-shell,#f3f2f2)]" : ""}`}>
-            <div className="w-full px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4">
+            <div className="w-full px-2 sm:px-3 py-4 sm:py-6 space-y-4">
 
               {/* Source Type selector — SLDS segmented control */}
               {cfgInternalTransfer && (
