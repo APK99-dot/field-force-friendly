@@ -1187,6 +1187,7 @@ export default function ProcurementDetail({
   // required when 2+ vendors have submitted competing quotes for the same line.
   useEffect(() => {
     if (!open || vendorQuotes.length === 0 || rateLines.length === 0) return;
+    const persistUpdates: { id: string; rate: number; vendor_id: string; vendor_ids: string[] }[] = [];
     setRateLines((prev) => {
       let changed = false;
       const next = prev.map((l) => {
@@ -1203,20 +1204,38 @@ export default function ProcurementDetail({
         const q = submitted[0];
         const qi = (q.procurement_vendor_quote_items || []).find((x) => x.procurement_item_id === l.id)!;
         const rate = Number(qi.rate_after_discount ?? qi.rate) || 0;
-        if (rate <= 0) return l;
+        if (rate <= 0 || !q.vendor_id) return l;
         changed = true;
+        const nextVendorIds = !l.vendor_ids.includes(q.vendor_id)
+          ? [...l.vendor_ids, q.vendor_id]
+          : l.vendor_ids;
+        persistUpdates.push({ id: l.id, rate, vendor_id: q.vendor_id, vendor_ids: nextVendorIds });
         return {
           ...l,
           rate: String(rate),
           rate_source: "quote",
           rate_source_vendor_id: q.vendor_id,
-          vendor_ids: q.vendor_id && !l.vendor_ids.includes(q.vendor_id)
-            ? [...l.vendor_ids, q.vendor_id]
-            : l.vendor_ids,
+          vendor_ids: nextVendorIds,
         };
       });
       return changed ? next : prev;
     });
+    // Persist so the auto-applied selection survives the next server refresh
+    // (prevents "Selected" badge flicker when onChanged reloads the order).
+    if (persistUpdates.length) {
+      void Promise.all(
+        persistUpdates.map((u) =>
+          supabase.from("procurement_items")
+            .update({
+              rate: u.rate,
+              rate_source: "quote",
+              rate_source_vendor_id: u.vendor_id,
+              vendor_ids: u.vendor_ids,
+            })
+            .eq("id", u.id),
+        ),
+      ).catch(() => {});
+    }
   }, [open, vendorQuotes, rateLines.length]);
 
   const quoteUrl = (token: string) => `${window.location.origin}/vendor-quote/${token}`;
