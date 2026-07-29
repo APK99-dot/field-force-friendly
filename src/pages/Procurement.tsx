@@ -131,6 +131,8 @@ export default function Procurement() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<DetailOrder | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [uiMode] = useUiMode();
+  const lightning = isLightning(uiMode);
   const [lines, setLines] = useState<LineItem[]>([{ product_id: "", category_id: "", rate: "", qty: "", uom: "", vendor_ids: [] }]);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
