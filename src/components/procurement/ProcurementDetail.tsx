@@ -72,7 +72,7 @@ export interface DetailOrder {
 
 export interface ProcurementDetailFocus {
   vendorId?: string | null;
-  section?: "quote" | "invoices" | "grns" | "financials";
+  section?: "quote" | "invoices" | "grns" | "financials" | "po";
   invoiceId?: string | null;
 }
 interface Props {
