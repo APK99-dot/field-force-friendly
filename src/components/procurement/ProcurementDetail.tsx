@@ -1172,13 +1172,18 @@ export default function ProcurementDetail({
   // portal edge function (e.g. Quote Requested -> Quote Received).
   useEffect(() => {
     if (!open) return;
-    const refreshAll = () => { loadVendorQuotes(); onChanged(); };
-    const onVisible = () => { if (document.visibilityState === "visible") refreshAll(); };
+    // Refresh only when the tab regains focus — a background interval caused
+    // the Vendor Comparison row (and its "Selected" badge) to visibly flicker
+    // every 30s as the parent order was re-fetched and state re-initialised.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        loadVendorQuotes();
+        onChanged();
+      }
+    };
     document.addEventListener("visibilitychange", onVisible);
-    const interval = window.setInterval(refreshAll, 30000);
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
-      window.clearInterval(interval);
     };
   }, [open, loadVendorQuotes, onChanged]);
 
