@@ -59,8 +59,8 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
       // Filter out fully-received POs using a batched pending-qty computation
       const poIds = rows.map((r) => r.id);
       if (poIds.length) {
-        const itemsRes: any = await supabase.from("procurement_items").select("id, po_id, qty").in("po_id", poIds);
-        const grnRes: any = await supabase.from("procurement_grns").select("id, po_id").in("po_id", poIds);
+        const itemsRes: any = await (supabase.from("procurement_items") as any).select("id, po_id, qty").in("po_id", poIds);
+        const grnRes: any = await (supabase.from("procurement_grns") as any).select("id, po_id").in("po_id", poIds);
         const grnIds = ((grnRes.data || []) as any[]).map((g) => g.id);
         const grnPoById: Record<string, string> = {};
         ((grnRes.data || []) as any[]).forEach((g) => { grnPoById[g.id] = g.po_id; });
