@@ -61,7 +61,7 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
       if (poIds.length) {
         const [{ data: itemsData }, { data: grnsData }] = await Promise.all([
           supabase.from("procurement_items").select("id, po_id, qty").in("po_id", poIds),
-          supabase.from("procurement_grns").select("po_id, procurement_grn_items(procurement_item_id, received_qty)").in("po_id", poIds),
+          supabase.from("procurement_grn_items").select("procurement_item_id, received_qty, procurement_grns!inner(po_id)").in("procurement_grns.po_id" as any, poIds),
         ]);
         const recvByItem: Record<string, number> = {};
         ((grnsData || []) as any[]).forEach((g) => {
