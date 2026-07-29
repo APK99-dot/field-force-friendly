@@ -36,6 +36,8 @@ import { useAdminAccess } from "@/hooks/useAdminAccess";
 import SalesforceImportDialog from "@/components/procurement/SalesforceImportDialog";
 import SalesforceBulkImportDialog from "@/components/procurement/SalesforceBulkImportDialog";
 import { LightningShell, LightningToggle } from "@/components/procurement/lightning/LightningShell";
+import { useUiMode, isLightning } from "@/hooks/useUiMode";
+import { ClipboardList, Building2, FileText, Package, Wallet } from "lucide-react";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
