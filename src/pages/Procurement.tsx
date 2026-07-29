@@ -101,6 +101,7 @@ const emptyForm = {
   bill_to_id: "",
   ship_to_id: "",
   expected_payment_terms: "",
+  expected_delivery_date: "",
   terms_and_conditions: [] as string[],
 };
 
