@@ -3448,7 +3448,9 @@ export default function ProcurementDetail({
                             const rate = Number(it.rate) || 0;
                             const after = Number(it.rate_after_discount ?? it.rate) || 0;
                             const discAmt = (rate - after) * qty;
-                            const lineTotal = after * qty;
+                            const gstPct = Number(it.gst_percent ?? 0);
+                            const bk = lineGstBreakup(after, qty, gstPct);
+                            const lineTotal = bk.total;
                             return (
                               <tr key={(it as any).id || `${q.id}-${it.procurement_item_id}`} className="border-t">
                                 <td className="p-2 text-muted-foreground">{idx + 1}</td>
@@ -3459,6 +3461,8 @@ export default function ProcurementDetail({
                                 <td className="p-2 text-right">{Number(it.discount_pct) || 0}%</td>
                                 <td className="p-2 text-right">{fmtAmt(discAmt)}</td>
                                 <td className="p-2 text-right">{fmtAmt(after)}</td>
+                                <td className="p-2 text-right">{gstPct}%</td>
+                                <td className="p-2 text-right">{fmtAmt(bk.gstAmount)}</td>
                                 <td className="p-2 text-right font-medium">{fmtAmt(lineTotal)}</td>
                                 <td className="p-2">{it.delivery_commitment_date || "—"}</td>
                                 {compare && (
