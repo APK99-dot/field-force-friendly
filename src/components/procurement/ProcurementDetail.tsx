@@ -304,6 +304,13 @@ export default function ProcurementDetail({
   const lastServerPoRef = useRef<{ expected_delivery_date: string; payment_terms: string; order_id: string | null }>({
     expected_delivery_date: "", payment_terms: "", order_id: null,
   });
+  // Number of in-flight writes to procurement_items (vendor selection / rate / GST).
+  // While > 0 we must not rebuild rateLines from the parent `order` prop, because
+  // that prop may still hold pre-write data and would visibly revert the selection.
+  const pendingItemWritesRef = useRef(0);
+  // Line ids whose single-quote rate has already been auto-applied in this session,
+  // so the effect can never fire twice for the same line (prevents write loops).
+  const autoAppliedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     // Case-normalize payment_terms against the canonical PAYMENT_TERMS options
     // so a stored "net 30" matches the "Net 30" Select option instead of rendering blank.
