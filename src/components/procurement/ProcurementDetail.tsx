@@ -794,6 +794,7 @@ export default function ProcurementDetail({
         const { error: iErr } = await supabase.from("procurement_items")
           .update({
             rate, amount: rate * (l.qty || 0),
+            gst_percent: l.gst_percent || 0,
             vendor_ids: l.vendor_ids.length ? l.vendor_ids : null,
             rate_source: l.rate_source,
             rate_source_vendor_id: l.rate_source_vendor_id,
