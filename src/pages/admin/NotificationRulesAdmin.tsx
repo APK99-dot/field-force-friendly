@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { format } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,30 +18,43 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Bell, History, ListChecks, Pencil, Plus, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Bell, Zap, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
-import NotificationRuleForm, {
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import {
+  NotificationRuleForm,
   CHANNELS,
-  RECEIVER_TYPES,
+  RECEIVER_OPTIONS,
   SOURCE_TABLES,
+  type NotificationRuleRow,
 } from "@/components/admin/NotificationRuleForm";
-
-const HISTORY_PAGE_SIZE = 25;
-const HISTORY_MAX = 100;
+import { NotificationHistoryTab } from "@/components/admin/NotificationHistoryTab";
 
 const labelFor = (list: { value: string; label: string }[], value: string) =>
   list.find((i) => i.value === value)?.label ?? value;
 
-export default function NotificationRulesAdmin() {
-  const qc = useQueryClient();
-  const { hasAdminAccess, isLoading: accessLoading } = useAdminAccess();
+// Mirrors notif_fill(): the same five placeholders, everything else left as typed.
+const renderTemplate = (tpl: string, ctx: Record<string, string>) =>
+  (tpl || "").replace(/\{(\w+)\}/g, (_m, k) => (k in ctx ? ctx[k] : `{${k}}`));
 
-  const [activeTab, setActiveTab] = useState("rules");
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<any | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
-  const [historyLimit, setHistoryLimit] = useState(HISTORY_PAGE_SIZE);
+const initcapModule = (table: string) =>
+  (table || "")
+    .replace(/_/g, " ")
+    .split(" ")
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(" ");
+
+export default function NotificationRulesAdmin() {
+  const queryClient = useQueryClient();
+  const { hasAdminAccess, isLoading: accessLoading } = useAdminAccess();
+  const { userId } = useCurrentUser();
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingRule, setEditingRule] = useState<NotificationRuleRow | null>(null);
+  const [rulesOpen, setRulesOpen] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<NotificationRuleRow | null>(null);
+  const [firing, setFiring] = useState<string | null>(null);
 
   const {
     data: rules = [],
@@ -56,40 +68,20 @@ export default function NotificationRulesAdmin() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as any[];
+      return (data || []) as unknown as NotificationRuleRow[];
     },
   });
 
-  const {
-    data: eventTypes = [],
-    error: eventTypesError,
-  } = useQuery({
+  const { data: eventTypes = [], error: eventTypesError } = useQuery({
     queryKey: ["notification-event-types"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notification_event_types" as any)
         .select("event_code, label")
         .eq("is_active", true)
-        .order("label");
+        .order("event_code");
       if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  const {
-    data: history = [],
-    error: historyError,
-    isLoading: historyLoading,
-  } = useQuery({
-    queryKey: ["notification-event-log", historyLimit],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("notification_event_log" as any)
-        .select("id, created_at, event_code, source_table, recipients_count, processed")
-        .order("created_at", { ascending: false })
-        .limit(historyLimit);
-      if (error) throw error;
-      return data as any[];
+      return (data || []) as any[];
     },
   });
 
@@ -100,9 +92,6 @@ export default function NotificationRulesAdmin() {
   useEffect(() => {
     if (eventTypesError) toast.error((eventTypesError as any).message || "Could not load event types");
   }, [eventTypesError]);
-  useEffect(() => {
-    if (historyError) toast.error((historyError as any).message || "Could not load notification history");
-  }, [historyError]);
 
   const eventLabels = useMemo(() => {
     const map: Record<string, string> = {};
@@ -110,18 +99,20 @@ export default function NotificationRulesAdmin() {
     return map;
   }, [eventTypes]);
 
-  const receiverLabel = (rule: any) => {
-    const base = labelFor(RECEIVER_TYPES, rule.receiver_type);
-    if (rule.receiver_type === "role" && rule.receiver_role) return `${base}: ${rule.receiver_role}`;
-    return base;
+  const refreshRules = () => queryClient.invalidateQueries({ queryKey: ["notification-rules"] });
+
+  const handleEdit = (rule: NotificationRuleRow) => {
+    setEditingRule(rule);
+    setShowForm(true);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
   };
 
-  const openNew = () => { setEditing(null); setFormOpen(true); };
-  const openEdit = (rule: any) => { setEditing(rule); setFormOpen(true); };
+  const handleClose = () => {
+    setShowForm(false);
+    setEditingRule(null);
+  };
 
-  const refreshRules = () => qc.invalidateQueries({ queryKey: ["notification-rules"] });
-
-  const toggleActive = async (rule: any, isActive: boolean) => {
+  const toggleActive = async (rule: NotificationRuleRow, isActive: boolean) => {
     const { error } = await supabase
       .from("notification_rules" as any)
       .update({ is_active: isActive, updated_at: new Date().toISOString() })
@@ -136,10 +127,7 @@ export default function NotificationRulesAdmin() {
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
-    const { error } = await supabase
-      .from("notification_rules" as any)
-      .delete()
-      .eq("id", deleteTarget.id);
+    const { error } = await supabase.from("notification_rules" as any).delete().eq("id", deleteTarget.id);
     setDeleteTarget(null);
     if (error) {
       toast.error(error.message || "Could not delete rule");
@@ -147,6 +135,48 @@ export default function NotificationRulesAdmin() {
     }
     toast.success("Rule deleted");
     refreshRules();
+  };
+
+  // "Fire now" sends the rule's rendered templates to the signed-in admin via
+  // notify_send_test(p_title, p_message). The source fanned its test out to the
+  // rule's real receivers by inserting into notifications directly; that is not
+  // reproducible here — notify_send_test only ever writes to auth.uid().
+  const fireRule = async (rule: NotificationRuleRow) => {
+    setFiring(rule.id);
+    try {
+      const ctx = {
+        user_name: "Ramesh Iyer",
+        module_name: initcapModule(rule.source_table),
+        record_name: "[Manual Fire]",
+        site_name: "Whitefield Tower A",
+        date: new Intl.DateTimeFormat("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }).format(new Date()),
+      };
+      const { data, error } = await supabase.rpc("notify_send_test" as any, {
+        p_title: `[TEST] ${renderTemplate(rule.title_template, ctx)}`,
+        p_message: renderTemplate(rule.message_template, ctx),
+      });
+      if (error) throw error;
+      const result = (Array.isArray(data) ? data[0] : data) as any;
+      if (result && result.ok === false) {
+        toast.error(result.error || "Could not send the test notification");
+        return;
+      }
+      toast.success("Test notification sent to you — check your bell.");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to fire rule");
+    } finally {
+      setFiring(null);
+    }
+  };
+
+  const receiverLabel = (rule: NotificationRuleRow) => {
+    const base = labelFor(RECEIVER_OPTIONS, rule.receiver_type);
+    if (rule.receiver_type === "role" && rule.receiver_role) return `${base}: ${rule.receiver_role}`;
+    return base;
   };
 
   if (accessLoading) {
@@ -172,193 +202,156 @@ export default function NotificationRulesAdmin() {
     );
   }
 
+  const activeCount = rules.filter((r) => r.is_active).length;
+
   return (
-    <motion.div className="space-y-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      {/* Hero Header */}
-      <div className="gradient-hero px-4 safe-top-20 pb-6 -mx-4 -mt-4 md:-mx-6 md:-mt-6 lg:-mx-8 lg:-mt-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
-              <Bell className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">Notification Centre</h1>
-              <p className="text-sm text-white/70">Configure who gets notified, and review what was sent</p>
-            </div>
+    <div className="min-h-screen p-4">
+      <div className="w-full space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-foreground">Notification Centre</h1>
+            <p className="text-muted-foreground text-sm">
+              Configure who gets notified, and review what was sent
+            </p>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-3 md:px-4 space-y-4 md:space-y-5 pt-4 md:pt-5">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-transparent border-b border-border rounded-none w-full justify-start h-auto p-0 gap-0">
-            <TabsTrigger
-              value="rules"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none flex-1 px-2 md:px-4 py-2.5 text-xs md:text-sm gap-1 md:gap-1.5 text-muted-foreground data-[state=active]:text-foreground"
-            >
-              <ListChecks className="h-3.5 w-3.5 hidden md:inline-block" />
-              Rules
-            </TabsTrigger>
-            <TabsTrigger
-              value="history"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none flex-1 px-2 md:px-4 py-2.5 text-xs md:text-sm gap-1 md:gap-1.5 text-muted-foreground data-[state=active]:text-foreground"
-            >
-              <History className="h-3.5 w-3.5 hidden md:inline-block" />
-              History
-            </TabsTrigger>
+        <Tabs defaultValue="rules" className="w-full">
+          <TabsList>
+            <TabsTrigger value="rules">Notification Center</TabsTrigger>
+            <TabsTrigger value="history">Notification History</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="rules" className="mt-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                {rules.length} rule{rules.length === 1 ? "" : "s"} configured
-              </p>
-              <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" />Add Rule</Button>
+          <TabsContent value="rules" className="space-y-6">
+            <div className="flex justify-end">
+              <Button
+                onClick={() => {
+                  setEditingRule(null);
+                  setShowForm(true);
+                }}
+                className="gap-2"
+              >
+                <Plus size={16} /> Add Rule
+              </Button>
             </div>
 
-            <Card><CardContent className="p-0 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Event</TableHead>
-                    <TableHead>Module</TableHead>
-                    <TableHead>Receiver</TableHead>
-                    <TableHead>Channel</TableHead>
-                    <TableHead>Active</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rulesError && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-sm text-destructive py-8">
-                        Could not load rules: {(rulesError as any).message}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {!rulesError && rulesLoading && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
-                        Loading…
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {!rulesError && !rulesLoading && rules.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
-                        No rules yet. Add one to start sending notifications.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {!rulesError && rules.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.name}</TableCell>
-                      <TableCell>{eventLabels[r.event_code] ?? r.event_code}</TableCell>
-                      <TableCell>{labelFor(SOURCE_TABLES, r.source_table)}</TableCell>
-                      <TableCell>{receiverLabel(r)}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{labelFor(CHANNELS, r.notification_channel)}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={!!r.is_active}
-                          onCheckedChange={(v) => toggleActive(r, v)}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(r)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(r)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent></Card>
+            {showForm && (
+              <NotificationRuleForm
+                key={editingRule?.id || "new"}
+                rule={editingRule}
+                userId={userId || ""}
+                onClose={handleClose}
+                onSaved={() => {
+                  refreshRules();
+                  handleClose();
+                }}
+              />
+            )}
+
+            <Collapsible open={rulesOpen} onOpenChange={setRulesOpen}>
+              <Card>
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-muted/40 transition-colors">
+                    <CardTitle className="flex items-center justify-between text-lg">
+                      <span className="flex items-center gap-2">
+                        {rulesOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        <Bell size={18} /> Active Rules ({activeCount} / {rules.length})
+                      </span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {rulesOpen ? "Click to collapse" : "Click to expand"}
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="overflow-x-auto">
+                    {rulesError ? (
+                      <div className="text-center py-12 text-destructive text-sm">
+                        <p className="font-medium">Could not load notification rules</p>
+                        <p className="text-xs mt-1">{(rulesError as any).message}</p>
+                      </div>
+                    ) : rulesLoading ? (
+                      <div className="flex justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                      </div>
+                    ) : rules.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Bell className="mx-auto h-12 w-12 mb-3 opacity-30" />
+                        <p>No notification rules configured yet</p>
+                        <p className="text-xs mt-1">
+                          Create your first rule to start sending automated notifications
+                        </p>
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Event</TableHead>
+                            <TableHead>Module</TableHead>
+                            <TableHead>Receiver</TableHead>
+                            <TableHead>Channel</TableHead>
+                            <TableHead>Active</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {rules.map((rule) => (
+                            <TableRow key={rule.id}>
+                              <TableCell className="font-medium">{rule.name}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs">
+                                  {eventLabels[rule.event_code] ?? rule.event_code}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {labelFor(SOURCE_TABLES, rule.source_table)}
+                              </TableCell>
+                              <TableCell className="text-sm">{receiverLabel(rule)}</TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className="text-xs">
+                                  {labelFor(CHANNELS, rule.notification_channel)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Switch
+                                  checked={!!rule.is_active}
+                                  onCheckedChange={(checked) => toggleActive(rule, checked)}
+                                />
+                              </TableCell>
+                              <TableCell className="text-right space-x-1 whitespace-nowrap">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  title="Fire now — sends this rule's notification to you as a test"
+                                  disabled={firing === rule.id}
+                                  onClick={() => fireRule(rule)}
+                                >
+                                  <Zap size={14} className="text-amber-500" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleEdit(rule)}>
+                                  <Pencil size={14} />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(rule)}>
+                                  <Trash2 size={14} className="text-destructive" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           </TabsContent>
 
-          <TabsContent value="history" className="mt-5 space-y-4">
-            <Card><CardContent className="p-0 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>When</TableHead>
-                    <TableHead>Event</TableHead>
-                    <TableHead>Module</TableHead>
-                    <TableHead>Recipients</TableHead>
-                    <TableHead>Processed</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {historyError && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-sm text-destructive py-8">
-                        Could not load history: {(historyError as any).message}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {!historyError && historyLoading && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
-                        Loading…
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {!historyError && !historyLoading && history.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
-                        Nothing sent yet.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {!historyError && history.map((h) => (
-                    <TableRow key={h.id}>
-                      <TableCell className="whitespace-nowrap">
-                        {format(new Date(h.created_at), "dd MMM yyyy, HH:mm")}
-                      </TableCell>
-                      <TableCell>{eventLabels[h.event_code] ?? h.event_code}</TableCell>
-                      <TableCell>{labelFor(SOURCE_TABLES, h.source_table)}</TableCell>
-                      <TableCell>{h.recipients_count}</TableCell>
-                      <TableCell>
-                        <Badge variant={h.processed ? "secondary" : "outline"}>
-                          {h.processed ? "Yes" : "Pending"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent></Card>
-
-            {!historyError && history.length >= historyLimit && historyLimit < HISTORY_MAX && (
-              <div className="flex justify-center">
-                <Button
-                  variant="outline"
-                  onClick={() => setHistoryLimit((n) => Math.min(n + HISTORY_PAGE_SIZE, HISTORY_MAX))}
-                >
-                  Load more
-                </Button>
-              </div>
-            )}
-            {!historyError && historyLimit >= HISTORY_MAX && history.length >= HISTORY_MAX && (
-              <p className="text-center text-xs text-muted-foreground">
-                Showing the most recent {HISTORY_MAX} events.
-              </p>
-            )}
+          <TabsContent value="history">
+            <NotificationHistoryTab />
           </TabsContent>
         </Tabs>
       </div>
-
-      <NotificationRuleForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        rule={editing}
-        onSaved={refreshRules}
-      />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
@@ -374,6 +367,6 @@ export default function NotificationRulesAdmin() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </motion.div>
+    </div>
   );
 }
