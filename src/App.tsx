@@ -19,6 +19,7 @@ const AdminUserManagement = lazy(() => import("./pages/AdminUserManagement"));
 const AttendanceManagement = lazy(() => import("./pages/AttendanceManagement"));
 const AdminExpenseManagement = lazy(() => import("./pages/AdminExpenseManagement"));
 const SecurityManagement = lazy(() => import("./pages/SecurityManagement"));
+const NotificationRulesAdmin = lazy(() => import("./pages/admin/NotificationRulesAdmin"));
 const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const ProjectsPage = lazy(() => import("./pages/Projects"));
@@ -102,6 +103,7 @@ const App = () => (
             <Route path="/admin/attendance" element={<Suspense fallback={<PageFallback />}><AttendanceManagement /></Suspense>} />
             <Route path="/admin/expenses" element={<Suspense fallback={<PageFallback />}><AdminExpenseManagement /></Suspense>} />
             <Route path="/admin/security" element={<Suspense fallback={<PageFallback />}><SecurityManagement /></Suspense>} />
+            <Route path="/admin/notifications" element={<Suspense fallback={<PageFallback />}><NotificationRulesAdmin /></Suspense>} />
             <Route path="/admin/company" element={<Suspense fallback={<PageFallback />}><CompanyProfile /></Suspense>} />
             <Route path="/admin/configuration" element={<Suspense fallback={<PageFallback />}><ConfigurationWorkflow /></Suspense>} />
             <Route path="/admin/sites" element={<Navigate to="/sites" replace />} />

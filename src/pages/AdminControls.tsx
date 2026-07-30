@@ -15,7 +15,8 @@ import {
   ListChecks,
   SlidersHorizontal,
   Database,
-  
+  Bell,
+
 } from "lucide-react";
 import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 
@@ -66,6 +67,14 @@ const allAdminModules = [
     icon: SlidersHorizontal,
     color: "bg-emerald-100 text-emerald-600",
     path: "/admin/configuration",
+    permission: undefined,
+  },
+  {
+    title: "Notification Centre",
+    description: "Configure notification rules and review what was sent",
+    icon: Bell,
+    color: "bg-rose-100 text-rose-600",
+    path: "/admin/notifications",
     permission: undefined,
   },
   {
