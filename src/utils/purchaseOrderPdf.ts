@@ -306,16 +306,16 @@ export async function buildPurchaseOrderPdf(params: {
 
   /* ---------------------------- Items table -------------------------------- */
   const rawCols: Array<Omit<Col, "x">> = [
-    { label: "#", w: 6, align: "left" },
+    { label: "#", w: 8, align: "left" },
     { label: "Material", w: 30, align: "left" },
-    { label: "Description", w: 32, align: "left" },
+    { label: "Description", w: 29, align: "left" },
     { label: "Qty", w: 11, align: "right" },
     { label: "UOM", w: 11, align: "left" },
     { label: `Rate (${RUPEE})`, w: 17, align: "right" },
-    { label: "Disc %", w: 11, align: "right" },
+    { label: "Disc %", w: 10, align: "right" },
     { label: `Rate a/Disc (${RUPEE})`, w: 18, align: "right" },
-    { label: "GST %", w: 10, align: "right" },
-    { label: `GST Amt (${RUPEE})`, w: 18, align: "right" },
+    { label: "GST %", w: 9, align: "right" },
+    { label: `GST Amt (${RUPEE})`, w: 19, align: "right" },
     { label: `Line Total (${RUPEE})`, w: 20, align: "right" },
   ];
   const rawTotal = rawCols.reduce((s, c) => s + c.w, 0);
