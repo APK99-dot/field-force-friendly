@@ -330,6 +330,9 @@ export default function ProcurementDetail({
       return { expected_delivery_date: nextDate, payment_terms: nextPt };
     });
     lastServerPoRef.current = { expected_delivery_date: serverDate, payment_terms: normalizedPt, order_id: order.id };
+    // A selection/rate write is still in flight — the incoming `order` snapshot is
+    // stale for line items. Skip the rebuild; the post-write refresh will apply it.
+    if (pendingItemWritesRef.current > 0) return;
     const lines = (order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, uom: it.uom, qty: it.qty, rate: String(it.rate ?? ""),
       gst_percent: Number(it.gst_percent ?? 0),
