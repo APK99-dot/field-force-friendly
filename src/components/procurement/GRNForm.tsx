@@ -244,262 +244,340 @@ export default function GRNForm({
     }
   };
 
+  const selectedVendorName =
+    poVendors?.find((v) => v.id === selectedVendorId)?.name || (isTransfer ? transferFromSiteName : null) || "—";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b shrink-0">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="rounded-md p-1.5 hover:bg-muted transition-colors"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="font-semibold text-base">Goods Receipt</span>
-            <span className="text-muted-foreground">—</span>
+      <DialogContent className={cn("max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col", lightning && "lightning-ui")}>
+        {/* ---- Header ---- */}
+        <DialogHeader className={cn("px-3 sm:px-5 py-2.5 border-b shrink-0 space-y-0", lightning && "bg-white")}>
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-sm font-semibold hover:bg-primary/20 transition-colors"
+              className="rounded-md p-1.5 hover:bg-muted transition-colors shrink-0"
+              aria-label="Back"
             >
-              {poNumber}
+              <ArrowLeft className="h-4.5 w-4.5" />
             </button>
+            {lightning && (
+              <div className="sf-object-icon shrink-0"><PackageCheck className="h-5 w-5" /></div>
+            )}
+            <div className="min-w-0 flex-1">
+              {lightning && <div className="sf-eyebrow">Goods Receipt</div>}
+              <DialogTitle className={cn("truncate", lightning ? "sf-title" : "text-base")}>
+                Goods Receipt — {poNumber}
+              </DialogTitle>
+              {lightning && (
+                <div className="sf-subtitle truncate">
+                  {isTransfer ? "Internal transfer receipt" : `Receipt from ${selectedVendorName}`}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </DialogHeader>
 
-        {/* Scrollable content */}
-        <div className="overflow-y-auto flex-1">
-          <div className="space-y-5 p-4 pb-8 max-w-[800px] w-full mx-auto">
-            {/* Top card: Date / Received By */}
-            <div className="space-y-4 rounded-lg border bg-muted/40 p-4">
-              {isTransfer && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Transferred From Site</Label>
-                  <Input value={transferFromSiteName || "—"} readOnly disabled className="h-9 bg-background" />
+        {/* ---- Scrollable body ---- */}
+        <div className={cn("overflow-y-auto flex-1 w-full", lightning && "bg-[var(--sf-surface-shell,#f3f2f2)]")}>
+          <div className="w-full px-2 sm:px-3 py-3 sm:py-5 space-y-4">
+
+            {/* Highlights panel */}
+            <div className="sf-highlights rounded-md border bg-card px-4 py-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3">
+                <div>
+                  <div className="sf-field-label text-[11px] uppercase tracking-wide text-muted-foreground">PO Number</div>
+                  <div className="sf-field-value text-sm font-semibold truncate">{poNumber}</div>
                 </div>
-              )}
-              {!isTransfer && poVendors && poVendors.length > 0 && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Vendor (receipt from)</Label>
-                  <select
-                    className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-                    value={selectedVendorId || ""}
-                    onChange={(e) => setSelectedVendorId(e.target.value || null)}
-                  >
-                    <option value="">— Select vendor —</option>
-                    {poVendors.map((v) => (
-                      <option key={v.id} value={v.id}>{v.name}</option>
-                    ))}
-                  </select>
-                  {selectedVendorId && itemVendorMap && (
-                    <p className="text-[11px] text-muted-foreground">Showing only line items assigned to this vendor ({visibleItems.length} of {items.length}).</p>
-                  )}
+                <div>
+                  <div className="sf-field-label text-[11px] uppercase tracking-wide text-muted-foreground">
+                    {isTransfer ? "Transferred From" : "Vendor"}
+                  </div>
+                  <div className="sf-field-value text-sm font-semibold truncate">{selectedVendorName}</div>
                 </div>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Date of Receipt</Label>
-                  <Input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} className="h-9 bg-background" />
+                <div>
+                  <div className="sf-field-label text-[11px] uppercase tracking-wide text-muted-foreground">Line Items</div>
+                  <div className="sf-field-value text-sm font-semibold">{visibleItems.length}</div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Received By</Label>
-                  <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="Name" className="h-9 bg-background" />
+                <div>
+                  <div className="sf-field-label text-[11px] uppercase tracking-wide text-muted-foreground">Status</div>
+                  <div className="sf-field-value text-sm font-semibold">{status}</div>
                 </div>
               </div>
             </div>
 
-            {/* Items table */}
-            <div>
-              <Label className="text-sm font-semibold">Items — Ordered vs Received</Label>
-              <div className="mt-2 rounded-lg border overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[640px]">
-                    <thead>
-                      <tr className="bg-muted/60 text-xs text-muted-foreground">
-                        <th className="text-left font-medium px-3 py-2">Material</th>
-                        <th className="text-center font-medium px-3 py-2">UOM</th>
-                        <th className="text-center font-medium px-3 py-2">Ordered</th>
-                        <th className="text-center font-medium px-3 py-2">Prev. Received</th>
-                        <th className="text-center font-medium px-3 py-2">Balance</th>
-                        <th className="text-center font-medium px-3 py-2 bg-primary/10 text-primary">Receiving Now</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visibleItems.map((it) => {
-                        const bal = balance(it);
-                        const prev = alreadyReceived[it.id] || 0;
-                        return (
-                          <tr key={it.id} className="border-t">
-                            <td className="px-3 py-2 font-medium">{productName(it.product_id)}</td>
-                            <td className="px-3 py-2 text-center text-muted-foreground">{it.uom || "—"}</td>
-                            <td className="px-3 py-2 text-center">{it.qty}</td>
-                            <td className="px-3 py-2 text-center">{prev}</td>
-                            <td className="px-3 py-2 text-center font-medium">{bal}</td>
-                            <td className="px-3 py-2 bg-primary/5">
-                              <Input
-                                type="number" inputMode="decimal"
-                                className="h-9 w-24 mx-auto text-center bg-background border-primary/40 focus-visible:ring-primary"
-                                value={recv[it.id] || ""}
-                                onChange={(e) => setRecv((p) => ({ ...p, [it.id]: e.target.value }))}
-                                placeholder="0"
-                              />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+            {/* Receipt Information */}
+            <section className="sf-card rounded-md border bg-card">
+              <div className="px-4 sm:px-5 py-3 border-b flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold">Receipt Information</h2>
+              </div>
+              <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                {isTransfer && (
+                  <div className="md:col-span-2 lg:col-span-1">
+                    <Label className={FIELD_LABEL}>Transferred From Site</Label>
+                    <Input value={transferFromSiteName || "—"} readOnly disabled className="h-9 mt-1 bg-muted/50" />
+                  </div>
+                )}
+                {!isTransfer && poVendors && poVendors.length > 0 && (
+                  <div className="md:col-span-2 lg:col-span-1">
+                    <Label className={FIELD_LABEL}>Vendor (receipt from)</Label>
+                    <select
+                      className="h-9 mt-1 w-full rounded-md border bg-background px-3 text-sm"
+                      value={selectedVendorId || ""}
+                      onChange={(e) => setSelectedVendorId(e.target.value || null)}
+                    >
+                      <option value="">— Select vendor —</option>
+                      {poVendors.map((v) => (
+                        <option key={v.id} value={v.id}>{v.name}</option>
+                      ))}
+                    </select>
+                    {selectedVendorId && itemVendorMap && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Showing only line items assigned to this vendor ({visibleItems.length} of {items.length}).
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div>
+                  <Label className={FIELD_LABEL}>Date of Receipt</Label>
+                  <Input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} className="h-9 mt-1" />
+                </div>
+                <div>
+                  <Label className={FIELD_LABEL}>Received By</Label>
+                  <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} placeholder="Name" className="h-9 mt-1" />
                 </div>
               </div>
+            </section>
 
-              {/* Progress */}
-              <div className="mt-3 space-y-1.5">
+            {/* Items */}
+            <section className="sf-card rounded-md border bg-card">
+              <div className="px-4 sm:px-5 py-3 border-b flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <h2 className="text-sm font-semibold">Items — Ordered vs Received</h2>
+                </div>
+                <span className="text-xs text-muted-foreground">{visibleItems.length} item{visibleItems.length === 1 ? "" : "s"}</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[680px]">
+                  <thead>
+                    <tr className="bg-muted/60 text-xs text-muted-foreground">
+                      <th className="text-left font-medium px-4 py-2.5">Material</th>
+                      <th className="text-left font-medium px-3 py-2.5 w-24">UOM</th>
+                      <th className="text-right font-medium px-3 py-2.5 w-28">Ordered</th>
+                      <th className="text-right font-medium px-3 py-2.5 w-32">Prev. Received</th>
+                      <th className="text-right font-medium px-3 py-2.5 w-28">Balance</th>
+                      <th className="text-center font-medium px-4 py-2.5 w-40 bg-primary/10 text-primary">Receiving Now</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleItems.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                          No line items for the selected vendor.
+                        </td>
+                      </tr>
+                    )}
+                    {visibleItems.map((it) => {
+                      const bal = balance(it);
+                      const prev = alreadyReceived[it.id] || 0;
+                      return (
+                        <tr key={it.id} className="border-t">
+                          <td className="px-4 py-2.5 font-medium">{productName(it.product_id)}</td>
+                          <td className="px-3 py-2.5 text-muted-foreground">{it.uom || "—"}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{it.qty}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{prev}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-medium">{bal}</td>
+                          <td className="px-4 py-2 bg-primary/5">
+                            <Input
+                              type="number" inputMode="decimal"
+                              className="h-9 w-full max-w-[120px] mx-auto text-right bg-background border-primary/40 focus-visible:ring-primary"
+                              value={recv[it.id] || ""}
+                              onChange={(e) => setRecv((p) => ({ ...p, [it.id]: e.target.value }))}
+                              placeholder="0"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="border-t px-4 sm:px-5 py-3 space-y-1.5 bg-muted/20">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Cumulative received</span>
-                  <span className="font-semibold">{totals.cumulative} / {totals.ordered}</span>
+                  <span className="font-semibold tabular-nums">{totals.cumulative} / {totals.ordered}</span>
                 </div>
-                <Progress value={progressPct} className="h-2.5" />
+                <Progress value={progressPct} className="h-2" />
               </div>
-            </div>
+            </section>
 
-            {/* Status chips */}
-            <div>
-              <Label className="text-sm font-semibold">GRN Status</Label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {GRN_STATUSES.map((s) => {
-                  const active = status === s;
-                  return (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => handleStatusSelect(s)}
-                      className={cn(
-                        "rounded-full px-4 py-1.5 text-sm font-medium border transition-colors",
-                        active
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-foreground border-input hover:bg-muted"
-                      )}
-                    >
-                      {s}
-                    </button>
-                  );
-                })}
+            {/* Status + Remarks */}
+            <section className="sf-card rounded-md border bg-card">
+              <div className="px-4 sm:px-5 py-3 border-b flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold">Status &amp; Remarks</h2>
               </div>
-            </div>
-
-            {/* Remarks */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Remarks</Label>
-              <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Notes about this receipt..." rows={2} />
-            </div>
+              <div className="p-4 sm:p-5 space-y-4">
+                <div>
+                  <Label className={FIELD_LABEL}>GRN Status</Label>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {GRN_STATUSES.map((s) => {
+                      const active = status === s;
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => handleStatusSelect(s)}
+                          className={cn(
+                            "rounded-full px-4 py-1.5 text-sm font-medium border transition-colors",
+                            active
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background text-foreground border-input hover:bg-muted"
+                          )}
+                        >
+                          {s}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <Label className={FIELD_LABEL}>Remarks</Label>
+                  <Textarea
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    placeholder="Notes about this receipt..."
+                    rows={3}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </section>
 
             {/* Photos */}
             {(cfgTakePhoto || cfgUploadGallery) && (
-            <div>
-              <Label className="text-sm font-semibold">Goods Photos</Label>
-              <p className="text-[11px] text-muted-foreground mb-2">Proof of delivery — up to {maxPhotos} photos.</p>
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => handleFiles(e.target.files)}
-              />
-              <input
-                ref={galleryInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => handleFiles(e.target.files)}
-              />
-              <div className="grid grid-cols-2 gap-3">
-                {cfgTakePhoto && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={uploadingPhoto || photos.length >= maxPhotos}
-                  onClick={() => setCameraOpen(true)}
-                >
-                  <Camera className="h-4 w-4 mr-2" />
-                  {uploadingPhoto ? "Uploading..." : "Take Photo"}
-                </Button>
-                )}
-                {cfgUploadGallery && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={uploadingPhoto || photos.length >= maxPhotos}
-                  onClick={() => galleryInputRef.current?.click()}
-                >
-                  <ImageIcon className="h-4 w-4 mr-2" />
-                  Upload from Gallery
-                </Button>
-                )}
-              </div>
-              {photos.length > 0 && (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
-                  {photos.map((p, idx) => (
-                    <div key={p.path} className="relative aspect-square rounded-lg overflow-hidden border">
-                      <img src={p.preview} alt={`Goods photo ${idx + 1}`} className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => removePhoto(idx)}
-                        className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5"
-                        aria-label="Remove photo"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
+              <section className="sf-card rounded-md border bg-card">
+                <div className="px-4 sm:px-5 py-3 border-b flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-sm font-semibold">Goods Photos</h2>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{photos.length} / {maxPhotos}</span>
                 </div>
-              )}
-            </div>
+                <div className="p-4 sm:p-5">
+                  <p className="text-[11px] text-muted-foreground mb-3">Proof of delivery — up to {maxPhotos} photos.</p>
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => handleFiles(e.target.files)}
+                  />
+                  <input
+                    ref={galleryInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleFiles(e.target.files)}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    {cfgTakePhoto && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={uploadingPhoto || photos.length >= maxPhotos}
+                        onClick={() => setCameraOpen(true)}
+                      >
+                        <Camera className="h-4 w-4 mr-2" />
+                        {uploadingPhoto ? "Uploading..." : "Take Photo"}
+                      </Button>
+                    )}
+                    {cfgUploadGallery && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={uploadingPhoto || photos.length >= maxPhotos}
+                        onClick={() => galleryInputRef.current?.click()}
+                      >
+                        <ImageIcon className="h-4 w-4 mr-2" />
+                        Upload from Gallery
+                      </Button>
+                    )}
+                  </div>
+                  {photos.length > 0 && (
+                    <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 gap-2 mt-4">
+                      {photos.map((p, idx) => (
+                        <div key={p.path} className="relative aspect-square rounded-md overflow-hidden border">
+                          <img src={p.preview} alt={`Goods photo ${idx + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removePhoto(idx)}
+                            className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5"
+                            aria-label="Remove photo"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
             )}
 
             {/* Vendor Feedback (optional) */}
             {selectedVendorId && cfgVendorRating && (
-              <div className="rounded-lg border p-3 space-y-3">
-                <div className="flex items-center gap-2">
+              <section className="sf-card rounded-md border bg-card">
+                <div className="px-4 sm:px-5 py-3 border-b flex items-center gap-2">
                   <Star className="h-4 w-4 text-amber-400" />
-                  <div className="text-sm font-semibold">Rate this Delivery</div>
+                  <h2 className="text-sm font-semibold">Rate this Delivery</h2>
                   <span className="text-[11px] text-muted-foreground">(optional)</span>
                 </div>
-                {[
-                  { label: "Delivery Timeliness", value: fbDelivery, set: setFbDelivery },
-                  { label: "Material Quality", value: fbQuality, set: setFbQuality },
-                  { label: "Quantity Accuracy", value: fbQuantity, set: setFbQuantity },
-                  { label: "Overall Experience", value: fbOverall, set: setFbOverall },
-                ].map((row) => (
-                  <div key={row.label} className="flex items-center justify-between gap-2">
-                    <span className="text-sm">{row.label}</span>
-                    <StarRating value={row.value} onChange={row.set} />
+                <div className="p-4 sm:p-5 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+                    {[
+                      { label: "Delivery Timeliness", value: fbDelivery, set: setFbDelivery },
+                      { label: "Material Quality", value: fbQuality, set: setFbQuality },
+                      { label: "Quantity Accuracy", value: fbQuantity, set: setFbQuantity },
+                      { label: "Overall Experience", value: fbOverall, set: setFbOverall },
+                    ].map((row) => (
+                      <div key={row.label} className="flex items-center justify-between gap-2">
+                        <span className="text-sm">{row.label}</span>
+                        <StarRating value={row.value} onChange={row.set} />
+                      </div>
+                    ))}
                   </div>
-                ))}
-                <Textarea
-                  value={fbComments}
-                  onChange={(e) => setFbComments(e.target.value)}
-                  placeholder="Additional comments (optional)..."
-                  rows={2}
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  You can skip this now and rate later from the receipt's detail screen.
-                </p>
-              </div>
+                  <Textarea
+                    value={fbComments}
+                    onChange={(e) => setFbComments(e.target.value)}
+                    placeholder="Additional comments (optional)..."
+                    rows={2}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    You can skip this now and rate later from the receipt's detail screen.
+                  </p>
+                </div>
+              </section>
             )}
           </div>
         </div>
 
-
-        {/* Fixed footer */}
-        <div className="shrink-0 border-t bg-background p-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
-          <div className="flex gap-3 max-w-[800px] mx-auto">
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button className="flex-1 bg-foreground text-background hover:bg-foreground/90" onClick={handleSave} disabled={saving}>
+        {/* ---- Sticky footer ---- */}
+        <div
+          className={cn("shrink-0 border-t p-3", lightning ? "bg-white" : "bg-background")}
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+        >
+          <div className="flex justify-end gap-2 px-1 sm:px-2">
+            <Button variant="outline" className="flex-1 sm:flex-none sm:min-w-[120px]" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button className="flex-1 sm:flex-none sm:min-w-[160px]" onClick={handleSave} disabled={saving}>
               <Save className="h-4 w-4 mr-2" />{saving ? "Saving..." : "Save GRN"}
             </Button>
           </div>
