@@ -4497,6 +4497,7 @@ export type Database = {
           created_at: string
           delivery_commitment_date: string | null
           discount_pct: number
+          gst_percent: number
           id: string
           is_selected: boolean
           procurement_item_id: string | null
@@ -4511,6 +4512,7 @@ export type Database = {
           created_at?: string
           delivery_commitment_date?: string | null
           discount_pct?: number
+          gst_percent?: number
           id?: string
           is_selected?: boolean
           procurement_item_id?: string | null
@@ -4525,6 +4527,7 @@ export type Database = {
           created_at?: string
           delivery_commitment_date?: string | null
           discount_pct?: number
+          gst_percent?: number
           id?: string
           is_selected?: boolean
           procurement_item_id?: string | null

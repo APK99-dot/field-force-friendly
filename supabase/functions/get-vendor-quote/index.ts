@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     // Legacy quotes with no invited list fall back to all items of the PO.
     let itemsQuery = supabase
       .from("procurement_items")
-      .select("id, product_id, qty, uom")
+      .select("id, product_id, qty, uom, gst_percent")
       .eq("procurement_id", quote.po_id)
       .order("created_at");
     const invitedIds: string[] = Array.isArray(quote.procurement_item_ids)
@@ -143,6 +143,7 @@ Deno.serve(async (req) => {
         expected_delivery_date: order.expected_delivery_date || null,
         rate: saved ? Number(saved.rate) : null,
         discount_pct: saved ? Number(saved.discount_pct) : 0,
+        gst_percent: saved ? Number(saved.gst_percent || 0) : Number(it.gst_percent || 0),
         rate_after_discount: saved ? Number(saved.rate_after_discount) : null,
         delivery_commitment_date: saved?.delivery_commitment_date || null,
         quality_notes: saved?.quality_notes || "",

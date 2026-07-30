@@ -13,6 +13,8 @@ const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const MAX_FILE_MB = 10;
 const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+const GST_SLABS = [5, 12, 18, 28] as const;
+
 
 interface LineItem {
   procurement_item_id: string;
@@ -24,6 +26,8 @@ interface LineItem {
   expected_delivery_date: string | null;
   rate: number | null;
   discount_pct: number;
+  gst_percent: number;
+
   rate_after_discount: number | null;
   delivery_commitment_date: string | null;
   quality_notes: string;
@@ -122,7 +126,7 @@ export default function VendorQuote() {
             items: Array.isArray(body.items) ? body.items : [],
           };
           setData(safe);
-          setRows(safe.items);
+          setRows((safe.items || []).map((it: LineItem) => ({ ...it, gst_percent: Number(it.gst_percent) || 0 })));
           setPaymentTerm(safe.vendor_payment_term || "");
           setNotes(safe.notes || "");
           setAttachments(safe.attachments);
@@ -156,10 +160,19 @@ export default function VendorQuote() {
     return rate * (1 - disc / 100);
   };
 
-  const total = useMemo(
-    () => rows.reduce((s, r) => s + rowAfter(r) * (r.qty || 0), 0),
-    [rows]
-  );
+  const rowBreakup = (r: LineItem) => {
+    const taxable = rowAfter(r) * (r.qty || 0);
+    const gst = taxable * ((Number(r.gst_percent) || 0) / 100);
+    return { taxable, gst, total: taxable + gst };
+  };
+
+  const totals = useMemo(() => {
+    let taxable = 0, gst = 0;
+    rows.forEach((r) => { const b = rowBreakup(r); taxable += b.taxable; gst += b.gst; });
+    return { taxable, gst, grand: taxable + gst };
+  }, [rows]);
+  const total = totals.grand;
+
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || !files.length) return;
@@ -245,6 +258,8 @@ export default function VendorQuote() {
           procurement_item_id: r.procurement_item_id,
           rate: Number(r.rate) || 0,
           discount_pct: Number(r.discount_pct) || 0,
+          gst_percent: Number(r.gst_percent) || 0,
+
           delivery_commitment_date: r.delivery_commitment_date || null,
           quality_notes: r.quality_notes || null,
           is_selected: true,
@@ -447,7 +462,7 @@ export default function VendorQuote() {
 
           {/* Line items */}
           <div className="overflow-x-auto border rounded-lg">
-            <table className="w-full text-sm min-w-[900px]">
+            <table className="w-full text-sm min-w-[1100px]">
               <thead className="bg-muted/60 text-xs">
                 <tr className="text-left">
                   <th className="p-2 font-semibold">Product</th>
@@ -459,11 +474,16 @@ export default function VendorQuote() {
                   <th className="p-2 font-semibold text-right">Rate/Unit</th>
                   <th className="p-2 font-semibold text-right">Discount %</th>
                   <th className="p-2 font-semibold text-right">Rate After Disc.</th>
+                  <th className="p-2 font-semibold text-right">GST %</th>
+                  <th className="p-2 font-semibold text-right">Taxable</th>
+                  <th className="p-2 font-semibold text-right">GST Amt</th>
                   <th className="p-2 font-semibold text-right">Amount</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {rows.map((r) => {
+                  const b = rowBreakup(r);
+                  return (
                   <tr key={r.procurement_item_id} className="border-t align-top">
                     <td className="p-2 font-medium">{r.product_name}</td>
                     <td className="p-2 text-muted-foreground">{r.product_description || "-"}</td>
@@ -492,17 +512,41 @@ export default function VendorQuote() {
                         onChange={(e) => updateRow(r.procurement_item_id, { discount_pct: e.target.value === "" ? 0 : Number(e.target.value) })} />
                     </td>
                     <td className="p-2 text-right font-medium">{fmtAmt(rowAfter(r))}</td>
-                    <td className="p-2 text-right font-medium">{fmtAmt(rowAfter(r) * (r.qty || 0))}</td>
+                    <td className="p-2">
+                      <select
+                        className="h-8 w-20 rounded-md border border-input bg-background px-2 text-right text-sm disabled:opacity-60"
+                        disabled={readOnly}
+                        aria-label="GST percentage"
+                        value={String(r.gst_percent ?? 0)}
+                        onChange={(e) => updateRow(r.procurement_item_id, { gst_percent: Number(e.target.value) })}
+                      >
+                        <option value="0">—</option>
+                        {GST_SLABS.map((g) => <option key={g} value={g}>{g}%</option>)}
+                      </select>
+                    </td>
+                    <td className="p-2 text-right">{fmtAmt(b.taxable)}</td>
+                    <td className="p-2 text-right">{fmtAmt(b.gst)}</td>
+                    <td className="p-2 text-right font-medium">{fmtAmt(b.total)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
-              <tfoot>
-                <tr className="border-t bg-muted/40 font-semibold">
-                  <td className="p-2" colSpan={9}>Total</td>
+              <tfoot className="bg-muted/40">
+                <tr className="border-t">
+                  <td className="p-2 text-right" colSpan={12}>Subtotal (Taxable)</td>
+                  <td className="p-2 text-right">₹{fmtAmt(totals.taxable)}</td>
+                </tr>
+                <tr>
+                  <td className="p-2 text-right" colSpan={12}>Total GST</td>
+                  <td className="p-2 text-right">₹{fmtAmt(totals.gst)}</td>
+                </tr>
+                <tr className="border-t font-semibold">
+                  <td className="p-2 text-right" colSpan={12}>Grand Total</td>
                   <td className="p-2 text-right">₹{fmtAmt(total)}</td>
                 </tr>
               </tfoot>
             </table>
+
           </div>
 
           {/* Terms & notes */}
