@@ -479,10 +479,15 @@ export default function ProcurementDetail({
 
   const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
 
-  const poEditTotal = useMemo(
-    () => rateLines.reduce((s, l) => s + (parseFloat(l.rate) || 0) * (l.qty || 0), 0),
-    [rateLines]
-  );
+  const poTotals = useMemo(() => {
+    let subtotal = 0, gst = 0;
+    rateLines.forEach((l) => {
+      const b = lineGstBreakup(parseFloat(l.rate) || 0, l.qty || 0, l.gst_percent || 0);
+      subtotal += b.taxable; gst += b.gstAmount;
+    });
+    return { subtotal, gst, grand: subtotal + gst };
+  }, [rateLines]);
+  const poEditTotal = poTotals.grand;
 
   // Distinct vendors used across all line items (drives the read-only PO-level summary)
   const derivedVendorIds = useMemo(() => {
