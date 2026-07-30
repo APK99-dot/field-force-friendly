@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff } from "lucide-react";
 import bbLogo from "@/assets/bb_logo.png";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -18,12 +18,16 @@ export default function Auth() {
   const [rememberDuration, setRememberDuration] = useState<15 | 30>(30);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rawNext = searchParams.get("next");
+  // Only allow same-origin relative paths.
+  const nextPath = rawNext && /^\/(?!\/)/.test(rawNext) ? rawNext : null;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/dashboard", { replace: true });
+      if (session) navigate(nextPath ?? "/dashboard", { replace: true });
     });
-  }, [navigate]);
+  }, [navigate, nextPath]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +54,7 @@ export default function Auth() {
 
       const displayName = userData?.[0]?.full_name || userData?.[0]?.username || email;
       toast.success(`Welcome back, ${displayName}!`);
-      navigate("/dashboard");
+      navigate(nextPath ?? "/dashboard");
     } catch (err: any) {
       toast.error(err.message || "Login failed");
     } finally {
