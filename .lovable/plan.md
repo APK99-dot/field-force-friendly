@@ -1,34 +1,53 @@
 ## Goal
 
-Make vendor-quoted GST flow end-to-end, and make vendor selection/status come from the database instead of transient component state.
+Rewrite `src/utils/purchaseOrderPdf.ts` so the PO renders as a clean, single-page A4 ERP document with a properly aligned 10-column item table.
 
-## What I verified in the code
+## Root cause of the overlap
 
-- `procurement_vendor_quote_items` already has a `gst_percent` column and the vendor portal (`VendorQuote.tsx` + `submit-vendor-quote`) does save it.
-- `ProcurementDetail.tsx`'s `VendorQuoteItemRow` interface (line ~99) has **no** `gst_percent` field, and neither `applyLineQuote` nor the auto-apply effect copies the vendor's GST onto the line — so `procurement_items.gst_percent` stays 0 and Vendor Comparison shows "No GST (0%)".
-- `selectLineWinner` / `applyLineQuote` mutate only `rateLines` + `vendorAssignments` and toast "Save PO to persist" — nothing is written to the DB until the user clicks Save.
-- The `useEffect` on `[order]` (line 306) rebuilds `rateLines` and `vendorAssignments` from the server on every parent refresh, so any unsaved selection is wiped → the "Selected" badge disappears and the "Select" button reappears (the flicker).
+The current `cols` array hardcodes each column's `x` with inconsistent offsets (`marginX + 136`, `marginX + 158`, `rightX - 26`, `rightX`) and the `w` values don't match the gaps. "Taxable", "GST Amt" and "Total" end up drawn nearly on top of each other — exactly what the screenshot shows (`Rs.Rs.040.0.00`).
 
-## Changes
+## Changes (all in `src/utils/purchaseOrderPdf.ts`)
 
-### 1. GST flow-through
-- Add `gst_percent` to the `VendorQuoteItemRow` interface so quoted GST is read from the already-selected `procurement_vendor_quote_items(*)`.
-- In `applyLineQuote` and the single-quote auto-apply effect, set the line's `gst_percent` from the vendor's quote item and persist it alongside `rate`/`rate_source` on `procurement_items`.
-- Vendor Comparison per-vendor rows: add GST %, Taxable, GST Amount, Line Total columns computed from the quote's own `gst_percent` (via the existing `lineGstBreakup` helper), so vendors are compared on GST-inclusive totals.
-- Quote Details tab and the View Quote dialog totals: include GST % per line and add Total GST to the footer.
-- PO generation and the PO PDF already read `procurement_items.gst_percent`; once step 1 persists it, both pick it up with no further change (verify against a generated PDF).
+### 1. Column model
+Replace ad-hoc x offsets with a width-driven layout computed once from the usable width (186mm), then derive each column's left/right edge:
 
-### 2. Persist vendor selection immediately
-- Make `selectLineWinner` / `applyLineQuote` async and write to `procurement_items` in the same action: `rate`, `gst_percent`, `rate_source = 'quote'`, `rate_source_vendor_id`, `vendor_ids = [winner]`.
-- Await the write, then call `onChanged()` so the refetched server row is what re-renders — the DB becomes the source of truth. Replace the "Save PO to persist" toast with a confirmation of the saved selection.
-- Losing vendors' assignments for that line are removed in the same write, not just in local state.
+| Column | Width (mm) | Align |
+|---|---|---|
+| # | 7 | left |
+| Material | 34 | left |
+| Description | 30 | left |
+| Qty | 11 | right |
+| UOM | 12 | left |
+| Rate | 19 | right |
+| Disc % | 13 | right |
+| Rate After Disc | 20 | right |
+| GST % | 11 | right |
+| GST Amt | 19 | right |
+| Line Total | 22 | right |
 
-### 3. Kill the flicker / races
-- Guard the `[order]` re-init effect: skip rebuilding `rateLines`/`vendorAssignments` while a selection write is in flight (a ref-based "pending write" flag), so a mid-flight refresh cannot revert to stale server data.
-- Make the auto-apply effect idempotent and one-shot per line: track already-applied line ids in a ref so re-renders/refreshes cannot re-trigger the write loop, and skip any line that already has `rate_source_vendor_id` persisted.
-- Derive the vendor status badges (Quote Submitted / Selected / PO Issued) purely from the fetched `vendorQuotes` + `procurement_items` rows, not from any local "just clicked" state.
+Right-aligned cells anchor to `x + w - 1.5`, left-aligned to `x + 1.5`, with `splitTextToSize(..., w - 3)` on every cell so nothing bleeds into the neighbour. Header row gets a filled band plus thin column separators and a bottom rule; zebra striping on alternate rows.
 
-### Technical notes
-- No schema migration needed: `gst_percent` exists on both `procurement_items` and `procurement_vendor_quote_items`.
-- All edits are inside `src/components/procurement/ProcurementDetail.tsx`; `src/utils/purchaseOrderPdf.ts` is only touched if the PDF needs the vendor-quoted GST label.
-- GRN, invoice, payment and stage-advance logic stay unchanged.
+Note: `discount` is currently an absolute amount on `POLineInput`. For a "Discount %" column it will be shown as a percentage of gross (`disc / gross * 100`), and "Rate After Discount" as `rate - disc/qty`, so no caller/DB change is needed.
+
+### 2. Header
+Logo left, company name + address/phone/email/GSTIN under it; "PURCHASE ORDER" title right with a bordered metadata box (PO #, Date, Version, Requisition ref). Tighter leading, thinner rules, navy accent line.
+
+### 3. Party + info blocks
+Three bordered panels in one band — Vendor | Ship To | Bill To — each with a shaded caption bar and fixed height, so the block no longer grows unevenly. Below it a compact 4-cell meta strip: Site, Requisition, Expected Delivery, Payment Terms.
+
+### 4. Financial summary
+Right-aligned bordered box under the table: Gross, Discount (if any), Taxable Amount, Total GST, then a highlighted Grand Total row.
+
+### 5. Terms & signature
+Terms & Conditions as a compact numbered list at 7.5pt; two signature blocks side by side ("Prepared By" / "Authorised Signatory") pinned near the page bottom, with a page-number footer.
+
+### 6. Currency
+Format as `₹ 1,234.00`. jsPDF's built-in Helvetica has no ₹ glyph, so ₹ needs an embedded Unicode TTF (adds ~150–300 KB to the bundle). Plan: embed a subset-free Noto Sans (or DejaVu Sans) TTF via `doc.addFileToVFS`/`addFont` loaded lazily so it only downloads when a PO is generated. If you'd rather avoid the extra weight, we keep `Rs.` — tell me and I'll switch.
+
+### 7. Single page
+Reduced vertical rhythm (4.0mm line height, 3mm section gaps), 8pt body / 7.5pt table text. With ≤ ~15 line items the document fits one A4 page; beyond that the table paginates with a repeated header, and the summary/terms/signature always stay together.
+
+## Technical notes
+- Only `src/utils/purchaseOrderPdf.ts` changes; `buildPurchaseOrderPdf`'s signature and all call sites in `ProcurementDetail.tsx` stay identical.
+- GST calculation logic (taxable = gross − discount, gstAmt = taxable × gst%) is unchanged.
+- Verification: generate a PO PDF, rasterise it, and visually confirm no column overlap and single-page fit.
