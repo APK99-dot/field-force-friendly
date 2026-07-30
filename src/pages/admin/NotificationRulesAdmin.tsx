@@ -30,6 +30,7 @@ import {
   type NotificationRuleRow,
 } from "@/components/admin/NotificationRuleForm";
 import { NotificationHistoryTab } from "@/components/admin/NotificationHistoryTab";
+import { ReportSubscriptionsTab } from "@/components/admin/reports/ReportSubscriptionsTab";
 
 const labelFor = (list: { value: string; label: string }[], value: string) =>
   list.find((i) => i.value === value)?.label ?? value;
@@ -219,6 +220,7 @@ export default function NotificationRulesAdmin() {
         <Tabs defaultValue="rules" className="w-full">
           <TabsList>
             <TabsTrigger value="rules">Notification Center</TabsTrigger>
+            <TabsTrigger value="reports">Report Subscriptions</TabsTrigger>
             <TabsTrigger value="history">Notification History</TabsTrigger>
           </TabsList>
 
@@ -345,6 +347,10 @@ export default function NotificationRulesAdmin() {
                 </CollapsibleContent>
               </Card>
             </Collapsible>
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <ReportSubscriptionsTab />
           </TabsContent>
 
           <TabsContent value="history">
