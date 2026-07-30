@@ -3577,7 +3577,8 @@ export default function ProcurementDetail({
                             {vendorVersions.map((v) => {
                               const vTotal = (v.procurement_vendor_quote_items || []).reduce((s, it) => {
                                 const line = rateLines.find((l) => l.id === it.procurement_item_id);
-                                return s + (Number(it.rate_after_discount ?? it.rate) || 0) * Number(line?.qty || 0);
+                                const after = Number(it.rate_after_discount ?? it.rate) || 0;
+                                return s + lineGstBreakup(after, Number(line?.qty || 0), Number(it.gst_percent ?? 0)).total;
                               }, 0);
                               const isCurrent = v.id === q.id;
                               return (
