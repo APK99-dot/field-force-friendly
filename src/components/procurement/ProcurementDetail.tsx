@@ -1551,57 +1551,80 @@ export default function ProcurementDetail({
     window.open(url, "_blank");
   };
 
-  // Apply a single vendor's quoted rate to one line item, tagging its source.
-  const applyLineQuote = (lineId: string, quote: VendorQuoteRow) => {
+  // Apply a single vendor's quoted rate (and quoted GST) to one line item and
+  // PERSIST it immediately — the database is the single source of truth for the
+  // selection, so it survives refresh, re-render and navigation.
+  const applyLineQuote = async (lineId: string, quote: VendorQuoteRow) => {
     const qi = (quote.procurement_vendor_quote_items || []).find((x) => x.procurement_item_id === lineId);
     if (!qi) { toast.error("This vendor did not quote this item."); return; }
+    if (!quote.vendor_id) { toast.error("This quote has no vendor."); return; }
+    const winnerVid = quote.vendor_id;
+    const line = rateLines.find((l) => l.id === lineId);
     const rate = Number(qi.rate_after_discount ?? qi.rate) || 0;
+    const gst = qi.gst_percent != null ? Number(qi.gst_percent) || 0 : (line?.gst_percent || 0);
+    const qty = line?.qty || 0;
+
+    // Optimistic UI, then write-through. The pending-write guard stops a
+    // concurrent parent refresh from reverting this while the write is in flight.
+    autoAppliedRef.current.add(lineId);
     setRateLines((prev) => prev.map((l) => l.id === lineId ? {
       ...l,
       rate: String(rate),
+      gst_percent: gst,
       rate_source: "quote",
-      rate_source_vendor_id: quote.vendor_id,
-      vendor_ids: quote.vendor_id && !l.vendor_ids.includes(quote.vendor_id)
-        ? [...l.vendor_ids, quote.vendor_id]
-        : l.vendor_ids,
+      rate_source_vendor_id: winnerVid,
+      vendor_ids: [winnerVid],
     } : l));
-    // Auto-fill expected delivery date from the vendor's commitment when empty,
-    // or pull it earlier if this vendor commits sooner.
-    if (qi.delivery_commitment_date) {
-      setPoForm((p) => {
-        if (!p.expected_delivery_date || qi.delivery_commitment_date! < p.expected_delivery_date) {
-          // Persist immediately so the value survives a reload even if the
-          // user never clicks "Save PO Details".
-          void persistDeliveryDate(qi.delivery_commitment_date!);
-          return { ...p, expected_delivery_date: qi.delivery_commitment_date! };
+    setVendorAssignments((prev) => prev
+      .map((r) =>
+        r.vendor_id && r.vendor_id !== winnerVid && r.line_ids.includes(lineId)
+          ? { ...r, line_ids: r.line_ids.filter((x) => x !== lineId), scope: "specific" as const }
+          : r,
+      )
+      .filter((r) => !r.vendor_id || r.line_ids.length > 0));
+
+    pendingItemWritesRef.current += 1;
+    try {
+      const { error } = await supabase.from("procurement_items").update({
+        rate,
+        amount: rate * qty,
+        gst_percent: gst,
+        rate_source: "quote",
+        rate_source_vendor_id: winnerVid,
+        vendor_ids: [winnerVid],
+      }).eq("id", lineId);
+      if (error) throw error;
+
+      // Keep the order total in sync with the newly applied rate + GST.
+      const nextLines = rateLines.map((l) => l.id === lineId
+        ? { ...l, rate: String(rate), gst_percent: gst }
+        : l);
+      const grand = nextLines.reduce((s, l) => s + lineGstBreakup(parseFloat(l.rate) || 0, l.qty || 0, l.gst_percent || 0).total, 0);
+      await supabase.from("procurement_orders").update({ total_amount: grand }).eq("id", order.id);
+
+      // Auto-fill expected delivery date from the vendor's commitment when empty,
+      // or pull it earlier if this vendor commits sooner.
+      if (qi.delivery_commitment_date) {
+        const cur = poForm.expected_delivery_date;
+        if (!cur || qi.delivery_commitment_date < cur) {
+          setPoForm((p) => ({ ...p, expected_delivery_date: qi.delivery_commitment_date! }));
+          await persistDeliveryDate(qi.delivery_commitment_date);
         }
-        return p;
-      });
+      }
+      toast.success(`${vendorName(winnerVid) || "Vendor"} selected for this item`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save vendor selection");
+    } finally {
+      pendingItemWritesRef.current = Math.max(0, pendingItemWritesRef.current - 1);
+      onChanged();
     }
-    toast.success("Rate applied. Remember to Save.");
   };
 
-  // "Select Winner" — apply the vendor's rate to this line AND remove the losing
-  // vendors' assignments for this same line, so only the chosen vendor remains.
+  // "Select Winner" — same persisted behaviour as applyLineQuote (the losing
+  // vendors' assignment for this line is dropped as part of the same write).
   const selectLineWinner = (lineId: string, quote: VendorQuoteRow) => {
     if (!quote.vendor_id) return;
-    const winnerVid = quote.vendor_id;
-    applyLineQuote(lineId, quote);
-    setVendorAssignments((prev) => {
-      const next = prev
-        .map((r) =>
-          r.vendor_id && r.vendor_id !== winnerVid && r.line_ids.includes(lineId)
-            ? { ...r, line_ids: r.line_ids.filter((x) => x !== lineId), scope: "specific" as const }
-            : r,
-        )
-        .filter((r) => !r.vendor_id || r.line_ids.length > 0);
-      syncLinesFromAssignments(next);
-      return next;
-    });
-    setRateLines((prev) => prev.map((l) => l.id === lineId
-      ? { ...l, vendor_ids: [winnerVid] }
-      : l));
-    toast.success("Winner selected. Save PO to persist.");
+    void applyLineQuote(lineId, quote);
   };
 
   // Update a single line's rate (manual edit clears/flips the source tag).
