@@ -3432,6 +3432,8 @@ export default function ProcurementDetail({
                             <th className="p-2 text-right">Disc %</th>
                             <th className="p-2 text-right">Disc Amt</th>
                             <th className="p-2 text-right">After Disc.</th>
+                            <th className="p-2 text-right">GST %</th>
+                            <th className="p-2 text-right">GST Amt</th>
                             <th className="p-2 text-right">Line Total</th>
                             <th className="p-2">Delivery</th>
                             {compare && <th className="p-2 text-right">Active After Disc.</th>}
