@@ -275,6 +275,9 @@ export function usePushNotifications(userId: string | undefined) {
       try { notifListener?.remove(); } catch (_) {}
       try { actionListener?.remove(); } catch (_) {}
       try { resumeListener?.remove(); } catch (_) {}
+      if (visibilityHandler) {
+        try { document.removeEventListener("visibilitychange", visibilityHandler); } catch (_) {}
+      }
     };
   }, [userId]);
 }
