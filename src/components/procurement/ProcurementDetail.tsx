@@ -2940,6 +2940,9 @@ export default function ProcurementDetail({
                                           </span>
                                         </td>
                                         <td className="py-1.5 pr-2">{lineAmount != null ? fmtAmt(lineAmount) : "-"}</td>
+                                        <td className="py-1.5 pr-2">{qi ? `${Number(qi.gst_percent ?? 0)}%` : "-"}</td>
+                                        <td className="py-1.5 pr-2">{quoteBreakup ? fmtAmt(quoteBreakup.gstAmount) : "-"}</td>
+                                        <td className="py-1.5 pr-2 font-medium">{quoteBreakup ? fmtAmt(quoteBreakup.total) : "-"}</td>
                                         <td className="py-1.5 pr-2">
                                           {variancePct == null ? "-" : variancePct === 0 ? (
                                             <span className="text-emerald-700 dark:text-emerald-400">Base</span>
