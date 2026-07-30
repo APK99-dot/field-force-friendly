@@ -2913,6 +2913,10 @@ export default function ProcurementDetail({
                                     const isBestOverall = priced.length >= 2 && q.vendor_id === bestOverallVid;
                                     const variancePct = canSelect && minRate > 0 && rate != null ? ((rate - minRate) / minRate) * 100 : null;
                                     const lineAmount = canSelect && rate != null ? rate * (l.qty || 0) : null;
+                                    // GST-aware totals driven by the GST slab the vendor submitted.
+                                    const quoteBreakup = canSelect && rate != null
+                                      ? lineGstBreakup(rate, l.qty || 0, Number(qi?.gst_percent ?? 0))
+                                      : null;
                                     return (
                                       <tr key={q.id} className={`border-t align-top ${isLoser ? "opacity-70" : ""} ${isWinner ? "bg-emerald-50/50 dark:bg-emerald-950/20" : ""}`}>
                                         <td className="py-1.5 pr-2 font-medium">
