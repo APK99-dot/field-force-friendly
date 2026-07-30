@@ -928,6 +928,7 @@ export default function ProcurementDetail({
           uom: (l as any).uom || null,
           rate,
           discount: discountAmt,
+          gst_percent: Number((l as any).gst_percent || 0),
         };
       });
 
