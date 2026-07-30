@@ -32,6 +32,7 @@ const SiteMasterPage = lazy(() => import("./pages/SiteMaster"));
 const ActivityTypeMasterPage = lazy(() => import("./pages/ActivityTypeMaster"));
 const InstallApp = lazy(() => import("./pages/InstallApp"));
 const VendorQuote = lazy(() => import("./pages/VendorQuote"));
+const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const Profile = lazy(() => import("./pages/Profile"));
 const MyTeam = lazy(() => import("./pages/MyTeam"));
 const Vendors = lazy(() => import("./pages/Vendors"));
@@ -89,6 +90,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/.lovable/oauth/consent" element={<Suspense fallback={<PageFallback />}><OAuthConsent /></Suspense>} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><Dashboard /></Suspense>} />
