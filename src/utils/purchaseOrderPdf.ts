@@ -374,12 +374,12 @@ export async function buildPurchaseOrderPdf(params: {
       it.description || "",
       qty ? String(it.qty) : "-",
       it.uom || "-",
-      INR(rate),
-      discPct ? `${num2(discPct)}%` : "-",
-      INR(rateAfterDisc),
-      `${gstPct}%`,
-      INR(gstAmt),
-      INR(lineTotal),
+      num2(rate),
+      discPct ? num2(discPct) : "-",
+      num2(rateAfterDisc),
+      `${gstPct}`,
+      num2(gstAmt),
+      num2(lineTotal),
     ];
 
     f("normal", 7.2);
