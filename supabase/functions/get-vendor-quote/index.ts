@@ -143,6 +143,7 @@ Deno.serve(async (req) => {
         expected_delivery_date: order.expected_delivery_date || null,
         rate: saved ? Number(saved.rate) : null,
         discount_pct: saved ? Number(saved.discount_pct) : 0,
+        gst_percent: saved ? Number(saved.gst_percent || 0) : Number(it.gst_percent || 0),
         rate_after_discount: saved ? Number(saved.rate_after_discount) : null,
         delivery_commitment_date: saved?.delivery_commitment_date || null,
         quality_notes: saved?.quality_notes || "",
