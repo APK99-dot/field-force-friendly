@@ -192,36 +192,44 @@ export async function buildPurchaseOrderPdf(params: {
 
   // Items table
   const cols = [
-    { key: "sn", label: "#", x: marginX, w: 8, align: "left" as const },
-    { key: "material", label: "Material", x: marginX + 8, w: 46, align: "left" as const },
-    { key: "desc", label: "Description", x: marginX + 54, w: 44, align: "left" as const },
-    { key: "qty", label: "Qty", x: marginX + 98, w: 14, align: "right" as const },
-    { key: "uom", label: "UOM", x: marginX + 112, w: 14, align: "left" as const },
-    { key: "rate", label: "Rate", x: marginX + 126, w: 20, align: "right" as const },
-    { key: "disc", label: "Disc", x: marginX + 146, w: 16, align: "right" as const },
-    { key: "amt", label: "Amount", x: rightX, w: 24, align: "right" as const },
+    { key: "sn", label: "#", x: marginX, w: 6, align: "left" as const },
+    { key: "material", label: "Material", x: marginX + 6, w: 34, align: "left" as const },
+    { key: "desc", label: "Description", x: marginX + 40, w: 26, align: "left" as const },
+    { key: "qty", label: "Qty", x: marginX + 78, w: 12, align: "right" as const },
+    { key: "uom", label: "UOM", x: marginX + 80, w: 10, align: "left" as const },
+    { key: "rate", label: "Rate", x: marginX + 104, w: 18, align: "right" as const },
+    { key: "disc", label: "Disc", x: marginX + 122, w: 14, align: "right" as const },
+    { key: "gstp", label: "GST%", x: marginX + 136, w: 12, align: "right" as const },
+    { key: "taxable", label: "Taxable", x: marginX + 158, w: 20, align: "right" as const },
+    { key: "gstamt", label: "GST Amt", x: rightX - 26, w: 20, align: "right" as const },
+    { key: "amt", label: "Total", x: rightX, w: 24, align: "right" as const },
   ];
 
   const drawTableHeader = (yy: number) => {
     doc.setFillColor(240, 240, 240);
     doc.rect(marginX, yy - 4, rightX - marginX, 6, "F");
-    doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8);
     cols.forEach((c) => doc.text(c.label, c.x, yy, { align: c.align }));
     doc.setFont("helvetica", "normal");
     return yy + 4;
   };
 
   y = drawTableHeader(y);
-  doc.setFontSize(9);
+  doc.setFontSize(8);
 
   let subtotal = 0;
   let totalDisc = 0;
+  let totalGst = 0;
   items.forEach((it, idx) => {
     const gross = (Number(it.qty) || 0) * (Number(it.rate) || 0);
     const disc = Number(it.discount) || 0;
-    const amt = Math.max(0, gross - disc);
-    subtotal += gross;
+    const taxable = Math.max(0, gross - disc);
+    const gstPct = Number(it.gst_percent) || 0;
+    const gstAmt = taxable * (gstPct / 100);
+    const amt = taxable + gstAmt;
+    subtotal += taxable;
     totalDisc += disc;
+    totalGst += gstAmt;
 
     const nameLines = doc.splitTextToSize(it.product_name || "-", cols[1].w - 1);
     const descLines = doc.splitTextToSize(it.description || "", cols[2].w - 1);
@@ -240,7 +248,10 @@ export async function buildPurchaseOrderPdf(params: {
     doc.text(String(it.uom || "-"), cols[4].x, y);
     doc.text(INR(it.rate), cols[5].x, y, { align: "right" });
     doc.text(disc ? INR(disc) : "-", cols[6].x, y, { align: "right" });
-    doc.text(INR(amt), cols[7].x, y, { align: "right" });
+    doc.text(`${gstPct}%`, cols[7].x, y, { align: "right" });
+    doc.text(INR(taxable), cols[8].x, y, { align: "right" });
+    doc.text(INR(gstAmt), cols[9].x, y, { align: "right" });
+    doc.text(INR(amt), cols[10].x, y, { align: "right" });
     y += rowH;
   });
 
@@ -249,21 +260,25 @@ export async function buildPurchaseOrderPdf(params: {
   y += 5;
 
   // Totals
-  const grand = Math.max(0, subtotal - totalDisc);
+  const grand = subtotal + totalGst;
   const totalsX = rightX - 60;
   doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-  doc.text("Subtotal:", totalsX, y);
-  doc.text(INR(subtotal), rightX, y, { align: "right" });
-  y += 5;
   if (totalDisc > 0) {
     doc.text("Discount:", totalsX, y);
     doc.text(`- ${INR(totalDisc)}`, rightX, y, { align: "right" });
     y += 5;
   }
+  doc.text("Subtotal (Taxable):", totalsX, y);
+  doc.text(INR(subtotal), rightX, y, { align: "right" });
+  y += 5;
+  doc.text("Total GST:", totalsX, y);
+  doc.text(INR(totalGst), rightX, y, { align: "right" });
+  y += 5;
   doc.setFont("helvetica", "bold"); doc.setFontSize(11);
   doc.text("Grand Total:", totalsX, y);
   doc.text(INR(grand), rightX, y, { align: "right" });
   y += 8;
+
 
   // Terms & Conditions
   const terms = (order.terms_and_conditions || []).filter((t) => t && t.trim().length);
