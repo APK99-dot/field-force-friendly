@@ -375,7 +375,7 @@ export async function buildPurchaseOrderPdf(params: {
       qty ? String(it.qty) : "-",
       it.uom || "-",
       num2(rate),
-      discPct ? num2(discPct) : "-",
+      discPct ? discPct.toFixed(1) : "-",
       num2(rateAfterDisc),
       `${gstPct}`,
       num2(gstAmt),
