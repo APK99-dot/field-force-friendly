@@ -100,6 +100,7 @@ interface VendorQuoteItemRow {
   procurement_item_id: string | null;
   rate: number;
   discount_pct: number;
+  gst_percent?: number | null;
   rate_after_discount: number;
   delivery_commitment_date: string | null;
   is_selected: boolean;
@@ -303,6 +304,13 @@ export default function ProcurementDetail({
   const lastServerPoRef = useRef<{ expected_delivery_date: string; payment_terms: string; order_id: string | null }>({
     expected_delivery_date: "", payment_terms: "", order_id: null,
   });
+  // Number of in-flight writes to procurement_items (vendor selection / rate / GST).
+  // While > 0 we must not rebuild rateLines from the parent `order` prop, because
+  // that prop may still hold pre-write data and would visibly revert the selection.
+  const pendingItemWritesRef = useRef(0);
+  // Line ids whose single-quote rate has already been auto-applied in this session,
+  // so the effect can never fire twice for the same line (prevents write loops).
+  const autoAppliedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     // Case-normalize payment_terms against the canonical PAYMENT_TERMS options
     // so a stored "net 30" matches the "Net 30" Select option instead of rendering blank.
@@ -322,6 +330,9 @@ export default function ProcurementDetail({
       return { expected_delivery_date: nextDate, payment_terms: nextPt };
     });
     lastServerPoRef.current = { expected_delivery_date: serverDate, payment_terms: normalizedPt, order_id: order.id };
+    // A selection/rate write is still in flight — the incoming `order` snapshot is
+    // stale for line items. Skip the rebuild; the post-write refresh will apply it.
+    if (pendingItemWritesRef.current > 0) return;
     const lines = (order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, uom: it.uom, qty: it.qty, rate: String(it.rate ?? ""),
       gst_percent: Number(it.gst_percent ?? 0),
@@ -1386,12 +1397,15 @@ export default function ProcurementDetail({
   // required when 2+ vendors have submitted competing quotes for the same line.
   useEffect(() => {
     if (!open || vendorQuotes.length === 0 || rateLines.length === 0) return;
-    const persistUpdates: { id: string; rate: number; vendor_id: string; vendor_ids: string[] }[] = [];
+    const persistUpdates: { id: string; rate: number; gst: number; vendor_id: string; vendor_ids: string[]; qty: number }[] = [];
     setRateLines((prev) => {
       let changed = false;
       const next = prev.map((l) => {
-        // Skip if buyer has already made an explicit choice/edit.
+        // Skip if buyer has already made an explicit choice/edit, or if this
+        // line was already auto-applied once in this session (idempotency).
         if (l.rate_source === "quote" || l.rate_source === "manual_adjusted") return l;
+        if (l.rate_source_vendor_id) return l;
+        if (autoAppliedRef.current.has(l.id)) return l;
         if (Number(l.rate) > 0) return l;
         const submitted = vendorQuotes.filter(
           (q) => q.status === "submitted" &&
@@ -1405,13 +1419,17 @@ export default function ProcurementDetail({
         const rate = Number(qi.rate_after_discount ?? qi.rate) || 0;
         if (rate <= 0 || !q.vendor_id) return l;
         changed = true;
+        autoAppliedRef.current.add(l.id);
         const nextVendorIds = !l.vendor_ids.includes(q.vendor_id)
           ? [...l.vendor_ids, q.vendor_id]
           : l.vendor_ids;
-        persistUpdates.push({ id: l.id, rate, vendor_id: q.vendor_id, vendor_ids: nextVendorIds });
+        // Carry the vendor's quoted GST slab onto the PO line.
+        const gst = qi.gst_percent != null ? Number(qi.gst_percent) || 0 : (l.gst_percent || 0);
+        persistUpdates.push({ id: l.id, rate, gst, vendor_id: q.vendor_id, vendor_ids: nextVendorIds, qty: l.qty || 0 });
         return {
           ...l,
           rate: String(rate),
+          gst_percent: gst,
           rate_source: "quote",
           rate_source_vendor_id: q.vendor_id,
           vendor_ids: nextVendorIds,
@@ -1422,18 +1440,23 @@ export default function ProcurementDetail({
     // Persist so the auto-applied selection survives the next server refresh
     // (prevents "Selected" badge flicker when onChanged reloads the order).
     if (persistUpdates.length) {
+      pendingItemWritesRef.current += 1;
       void Promise.all(
         persistUpdates.map((u) =>
           supabase.from("procurement_items")
             .update({
               rate: u.rate,
+              amount: u.rate * u.qty,
+              gst_percent: u.gst,
               rate_source: "quote",
               rate_source_vendor_id: u.vendor_id,
               vendor_ids: u.vendor_ids,
             })
             .eq("id", u.id),
         ),
-      ).catch(() => {});
+      )
+        .catch(() => {})
+        .finally(() => { pendingItemWritesRef.current = Math.max(0, pendingItemWritesRef.current - 1); });
     }
   }, [open, vendorQuotes, rateLines.length]);
 
@@ -1528,57 +1551,80 @@ export default function ProcurementDetail({
     window.open(url, "_blank");
   };
 
-  // Apply a single vendor's quoted rate to one line item, tagging its source.
-  const applyLineQuote = (lineId: string, quote: VendorQuoteRow) => {
+  // Apply a single vendor's quoted rate (and quoted GST) to one line item and
+  // PERSIST it immediately — the database is the single source of truth for the
+  // selection, so it survives refresh, re-render and navigation.
+  const applyLineQuote = async (lineId: string, quote: VendorQuoteRow) => {
     const qi = (quote.procurement_vendor_quote_items || []).find((x) => x.procurement_item_id === lineId);
     if (!qi) { toast.error("This vendor did not quote this item."); return; }
+    if (!quote.vendor_id) { toast.error("This quote has no vendor."); return; }
+    const winnerVid = quote.vendor_id;
+    const line = rateLines.find((l) => l.id === lineId);
     const rate = Number(qi.rate_after_discount ?? qi.rate) || 0;
+    const gst = qi.gst_percent != null ? Number(qi.gst_percent) || 0 : (line?.gst_percent || 0);
+    const qty = line?.qty || 0;
+
+    // Optimistic UI, then write-through. The pending-write guard stops a
+    // concurrent parent refresh from reverting this while the write is in flight.
+    autoAppliedRef.current.add(lineId);
     setRateLines((prev) => prev.map((l) => l.id === lineId ? {
       ...l,
       rate: String(rate),
+      gst_percent: gst,
       rate_source: "quote",
-      rate_source_vendor_id: quote.vendor_id,
-      vendor_ids: quote.vendor_id && !l.vendor_ids.includes(quote.vendor_id)
-        ? [...l.vendor_ids, quote.vendor_id]
-        : l.vendor_ids,
+      rate_source_vendor_id: winnerVid,
+      vendor_ids: [winnerVid],
     } : l));
-    // Auto-fill expected delivery date from the vendor's commitment when empty,
-    // or pull it earlier if this vendor commits sooner.
-    if (qi.delivery_commitment_date) {
-      setPoForm((p) => {
-        if (!p.expected_delivery_date || qi.delivery_commitment_date! < p.expected_delivery_date) {
-          // Persist immediately so the value survives a reload even if the
-          // user never clicks "Save PO Details".
-          void persistDeliveryDate(qi.delivery_commitment_date!);
-          return { ...p, expected_delivery_date: qi.delivery_commitment_date! };
+    setVendorAssignments((prev) => prev
+      .map((r) =>
+        r.vendor_id && r.vendor_id !== winnerVid && r.line_ids.includes(lineId)
+          ? { ...r, line_ids: r.line_ids.filter((x) => x !== lineId), scope: "specific" as const }
+          : r,
+      )
+      .filter((r) => !r.vendor_id || r.line_ids.length > 0));
+
+    pendingItemWritesRef.current += 1;
+    try {
+      const { error } = await supabase.from("procurement_items").update({
+        rate,
+        amount: rate * qty,
+        gst_percent: gst,
+        rate_source: "quote",
+        rate_source_vendor_id: winnerVid,
+        vendor_ids: [winnerVid],
+      }).eq("id", lineId);
+      if (error) throw error;
+
+      // Keep the order total in sync with the newly applied rate + GST.
+      const nextLines = rateLines.map((l) => l.id === lineId
+        ? { ...l, rate: String(rate), gst_percent: gst }
+        : l);
+      const grand = nextLines.reduce((s, l) => s + lineGstBreakup(parseFloat(l.rate) || 0, l.qty || 0, l.gst_percent || 0).total, 0);
+      await supabase.from("procurement_orders").update({ total_amount: grand }).eq("id", order.id);
+
+      // Auto-fill expected delivery date from the vendor's commitment when empty,
+      // or pull it earlier if this vendor commits sooner.
+      if (qi.delivery_commitment_date) {
+        const cur = poForm.expected_delivery_date;
+        if (!cur || qi.delivery_commitment_date < cur) {
+          setPoForm((p) => ({ ...p, expected_delivery_date: qi.delivery_commitment_date! }));
+          await persistDeliveryDate(qi.delivery_commitment_date);
         }
-        return p;
-      });
+      }
+      toast.success(`${vendorName(winnerVid) || "Vendor"} selected for this item`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save vendor selection");
+    } finally {
+      pendingItemWritesRef.current = Math.max(0, pendingItemWritesRef.current - 1);
+      onChanged();
     }
-    toast.success("Rate applied. Remember to Save.");
   };
 
-  // "Select Winner" — apply the vendor's rate to this line AND remove the losing
-  // vendors' assignments for this same line, so only the chosen vendor remains.
+  // "Select Winner" — same persisted behaviour as applyLineQuote (the losing
+  // vendors' assignment for this line is dropped as part of the same write).
   const selectLineWinner = (lineId: string, quote: VendorQuoteRow) => {
     if (!quote.vendor_id) return;
-    const winnerVid = quote.vendor_id;
-    applyLineQuote(lineId, quote);
-    setVendorAssignments((prev) => {
-      const next = prev
-        .map((r) =>
-          r.vendor_id && r.vendor_id !== winnerVid && r.line_ids.includes(lineId)
-            ? { ...r, line_ids: r.line_ids.filter((x) => x !== lineId), scope: "specific" as const }
-            : r,
-        )
-        .filter((r) => !r.vendor_id || r.line_ids.length > 0);
-      syncLinesFromAssignments(next);
-      return next;
-    });
-    setRateLines((prev) => prev.map((l) => l.id === lineId
-      ? { ...l, vendor_ids: [winnerVid] }
-      : l));
-    toast.success("Winner selected. Save PO to persist.");
+    void applyLineQuote(lineId, quote);
   };
 
   // Update a single line's rate (manual edit clears/flips the source tag).
@@ -2846,7 +2892,10 @@ export default function ProcurementDetail({
                                     <th className="py-1 pr-2">Rate</th>
                                     <th className="py-1 pr-2">Disc %</th>
                                     <th className="py-1 pr-2">After Disc.</th>
-                                    <th className="py-1 pr-2">Amount</th>
+                                    <th className="py-1 pr-2">Taxable</th>
+                                    <th className="py-1 pr-2">GST %</th>
+                                    <th className="py-1 pr-2">GST Amt</th>
+                                    <th className="py-1 pr-2">Line Total</th>
                                     <th className="py-1 pr-2">Variance</th>
                                     <th className="py-1 pr-2">Delivery</th>
                                     <th className="py-1 pr-2">Payment</th>
@@ -2864,6 +2913,10 @@ export default function ProcurementDetail({
                                     const isBestOverall = priced.length >= 2 && q.vendor_id === bestOverallVid;
                                     const variancePct = canSelect && minRate > 0 && rate != null ? ((rate - minRate) / minRate) * 100 : null;
                                     const lineAmount = canSelect && rate != null ? rate * (l.qty || 0) : null;
+                                    // GST-aware totals driven by the GST slab the vendor submitted.
+                                    const quoteBreakup = canSelect && rate != null
+                                      ? lineGstBreakup(rate, l.qty || 0, Number(qi?.gst_percent ?? 0))
+                                      : null;
                                     return (
                                       <tr key={q.id} className={`border-t align-top ${isLoser ? "opacity-70" : ""} ${isWinner ? "bg-emerald-50/50 dark:bg-emerald-950/20" : ""}`}>
                                         <td className="py-1.5 pr-2 font-medium">
@@ -2891,6 +2944,9 @@ export default function ProcurementDetail({
                                           </span>
                                         </td>
                                         <td className="py-1.5 pr-2">{lineAmount != null ? fmtAmt(lineAmount) : "-"}</td>
+                                        <td className="py-1.5 pr-2">{qi ? `${Number(qi.gst_percent ?? 0)}%` : "-"}</td>
+                                        <td className="py-1.5 pr-2">{quoteBreakup ? fmtAmt(quoteBreakup.gstAmount) : "-"}</td>
+                                        <td className="py-1.5 pr-2 font-medium">{quoteBreakup ? fmtAmt(quoteBreakup.total) : "-"}</td>
                                         <td className="py-1.5 pr-2">
                                           {variancePct == null ? "-" : variancePct === 0 ? (
                                             <span className="text-emerald-700 dark:text-emerald-400">Base</span>
@@ -3328,6 +3384,7 @@ export default function ProcurementDetail({
             .sort((a, b) => (b.version || 1) - (a.version || 1));
           let totalBefore = 0;
           let totalAfter = 0;
+          let totalGst = 0;
           items.forEach((it) => {
             const line = rateLines.find((l) => l.id === it.procurement_item_id);
             const qty = Number(line?.qty || 0);
@@ -3335,6 +3392,7 @@ export default function ProcurementDetail({
             const after = Number(it.rate_after_discount ?? it.rate) || 0;
             totalBefore += rate * qty;
             totalAfter += after * qty;
+            totalGst += lineGstBreakup(after, qty, Number(it.gst_percent ?? 0)).gstAmount;
           });
           const totalDiscount = totalBefore - totalAfter;
           return (
@@ -3374,6 +3432,8 @@ export default function ProcurementDetail({
                             <th className="p-2 text-right">Disc %</th>
                             <th className="p-2 text-right">Disc Amt</th>
                             <th className="p-2 text-right">After Disc.</th>
+                            <th className="p-2 text-right">GST %</th>
+                            <th className="p-2 text-right">GST Amt</th>
                             <th className="p-2 text-right">Line Total</th>
                             <th className="p-2">Delivery</th>
                             {compare && <th className="p-2 text-right">Active After Disc.</th>}
@@ -3388,7 +3448,9 @@ export default function ProcurementDetail({
                             const rate = Number(it.rate) || 0;
                             const after = Number(it.rate_after_discount ?? it.rate) || 0;
                             const discAmt = (rate - after) * qty;
-                            const lineTotal = after * qty;
+                            const gstPct = Number(it.gst_percent ?? 0);
+                            const bk = lineGstBreakup(after, qty, gstPct);
+                            const lineTotal = bk.total;
                             return (
                               <tr key={(it as any).id || `${q.id}-${it.procurement_item_id}`} className="border-t">
                                 <td className="p-2 text-muted-foreground">{idx + 1}</td>
@@ -3399,6 +3461,8 @@ export default function ProcurementDetail({
                                 <td className="p-2 text-right">{Number(it.discount_pct) || 0}%</td>
                                 <td className="p-2 text-right">{fmtAmt(discAmt)}</td>
                                 <td className="p-2 text-right">{fmtAmt(after)}</td>
+                                <td className="p-2 text-right">{gstPct}%</td>
+                                <td className="p-2 text-right">{fmtAmt(bk.gstAmount)}</td>
                                 <td className="p-2 text-right font-medium">{fmtAmt(lineTotal)}</td>
                                 <td className="p-2">{it.delivery_commitment_date || "—"}</td>
                                 {compare && (
@@ -3421,18 +3485,28 @@ export default function ProcurementDetail({
                         </tbody>
                         <tfoot className="bg-muted/30 font-medium">
                           <tr className="border-t">
-                            <td colSpan={8} className="p-2 text-right text-muted-foreground">Total Before Discount</td>
+                            <td colSpan={10} className="p-2 text-right text-muted-foreground">Total Before Discount</td>
                             <td className="p-2 text-right">{fmtAmt(totalBefore)}</td>
                             <td colSpan={compare ? 2 : 1}></td>
                           </tr>
                           <tr>
-                            <td colSpan={8} className="p-2 text-right text-muted-foreground">Total Discount</td>
+                            <td colSpan={10} className="p-2 text-right text-muted-foreground">Total Discount</td>
                             <td className="p-2 text-right text-emerald-700">− {fmtAmt(totalDiscount)}</td>
                             <td colSpan={compare ? 2 : 1}></td>
                           </tr>
+                          <tr>
+                            <td colSpan={10} className="p-2 text-right text-muted-foreground">Subtotal (Taxable)</td>
+                            <td className="p-2 text-right">{fmtAmt(totalAfter)}</td>
+                            <td colSpan={compare ? 2 : 1}></td>
+                          </tr>
+                          <tr>
+                            <td colSpan={10} className="p-2 text-right text-muted-foreground">Total GST</td>
+                            <td className="p-2 text-right">{fmtAmt(totalGst)}</td>
+                            <td colSpan={compare ? 2 : 1}></td>
+                          </tr>
                           <tr className="border-t">
-                            <td colSpan={8} className="p-2 text-right text-sm font-semibold">Grand Total</td>
-                            <td className="p-2 text-right text-sm font-bold text-primary">{fmtAmt(totalAfter)}</td>
+                            <td colSpan={10} className="p-2 text-right text-sm font-semibold">Grand Total</td>
+                            <td className="p-2 text-right text-sm font-bold text-primary">{fmtAmt(totalAfter + totalGst)}</td>
                             <td colSpan={compare ? 2 : 1}></td>
                           </tr>
                         </tfoot>
@@ -3503,7 +3577,8 @@ export default function ProcurementDetail({
                             {vendorVersions.map((v) => {
                               const vTotal = (v.procurement_vendor_quote_items || []).reduce((s, it) => {
                                 const line = rateLines.find((l) => l.id === it.procurement_item_id);
-                                return s + (Number(it.rate_after_discount ?? it.rate) || 0) * Number(line?.qty || 0);
+                                const after = Number(it.rate_after_discount ?? it.rate) || 0;
+                                return s + lineGstBreakup(after, Number(line?.qty || 0), Number(it.gst_percent ?? 0)).total;
                               }, 0);
                               const isCurrent = v.id === q.id;
                               return (

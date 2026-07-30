@@ -1,101 +1,34 @@
 ## Goal
 
-Add a full Purchase Order generation workflow to the Procurement module: on click, produce a branded A4 PO PDF, store it against the order, and expose Preview / Download / Print / Email actions plus a version history. All existing procurement, vendor, GRN, invoice, and status logic stays untouched.
+Make vendor-quoted GST flow end-to-end, and make vendor selection/status come from the database instead of transient component state.
 
-## Where things live today (verified)
+## What I verified in the code
 
-- Stage flow already has `PO Issued`; the "Issue PO" transition (`Quote Received → PO Issued`) is in `src/lib/procurement.ts` and driven by the existing `advanceOpen` dialog in `src/components/procurement/ProcurementDetail.tsx`. PO Number auto-generation is handled by DB trigger `set_po_number()` — no change needed.
-- `jsPDF` is already used for the Quote Request PDF (`buildQuoteDoc` in `ProcurementDetail.tsx`); we'll reuse the same import.
-- `procurement_attachments` table already exists with `scope`, `file_name`, `file_path`, `content_type`, `created_by`, `created_at`. It has no `version` column yet.
-- `company_profile` table (used by `AppHeader` and `reportPdf`) supplies logo + company details.
-- Storage bucket `procurement-attachments` is already present.
+- `procurement_vendor_quote_items` already has a `gst_percent` column and the vendor portal (`VendorQuote.tsx` + `submit-vendor-quote`) does save it.
+- `ProcurementDetail.tsx`'s `VendorQuoteItemRow` interface (line ~99) has **no** `gst_percent` field, and neither `applyLineQuote` nor the auto-apply effect copies the vendor's GST onto the line — so `procurement_items.gst_percent` stays 0 and Vendor Comparison shows "No GST (0%)".
+- `selectLineWinner` / `applyLineQuote` mutate only `rateLines` + `vendorAssignments` and toast "Save PO to persist" — nothing is written to the DB until the user clicks Save.
+- The `useEffect` on `[order]` (line 306) rebuilds `rateLines` and `vendorAssignments` from the server on every parent refresh, so any unsaved selection is wiped → the "Selected" badge disappears and the "Select" button reappears (the flicker).
 
 ## Changes
 
-### 1. Database (one migration)
+### 1. GST flow-through
+- Add `gst_percent` to the `VendorQuoteItemRow` interface so quoted GST is read from the already-selected `procurement_vendor_quote_items(*)`.
+- In `applyLineQuote` and the single-quote auto-apply effect, set the line's `gst_percent` from the vendor's quote item and persist it alongside `rate`/`rate_source` on `procurement_items`.
+- Vendor Comparison per-vendor rows: add GST %, Taxable, GST Amount, Line Total columns computed from the quote's own `gst_percent` (via the existing `lineGstBreakup` helper), so vendors are compared on GST-inclusive totals.
+- Quote Details tab and the View Quote dialog totals: include GST % per line and add Total GST to the footer.
+- PO generation and the PO PDF already read `procurement_items.gst_percent`; once step 1 persists it, both pick it up with no further change (verify against a generated PDF).
 
-Add PO-document metadata to `procurement_attachments`:
+### 2. Persist vendor selection immediately
+- Make `selectLineWinner` / `applyLineQuote` async and write to `procurement_items` in the same action: `rate`, `gst_percent`, `rate_source = 'quote'`, `rate_source_vendor_id`, `vendor_ids = [winner]`.
+- Await the write, then call `onChanged()` so the refetched server row is what re-renders — the DB becomes the source of truth. Replace the "Save PO to persist" toast with a confirmation of the saved selection.
+- Losing vendors' assignments for that line are removed in the same write, not just in local state.
 
-- `version INT` (nullable, only set for PO documents)
-- `notes TEXT` (optional regeneration reason)
-- Partial unique index on `(po_id, version)` where `scope = 'po_document'` so version numbers stay unique per PO.
+### 3. Kill the flicker / races
+- Guard the `[order]` re-init effect: skip rebuilding `rateLines`/`vendorAssignments` while a selection write is in flight (a ref-based "pending write" flag), so a mid-flight refresh cannot revert to stale server data.
+- Make the auto-apply effect idempotent and one-shot per line: track already-applied line ids in a ref so re-renders/refreshes cannot re-trigger the write loop, and skip any line that already has `rate_source_vendor_id` persisted.
+- Derive the vendor status badges (Quote Submitted / Selected / PO Issued) purely from the fetched `vendorQuotes` + `procurement_items` rows, not from any local "just clicked" state.
 
-No RLS changes — existing authenticated policies cover it.
-
-### 2. New helper: `src/utils/purchaseOrderPdf.ts`
-
-Pure function `buildPurchaseOrderPdf(order, items, vendor, company, siteName, productName)` → returns a `jsPDF` doc.
-
-Layout (A4, portrait):
-
-```text
-┌─────────────────────────────────────────────────┐
-│ [Logo]   Bharat Builders           PURCHASE ORDER│
-│          Address / GST / Phone     PO #: PO-0032 │
-│                                    Date: dd/mm/yy│
-├─────────────────────────────────────────────────┤
-│ Vendor:                    Ship To:              │
-│ <name / contact / phone>   <ship_to snapshot>    │
-│ <address / GST>            Bill To:              │
-│                            <bill_to snapshot>    │
-├─────────────────────────────────────────────────┤
-│ Site: <site>     Requisition: REQ-xxxx / date    │
-│ Expected Delivery: dd/mm/yy   Payment Terms: ... │
-├─────────────────────────────────────────────────┤
-│ # | Material | Description | Qty | UOM | Rate | Disc | Amount │
-│ ...line items (page-break aware)...              │
-├─────────────────────────────────────────────────┤
-│                          Subtotal / Discount     │
-│                          Grand Total  ₹ x,xxx.xx │
-├─────────────────────────────────────────────────┤
-│ Terms & Conditions (numbered list)               │
-├─────────────────────────────────────────────────┤
-│                          Authorised Signatory    │
-│                          ______________________  │
-└─────────────────────────────────────────────────┘
-```
-
-Uses `helvetica`, INR formatter already in `src/lib/procurement.ts` (`fmtAmt`), and `splitTextToSize` for wrapping. Logo pulled via `company_profile.logo_url` (fallback: the existing `src/assets/bb_logo.png`).
-
-### 3. `ProcurementDetail.tsx` — PO generation flow
-
-Add a new **Purchase Order** section (only for vendor POs, only when `order.status` ∈ `PO Issued | Partially Received | Goods Received | Partially Invoiced | Invoice Received | Partially Paid | Paid | Closed`, or on the "Issue PO" advance action):
-
-- **State**: `poDocs` (list of attachments with `scope='po_document'`, ordered by version desc) loaded when the order opens.
-- **Generate/Regenerate PO** button (approver-gated):
-  1. Build PDF with helper.
-  2. Upload to `procurement-attachments/po/{po_id}/v{n}-{PO#}.pdf`.
-  3. Insert `procurement_attachments` row with `scope='po_document'`, `version = max+1`, `created_by = auth.uid()`.
-  4. Refresh `poDocs`.
-  5. If current status is `Quote Received`, also advance to `PO Issued` (reuses existing `advanceStage` path so audit remains intact).
-- **Auto-trigger on "Issue PO"**: hook into the existing advance-stage confirm so moving to `PO Issued` also generates v1 if no PO doc exists yet — keeps things one-click for the common path.
-
-### 4. PO Document actions (per version row)
-
-For each version, show: version, generated by, timestamp, and actions:
-
-- **Preview** — opens the PDF in a modal via signed URL in an `<iframe>`.
-- **Download** — signed URL download.
-- **Print** — opens the signed URL in a hidden iframe and calls `contentWindow.print()`.
-
-### 5. Audit & version history
-
-- The attachment rows themselves are the audit log (who + when + version).
-- The section header shows "Latest: v{n} · generated by {name} on {date}" and expandable list of prior versions.
-- Every regenerate creates a new row; old files stay in storage and remain downloadable.
-
-### 6. Deep-link support
-
-Extend the existing `?po={id}&tab=…` handling so `?po={id}&tab=po-document` scrolls to the Purchase Order section (matches the existing pattern used for GRN/Invoice tabs).
-
-## Out of scope (per user instructions)
-
-- No changes to vendor selection, GRN, invoice, payment, or status/auto-advance logic.
-- No changes to `set_po_number()`, existing PDF (Quote Request), or WhatsApp share.
-- No new edge function; email uses `mailto:` for v1.
-
-## Files touched
-
-- `supabase/migrations/<new>.sql` — add `version`, `notes`, partial unique index.
-- `src/utils/purchaseOrderPdf.ts` — new PDF builder.
-- `src/components/procurement/ProcurementDetail.tsx` — new PO Document section, generation handler, hook into Issue-PO advance, deep-link tab.
+### Technical notes
+- No schema migration needed: `gst_percent` exists on both `procurement_items` and `procurement_vendor_quote_items`.
+- All edits are inside `src/components/procurement/ProcurementDetail.tsx`; `src/utils/purchaseOrderPdf.ts` is only touched if the PDF needs the vendor-quoted GST label.
+- GRN, invoice, payment and stage-advance logic stay unchanged.
