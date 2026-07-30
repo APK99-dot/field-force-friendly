@@ -382,8 +382,8 @@ export default function VendorQuote() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 py-6 px-3 sm:px-6">
-      <div className="mx-auto max-w-6xl bg-background rounded-xl shadow-md border">
+    <div className="min-h-screen w-full bg-muted/20 py-4 px-4 sm:px-5 lg:px-6">
+      <div className="w-full bg-background rounded-xl shadow-md border overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-4 p-5 border-b">
           <div className="w-16 h-16 rounded-lg border flex items-center justify-center overflow-hidden bg-white shrink-0">
