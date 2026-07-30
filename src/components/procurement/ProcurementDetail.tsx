@@ -2938,10 +2938,19 @@ export default function ProcurementDetail({
               )}
               </>); })()}
               {!isTransfer && (
-                <div className="flex items-center justify-between pt-2 font-semibold">
-                  <span>Grand Total</span><span className="text-primary">{fmtAmt(poUnlocked ? poEditTotal : order.total_amount)}</span>
+                <div className="pt-2 space-y-1 border-t">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal (Taxable)</span><span>{fmtAmt(poTotals.subtotal)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Total GST</span><span>{fmtAmt(poTotals.gst)}</span>
+                  </div>
+                  <div className="flex items-center justify-between font-semibold">
+                    <span>Grand Total</span><span className="text-primary">{fmtAmt(poTotals.grand)}</span>
+                  </div>
                 </div>
               )}
+
               {poUnlocked && (
                 <Button className="w-full mt-2" onClick={savePoDetails} disabled={poSaving}>
                   <Save className="h-4 w-4 mr-2" />{poSaving ? "Saving..." : "Save PO Details & Rates"}
