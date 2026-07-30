@@ -2684,6 +2684,7 @@ export default function ProcurementDetail({
                 return (<>
               {visibleLines.map((l) => {
                 const amt = (parseFloat(l.rate) || 0) * (l.qty || 0);
+                const breakup = lineGstBreakup(parseFloat(l.rate) || 0, l.qty || 0, l.gst_percent || 0);
                 const tag = rateSourceLabel(l);
                 const submittedQuotes = quotesForItem(l.id).filter((q) => q.status === "submitted");
                 const lineVendorNames = (l.vendor_ids || []).map((id) => vendorName(id)).filter(Boolean);
