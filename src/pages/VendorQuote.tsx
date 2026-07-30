@@ -382,8 +382,8 @@ export default function VendorQuote() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 py-6 px-3 sm:px-6">
-      <div className="mx-auto max-w-6xl bg-background rounded-xl shadow-md border">
+    <div className="min-h-screen w-full bg-muted/20 py-4 px-4 sm:px-5 lg:px-6">
+      <div className="w-full bg-background rounded-xl shadow-md border overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-4 p-5 border-b">
           <div className="w-16 h-16 rounded-lg border flex items-center justify-center overflow-hidden bg-white shrink-0">
@@ -399,7 +399,7 @@ export default function VendorQuote() {
           </div>
         </div>
 
-        <div className="p-5 space-y-5">
+        <div className="p-4 sm:p-5 space-y-5">
           <div className="text-center">
             <h1 className="text-xl font-bold">Indent Order</h1>
             {req.title && <p className="text-sm text-muted-foreground mt-0.5">{req.title}</p>}
@@ -415,10 +415,11 @@ export default function VendorQuote() {
           </div>
 
           {/* Bill To / Ship To */}
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid sm:grid-cols-2 gap-4 w-full">
             <AddressBlock title="Bill To" address={req.bill_to} gst={req.bill_to_gst} />
             <AddressBlock title="Ship To" address={req.ship_to} gst={req.ship_to_gst} />
           </div>
+
 
           {req.site_name && (
             <p className="text-sm">
