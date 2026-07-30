@@ -399,7 +399,7 @@ export default function VendorQuote() {
           </div>
         </div>
 
-        <div className="p-5 space-y-5">
+        <div className="p-4 sm:p-5 space-y-5">
           <div className="text-center">
             <h1 className="text-xl font-bold">Indent Order</h1>
             {req.title && <p className="text-sm text-muted-foreground mt-0.5">{req.title}</p>}
