@@ -30,6 +30,7 @@ export function usePushNotifications(userId: string | undefined) {
     let notifListener: { remove: () => void } | undefined;
     let actionListener: { remove: () => void } | undefined;
     let resumeListener: { remove: () => void } | undefined;
+    let visibilityHandler: (() => void) | undefined;
     let PushNotificationsRef: any;
 
     const saveToken = async (tokenValue: string) => {
@@ -37,7 +38,7 @@ export function usePushNotifications(userId: string | undefined) {
       try {
         const previousToken = localStorage.getItem(LAST_TOKEN_KEY);
 
-        // Upsert current token (refreshes last_seen_at via the trigger/default).
+        // Upsert current token (refreshes last_seen_at).
         const { error } = await supabase
           .from("push_tokens" as any)
           .upsert(
@@ -51,8 +52,34 @@ export function usePushNotifications(userId: string | undefined) {
           );
 
         if (error) {
-          console.error("Failed to save push token:", error);
-          return;
+          console.error("Failed to save push token (upsert):", error);
+          // Fallback: try a plain update, then a plain insert. Covers cases
+          // where the ON CONFLICT path is rejected (RLS / constraint issues)
+          // and the device would otherwise never register at all.
+          const { error: updErr, data: updData } = await supabase
+            .from("push_tokens" as any)
+            .update({
+              user_id: userId,
+              platform: "android",
+              last_seen_at: new Date().toISOString(),
+            } as any)
+            .eq("token", tokenValue)
+            .select("id");
+
+          if (updErr || !updData || updData.length === 0) {
+            const { error: insErr } = await supabase
+              .from("push_tokens" as any)
+              .insert({
+                user_id: userId,
+                token: tokenValue,
+                platform: "android",
+                last_seen_at: new Date().toISOString(),
+              } as any);
+            if (insErr) {
+              console.error("Failed to save push token (insert fallback):", insErr);
+              return;
+            }
+          }
         }
 
         // If this device previously registered a different token for this
@@ -79,11 +106,17 @@ export function usePushNotifications(userId: string | undefined) {
         const perm = await PushNotificationsRef.checkPermissions();
         if (perm?.receive === "granted") {
           await PushNotificationsRef.register();
+        } else {
+          // Permission may have been revoked or never resolved on this device
+          // (Android 13+). Ask again so registration can proceed.
+          const req = await PushNotificationsRef.requestPermissions();
+          if (req?.receive === "granted") await PushNotificationsRef.register();
         }
       } catch (e) {
         console.warn("Re-register failed:", e);
       }
     };
+
 
     const init = async () => {
       try {
@@ -164,6 +197,15 @@ export function usePushNotifications(userId: string | undefined) {
         console.warn("App resume listener unavailable:", e);
       }
 
+      // WebView-level fallback: when the APK loads the remote site, the native
+      // `resume` event can be missed. `visibilitychange` always fires, so the
+      // token is refreshed whenever the user returns to the app.
+      visibilityHandler = () => {
+        if (document.visibilityState === "visible") tryRegister();
+      };
+      document.addEventListener("visibilitychange", visibilityHandler);
+
+
       if (isUnmounted.current) return;
 
       // Deferred registration from previous lifecycle (Android 13+ Activity recreation)
@@ -233,6 +275,9 @@ export function usePushNotifications(userId: string | undefined) {
       try { notifListener?.remove(); } catch (_) {}
       try { actionListener?.remove(); } catch (_) {}
       try { resumeListener?.remove(); } catch (_) {}
+      if (visibilityHandler) {
+        try { document.removeEventListener("visibilitychange", visibilityHandler); } catch (_) {}
+      }
     };
   }, [userId]);
 }
