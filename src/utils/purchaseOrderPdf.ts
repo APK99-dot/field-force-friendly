@@ -330,16 +330,20 @@ export async function buildPurchaseOrderPdf(params: {
 
   const cellTextX = (c: Col) => (c.align === "right" ? c.x + c.w - 1.6 : c.x + 1.6);
 
+  f("bold", 6.8);
+  const headerLines = cols.map((c) => doc.splitTextToSize(c.label, c.w - 3.2) as string[]);
+  const headerRows = Math.max(...headerLines.map((l) => l.length), 1);
+  const headerH = headerRows * 3.3 + 2.6;
+
   const drawTableHeader = (yy: number) => {
-    const h = 6.2;
     doc.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-    doc.rect(marginX, yy, usableW, h, "F");
-    f("bold", 7.2);
+    doc.rect(marginX, yy, usableW, headerH, "F");
+    f("bold", 6.8);
     setText([255, 255, 255]);
-    cols.forEach((c) => {
-      doc.text(c.label, cellTextX(c), yy + 4.2, { align: c.align });
+    cols.forEach((c, i) => {
+      doc.text(headerLines[i], cellTextX(c), yy + 3.4, { align: c.align });
     });
-    return yy + h;
+    return yy + headerH;
   };
 
   y = drawTableHeader(y);
