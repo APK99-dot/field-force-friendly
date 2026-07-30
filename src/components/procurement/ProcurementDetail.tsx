@@ -67,7 +67,7 @@ export interface DetailOrder {
   requisition_notes: string | null;
   created_by: string | null;
   stage_history?: StageHistoryEntry[] | any;
-  procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null; vendor_ids?: string[] | null; rate_source?: string | null; rate_source_vendor_id?: string | null }[];
+  procurement_items?: { id: string; product_id: string | null; rate: number; qty: number; uom: string | null; gst_percent?: number | null; vendor_ids?: string[] | null; rate_source?: string | null; rate_source_vendor_id?: string | null }[];
 }
 
 export interface ProcurementDetailFocus {
@@ -131,9 +131,19 @@ interface RateLine {
   uom: string | null;
   qty: number;
   rate: string;
+  gst_percent: number;
   vendor_ids: string[];
   rate_source: string | null;
   rate_source_vendor_id: string | null;
+}
+
+/** GST slabs applicable to the business */
+export const GST_SLABS = [0, 5, 12, 18, 28] as const;
+
+export function lineGstBreakup(rate: number, qty: number, gstPct: number) {
+  const taxable = (Number(rate) || 0) * (Number(qty) || 0);
+  const gstAmount = taxable * ((Number(gstPct) || 0) / 100);
+  return { taxable, gstAmount, total: taxable + gstAmount };
 }
 
 // Reusable multi-select vendor picker (popover + checkboxes)
@@ -314,6 +324,7 @@ export default function ProcurementDetail({
     lastServerPoRef.current = { expected_delivery_date: serverDate, payment_terms: normalizedPt, order_id: order.id };
     const lines = (order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, uom: it.uom, qty: it.qty, rate: String(it.rate ?? ""),
+      gst_percent: Number(it.gst_percent ?? 0),
       vendor_ids: Array.isArray(it.vendor_ids) ? (it.vendor_ids as string[]) : [],
       rate_source: it.rate_source ?? null,
       rate_source_vendor_id: it.rate_source_vendor_id ?? null,
@@ -468,10 +479,15 @@ export default function ProcurementDetail({
 
   const findAddr = (id: string) => addressOptions.find((a) => a.id === id) || null;
 
-  const poEditTotal = useMemo(
-    () => rateLines.reduce((s, l) => s + (parseFloat(l.rate) || 0) * (l.qty || 0), 0),
-    [rateLines]
-  );
+  const poTotals = useMemo(() => {
+    let subtotal = 0, gst = 0;
+    rateLines.forEach((l) => {
+      const b = lineGstBreakup(parseFloat(l.rate) || 0, l.qty || 0, l.gst_percent || 0);
+      subtotal += b.taxable; gst += b.gstAmount;
+    });
+    return { subtotal, gst, grand: subtotal + gst };
+  }, [rateLines]);
+  const poEditTotal = poTotals.grand;
 
   // Distinct vendors used across all line items (drives the read-only PO-level summary)
   const derivedVendorIds = useMemo(() => {
@@ -778,6 +794,7 @@ export default function ProcurementDetail({
         const { error: iErr } = await supabase.from("procurement_items")
           .update({
             rate, amount: rate * (l.qty || 0),
+            gst_percent: l.gst_percent || 0,
             vendor_ids: l.vendor_ids.length ? l.vendor_ids : null,
             rate_source: l.rate_source,
             rate_source_vendor_id: l.rate_source_vendor_id,
@@ -793,6 +810,19 @@ export default function ProcurementDetail({
     }
   };
 
+  // GST slab change per line — persisted immediately so the PO/PDF always match the UI.
+  const setLineGst = async (lineId: string, pct: number) => {
+    setRateLines((prev) => prev.map((l) => (l.id === lineId ? { ...l, gst_percent: pct } : l)));
+    const { error } = await supabase.from("procurement_items").update({ gst_percent: pct }).eq("id", lineId);
+    if (error) { toast.error(error.message || "Failed to save GST"); return; }
+    const next = rateLines.map((l) => (l.id === lineId ? { ...l, gst_percent: pct } : l));
+    const grand = next.reduce((s, l) => {
+      const b = lineGstBreakup(parseFloat(l.rate) || 0, l.qty || 0, l.gst_percent || 0);
+      return s + b.total;
+    }, 0);
+    await supabase.from("procurement_orders").update({ total_amount: grand }).eq("id", order.id);
+    onChanged();
+  };
 
 
 
@@ -898,6 +928,7 @@ export default function ProcurementDetail({
           uom: (l as any).uom || null,
           rate,
           discount: discountAmt,
+          gst_percent: Number((l as any).gst_percent || 0),
         };
       });
 
@@ -2654,6 +2685,7 @@ export default function ProcurementDetail({
                 return (<>
               {visibleLines.map((l) => {
                 const amt = (parseFloat(l.rate) || 0) * (l.qty || 0);
+                const breakup = lineGstBreakup(parseFloat(l.rate) || 0, l.qty || 0, l.gst_percent || 0);
                 const tag = rateSourceLabel(l);
                 const submittedQuotes = quotesForItem(l.id).filter((q) => q.status === "submitted");
                 const lineVendorNames = (l.vendor_ids || []).map((id) => vendorName(id)).filter(Boolean);
@@ -2705,12 +2737,36 @@ export default function ProcurementDetail({
                               {parseFloat(l.rate) > 0 ? fmtAmt(parseFloat(l.rate)) : <span className="text-muted-foreground">—</span>}
                             </div>
                           </div>
-
                           <div>
-                            <Label className="text-[10px] text-muted-foreground">Amount</Label>
-                            <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
+                            <Label className="text-[10px] text-muted-foreground">GST %</Label>
+                            <Select
+                              value={String(l.gst_percent ?? 0)}
+                              onValueChange={(v) => setLineGst(l.id, Number(v))}
+                            >
+                              <SelectTrigger className="h-8 text-sm" aria-label="GST slab"><SelectValue placeholder="GST %" /></SelectTrigger>
+                              <SelectContent>
+                                {GST_SLABS.map((g) => (
+                                  <SelectItem key={g} value={String(g)}>{g === 0 ? "No GST (0%)" : `${g}%`}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
+                        <div className="grid grid-cols-3 gap-2 items-end">
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Taxable Amount</Label>
+                            <div className="h-8 flex items-center text-sm">{fmtAmt(breakup.taxable)}</div>
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">GST Amount</Label>
+                            <div className="h-8 flex items-center text-sm">{fmtAmt(breakup.gstAmount)}</div>
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Line Total</Label>
+                            <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(breakup.total)}</div>
+                          </div>
+                        </div>
+
                         {tag && (
                           <Badge variant="outline" className="text-[10px] font-normal">{tag}</Badge>
                         )}
@@ -2883,10 +2939,19 @@ export default function ProcurementDetail({
               )}
               </>); })()}
               {!isTransfer && (
-                <div className="flex items-center justify-between pt-2 font-semibold">
-                  <span>Grand Total</span><span className="text-primary">{fmtAmt(poUnlocked ? poEditTotal : order.total_amount)}</span>
+                <div className="pt-2 space-y-1 border-t">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal (Taxable)</span><span>{fmtAmt(poTotals.subtotal)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Total GST</span><span>{fmtAmt(poTotals.gst)}</span>
+                  </div>
+                  <div className="flex items-center justify-between font-semibold">
+                    <span>Grand Total</span><span className="text-primary">{fmtAmt(poTotals.grand)}</span>
+                  </div>
                 </div>
               )}
+
               {poUnlocked && (
                 <Button className="w-full mt-2" onClick={savePoDetails} disabled={poSaving}>
                   <Save className="h-4 w-4 mr-2" />{poSaving ? "Saving..." : "Save PO Details & Rates"}
