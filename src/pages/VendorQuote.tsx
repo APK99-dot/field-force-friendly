@@ -13,6 +13,8 @@ const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const MAX_FILE_MB = 10;
 const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+const GST_SLABS = [5, 12, 18, 28] as const;
+
 
 interface LineItem {
   procurement_item_id: string;
