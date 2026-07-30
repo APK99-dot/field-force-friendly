@@ -810,6 +810,19 @@ export default function ProcurementDetail({
     }
   };
 
+  // GST slab change per line — persisted immediately so the PO/PDF always match the UI.
+  const setLineGst = async (lineId: string, pct: number) => {
+    setRateLines((prev) => prev.map((l) => (l.id === lineId ? { ...l, gst_percent: pct } : l)));
+    const { error } = await supabase.from("procurement_items").update({ gst_percent: pct }).eq("id", lineId);
+    if (error) { toast.error(error.message || "Failed to save GST"); return; }
+    const next = rateLines.map((l) => (l.id === lineId ? { ...l, gst_percent: pct } : l));
+    const grand = next.reduce((s, l) => {
+      const b = lineGstBreakup(parseFloat(l.rate) || 0, l.qty || 0, l.gst_percent || 0);
+      return s + b.total;
+    }, 0);
+    await supabase.from("procurement_orders").update({ total_amount: grand }).eq("id", order.id);
+    onChanged();
+  };
 
 
 
