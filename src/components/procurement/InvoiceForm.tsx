@@ -5,10 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Save, FileText, Paperclip, X, Plus, Trash2 } from "lucide-react";
+import { Save, FileText, Paperclip, X, Plus, Trash2, Package, Wallet } from "lucide-react";
 import { fmtAmt } from "@/lib/procurement";
 import { uploadInvoiceFile, removeInvoiceFile } from "@/utils/invoiceAttachments";
+import { cn } from "@/lib/utils";
+import { useUiMode, isLightning } from "@/hooks/useUiMode";
 import type { POItem } from "./GRNForm";
+
+const FIELD_LABEL = "text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
 
 interface Props {
   open: boolean;
