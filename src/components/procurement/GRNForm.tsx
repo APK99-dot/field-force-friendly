@@ -3,21 +3,25 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useModuleConfig } from "@/hooks/useModuleConfig";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { Save, Camera, ImageIcon, X, ArrowLeft, Star } from "lucide-react";
+import {
+  Save, Camera, ImageIcon, X, ArrowLeft, Star, PackageCheck, Package, ClipboardCheck,
+} from "lucide-react";
 import { receiptDrivenStatus, GRN_STATUSES, GrnStatus } from "@/lib/procurement";
 import { uploadGrnPhoto, removeGrnPhoto } from "@/utils/grnPhotos";
 import { StarRating } from "./VendorRating";
 import { cn } from "@/lib/utils";
+import { useUiMode, isLightning } from "@/hooks/useUiMode";
 import CameraCapture from "@/components/CameraCapture";
 
 const MAX_PHOTOS = 20;
+const FIELD_LABEL = "text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
 
 export interface POItem {
   id: string;
