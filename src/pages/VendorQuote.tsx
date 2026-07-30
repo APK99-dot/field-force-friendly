@@ -258,6 +258,8 @@ export default function VendorQuote() {
           procurement_item_id: r.procurement_item_id,
           rate: Number(r.rate) || 0,
           discount_pct: Number(r.discount_pct) || 0,
+          gst_percent: Number(r.gst_percent) || 0,
+
           delivery_commitment_date: r.delivery_commitment_date || null,
           quality_notes: r.quality_notes || null,
           is_selected: true,
