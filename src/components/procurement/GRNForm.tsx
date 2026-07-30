@@ -56,6 +56,8 @@ export default function GRNForm({
   poVendors, itemVendorMap,
 }: Props) {
   const isTransfer = sourceType === "internal_transfer";
+  const [uiMode] = useUiMode();
+  const lightning = isLightning(uiMode);
   const queryClient = useQueryClient();
   const { profile } = useUserProfile();
   const grnCfg = useModuleConfig("goods_receipt");
