@@ -2892,7 +2892,10 @@ export default function ProcurementDetail({
                                     <th className="py-1 pr-2">Rate</th>
                                     <th className="py-1 pr-2">Disc %</th>
                                     <th className="py-1 pr-2">After Disc.</th>
-                                    <th className="py-1 pr-2">Amount</th>
+                                    <th className="py-1 pr-2">Taxable</th>
+                                    <th className="py-1 pr-2">GST %</th>
+                                    <th className="py-1 pr-2">GST Amt</th>
+                                    <th className="py-1 pr-2">Line Total</th>
                                     <th className="py-1 pr-2">Variance</th>
                                     <th className="py-1 pr-2">Delivery</th>
                                     <th className="py-1 pr-2">Payment</th>
