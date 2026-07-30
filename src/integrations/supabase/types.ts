@@ -4239,6 +4239,7 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          gst_percent: number
           id: string
           procurement_id: string
           product_id: string | null
@@ -4254,6 +4255,7 @@ export type Database = {
         Insert: {
           amount?: number
           created_at?: string
+          gst_percent?: number
           id?: string
           procurement_id: string
           product_id?: string | null
@@ -4269,6 +4271,7 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
+          gst_percent?: number
           id?: string
           procurement_id?: string
           product_id?: string | null
