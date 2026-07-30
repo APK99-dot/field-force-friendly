@@ -35,20 +35,18 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 /**
  * Report Subscriptions — build a report, schedule it, deliver it.
  *
- * Ported from the staging-quickapp tab. Phase 1 deliberately omits two things
- * that live behind edge functions this app does not have yet:
+ * Ported from the staging-quickapp tab.
  *
- *   * "Run now" (report-dispatcher) — a subscription can be paused, resumed,
- *     edited and deleted, but not fired on demand.
- *   * The PDF template designer and its inline preview (generate-report) —
- *     "PDF" remains a selectable attachment format, it just has no template
- *     editor until the renderer exists.
+ * Phase 3 restores "Run now": it invokes the report-dispatcher edge function
+ * with { mode: 'manual', subscription_id }, which resolves the reporting period
+ * from the subscription's cadence + period_basis and hands off to
+ * generate-report. A manual run never consumes the day's scheduled slot.
  *
- * reportable_datasets ships empty in phase 1, so the dataset registry rendering
- * an explicit "no datasets yet" state is the normal path, not an edge case.
+ * Still deliberately absent: the PDF template designer and its inline preview.
+ * "PDF" remains a selectable attachment format, it just has no template editor.
  *
- * Every query below surfaces its own error. An empty table must never stand in
- * for a failed request.
+ * Every query and mutation below surfaces its own error — a toast plus a visible
+ * banner. An empty table must never stand in for a failed request.
  */
 
 interface Dataset {
@@ -189,6 +187,69 @@ export function ReportSubscriptionsTab() {
   // employee-photos is a public bucket in this app, so the stored URL is usable
   // as-is. The source signed every path first because its bucket was private.
   const avatarFor = (uid: string): string | null => profileMap.get(uid)?.avatar ?? null;
+
+  // ---- Run now ---------------------------------------------------------------
+  // report-dispatcher is the single entry point for firing a subscription — the
+  // same function the scheduler calls — so a manual run goes through exactly the
+  // same period maths and delivery code as a scheduled one. It just skips the
+  // occurrence idempotency check and never stamps last_scheduled_*.
+  const [runningId, setRunningId] = useState<string | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
+
+  const runNow = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase.functions.invoke("report-dispatcher", {
+        body: { mode: "manual", subscription_id: id },
+      });
+      if (error) {
+        // supabase-js swallows a non-2xx body into FunctionsHttpError. Dig the
+        // server's own message out so the user sees why it failed, not "failed".
+        let detail = "";
+        try {
+          const ctx = (error as any)?.context;
+          if (ctx && typeof ctx.json === "function") {
+            const parsed = await ctx.json();
+            detail = parsed?.error || "";
+          }
+        } catch {
+          /* fall through to the generic message */
+        }
+        throw new Error(detail || errText(error, "Manual run failed"));
+      }
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data as any;
+    },
+    onSuccess: (data: any) => {
+      const delivered = data?.delivered ?? 0;
+      const empty = data?.empty === true;
+      if (delivered === 0) {
+        const msg =
+          "Manual run finished but nothing was delivered — check this subscription's recipients.";
+        setRunError(msg);
+        toast.error(msg);
+      } else {
+        setRunError(null);
+        toast.success(
+          empty
+            ? `Sent — no records for this period (${delivered} recipient${delivered === 1 ? "" : "s"})`
+            : `Report dispatched to ${delivered} recipient${delivered === 1 ? "" : "s"}`,
+        );
+      }
+      qc.invalidateQueries({ queryKey: ["report-subscriptions"] });
+    },
+    onError: (e) => {
+      const msg = errText(e, "Could not run this subscription now");
+      setRunError(msg);
+      toast.error(msg);
+    },
+    onSettled: () => setRunningId(null),
+  });
+
+  const startRun = (id: string) => {
+    setRunError(null);
+    setRunningId(id);
+    runNow.mutate(id);
+  };
 
   const toggleStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -374,6 +435,27 @@ export function ReportSubscriptionsTab() {
           </div>
         </div>
       ) : null}
+
+      {/* Manual-run failure. Kept on screen until the next run so the reason
+          does not vanish with the toast. */}
+      {runError && (
+        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 flex items-start gap-3">
+          <AlertTriangle size={18} className="text-destructive shrink-0 mt-0.5" />
+          <div className="text-sm flex-1 min-w-0">
+            <p className="font-medium text-destructive">Manual run failed</p>
+            <p className="text-xs text-muted-foreground mt-0.5 break-words">{runError}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={() => setRunError(null)}
+            title="Dismiss"
+          >
+            <X size={14} />
+          </Button>
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -628,6 +710,20 @@ export function ReportSubscriptionsTab() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-0.5 opacity-70 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => startRun(s.id)}
+                              disabled={runNow.isPending}
+                              title="Run now — deliver this report immediately"
+                            >
+                              {runningId === s.id ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <PlayCircle size={14} className="text-emerald-600" />
+                              )}
+                            </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(s)} title="Edit">
                               <Pencil size={14} />
                             </Button>
@@ -726,6 +822,20 @@ export function ReportSubscriptionsTab() {
                         </div>
                       )}
                       <div className="flex items-center gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => startRun(s.id)}
+                          disabled={runNow.isPending}
+                          title="Run now — deliver this report immediately"
+                        >
+                          {runningId === s.id ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <PlayCircle size={13} className="text-emerald-600" />
+                          )}
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(s)} title="Edit">
                           <Pencil size={13} />
                         </Button>

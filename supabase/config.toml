@@ -26,3 +26,20 @@ verify_jwt = false
 
 [functions.submit-vendor-quote]
 verify_jwt = false
+
+# Report delivery (phase 3).
+# report-dispatcher's cron path arrives with an x-cron-secret header and no JWT,
+# so the platform gate has to be off; the function refuses to run unless that
+# secret matches CRON_SECRET (or report_dispatch_config.trigger_secret), and the
+# manual path additionally requires an admin's JWT.
+[functions.report-dispatcher]
+verify_jwt = false
+
+# Called service-to-service by report-dispatcher with the service-role key. The
+# function itself rejects anything that is not exactly that key.
+[functions.generate-report]
+verify_jwt = false
+
+# sign-report-file is intentionally NOT listed: it is only ever called by a
+# signed-in user, so the platform's default verify_jwt = true applies on top of
+# its own recipient/admin check.
