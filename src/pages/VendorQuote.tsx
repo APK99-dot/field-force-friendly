@@ -24,6 +24,8 @@ interface LineItem {
   expected_delivery_date: string | null;
   rate: number | null;
   discount_pct: number;
+  gst_percent: number;
+
   rate_after_discount: number | null;
   delivery_commitment_date: string | null;
   quality_notes: string;
