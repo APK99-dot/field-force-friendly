@@ -324,6 +324,7 @@ export default function ProcurementDetail({
     lastServerPoRef.current = { expected_delivery_date: serverDate, payment_terms: normalizedPt, order_id: order.id };
     const lines = (order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, uom: it.uom, qty: it.qty, rate: String(it.rate ?? ""),
+      gst_percent: Number(it.gst_percent ?? 0),
       vendor_ids: Array.isArray(it.vendor_ids) ? (it.vendor_ids as string[]) : [],
       rate_source: it.rate_source ?? null,
       rate_source_vendor_id: it.rate_source_vendor_id ?? null,
