@@ -415,10 +415,11 @@ export default function VendorQuote() {
           </div>
 
           {/* Bill To / Ship To */}
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid sm:grid-cols-2 gap-4 w-full">
             <AddressBlock title="Bill To" address={req.bill_to} gst={req.bill_to_gst} />
             <AddressBlock title="Ship To" address={req.ship_to} gst={req.ship_to_gst} />
           </div>
+
 
           {req.site_name && (
             <p className="text-sm">
