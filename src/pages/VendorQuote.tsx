@@ -124,7 +124,7 @@ export default function VendorQuote() {
             items: Array.isArray(body.items) ? body.items : [],
           };
           setData(safe);
-          setRows(safe.items);
+          setRows((safe.items || []).map((it: LineItem) => ({ ...it, gst_percent: Number(it.gst_percent) || 0 })));
           setPaymentTerm(safe.vendor_payment_term || "");
           setNotes(safe.notes || "");
           setAttachments(safe.attachments);
