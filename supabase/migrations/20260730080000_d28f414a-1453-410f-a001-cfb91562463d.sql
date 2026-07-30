@@ -228,7 +228,7 @@ BEGIN
         END IF;
 
       WHEN 'manager' THEN
-        SELECT ARRAY_REMOVE(ARRAY[manager_id], NULL) INTO v_recipients
+        SELECT ARRAY_REMOVE(ARRAY[manager_id], NULL::uuid) INTO v_recipients
         FROM employees WHERE user_id = p_actor_user_id;
 
       WHEN 'hierarchy' THEN
@@ -311,9 +311,9 @@ DECLARE
 BEGIN
   CASE p_receiver_type
     WHEN 'employee' THEN
-      v_ids := ARRAY_REMOVE(ARRAY[v_actor], NULL);
+      v_ids := ARRAY_REMOVE(ARRAY[v_actor], NULL::uuid);
     WHEN 'manager' THEN
-      SELECT ARRAY_REMOVE(ARRAY[e.manager_id], NULL) INTO v_ids
+      SELECT ARRAY_REMOVE(ARRAY[e.manager_id], NULL::uuid) INTO v_ids
       FROM employees e WHERE e.user_id = v_actor;
     WHEN 'hierarchy' THEN
       v_ids := public.notif_managers_up_chain(v_actor);
@@ -324,7 +324,7 @@ BEGIN
       SELECT COALESCE(ARRAY_AGG(DISTINCT ur.user_id), '{}'::uuid[]) INTO v_ids
       FROM user_roles ur WHERE ur.role::text = p_receiver_role;
     WHEN 'specific_user' THEN
-      v_ids := ARRAY_REMOVE(ARRAY[p_receiver_user_id], NULL);
+      v_ids := ARRAY_REMOVE(ARRAY[p_receiver_user_id], NULL::uuid);
     ELSE
       v_ids := '{}'::uuid[];
   END CASE;
