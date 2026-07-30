@@ -308,15 +308,15 @@ export async function buildPurchaseOrderPdf(params: {
   const rawCols: Array<Omit<Col, "x">> = [
     { label: "#", w: 6, align: "left" },
     { label: "Material", w: 30, align: "left" },
-    { label: "Description", w: 37, align: "left" },
-    { label: "Qty", w: 10, align: "right" },
-    { label: "UOM", w: 10, align: "left" },
-    { label: "Rate", w: 17, align: "right" },
+    { label: "Description", w: 32, align: "left" },
+    { label: "Qty", w: 11, align: "right" },
+    { label: "UOM", w: 11, align: "left" },
+    { label: `Rate (${RUPEE})`, w: 17, align: "right" },
     { label: "Disc %", w: 11, align: "right" },
-    { label: "Rate a/Disc", w: 18, align: "right" },
+    { label: `Rate a/Disc (${RUPEE})`, w: 18, align: "right" },
     { label: "GST %", w: 10, align: "right" },
-    { label: "GST Amt", w: 17, align: "right" },
-    { label: "Line Total", w: 20, align: "right" },
+    { label: `GST Amt (${RUPEE})`, w: 18, align: "right" },
+    { label: `Line Total (${RUPEE})`, w: 20, align: "right" },
   ];
   const rawTotal = rawCols.reduce((s, c) => s + c.w, 0);
   const scale = usableW / rawTotal;
