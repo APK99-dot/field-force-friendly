@@ -1397,12 +1397,15 @@ export default function ProcurementDetail({
   // required when 2+ vendors have submitted competing quotes for the same line.
   useEffect(() => {
     if (!open || vendorQuotes.length === 0 || rateLines.length === 0) return;
-    const persistUpdates: { id: string; rate: number; vendor_id: string; vendor_ids: string[] }[] = [];
+    const persistUpdates: { id: string; rate: number; gst: number; vendor_id: string; vendor_ids: string[]; qty: number }[] = [];
     setRateLines((prev) => {
       let changed = false;
       const next = prev.map((l) => {
-        // Skip if buyer has already made an explicit choice/edit.
+        // Skip if buyer has already made an explicit choice/edit, or if this
+        // line was already auto-applied once in this session (idempotency).
         if (l.rate_source === "quote" || l.rate_source === "manual_adjusted") return l;
+        if (l.rate_source_vendor_id) return l;
+        if (autoAppliedRef.current.has(l.id)) return l;
         if (Number(l.rate) > 0) return l;
         const submitted = vendorQuotes.filter(
           (q) => q.status === "submitted" &&
@@ -1416,13 +1419,17 @@ export default function ProcurementDetail({
         const rate = Number(qi.rate_after_discount ?? qi.rate) || 0;
         if (rate <= 0 || !q.vendor_id) return l;
         changed = true;
+        autoAppliedRef.current.add(l.id);
         const nextVendorIds = !l.vendor_ids.includes(q.vendor_id)
           ? [...l.vendor_ids, q.vendor_id]
           : l.vendor_ids;
-        persistUpdates.push({ id: l.id, rate, vendor_id: q.vendor_id, vendor_ids: nextVendorIds });
+        // Carry the vendor's quoted GST slab onto the PO line.
+        const gst = qi.gst_percent != null ? Number(qi.gst_percent) || 0 : (l.gst_percent || 0);
+        persistUpdates.push({ id: l.id, rate, gst, vendor_id: q.vendor_id, vendor_ids: nextVendorIds, qty: l.qty || 0 });
         return {
           ...l,
           rate: String(rate),
+          gst_percent: gst,
           rate_source: "quote",
           rate_source_vendor_id: q.vendor_id,
           vendor_ids: nextVendorIds,
@@ -1433,18 +1440,23 @@ export default function ProcurementDetail({
     // Persist so the auto-applied selection survives the next server refresh
     // (prevents "Selected" badge flicker when onChanged reloads the order).
     if (persistUpdates.length) {
+      pendingItemWritesRef.current += 1;
       void Promise.all(
         persistUpdates.map((u) =>
           supabase.from("procurement_items")
             .update({
               rate: u.rate,
+              amount: u.rate * u.qty,
+              gst_percent: u.gst,
               rate_source: "quote",
               rate_source_vendor_id: u.vendor_id,
               vendor_ids: u.vendor_ids,
             })
             .eq("id", u.id),
         ),
-      ).catch(() => {});
+      )
+        .catch(() => {})
+        .finally(() => { pendingItemWritesRef.current = Math.max(0, pendingItemWritesRef.current - 1); });
     }
   }, [open, vendorQuotes, rateLines.length]);
 
