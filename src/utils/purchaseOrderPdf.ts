@@ -17,6 +17,7 @@ export interface POLineInput {
   uom?: string | null;
   rate: number;
   discount?: number | null; // absolute amount
+  gst_percent?: number | null;
 }
 
 export interface POCompanyInput {
