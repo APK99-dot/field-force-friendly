@@ -3485,18 +3485,28 @@ export default function ProcurementDetail({
                         </tbody>
                         <tfoot className="bg-muted/30 font-medium">
                           <tr className="border-t">
-                            <td colSpan={8} className="p-2 text-right text-muted-foreground">Total Before Discount</td>
+                            <td colSpan={10} className="p-2 text-right text-muted-foreground">Total Before Discount</td>
                             <td className="p-2 text-right">{fmtAmt(totalBefore)}</td>
                             <td colSpan={compare ? 2 : 1}></td>
                           </tr>
                           <tr>
-                            <td colSpan={8} className="p-2 text-right text-muted-foreground">Total Discount</td>
+                            <td colSpan={10} className="p-2 text-right text-muted-foreground">Total Discount</td>
                             <td className="p-2 text-right text-emerald-700">− {fmtAmt(totalDiscount)}</td>
                             <td colSpan={compare ? 2 : 1}></td>
                           </tr>
+                          <tr>
+                            <td colSpan={10} className="p-2 text-right text-muted-foreground">Subtotal (Taxable)</td>
+                            <td className="p-2 text-right">{fmtAmt(totalAfter)}</td>
+                            <td colSpan={compare ? 2 : 1}></td>
+                          </tr>
+                          <tr>
+                            <td colSpan={10} className="p-2 text-right text-muted-foreground">Total GST</td>
+                            <td className="p-2 text-right">{fmtAmt(totalGst)}</td>
+                            <td colSpan={compare ? 2 : 1}></td>
+                          </tr>
                           <tr className="border-t">
-                            <td colSpan={8} className="p-2 text-right text-sm font-semibold">Grand Total</td>
-                            <td className="p-2 text-right text-sm font-bold text-primary">{fmtAmt(totalAfter)}</td>
+                            <td colSpan={10} className="p-2 text-right text-sm font-semibold">Grand Total</td>
+                            <td className="p-2 text-right text-sm font-bold text-primary">{fmtAmt(totalAfter + totalGst)}</td>
                             <td colSpan={compare ? 2 : 1}></td>
                           </tr>
                         </tfoot>
