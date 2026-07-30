@@ -156,10 +156,19 @@ export default function VendorQuote() {
     return rate * (1 - disc / 100);
   };
 
-  const total = useMemo(
-    () => rows.reduce((s, r) => s + rowAfter(r) * (r.qty || 0), 0),
-    [rows]
-  );
+  const rowBreakup = (r: LineItem) => {
+    const taxable = rowAfter(r) * (r.qty || 0);
+    const gst = taxable * ((Number(r.gst_percent) || 0) / 100);
+    return { taxable, gst, total: taxable + gst };
+  };
+
+  const totals = useMemo(() => {
+    let taxable = 0, gst = 0;
+    rows.forEach((r) => { const b = rowBreakup(r); taxable += b.taxable; gst += b.gst; });
+    return { taxable, gst, grand: taxable + gst };
+  }, [rows]);
+  const total = totals.grand;
+
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || !files.length) return;
