@@ -139,16 +139,18 @@ export async function buildPurchaseOrderPdf(params: {
   let FAMILY = "helvetica";
   if (uni) {
     try {
-      doc.addFileToVFS("NotoSans-Regular.ttf", uni.normal);
-      doc.addFont("NotoSans-Regular.ttf", "NotoSans", "normal");
-      doc.addFileToVFS("NotoSans-Bold.ttf", uni.bold);
-      doc.addFont("NotoSans-Bold.ttf", "NotoSans", "bold");
-      FAMILY = "NotoSans";
+      doc.addFileToVFS("POUni-Regular.ttf", uni.normal);
+      doc.addFont("POUni-Regular.ttf", "POUni", "normal");
+      doc.addFileToVFS("POUni-Bold.ttf", uni.bold);
+      doc.addFont("POUni-Bold.ttf", "POUni", "bold");
+      FAMILY = "POUni";
     } catch {
       FAMILY = "helvetica";
     }
   }
-  const RUPEE = FAMILY === "NotoSans" ? "\u20B9" : "Rs.";
+  const RUPEE = FAMILY === "POUni" ? "\u20B9" : "Rs.";
+  // Table cells show bare numbers (the symbol lives in the column header) so
+  // amounts never wrap; the summary block uses the prefixed form.
   const INR = (n: number) => `${RUPEE} ${num2(n)}`;
   const f = (style: "normal" | "bold", size: number) => {
     doc.setFont(FAMILY, style);
