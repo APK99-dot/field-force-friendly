@@ -8,8 +8,8 @@ import bbLogo from "@/assets/bb_logo.png";
 // the first time a PO is generated. If the fetch fails we silently fall back to
 // Helvetica + "Rs." so PO generation never breaks.
 const FONT_URLS = {
-  normal: "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans@5.0.22/files/noto-sans-latin-400-normal.ttf",
-  bold: "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans@5.0.22/files/noto-sans-latin-700-normal.ttf",
+  normal: "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
+  bold: "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Bold.ttf",
 };
 let unicodeFontCache: { normal: string; bold: string } | null | undefined;
 
