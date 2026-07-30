@@ -100,6 +100,7 @@ interface VendorQuoteItemRow {
   procurement_item_id: string | null;
   rate: number;
   discount_pct: number;
+  gst_percent?: number | null;
   rate_after_discount: number;
   delivery_commitment_date: string | null;
   is_selected: boolean;
