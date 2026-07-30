@@ -2735,12 +2735,36 @@ export default function ProcurementDetail({
                               {parseFloat(l.rate) > 0 ? fmtAmt(parseFloat(l.rate)) : <span className="text-muted-foreground">—</span>}
                             </div>
                           </div>
-
                           <div>
-                            <Label className="text-[10px] text-muted-foreground">Amount</Label>
-                            <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(amt)}</div>
+                            <Label className="text-[10px] text-muted-foreground">GST %</Label>
+                            <Select
+                              value={String(l.gst_percent ?? 0)}
+                              onValueChange={(v) => setLineGst(l.id, Number(v))}
+                            >
+                              <SelectTrigger className="h-8 text-sm" aria-label="GST slab"><SelectValue placeholder="GST %" /></SelectTrigger>
+                              <SelectContent>
+                                {GST_SLABS.map((g) => (
+                                  <SelectItem key={g} value={String(g)}>{g === 0 ? "No GST (0%)" : `${g}%`}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
+                        <div className="grid grid-cols-3 gap-2 items-end">
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Taxable Amount</Label>
+                            <div className="h-8 flex items-center text-sm">{fmtAmt(breakup.taxable)}</div>
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">GST Amount</Label>
+                            <div className="h-8 flex items-center text-sm">{fmtAmt(breakup.gstAmount)}</div>
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Line Total</Label>
+                            <div className="h-8 flex items-center text-sm font-medium">{fmtAmt(breakup.total)}</div>
+                          </div>
+                        </div>
+
                         {tag && (
                           <Badge variant="outline" className="text-[10px] font-normal">{tag}</Badge>
                         )}
