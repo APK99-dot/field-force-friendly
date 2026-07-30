@@ -66,6 +66,8 @@ export default function InvoiceForm({
   open, onOpenChange, poId, poNumber, vendorNameStr, items, productName, createdBy, onSaved,
   poVendors, itemVendorMap, existingInvoices,
 }: Props) {
+  const [uiMode] = useUiMode();
+  const lightning = isLightning(uiMode);
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
   const [files, setFiles] = useState<AttachedFile[]>([]);
