@@ -3384,6 +3384,7 @@ export default function ProcurementDetail({
             .sort((a, b) => (b.version || 1) - (a.version || 1));
           let totalBefore = 0;
           let totalAfter = 0;
+          let totalGst = 0;
           items.forEach((it) => {
             const line = rateLines.find((l) => l.id === it.procurement_item_id);
             const qty = Number(line?.qty || 0);
@@ -3391,6 +3392,7 @@ export default function ProcurementDetail({
             const after = Number(it.rate_after_discount ?? it.rate) || 0;
             totalBefore += rate * qty;
             totalAfter += after * qty;
+            totalGst += lineGstBreakup(after, qty, Number(it.gst_percent ?? 0)).gstAmount;
           });
           const totalDiscount = totalBefore - totalAfter;
           return (
