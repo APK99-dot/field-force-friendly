@@ -131,9 +131,19 @@ interface RateLine {
   uom: string | null;
   qty: number;
   rate: string;
+  gst_percent: number;
   vendor_ids: string[];
   rate_source: string | null;
   rate_source_vendor_id: string | null;
+}
+
+/** GST slabs applicable to the business */
+export const GST_SLABS = [0, 5, 12, 18, 28] as const;
+
+export function lineGstBreakup(rate: number, qty: number, gstPct: number) {
+  const taxable = (Number(rate) || 0) * (Number(qty) || 0);
+  const gstAmount = taxable * ((Number(gstPct) || 0) / 100);
+  return { taxable, gstAmount, total: taxable + gstAmount };
 }
 
 // Reusable multi-select vendor picker (popover + checkboxes)
