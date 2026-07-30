@@ -30,6 +30,7 @@ export function usePushNotifications(userId: string | undefined) {
     let notifListener: { remove: () => void } | undefined;
     let actionListener: { remove: () => void } | undefined;
     let resumeListener: { remove: () => void } | undefined;
+    let visibilityHandler: (() => void) | undefined;
     let PushNotificationsRef: any;
 
     const saveToken = async (tokenValue: string) => {
@@ -195,6 +196,15 @@ export function usePushNotifications(userId: string | undefined) {
       } catch (e) {
         console.warn("App resume listener unavailable:", e);
       }
+
+      // WebView-level fallback: when the APK loads the remote site, the native
+      // `resume` event can be missed. `visibilitychange` always fires, so the
+      // token is refreshed whenever the user returns to the app.
+      visibilityHandler = () => {
+        if (document.visibilityState === "visible") tryRegister();
+      };
+      document.addEventListener("visibilitychange", visibilityHandler);
+
 
       if (isUnmounted.current) return;
 
