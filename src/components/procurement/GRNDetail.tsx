@@ -276,7 +276,7 @@ export default function GRNDetail({ open, onOpenChange, grn, vendorName, onSaved
           </div>
         </DialogHeader>
 
-        <div className="space-y-4 p-4 overflow-y-auto flex-1 max-w-3xl w-full mx-auto">
+        <div className="space-y-4 p-4 overflow-y-auto flex-1 w-full">
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border p-3 bg-muted/30 text-sm">
             <div>
               <div className="text-[10px] text-muted-foreground">PO Number</div>
