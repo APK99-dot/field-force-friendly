@@ -3,12 +3,13 @@ project_id = "ukqgdhsvyadjauscqvhl"
 [functions.admin-create-user]
 verify_jwt = false
 
-# Impersonation. verify_jwt is left ON here (unlike the other admin functions)
-# so the gateway rejects unauthenticated callers before the function runs. The
-# function still verifies the caller's admin role itself — this is belt and
-# braces for the most privileged endpoint in the app.
+# Impersonation. verify_jwt must stay OFF: with it on, the gateway rejects the
+# CORS preflight (which carries no Authorization header) and the browser reports
+# a network failure rather than a 401. Authorisation is enforced inside the
+# function, which requires a valid Bearer token AND the admin role before it
+# will mint a session.
 [functions.admin-login-as-user]
-verify_jwt = true
+verify_jwt = false
 
 [functions.verify-face-match]
 verify_jwt = false
