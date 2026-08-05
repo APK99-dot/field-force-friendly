@@ -3,6 +3,13 @@ project_id = "ukqgdhsvyadjauscqvhl"
 [functions.admin-create-user]
 verify_jwt = false
 
+# Impersonation. verify_jwt is left ON here (unlike the other admin functions)
+# so the gateway rejects unauthenticated callers before the function runs. The
+# function still verifies the caller's admin role itself — this is belt and
+# braces for the most privileged endpoint in the app.
+[functions.admin-login-as-user]
+verify_jwt = true
+
 [functions.verify-face-match]
 verify_jwt = false
 

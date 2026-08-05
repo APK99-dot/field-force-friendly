@@ -57,6 +57,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import CreateUserWizard from "@/components/admin/create-user/CreateUserWizard";
+import { useAdminAccess } from "@/hooks/useAdminAccess";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 // Types
 interface Role {
@@ -652,7 +654,62 @@ export default function AdminUserManagement() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [loginAsTarget, setLoginAsTarget] = useState<AppUser | null>(null);
+  const [loginAsPending, setLoginAsPending] = useState(false);
   const pageSize = 10;
+
+  // Admin gate for the "Login as user" action. Reuses the app-wide admin hook
+  // (same usage as src/pages/admin/NotificationRulesAdmin.tsx). This only hides
+  // a button — the edge function authorises the call independently, server-side.
+  const { hasAdminAccess } = useAdminAccess();
+  const { userId: currentUserId } = useCurrentUser();
+  // Never offer impersonation of yourself — the function rejects it with 400.
+  const canLoginAs = (u: AppUser) => hasAdminAccess && !!currentUserId && u.id !== currentUserId;
+
+  const handleLoginAsUser = async (target: AppUser) => {
+    if (loginAsPending) return;
+    setLoginAsPending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-login-as-user", {
+        body: { targetUserId: target.id },
+      });
+      if (error) {
+        // supabase-js swallows a non-2xx body into FunctionsHttpError. Dig the
+        // server's own message out so the admin sees why it failed, not "failed".
+        let detail = "";
+        try {
+          const ctx = (error as any)?.context;
+          if (ctx && typeof ctx.json === "function") {
+            const parsed = await ctx.json();
+            detail = parsed?.error || "";
+          }
+        } catch {
+          /* fall through to the generic message */
+        }
+        throw new Error(detail || error.message || "Failed to log in as user");
+      }
+      if ((data as any)?.error) throw new Error((data as any).error);
+
+      const session = (data as { session?: { access_token?: string; refresh_token?: string } } | null)?.session;
+      if (!session?.access_token || !session?.refresh_token) {
+        throw new Error("Login succeeded but no session was returned");
+      }
+
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+      if (sessionError) throw sessionError;
+
+      // Hard navigation: a full reload rebuilds every cached query and context
+      // as the new user. react-router navigate would leak the admin's state.
+      window.location.href = "/";
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to log in as user");
+      setLoginAsPending(false);
+      setLoginAsTarget(null);
+    }
+  };
 
   // Column chooser config
   const allColumns = [
@@ -943,6 +1000,18 @@ export default function AdminUserManagement() {
                                     <Button variant="ghost" size="sm" className="gap-1 text-xs h-8 px-2" onClick={() => setEditingUser(user)}>
                                       <Pencil className="h-3.5 w-3.5" /> Edit
                                     </Button>
+                                    {canLoginAs(user) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="gap-1 text-xs h-8 px-2"
+                                        disabled={loginAsPending}
+                                        onClick={() => setLoginAsTarget(user)}
+                                      >
+                                        <LogIn className="h-3.5 w-3.5" />
+                                        {loginAsPending && loginAsTarget?.id === user.id ? "Logging in..." : "Login"}
+                                      </Button>
+                                    )}
                                     <DropdownMenu>
                                       <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
@@ -999,6 +1068,11 @@ export default function AdminUserManagement() {
                                     <DropdownMenuItem onClick={() => setEditingUser(user)}>
                                       <Edit className="h-4 w-4 mr-2" /> Edit
                                     </DropdownMenuItem>
+                                    {canLoginAs(user) && (
+                                      <DropdownMenuItem disabled={loginAsPending} onClick={() => setLoginAsTarget(user)}>
+                                        <LogIn className="h-4 w-4 mr-2" /> Login
+                                      </DropdownMenuItem>
+                                    )}
                                     <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget(user)}>
                                       <Trash2 className="h-4 w-4 mr-2" /> Delete
                                     </DropdownMenuItem>
@@ -1062,6 +1136,39 @@ export default function AdminUserManagement() {
               onClick={() => deleteTarget && deactivateUser.mutate(deleteTarget.id)}
             >
               Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Login As User Confirmation */}
+      <AlertDialog
+        open={!!loginAsTarget}
+        onOpenChange={(open) => { if (!open && !loginAsPending) setLoginAsTarget(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Log in as {loginAsTarget?.full_name || loginAsTarget?.email}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You will be signed out of your own account and signed in as{" "}
+              <strong>{loginAsTarget?.full_name || loginAsTarget?.email}</strong>. Everything you do
+              will be recorded against their account. This is logged.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loginAsPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={loginAsPending}
+              onClick={(e) => {
+                // Keep the dialog mounted while the request is in flight so the
+                // pending label stays visible and a second click can't land.
+                e.preventDefault();
+                if (loginAsTarget) handleLoginAsUser(loginAsTarget);
+              }}
+            >
+              {loginAsPending ? "Logging in..." : "Log in as user"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
