@@ -5,11 +5,16 @@
 -- something themselves or an admin did it as them. Insert-only by design: the
 -- log must not be editable by the people it records.
 
+-- No foreign keys to auth.users, deliberately. An audit record must outlive the
+-- accounts it describes: if a user is deleted, the fact that they were
+-- impersonated is exactly what you still need. A FK would either block the
+-- deletion or erase the trail. The email columns are captured at write time so
+-- the row stays readable once the account is gone.
 CREATE TABLE public.admin_impersonation_log (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  admin_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE SET NULL,
+  admin_user_id uuid NOT NULL,
   admin_email text,
-  target_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE SET NULL,
+  target_user_id uuid NOT NULL,
   target_email text,
   ip_address text,
   user_agent text,
