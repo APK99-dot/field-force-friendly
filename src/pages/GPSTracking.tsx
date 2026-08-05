@@ -67,6 +67,13 @@ const MapFallback = () => (
 export default function GPSTracking() {
   const [activeTab, setActiveTab] = useState("current");
   const { currentUserId, isAdmin, teamMembers } = useGPSTeamMembers();
+
+  // isAdmin resolves asynchronously, so a non-admin could otherwise sit on the
+  // tracking tab for a moment before the trigger disappears. Forcing the tab
+  // back also stops fetchTrackingData from firing, since that keys off activeTab.
+  useEffect(() => {
+    if (!isAdmin && activeTab === "tracking") setActiveTab("current");
+  }, [isAdmin, activeTab]);
   const { toast } = useToast();
 
   // ===== Current Location state =====
@@ -336,9 +343,15 @@ export default function GPSTracking() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
+        {/* Day Tracking is admin-only. This mirrors the RLS on gps_tracking /
+            gps_tracking_stops ("Admins can view all GPS"), which is the actual
+            control — a non-admin can only ever read their own rows. Hiding the
+            tab keeps the UI honest about that. */}
         <TabsList className="w-full">
           <TabsTrigger value="current" className="flex-1">Current Location</TabsTrigger>
-          <TabsTrigger value="tracking" className="flex-1">Day Tracking</TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="tracking" className="flex-1">Day Tracking</TabsTrigger>
+          )}
         </TabsList>
 
         {/* ========== CURRENT LOCATION TAB ========== */}
