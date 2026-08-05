@@ -60,10 +60,11 @@ export default function WorkforceFilters({
     }
   };
 
+  const q = search.toLowerCase();
   const filteredUsers = users.filter(
     (u) =>
-      u.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      u.username.toLowerCase().includes(search.toLowerCase())
+      (u.full_name ?? "").toLowerCase().includes(q) ||
+      (u.username ?? "").toLowerCase().includes(q)
   );
 
   return (
