@@ -61,7 +61,6 @@ const OpportunityDetail = lazy(() => import("./pages/OpportunityDetail"));
 const Procurement = lazy(() => import("./pages/Procurement"));
 const GRN = lazy(() => import("./pages/GRN"));
 const Analytics = lazy(() => import("./pages/Analytics"));
-const MyReports = lazy(() => import("./pages/MyReports"));
 const ConfigurationWorkflow = lazy(() => import("./pages/ConfigurationWorkflow"));
 
 const queryClient = new QueryClient({
@@ -149,10 +148,6 @@ const App = () => (
             <Route path="/procurement" element={<Suspense fallback={<PageFallback />}><Procurement /></Suspense>} />
             <Route path="/grn" element={<Suspense fallback={<PageFallback />}><GRN /></Suspense>} />
             <Route path="/reports" element={<Suspense fallback={<PageFallback />}><Analytics /></Suspense>} />
-            {/* Delivered scheduled reports for the signed-in recipient. NOT /reports —
-                that path is already the Analytics page and stealing it would also
-                break the /analytics and /reports/:type redirects below. */}
-            <Route path="/my-reports" element={<Suspense fallback={<PageFallback />}><MyReports /></Suspense>} />
             <Route path="/reports/:type" element={<Navigate to="/reports" replace />} />
             <Route path="/analytics" element={<Navigate to="/reports" replace />} />
           </Route>

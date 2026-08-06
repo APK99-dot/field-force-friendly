@@ -1,22 +1,9 @@
 import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 
 const FCM_FLAG = "fcm_needs_register";
 const LAST_TOKEN_KEY = "fcm_last_token";
-
-/**
- * Only same-origin, absolute in-app paths are followed. The route arrives in an
- * FCM `data` payload, so it is untrusted input: "//evil.com" and "http://…"
- * would both be off-app navigations and are rejected.
- */
-function safeInAppRoute(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const route = value.trim();
-  if (!route.startsWith("/") || route.startsWith("//")) return null;
-  return route;
-}
 
 /**
  * Registers FCM push token on native Android devices and keeps it fresh.
@@ -32,13 +19,6 @@ function safeInAppRoute(value: unknown): string | null {
  */
 export function usePushNotifications(userId: string | undefined) {
   const isUnmounted = useRef(false);
-  // AppLayout — the only caller — is a <Route element> inside <BrowserRouter>,
-  // so this hook does run inside the router and useNavigate is available. Held
-  // in a ref so the listener closure never goes stale and the effect keeps its
-  // [userId] dependency list.
-  const navigate = useNavigate();
-  const navigateRef = useRef(navigate);
-  navigateRef.current = navigate;
 
   useEffect(() => {
     isUnmounted.current = false;
@@ -200,18 +180,6 @@ export function usePushNotifications(userId: string | undefined) {
           "pushNotificationActionPerformed",
           (action: any) => {
             console.log("Push notification tapped:", action);
-            // Deep link: send-push-notification puts { route } in the FCM data
-            // payload when the caller asks for one.
-            const route = safeInAppRoute(action?.notification?.data?.route);
-            if (route) {
-              console.log("Push deep link — navigating to", route);
-              try {
-                navigateRef.current(route);
-              } catch (e) {
-                console.warn("Deep-link navigate failed, falling back:", e);
-                window.location.href = route;
-              }
-            }
           }
         );
       } catch (_) {}

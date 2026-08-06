@@ -29,10 +29,6 @@ export function NotificationBell() {
       n.type === 'regularization_decision'
     ) {
       navigate('/attendance');
-    } else if (n.related_table === 'report_subscriptions') {
-      // Scheduled-report delivery (generate-report writes related_table =
-      // 'report_subscriptions'). /my-reports lists this user's delivered files.
-      navigate('/my-reports');
     }
   };
 
