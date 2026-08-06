@@ -696,7 +696,36 @@ export default function Procurement() {
         </div>
       )}
 
+      <ViewEditorDialog
+        open={viewEditorOpen}
+        onOpenChange={setViewEditorOpen}
+        view={viewBeingEdited}
+        onSave={(v) => saveView(v)}
+        siteOptions={siteOptions}
+        vendorOptions={vendorOptions}
+        ownerOptions={ownerOptions}
+        people={people}
+      />
+
+      <AlertDialog open={!!viewToDelete} onOpenChange={(o) => !o && setViewToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete list view?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{viewToDelete?.name}" will be removed for everyone it is shared with. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (viewToDelete) deleteView(viewToDelete.id); setViewToDelete(null); }}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Create/Edit Form — Salesforce Lightning styled */}
+
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className={`max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col ${lightning ? "lightning-ui" : ""}`}>
           <DialogHeader className={`px-4 sm:px-6 py-3 border-b shrink-0 ${lightning ? "bg-white" : ""}`}>
