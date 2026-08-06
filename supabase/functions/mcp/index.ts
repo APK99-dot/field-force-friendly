@@ -3,10 +3,10 @@
 // supabase function: mcp
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
 // src/lib/mcp/index.ts
-import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.25.1";
 
 // src/lib/mcp/tools/whoami.ts
-import { defineTool } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { defineTool } from "npm:@lovable.dev/mcp-js@0.25.1";
 
 // src/lib/mcp/supabase.ts
 import { createClient } from "npm:@supabase/supabase-js@^2.97.0";
@@ -77,7 +77,7 @@ var whoami_default = defineTool({
 });
 
 // src/lib/mcp/tools/list-sites.ts
-import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.25.1";
 import { z } from "npm:zod@^4.4.3";
 var list_sites_default = defineTool2({
   name: "list_sites",
@@ -102,7 +102,7 @@ var list_sites_default = defineTool2({
 });
 
 // src/lib/mcp/tools/list-activities.ts
-import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.25.1";
 import { z as z2 } from "npm:zod@^4.4.3";
 var list_activities_default = defineTool3({
   name: "list_activities",
@@ -133,7 +133,7 @@ var list_activities_default = defineTool3({
 });
 
 // src/lib/mcp/tools/my-attendance.ts
-import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.25.1";
 import { z as z3 } from "npm:zod@^4.4.3";
 var my_attendance_default = defineTool4({
   name: "my_attendance",
@@ -159,7 +159,7 @@ var my_attendance_default = defineTool4({
 });
 
 // src/lib/mcp/tools/list-procurement-orders.ts
-import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.25.1";
 import { z as z4 } from "npm:zod@^4.4.3";
 var list_procurement_orders_default = defineTool5({
   name: "list_procurement_orders",
@@ -192,7 +192,7 @@ var list_procurement_orders_default = defineTool5({
 });
 
 // src/lib/mcp/tools/list-vendors.ts
-import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.25.1";
 import { z as z5 } from "npm:zod@^4.4.3";
 var list_vendors_default = defineTool6({
   name: "list_vendors",
@@ -217,7 +217,7 @@ var list_vendors_default = defineTool6({
 });
 
 // src/lib/mcp/tools/my-expenses.ts
-import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.25.1";
 import { z as z6 } from "npm:zod@^4.4.3";
 var my_expenses_default = defineTool7({
   name: "my_expenses",
@@ -267,5 +267,5 @@ var mcp_default = defineMcp({
 });
 
 // lovable-mcp-supabase-entry.ts
-import { createSupabaseHandler } from "npm:@lovable.dev/mcp-js@0.25.0/stacks/supabase";
+import { createSupabaseHandler } from "npm:@lovable.dev/mcp-js@0.25.1/stacks/supabase";
 Deno.serve(createSupabaseHandler(mcp_default, { functionName: "mcp" }));

@@ -290,6 +290,39 @@ export type Database = {
           },
         ]
       }
+      admin_impersonation_log: {
+        Row: {
+          admin_email: string | null
+          admin_user_id: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          target_email: string | null
+          target_user_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_email?: string | null
+          admin_user_id: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          target_email?: string | null
+          target_user_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_email?: string | null
+          admin_user_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          target_email?: string | null
+          target_user_id?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       app_configuration: {
         Row: {
           config_key: string
@@ -5060,6 +5093,27 @@ export type Database = {
           site_name?: string
           start_date?: string
           status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      push_dispatch_config: {
+        Row: {
+          functions_base_url: string
+          id: boolean
+          is_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          functions_base_url: string
+          id?: boolean
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          functions_base_url?: string
+          id?: boolean
+          is_enabled?: boolean
           updated_at?: string
         }
         Relationships: []
