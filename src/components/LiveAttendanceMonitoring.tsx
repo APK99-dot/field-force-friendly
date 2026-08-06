@@ -59,11 +59,14 @@ const LiveAttendanceMonitoring = () => {
   useEffect(() => {
     fetchUsers();
     fetchAttendanceData();
+    // Only attendance is realtime — the users directory is not published to
+    // realtime because it carries emails and phone numbers.
     const channel = supabase.channel('attendance-monitoring')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => fetchAttendanceData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => { fetchUsers(); fetchAttendanceData(); })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const onVisible = () => { if (document.visibilityState === "visible") { fetchUsers(); fetchAttendanceData(); } };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { supabase.removeChannel(channel); document.removeEventListener("visibilitychange", onVisible); };
   }, []);
 
   useEffect(() => { applyFilters(); }, [attendanceData, selectedUsers, searchQuery, dateFilter, startDateFilter, endDateFilter]);

@@ -34,6 +34,7 @@ import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "
 import { resolveInvoiceFileUrl } from "@/utils/invoiceAttachments";
 import { useUiMode, isLightning } from "@/hooks/useUiMode";
 import { HighlightsPanel, PathBar, StageLabel } from "@/components/procurement/lightning/LightningShell";
+import { VendorQuoteAttachmentLink } from "@/components/procurement/VendorQuoteAttachmentLink";
 
 export interface StageHistoryEntry {
   status: string;
@@ -2566,9 +2567,8 @@ export default function ProcurementDetail({
                                                 <ul className="space-y-0.5 max-h-32 overflow-y-auto">
                                                   {quote.attachments.map((a, i) => (
                                                     <li key={i} className="text-[11px]">
-                                                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80 break-all">
-                                                        {a.name || `Attachment ${i + 1}`}
-                                                      </a>
+                                                      <VendorQuoteAttachmentLink url={a.url} name={a.name} index={i} />
+
                                                       {typeof a.size === "number" && a.size > 0 && (
                                                         <span className="text-muted-foreground"> · {(a.size / 1024).toFixed(0)} KB</span>
                                                       )}
@@ -2642,7 +2642,7 @@ export default function ProcurementDetail({
                     {(q.attachments || []).length > 0 && (
                       <div className="flex flex-wrap gap-1 pt-1">
                         {(q.attachments || []).map((a, i) => (
-                          <a key={i} href={a.url} target="_blank" rel="noreferrer" className="underline text-amber-800 dark:text-amber-200">{a.name}</a>
+                          <VendorQuoteAttachmentLink key={i} url={a.url} name={a.name} index={i} className="underline text-amber-800 dark:text-amber-200" />
                         ))}
                       </div>
                     )}
@@ -3554,7 +3554,7 @@ export default function ProcurementDetail({
                       <div className="text-[10px] uppercase text-muted-foreground mb-1">Attachments</div>
                       <ul className="space-y-0.5">
                         {q.attachments.map((a, i) => (
-                          <li key={i}><a className="text-primary underline break-all" href={a.url} target="_blank" rel="noreferrer">{a.name || `Attachment ${i + 1}`}</a></li>
+                          <li key={i}><VendorQuoteAttachmentLink url={a.url} name={a.name} index={i} /></li>
                         ))}
                       </ul>
                     </div>
