@@ -232,7 +232,7 @@ export default function ViewEditorDialog({
   const submit = () => {
     if (!name.trim()) return;
     onSave({
-      id: view?.id,
+      id: view?.id || undefined,
       name: name.trim(),
       filters: { match, conditions: conditions.filter((c) => c.field && c.operator) },
       columns: columns.length ? columns : DEFAULT_VIEW_COLUMNS,
@@ -240,7 +240,7 @@ export default function ViewEditorDialog({
       sort_dir: sortDir,
       visibility,
       shared_user_ids: sharedIds,
-      is_default: view?.is_default ?? false,
+      is_default: view?.id ? (view?.is_default ?? false) : false,
     });
     onOpenChange(false);
   };
@@ -249,7 +249,7 @@ export default function ViewEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl w-[96vw] max-h-[92vh] p-0 gap-0 flex flex-col rounded-xl overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30 shrink-0">
-          <DialogTitle className="text-lg">{view ? "Edit List View" : "New List View"}</DialogTitle>
+          <DialogTitle className="text-lg">{view?.id ? "Edit List View" : "New List View"}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
@@ -431,7 +431,7 @@ export default function ViewEditorDialog({
 
         <DialogFooter className="px-6 py-4 border-t border-border bg-muted/30 shrink-0 gap-2">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button size="sm" onClick={submit} disabled={!name.trim()}>{view ? "Save Changes" : "Create View"}</Button>
+          <Button size="sm" onClick={submit} disabled={!name.trim()}>{view?.id ? "Save Changes" : "Create View"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
