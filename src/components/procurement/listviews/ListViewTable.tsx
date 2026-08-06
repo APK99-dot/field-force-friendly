@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pencil, Check, X, ExternalLink } from "lucide-react";
+import { Pencil, Check, X, ExternalLink, ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
 import { statusColor } from "@/lib/procurement";
 import {
   fieldDef, STATUS_OPTIONS, SOURCE_TYPE_OPTIONS, rawValue, type FieldDef,
@@ -21,6 +21,9 @@ interface Props {
   ownerOptions: PickOption[];
   onOpen: (row: any) => void;
   onSaved: () => void;
+  sortField?: string | null;
+  sortDir?: "asc" | "desc";
+  onSort?: (field: string) => void;
 }
 
 const fmtAmt = (n: number) =>
@@ -35,6 +38,7 @@ const fmtDMY = (d?: string | null) => {
 
 export default function ListViewTable({
   rows, columns, siteOptions, vendorOptions, ownerOptions, onOpen, onSaved,
+  sortField, sortDir = "asc", onSort,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, any>>({});
@@ -136,18 +140,35 @@ export default function ListViewTable({
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm bg-card">
+        <table className="sf-list-table w-full bg-card">
           <thead className="bg-muted/40">
             <tr>
-              {columns.map((key) => (
-                <th
-                  key={key}
-                  className="text-left font-semibold text-[11px] uppercase tracking-wide text-muted-foreground px-4 py-3 whitespace-nowrap border-b border-border"
-                >
-                  {fieldDef(key)?.label ?? key}
-                </th>
-              ))}
-              <th className="px-4 py-3 w-24 text-right border-b border-border text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+              {columns.map((key) => {
+                const active = sortField === key;
+                return (
+                  <th
+                    key={key}
+                    className="text-left text-foreground px-4 py-3 whitespace-nowrap border-b border-border"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onSort?.(key)}
+                      className="inline-flex items-center gap-1 hover:text-primary transition-colors"
+                      title="Sort by this column"
+                    >
+                      <span>{fieldDef(key)?.label ?? key}</span>
+                      {active ? (
+                        sortDir === "asc"
+                          ? <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                          : <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                      ) : (
+                        <ChevronsUpDown className="h-3.5 w-3.5 opacity-30" />
+                      )}
+                    </button>
+                  </th>
+                );
+              })}
+              <th className="px-4 py-3 w-24 text-right border-b border-border text-foreground">
                 Actions
               </th>
             </tr>
@@ -169,7 +190,7 @@ export default function ListViewTable({
                             href={`/procurement?po=${row.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-primary font-medium hover:underline"
+                            className="sf-record-link"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {String(rawValue(row, key) ?? "—")}
