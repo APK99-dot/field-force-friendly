@@ -610,14 +610,39 @@ export default function Procurement() {
         </Select>
       </div>
 
+      <ViewBar
+        views={views}
+        activeView={activeView}
+        currentUserId={currentUserId}
+        onSelect={selectView}
+        onNew={() => { setViewBeingEdited(null); setViewEditorOpen(true); }}
+        onEdit={(v) => { setViewBeingEdited(v); setViewEditorOpen(true); }}
+        onDelete={(v) => setViewToDelete(v)}
+        onPin={(v) => pinDefault(v.id)}
+        display={display}
+        onDisplayChange={setDisplayMode}
+        count={filtered.length}
+      />
+
       {isLoading ? (
         <div className="flex justify-center py-12"><div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : filtered.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground text-sm">
           {orders.length === 0 ? "No procurement orders yet." : "No orders match your search/filter."}
         </CardContent></Card>
+      ) : display === "table" ? (
+        <ListViewTable
+          rows={filtered}
+          columns={activeColumns}
+          siteOptions={siteOptions}
+          vendorOptions={vendorOptions}
+          ownerOptions={ownerOptions}
+          onOpen={(row) => setDetail(row as DetailOrder)}
+          onSaved={fetchAll}
+        />
       ) : (
         <div className="space-y-2">
+
           {filtered.map((o) => {
             const isTransfer = o.source_type === "internal_transfer";
             const reqNo = (o as any).requisition_number || "—";
