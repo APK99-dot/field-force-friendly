@@ -2566,9 +2566,8 @@ export default function ProcurementDetail({
                                                 <ul className="space-y-0.5 max-h-32 overflow-y-auto">
                                                   {quote.attachments.map((a, i) => (
                                                     <li key={i} className="text-[11px]">
-                                                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80 break-all">
-                                                        {a.name || `Attachment ${i + 1}`}
-                                                      </a>
+                                                      <VendorQuoteAttachmentLink url={a.url} name={a.name} index={i} />
+
                                                       {typeof a.size === "number" && a.size > 0 && (
                                                         <span className="text-muted-foreground"> · {(a.size / 1024).toFixed(0)} KB</span>
                                                       )}
