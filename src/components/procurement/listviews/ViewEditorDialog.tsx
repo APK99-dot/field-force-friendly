@@ -206,14 +206,8 @@ export default function ViewEditorDialog({
             {/* Columns */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-semibold"><Columns3 className="h-4 w-4" />Display Fields</div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 border rounded-md p-3">
-                {PROC_FIELDS.map((f) => (
-                  <label key={f.key} className="flex items-center gap-2 text-xs cursor-pointer">
-                    <Checkbox checked={columns.includes(f.key)} onCheckedChange={() => toggleColumn(f.key)} />
-                    <span className="truncate">{f.label}</span>
-                  </label>
-                ))}
-              </div>
+              <FieldPicker columns={columns} onChange={setColumns} />
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Sort by</Label>
