@@ -749,7 +749,7 @@ export default function Procurement() {
       {/* Create/Edit Form — Salesforce Lightning styled */}
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className={`max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col ${lightning ? "lightning-ui" : ""}`}>
+        <DialogContent className={`sf-form max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col ${lightning ? "lightning-ui" : ""}`}>
           <DialogHeader className={`px-4 sm:px-6 py-3 border-b shrink-0 ${lightning ? "bg-white" : ""}`}>
             <div className="flex items-center gap-3">
               {lightning && (
