@@ -31,6 +31,119 @@ function blankCondition(): FilterCondition {
   return { field: "status", operator: "equals", value: "" };
 }
 
+const labelFor = (key: string) => PROC_FIELDS.find((f) => f.key === key)?.label ?? key;
+
+function FieldPicker({
+  columns,
+  onChange,
+}: {
+  columns: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [availSel, setAvailSel] = useState<string[]>([]);
+  const [visSel, setVisSel] = useState<string[]>([]);
+
+  const available = PROC_FIELDS.filter((f) => !columns.includes(f.key));
+
+  const toggle = (list: string[], key: string, set: (v: string[]) => void, multi: boolean) => {
+    if (multi) set(list.includes(key) ? list.filter((k) => k !== key) : [...list, key]);
+    else set(list.includes(key) && list.length === 1 ? [] : [key]);
+  };
+
+  const add = () => {
+    if (!availSel.length) return;
+    onChange([...columns, ...availSel.filter((k) => !columns.includes(k))]);
+    setAvailSel([]);
+  };
+
+  const remove = () => {
+    if (!visSel.length) return;
+    onChange(columns.filter((k) => !visSel.includes(k)));
+    setVisSel([]);
+  };
+
+  const move = (dir: -1 | 1) => {
+    if (!visSel.length) return;
+    const next = [...columns];
+    const order = dir === -1 ? [...next.keys()] : [...next.keys()].reverse();
+    for (const i of order) {
+      if (!visSel.includes(next[i])) continue;
+      const j = i + dir;
+      if (j < 0 || j >= next.length || visSel.includes(next[j])) continue;
+      [next[i], next[j]] = [next[j], next[i]];
+    }
+    onChange(next);
+  };
+
+  const listBtn = (selected: boolean) =>
+    `w-full text-left px-3 py-1.5 text-xs rounded-sm truncate ${
+      selected ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+    }`;
+
+  return (
+    <div className="flex items-stretch gap-2">
+      <div className="flex-1 min-w-0 space-y-1">
+        <Label className="text-xs text-muted-foreground">Available Fields</Label>
+        <div className="h-52 overflow-y-auto rounded-md border p-1">
+          {available.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              className={listBtn(availSel.includes(f.key))}
+              onClick={(e) => toggle(availSel, f.key, setAvailSel, e.ctrlKey || e.metaKey)}
+              onDoubleClick={() => onChange([...columns, f.key])}
+            >
+              {f.label}
+            </button>
+          ))}
+          {available.length === 0 && (
+            <p className="px-2 py-4 text-center text-[11px] text-muted-foreground">All fields selected</p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col justify-center gap-2 pt-5">
+        <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={add} disabled={!availSel.length}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={remove} disabled={!visSel.length}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="flex-1 min-w-0 space-y-1">
+        <Label className="text-xs text-muted-foreground">Visible Fields (in order)</Label>
+        <div className="h-52 overflow-y-auto rounded-md border p-1">
+          {columns.map((key) => (
+            <button
+              key={key}
+              type="button"
+              className={listBtn(visSel.includes(key))}
+              onClick={(e) => toggle(visSel, key, setVisSel, e.ctrlKey || e.metaKey)}
+              onDoubleClick={() => onChange(columns.filter((k) => k !== key))}
+            >
+              {labelFor(key)}
+            </button>
+          ))}
+          {columns.length === 0 && (
+            <p className="px-2 py-4 text-center text-[11px] text-muted-foreground">No columns chosen</p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col justify-center gap-2 pt-5">
+        <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => move(-1)} disabled={!visSel.length}>
+          <ChevronUp className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => move(1)} disabled={!visSel.length}>
+          <ChevronDown className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+
 export default function ViewEditorDialog({
   open, onOpenChange, view, onSave, siteOptions, vendorOptions, ownerOptions, people,
 }: Props) {
