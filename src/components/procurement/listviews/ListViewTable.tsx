@@ -113,7 +113,7 @@ export default function ListViewTable({
     if (def?.type === "picklist" && opts.length) {
       return (
         <Select value={String(value || "")} onValueChange={(v) => setDraft((p) => ({ ...p, [key]: v }))}>
-          <SelectTrigger className="h-8 text-xs min-w-[130px]"><SelectValue placeholder="Select..." /></SelectTrigger>
+          <SelectTrigger className="h-9 text-sm min-w-[140px]"><SelectValue placeholder="Select..." /></SelectTrigger>
           <SelectContent className="z-50 bg-popover">
             {opts.map((o) => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}
           </SelectContent>
@@ -121,11 +121,11 @@ export default function ListViewTable({
       );
     }
     if (def?.multiline) {
-      return <Textarea rows={2} className="text-xs min-w-[180px]" value={String(value)} onChange={(e) => setDraft((p) => ({ ...p, [key]: e.target.value }))} />;
+      return <Textarea rows={2} className="text-sm min-w-[190px]" value={String(value)} onChange={(e) => setDraft((p) => ({ ...p, [key]: e.target.value }))} />;
     }
     return (
       <Input
-        className="h-8 text-xs min-w-[120px]"
+        className="h-9 text-sm min-w-[130px]"
         type={def?.type === "date" ? "date" : def?.type === "number" ? "number" : "text"}
         value={def?.type === "date" ? String(value || "").slice(0, 10) : String(value)}
         onChange={(e) => setDraft((p) => ({ ...p, [key]: e.target.value }))}
