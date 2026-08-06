@@ -235,7 +235,7 @@ export default function ViewEditorDialog({
                       <SelectItem value="any">Match ANY filter</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setConditions((p) => [...p, blankCondition()])}>
+                  <Button size="sm" variant="outline" className="h-9 gap-1 bg-background" onClick={() => setConditions((p) => [...p, blankCondition()])}>
                     <Plus className="h-3.5 w-3.5" />Add
                   </Button>
                 </div>
@@ -306,7 +306,7 @@ export default function ViewEditorDialog({
                         )}
                       </div>
 
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive"
                         onClick={() => setConditions((p) => p.filter((_, idx) => idx !== i))}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -360,7 +360,7 @@ export default function ViewEditorDialog({
                   <Input value={peopleSearch} onChange={(e) => setPeopleSearch(e.target.value)} placeholder="Search people..." className="h-9 text-sm" />
                   <div className="max-h-44 overflow-y-auto space-y-1">
                     {filteredPeople.map((p) => (
-                      <label key={p.value} className="flex items-center gap-2 text-xs cursor-pointer py-0.5">
+                      <label key={p.value} className="flex items-center gap-2 text-sm cursor-pointer py-0.5">
                         <Checkbox
                           checked={sharedIds.includes(p.value)}
                           onCheckedChange={() =>
