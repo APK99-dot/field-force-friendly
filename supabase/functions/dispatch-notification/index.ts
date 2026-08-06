@@ -20,6 +20,14 @@ interface DispatchPayload {
   type?: string;
   related_table?: string;
   related_id?: string;
+  /**
+   * Optional in-app path for the push banner to open when tapped, e.g.
+   * "/my-reports?open=<uuid>". When present it is sent to FCM as data.route,
+   * which src/hooks/usePushNotifications.ts reads (and re-validates as a
+   * same-origin path) in its pushNotificationActionPerformed handler.
+   * Omitting it leaves the FCM message byte-for-byte as it was before.
+   */
+  route?: string;
 }
 
 /** Build a JWT from the service-account JSON for FCM HTTP v1. */
@@ -268,6 +276,12 @@ Deno.serve(async (req) => {
     let sent = 0;
     const staleIds: string[] = [];
 
+    // FCM data values must be strings. Only attach the key when a caller asked
+    // for a deep link, so existing callers send exactly what they sent before.
+    const route = typeof body.route === "string" ? body.route.trim() : "";
+    const dataPayload = route ? { data: { route } } : {};
+    if (route) console.log(`[dispatch] Deep link route attached: ${route}`);
+
     for (const t of tokens) {
       try {
         const res = await fetch(fcmUrl, {
@@ -280,6 +294,7 @@ Deno.serve(async (req) => {
             message: {
               token: t.token,
               notification: { title, body: message },
+              ...dataPayload,
               android: {
                 priority: "high",
                 notification: {

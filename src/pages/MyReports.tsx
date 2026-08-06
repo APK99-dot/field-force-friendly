@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,12 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
  * standing in for an error caused a production outage in this repo, so the query
  * error is surfaced as a toast plus a visible banner and the empty state is only
  * reachable when the request genuinely succeeded with zero rows.
+ *
+ * DEEP LINK: generate-report sends the push banner with data.route =
+ * "/my-reports?open=<report_delivery_log.id>", and usePushNotifications
+ * navigates here. `?open=` makes this page mint a fresh signed URL for that one
+ * row and open it, once. The id is carried instead of a signed URL on purpose —
+ * signed URLs live 300s, and a banner can be tapped hours later.
  */
 
 interface DeliveryRow {
@@ -72,8 +79,13 @@ function unavailableReason(row: DeliveryRow): string {
 
 export default function MyReports() {
   const { userId, isLoading: userLoading } = useCurrentUser();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  // Set when window.open is blocked (an auto-open from a push tap is not a user
+  // gesture, so the WebView can refuse it). Without this the report would just
+  // silently fail to appear.
+  const [blockedUrl, setBlockedUrl] = useState<string | null>(null);
 
   const {
     data: deliveries = [],
@@ -104,9 +116,10 @@ export default function MyReports() {
     }
   }, [deliveriesError]);
 
-  const handleDownload = async (row: DeliveryRow) => {
+  const handleDownload = useCallback(async (row: DeliveryRow) => {
     if (!row.subscription_id || !row.storage_path) return;
     setDownloadError(null);
+    setBlockedUrl(null);
     setDownloadingId(row.id);
     try {
       const { data, error } = await supabase.functions.invoke("sign-report-file", {
@@ -122,7 +135,8 @@ export default function MyReports() {
       const url = (data as any)?.url;
       if (!url) throw new Error("No download link was returned for this report");
 
-      window.open(url, "_blank");
+      const opened = window.open(url, "_blank");
+      if (!opened) setBlockedUrl(url as string);
     } catch (e) {
       const msg = errText(e, "Could not prepare this download");
       setDownloadError(msg);
@@ -130,12 +144,37 @@ export default function MyReports() {
     } finally {
       setDownloadingId(null);
     }
-  };
+  }, []);
 
   // While the user id is still unknown the query is disabled and React Query
   // reports pending, so treat that as loading rather than letting the empty
   // state claim there are no reports.
   const busy = userLoading || !userId || isLoading;
+
+  // ---- Push deep link: ?open=<report_delivery_log.id> ----------------------
+  // Fires at most once per id. The param is cleared afterwards so a refresh or
+  // a back-navigation does not re-download the same report.
+  const openId = searchParams.get("open");
+  const autoOpenedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!openId || busy || deliveriesError) return;
+    if (autoOpenedRef.current === openId) return;
+    autoOpenedRef.current = openId;
+
+    const row = deliveries.find((d) => d.id === openId);
+    setSearchParams({}, { replace: true });
+
+    if (!row) {
+      toast.error("That report is not in your list — showing all your reports instead.");
+      return;
+    }
+    if (!row.storage_path || !row.subscription_id) {
+      toast.info(`No file for this report — ${unavailableReason(row).toLowerCase()}.`);
+      return;
+    }
+    void handleDownload(row);
+  }, [openId, busy, deliveriesError, deliveries, handleDownload, setSearchParams]);
 
   return (
     <div className="p-4 pb-24 space-y-4 max-w-3xl mx-auto">
@@ -148,6 +187,36 @@ export default function MyReports() {
           </Badge>
         )}
       </div>
+
+      {blockedUrl && (
+        <div className="rounded-xl border border-primary/40 bg-primary/5 p-4 flex items-start gap-3">
+          <FileText size={18} className="text-primary shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0 text-sm">
+            <p className="font-medium text-foreground">Your report is ready</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              The browser blocked the automatic open. Tap below to view it.
+            </p>
+            <a
+              href={blockedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setBlockedUrl(null)}
+              className="inline-flex items-center gap-1.5 mt-2 text-sm font-medium text-primary underline"
+            >
+              <Download className="h-4 w-4" />
+              Open report
+            </a>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBlockedUrl(null)}
+            className="text-muted-foreground hover:text-foreground shrink-0"
+            aria-label="Dismiss"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {downloadError && (
         <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 flex items-start gap-3">

@@ -49,19 +49,32 @@
 //   * No preview mode: the inline PDF preview is out of scope for this phase, so
 //     this function is service-role only.
 //
-// ATTACHMENT RENDERING — no third-party imports. The source used npm:exceljs to
-// emit a real .xlsx and a bespoke pdf-renderer module. Neither is available
-// here, so:
+// ATTACHMENT RENDERING:
 //   attachment_format = 'excel'        -> UTF-8 CSV (BOM prefixed), uploaded as
 //                                         .csv with text/csv. Excel opens it
 //                                         natively. A genuine .xlsx needs a ZIP
 //                                         + worksheet-XML writer.
-//   attachment_format = 'pdf'          -> a minimal, self-contained PDF 1.4
-//                                         written below (Courier, landscape A4).
+//   attachment_format = 'pdf'          -> a branded, multi-page A4 portrait PDF
+//                                         built with pdf-lib: company logo +
+//                                         company_name header, a real table with
+//                                         a repeated header row and alternating
+//                                         row shading, page-numbered footer.
 //   attachment_format = 'summary_only' -> no file at all; the digest goes in the
 //                                         notification body.
+//
+// BRANDING: company_profile (company_name + logo_url) is read once per run. The
+// logo is fetched over HTTP and embedded as PNG or JPEG. Every step of that path
+// is best-effort — a missing, unreachable, or unsupported (e.g. WEBP/SVG) logo
+// degrades to a text-only header and never fails the report.
+//
+// DEEP LINK: the push notification carries data.route = /my-reports?open=<id>,
+// where <id> is THIS recipient's report_delivery_log row. Tapping the banner
+// opens My Reports, which mints a fresh signed URL via sign-report-file. A
+// signed URL is deliberately NOT put in the payload — those expire in 300s and a
+// banner may be tapped hours later.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -199,6 +212,13 @@ Deno.serve(async (req) => {
 
     const filtersLabel = filtersLabelFrom(def.config?.filters);
 
+    // Company name + logo for the PDF header. Loaded once per run (and only when
+    // a PDF is actually going to be produced), never fatal.
+    const branding: Branding =
+      format === "pdf"
+        ? await loadBranding(admin)
+        : { companyName: "Bharath Builders", logo: null };
+
     // ---- Shared scope: one dataset call, one file, reused by everyone --------
     // Always re-runs the RPC and always re-uploads (upsert), so late-arriving
     // data replaces an earlier, possibly empty, file for the same period.
@@ -214,10 +234,14 @@ Deno.serve(async (req) => {
       sharedIsEmpty = sharedRows.length === 0;
       sharedDigest = buildDigest(sub.name, period, sharedRows);
       if (format !== "summary_only") {
-        const bytes = renderFile(format, sub.name, period, sharedRows, {
-          scopeLabel: "Shared",
-          filtersLabel,
-        });
+        const bytes = await renderFile(
+          format,
+          sub.name,
+          period,
+          sharedRows,
+          { scopeLabel: "Shared", filtersLabel },
+          branding,
+        );
         const path = `${sub.id}/${period.key}/shared.${ext}`;
         const { error: upErr } = await admin.storage
           .from(BUCKET)
@@ -231,6 +255,11 @@ Deno.serve(async (req) => {
     const outcomes: Array<Record<string, unknown>> = [];
 
     for (const rid of recipients) {
+      // The delivery-log id is minted here rather than by the database default,
+      // because the push notification has to carry it and the push goes out
+      // before the log row is written. report_delivery_log.id is a plain uuid
+      // PK, so supplying it explicitly is equivalent to letting the default fire.
+      const deliveryLogId = crypto.randomUUID();
       try {
         let path = sharedPath;
         let digest = sharedDigest;
@@ -249,11 +278,18 @@ Deno.serve(async (req) => {
           digest = buildDigest(sub.name, period, rows);
           path = null;
           if (format !== "summary_only") {
-            const bytes = renderFile(format, sub.name, period, rows, {
-              scopeLabel: "Per recipient",
-              filtersLabel,
-              recipientName: recipientNames.get(rid) || null,
-            });
+            const bytes = await renderFile(
+              format,
+              sub.name,
+              period,
+              rows,
+              {
+                scopeLabel: "Per recipient",
+                filtersLabel,
+                recipientName: recipientNames.get(rid) || null,
+              },
+              branding,
+            );
             const p = `${sub.id}/${period.key}/${rid}.${ext}`;
             const { error: upErr } = await admin.storage
               .from(BUCKET)
@@ -274,6 +310,8 @@ Deno.serve(async (req) => {
           message,
           subscriptionId: sub.id,
           pushToPhone: sub.push_to_phone === true,
+          // Per-recipient, because the delivery-log row is per-recipient.
+          route: `/my-reports?open=${deliveryLogId}`,
         });
 
         // Append-only log row (no upsert). Every run is recorded.
@@ -281,6 +319,7 @@ Deno.serve(async (req) => {
         // recipient_user_id, period, trigger_type, notification_id,
         // storage_path, in_app_status, push_status, error.
         const { error: logErr } = await admin.from("report_delivery_log").insert({
+          id: deliveryLogId,
           subscription_id: sub.id,
           recipient_user_id: rid,
           period: period.key,
@@ -304,6 +343,7 @@ Deno.serve(async (req) => {
         console.error("[generate-report] per-recipient error", rid, e);
         try {
           await admin.from("report_delivery_log").insert({
+            id: deliveryLogId,
             subscription_id: sub.id,
             recipient_user_id: rid,
             period: period.key,
@@ -427,6 +467,8 @@ async function deliverToRecipient(
     message: string;
     subscriptionId: string;
     pushToPhone: boolean;
+    /** In-app path the push banner should open. Sent to FCM as data.route. */
+    route?: string | null;
   },
 ): Promise<DeliveryResult> {
   const notifRow = {
@@ -448,6 +490,8 @@ async function deliverToRecipient(
         type: notifRow.type,
         related_table: notifRow.related_table,
         related_id: notifRow.related_id,
+        // Optional on dispatch-notification; omitted callers are unaffected.
+        ...(args.route ? { route: args.route } : {}),
       },
     });
 
@@ -547,14 +591,15 @@ interface RenderOpts {
   recipientName?: string | null;
 }
 
-function renderFile(
+async function renderFile(
   format: string,
   name: string,
   period: Period,
   rows: any[],
   opts: RenderOpts,
-): Uint8Array {
-  if (format === "pdf") return renderPdf(name, period, rows, opts);
+  branding: Branding,
+): Promise<Uint8Array> {
+  if (format === "pdf") return await renderPdf(name, period, rows, opts, branding);
   return renderCsv(name, period, rows, opts);
 }
 
@@ -588,118 +633,453 @@ function renderCsv(name: string, period: Period, rows: any[], opts: RenderOpts):
   return new TextEncoder().encode(BOM + out.join("\r\n") + "\r\n");
 }
 
-// --- Minimal PDF 1.4 writer -------------------------------------------------
-// Courier (a base-14 font, so nothing needs embedding) on landscape A4. Because
-// the font is monospaced, padding each cell to a fixed width is enough to line
-// the columns up. Everything is forced to printable ASCII so that string length
-// equals byte length, which is what makes the xref byte offsets below correct.
+// --- Branded PDF (pdf-lib) --------------------------------------------------
+// A4 portrait, Helvetica / Helvetica-Bold (base-14, nothing to embed).
+//
+// Everything drawn is forced to printable ASCII first. The standard fonts are
+// WinAnsi-encoded and pdf-lib THROWS on a codepoint it cannot encode, so an
+// unlucky rupee sign or emoji coming out of a dataset would otherwise blow up
+// the whole run.
 
-const PDF_W = 842;
-const PDF_H = 595;
+const PDF_W = 595.28; // A4 portrait, points
+const PDF_H = 841.89;
 const PDF_MARGIN = 36;
-const PDF_FONT_SIZE = 8;
-const PDF_LINE_HEIGHT = 10;
-const PDF_MAX_CHARS = 158; // (842 - 72) / (8 * 0.6) rounded down
-const PDF_LINES_PER_PAGE = 50;
+const PDF_CONTENT_W = PDF_W - PDF_MARGIN * 2;
+
+const PDF_BODY_SIZE = 8;
+const PDF_HEAD_SIZE = 8;
+const PDF_LINE_H = 9.5;
+const PDF_CELL_PAD = 3;
+const PDF_ROW_MIN_H = 14;
+const PDF_HEADER_ROW_H = 16;
+const PDF_FOOTER_H = 24;
+
 const PDF_MAX_ROWS = 5000;
+const PDF_MAX_COLS = 10; // portrait A4 cannot carry more legibly
+const PDF_MAX_CELL_LINES = 2;
+const PDF_MAX_CELL_CHARS = 160; // more than two lines can ever show
+const PDF_MIN_COL_W = 52; // 10 columns x 52 still fits the 523pt content width
+const PDF_MAX_COL_W = 210;
+
+const PDF_INK = rgb(0.08, 0.12, 0.24);
+const PDF_TEXT = rgb(0.16, 0.16, 0.16);
+const PDF_MUTED = rgb(0.45, 0.45, 0.45);
+const PDF_ZEBRA = rgb(0.957, 0.965, 0.98);
+const PDF_RULE = rgb(0.78, 0.66, 0.31);
+const PDF_WHITE = rgb(1, 1, 1);
 
 function toAscii(s: string): string {
   // eslint-disable-next-line no-control-regex
   return s.replace(/[^\x20-\x7E]/g, "?");
 }
 
-function pdfEscape(s: string): string {
-  return s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+interface Logo {
+  bytes: Uint8Array;
+  kind: "png" | "jpg";
 }
 
-function tableLines(rows: any[]): string[] {
-  if (rows.length === 0) return ["No records for this period."];
+interface Branding {
+  companyName: string;
+  logo: Logo | null;
+}
+
+/**
+ * company_profile is a single-row table in practice, but a stray extra row must
+ * not cost us the logo, so the row that actually has one wins (same rule the
+ * client-side report PDF uses).
+ *
+ * Never throws: branding is decoration, and a report with a plain text header is
+ * infinitely better than no report.
+ */
+async function loadBranding(admin: any): Promise<Branding> {
+  const fallback: Branding = { companyName: "Bharath Builders", logo: null };
+  try {
+    const { data, error } = await admin
+      .from("company_profile")
+      .select("company_name, logo_url")
+      .limit(5);
+    if (error) {
+      console.error("[generate-report] company_profile lookup failed:", error);
+      return fallback;
+    }
+    const rows = (data ?? []) as Array<{ company_name: string | null; logo_url: string | null }>;
+    const row =
+      rows.find((r) => typeof r.logo_url === "string" && r.logo_url.trim() !== "") ??
+      rows[0] ??
+      null;
+    if (!row) return fallback;
+
+    const companyName = (row.company_name || "").trim() || fallback.companyName;
+    const logoUrl = (row.logo_url || "").trim();
+    const logo = logoUrl ? await fetchLogo(logoUrl) : null;
+    return { companyName, logo };
+  } catch (e) {
+    console.error("[generate-report] branding load threw:", e);
+    return fallback;
+  }
+}
+
+/**
+ * Fetch logo_url and classify it as PNG or JPEG — content-type first, then the
+ * URL extension, then the magic bytes. Anything else (WEBP and SVG are both
+ * uploadable from the Company Profile screen) returns null, because pdf-lib can
+ * only embed PNG and JPEG.
+ */
+async function fetchLogo(url: string): Promise<Logo | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.warn(`[generate-report] logo fetch ${res.status} for ${url}`);
+      return null;
+    }
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.byteLength === 0) return null;
+
+    const ct = (res.headers.get("content-type") ?? "").toLowerCase();
+    let kind: "png" | "jpg" | null = null;
+    if (ct.includes("png")) kind = "png";
+    else if (ct.includes("jpeg") || ct.includes("jpg")) kind = "jpg";
+
+    if (!kind) {
+      const path = url.split("?")[0].toLowerCase();
+      if (path.endsWith(".png")) kind = "png";
+      else if (path.endsWith(".jpg") || path.endsWith(".jpeg")) kind = "jpg";
+    }
+    if (!kind) {
+      if (bytes[0] === 0x89 && bytes[1] === 0x50) kind = "png";
+      else if (bytes[0] === 0xff && bytes[1] === 0xd8) kind = "jpg";
+    }
+    if (!kind) {
+      console.warn(`[generate-report] unsupported logo type (${ct || "unknown"}) — skipping`);
+      return null;
+    }
+    return { bytes, kind };
+  } catch (e) {
+    console.warn("[generate-report] logo fetch threw:", e);
+    return null;
+  }
+}
+
+/** Split `text` across at most `maxLines` lines that each fit `maxWidth`. */
+function wrapCell(
+  text: string,
+  font: any,
+  size: number,
+  maxWidth: number,
+  maxLines: number,
+): string[] {
+  if (text === "") return [""];
+  const width = (s: string) => font.widthOfTextAtSize(s, size);
+
+  /**
+   * Hard-cut a single unbreakable run so it can never overflow its column.
+   * Binary search rather than a character-at-a-time walk: this runs up to
+   * rows x columns times per document.
+   */
+  const clip = (s: string, room: number): string => {
+    if (width(s) <= room) return s;
+    let lo = 0;
+    let hi = s.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (width(`${s.slice(0, mid)}...`) <= room) lo = mid;
+      else hi = mid - 1;
+    }
+    return `${s.slice(0, Math.max(1, lo))}...`;
+  };
+
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter((w) => w !== "")) {
+    const candidate = line === "" ? word : `${line} ${word}`;
+    if (width(candidate) <= maxWidth) {
+      line = candidate;
+      continue;
+    }
+    if (line !== "") lines.push(line);
+    if (lines.length === maxLines) {
+      // No room left — fold the remainder into the final line and clip it.
+      const last = lines.pop() as string;
+      lines.push(clip(`${last} ${word}`, maxWidth));
+      return lines;
+    }
+    line = width(word) <= maxWidth ? word : clip(word, maxWidth);
+  }
+  if (line !== "") lines.push(line);
+  return lines.length === 0 ? [""] : lines.slice(0, maxLines);
+}
+
+/**
+ * Column widths from the MEASURED width of the widest thing each column has to
+ * show (its header, or its longest cell), not from character counts — a date
+ * column sized by character count lands a fraction of a point short and clips
+ * every value in it. Clamped so no column collapses and none hogs the page, then
+ * scaled so the row spans exactly the content width.
+ */
+function columnWidths(keys: string[], rows: any[], font: any, headFont: any): number[] {
+  const desired = keys.map((k) => {
+    // Longest by character count first (cheap), measured once (accurate).
+    let longest = "";
+    for (const r of rows) {
+      const t = cellText(r[k]);
+      if (t.length > longest.length) longest = t;
+    }
+    if (longest.length > 40) longest = longest.slice(0, 40);
+    const w =
+      Math.max(
+        headFont.widthOfTextAtSize(toAscii(k), PDF_HEAD_SIZE),
+        font.widthOfTextAtSize(toAscii(longest), PDF_BODY_SIZE),
+      ) +
+      PDF_CELL_PAD * 2;
+    return Math.min(Math.max(w, PDF_MIN_COL_W), PDF_MAX_COL_W);
+  });
+
+  const total = desired.reduce((a, b) => a + b, 0);
+  if (total <= 0) return keys.map(() => PDF_CONTENT_W / keys.length);
+  if (Math.abs(total - PDF_CONTENT_W) < 0.01) return desired;
+
+  // Room to spare: hand it out in proportion to what each column asked for.
+  if (total < PDF_CONTENT_W) {
+    const scale = PDF_CONTENT_W / total;
+    return desired.map((w) => w * scale);
+  }
+
+  // Over budget: take the excess only off columns that sit above the minimum.
+  const excess = total - PDF_CONTENT_W;
+  const slack = desired.reduce((a, w) => a + Math.max(0, w - PDF_MIN_COL_W), 0);
+  if (slack <= 0) return keys.map(() => PDF_CONTENT_W / keys.length);
+  return desired.map((w) => w - (Math.max(0, w - PDF_MIN_COL_W) / slack) * excess);
+}
+
+async function renderPdf(
+  name: string,
+  period: Period,
+  rows: any[],
+  opts: RenderOpts,
+  branding: Branding,
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+  // Embed the logo once, up front — a corrupt image must degrade the header,
+  // not kill the document.
+  let logoImage: any = null;
+  if (branding.logo) {
+    try {
+      logoImage =
+        branding.logo.kind === "png"
+          ? await doc.embedPng(branding.logo.bytes)
+          : await doc.embedJpg(branding.logo.bytes);
+    } catch (e) {
+      console.warn("[generate-report] logo embed failed — text-only header:", e);
+      logoImage = null;
+    }
+  }
+
   const capped = rows.slice(0, PDF_MAX_ROWS);
-  const keys = Object.keys(capped[0] ?? {});
-  if (keys.length === 0) return ["No records for this period."];
+  const allKeys = capped.length > 0 ? Object.keys(capped[0] ?? {}) : [];
+  const keys = allKeys.slice(0, PDF_MAX_COLS);
+  const hasTable = keys.length > 0;
+  const widths = hasTable ? columnWidths(keys, capped, font, bold) : [];
+  const colX: number[] = [];
+  let acc = PDF_MARGIN;
+  for (const w of widths) {
+    colX.push(acc);
+    acc += w;
+  }
 
-  const widths = keys.map((k) => {
-    let w = k.length;
-    for (const r of capped) {
-      const len = cellText(r[k]).length;
-      if (len > w) w = len;
+  const pages: any[] = [];
+  let page: any = null;
+  let y = 0;
+
+  const newPage = () => {
+    page = doc.addPage([PDF_W, PDF_H]);
+    pages.push(page);
+    y = PDF_H - PDF_MARGIN;
+  };
+
+  const text = (
+    s: string,
+    x: number,
+    baseline: number,
+    size: number,
+    f: any,
+    color: any,
+  ) => {
+    page.drawText(toAscii(s), { x, y: baseline, size, font: f, color });
+  };
+
+  newPage();
+
+  // ---- Header: logo (left) + company name beside it ------------------------
+  let headerTextX = PDF_MARGIN;
+  let headerBottom = y - 24;
+  if (logoImage) {
+    const iw = Number(logoImage.width) || 0;
+    const ih = Number(logoImage.height) || 0;
+    if (iw > 0 && ih > 0) {
+      const logoH = 38;
+      const logoW = Math.min(110, (iw / ih) * logoH);
+      page.drawImage(logoImage, {
+        x: PDF_MARGIN,
+        y: y - logoH,
+        width: logoW,
+        height: logoH,
+      });
+      headerTextX = PDF_MARGIN + logoW + 12;
+      headerBottom = Math.min(headerBottom, y - logoH);
     }
-    return Math.min(Math.max(w, 3), 24);
-  });
-
-  const fmt = (vals: string[]) =>
-    vals
-      .map((v, i) => (v.length > widths[i] ? v.slice(0, widths[i]) : v.padEnd(widths[i])))
-      .join("  ")
-      .slice(0, PDF_MAX_CHARS);
-
-  const lines = [fmt(keys), fmt(widths.map((w) => "-".repeat(w)))];
-  for (const r of capped) lines.push(fmt(keys.map((k) => cellText(r[k]))));
-  if (rows.length > capped.length) {
-    lines.push(`... (${rows.length - capped.length} more rows omitted)`);
   }
-  return lines;
-}
+  text(branding.companyName, headerTextX, y - 20, 17, bold, PDF_INK);
 
-function renderPdf(name: string, period: Period, rows: any[], opts: RenderOpts): Uint8Array {
-  const all = [...metaLines(name, period, opts), "", ...tableLines(rows)];
+  y = headerBottom - 8;
+  page.drawRectangle({
+    x: PDF_MARGIN,
+    y,
+    width: PDF_CONTENT_W,
+    height: 1.2,
+    color: PDF_RULE,
+  });
+  y -= 16;
 
-  const pages: string[][] = [];
-  for (let i = 0; i < all.length; i += PDF_LINES_PER_PAGE) {
-    pages.push(all.slice(i, i + PDF_LINES_PER_PAGE));
+  // ---- Report name + period + meta ----------------------------------------
+  text(name, PDF_MARGIN, y, 13, bold, PDF_INK);
+  y -= 15;
+  text(
+    `Period: ${period.label} (${period.date_from} to ${period.date_to})`,
+    PDF_MARGIN,
+    y,
+    9,
+    font,
+    PDF_TEXT,
+  );
+  y -= 12;
+
+  const meta: string[] = [];
+  if (opts.recipientName) meta.push(`Recipient: ${opts.recipientName}`);
+  if (opts.scopeLabel) meta.push(`Scope: ${opts.scopeLabel}`);
+  if (opts.filtersLabel) meta.push(`Filters: ${opts.filtersLabel}`);
+  meta.push(`Rows: ${rows.length}`);
+  if (allKeys.length > keys.length) {
+    meta.push(`Columns 1-${keys.length} of ${allKeys.length} (full set in the CSV export)`);
   }
-  if (pages.length === 0) pages.push([name]);
+  for (const line of wrapCell(meta.join("   |   "), font, 8.5, PDF_CONTENT_W, 3)) {
+    text(line, PDF_MARGIN, y, 8.5, font, PDF_MUTED);
+    y -= 11;
+  }
+  y -= 6;
 
-  // Object ids: 1 catalog, 2 pages, 3 font, then (page, contents) pairs.
-  const objs: Array<{ id: number; body: string }> = [];
-  const kids: string[] = [];
-  for (let i = 0; i < pages.length; i++) kids.push(`${4 + 2 * i} 0 R`);
-
-  objs.push({ id: 1, body: "<< /Type /Catalog /Pages 2 0 R >>" });
-  objs.push({
-    id: 2,
-    body: `<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${pages.length} >>`,
-  });
-  objs.push({
-    id: 3,
-    body: "<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>",
-  });
-
-  for (let i = 0; i < pages.length; i++) {
-    const pageId = 4 + 2 * i;
-    const contentId = 5 + 2 * i;
-    objs.push({
-      id: pageId,
-      body:
-        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PDF_W} ${PDF_H}] ` +
-        `/Resources << /Font << /F1 3 0 R >> >> /Contents ${contentId} 0 R >>`,
+  // ---- Table ---------------------------------------------------------------
+  const drawTableHeader = () => {
+    page.drawRectangle({
+      x: PDF_MARGIN,
+      y: y - PDF_HEADER_ROW_H,
+      width: PDF_CONTENT_W,
+      height: PDF_HEADER_ROW_H,
+      color: PDF_INK,
     });
-    let stream = `BT /F1 ${PDF_FONT_SIZE} Tf ${PDF_LINE_HEIGHT} TL ${PDF_MARGIN} ${PDF_H - PDF_MARGIN} Td\n`;
-    for (const line of pages[i]) {
-      stream += `(${pdfEscape(toAscii(line))}) Tj T*\n`;
+    keys.forEach((k, i) => {
+      const label = wrapCell(k, bold, PDF_HEAD_SIZE, widths[i] - PDF_CELL_PAD * 2, 1)[0];
+      text(
+        label,
+        colX[i] + PDF_CELL_PAD,
+        y - PDF_HEADER_ROW_H + 5.5,
+        PDF_HEAD_SIZE,
+        bold,
+        PDF_WHITE,
+      );
+    });
+    y -= PDF_HEADER_ROW_H;
+  };
+
+  if (!hasTable) {
+    text("No records for this period.", PDF_MARGIN, y, 10, font, PDF_TEXT);
+    y -= 14;
+  } else {
+    drawTableHeader();
+
+    capped.forEach((r, idx) => {
+      const cells = keys.map((k, i) => {
+        // Only two lines of a ~90pt column are ever shown, so there is no point
+        // measuring a stringified JSON blob word by word. Cap first, wrap after.
+        const raw = toAscii(cellText(r[k]));
+        return wrapCell(
+          raw.length > PDF_MAX_CELL_CHARS ? raw.slice(0, PDF_MAX_CELL_CHARS) : raw,
+          font,
+          PDF_BODY_SIZE,
+          widths[i] - PDF_CELL_PAD * 2,
+          PDF_MAX_CELL_LINES,
+        );
+      });
+      const lineCount = cells.reduce((m, c) => Math.max(m, c.length), 1);
+      const rowH = Math.max(PDF_ROW_MIN_H, lineCount * PDF_LINE_H + 5);
+
+      if (y - rowH < PDF_MARGIN + PDF_FOOTER_H) {
+        newPage();
+        drawTableHeader();
+      }
+
+      if (idx % 2 === 1) {
+        page.drawRectangle({
+          x: PDF_MARGIN,
+          y: y - rowH,
+          width: PDF_CONTENT_W,
+          height: rowH,
+          color: PDF_ZEBRA,
+        });
+      }
+
+      cells.forEach((lines, i) => {
+        lines.forEach((line, li) => {
+          text(
+            line,
+            colX[i] + PDF_CELL_PAD,
+            y - 4 - PDF_BODY_SIZE - li * PDF_LINE_H,
+            PDF_BODY_SIZE,
+            font,
+            PDF_TEXT,
+          );
+        });
+      });
+      y -= rowH;
+    });
+
+    if (rows.length > capped.length) {
+      if (y - 14 < PDF_MARGIN + PDF_FOOTER_H) newPage();
+      y -= 12;
+      text(
+        `... ${rows.length - capped.length} more row(s) omitted — see the CSV export.`,
+        PDF_MARGIN,
+        y,
+        8,
+        font,
+        PDF_MUTED,
+      );
     }
-    stream += "ET";
-    objs.push({
-      id: contentId,
-      body: `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+  }
+
+  // ---- Footer on every page ------------------------------------------------
+  const stamp = `${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`;
+  pages.forEach((p, i) => {
+    p.drawText(toAscii(`Generated: ${stamp}`), {
+      x: PDF_MARGIN,
+      y: PDF_MARGIN - 4,
+      size: 7.5,
+      font,
+      color: PDF_MUTED,
     });
-  }
+    const label = `Page ${i + 1} of ${pages.length}`;
+    p.drawText(label, {
+      x: PDF_W - PDF_MARGIN - font.widthOfTextAtSize(label, 7.5),
+      y: PDF_MARGIN - 4,
+      size: 7.5,
+      font,
+      color: PDF_MUTED,
+    });
+  });
 
-  let out = "%PDF-1.4\n";
-  const offsets: number[] = [];
-  for (const o of objs) {
-    offsets[o.id] = out.length;
-    out += `${o.id} 0 obj\n${o.body}\nendobj\n`;
-  }
-  const xrefPos = out.length;
-  const size = objs.length + 1;
-  out += `xref\n0 ${size}\n0000000000 65535 f \n`;
-  for (let id = 1; id < size; id++) {
-    out += `${String(offsets[id]).padStart(10, "0")} 00000 n \n`;
-  }
-  out += `trailer\n<< /Size ${size} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF\n`;
-
-  return new TextEncoder().encode(out);
+  return await doc.save();
 }
 
 /** Human-readable summary of the definition's stored filters, for the header. */
