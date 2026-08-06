@@ -610,7 +610,9 @@ export default function VendorQuote() {
                 {attachments.map((a, idx) => (
                   <li key={idx} className="flex items-center gap-2 text-sm border rounded px-2 py-1.5">
                     <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <a href={a.url} target="_blank" rel="noreferrer" className="flex-1 truncate hover:underline">{a.name}</a>
+                    {/* Attachments live in a private bucket, so uploaded files
+                        are listed by name rather than linked publicly. */}
+                    <span className="flex-1 truncate">{a.name}</span>
                     <span className="text-xs text-muted-foreground shrink-0">{(a.size / 1024).toFixed(0)} KB</span>
                     {!readOnly && (
                       <Button type="button" size="icon" variant="ghost" className="h-6 w-6"
