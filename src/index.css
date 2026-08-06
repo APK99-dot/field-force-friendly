@@ -912,3 +912,19 @@
 .dark .lightning-ui .sf-highlights {
   background: radial-gradient(120% 160% at 0% 0%, rgba(27, 150, 255, 0.12) 0%, rgba(27, 150, 255, 0) 55%), var(--sf-surface) !important;
 }
+
+/* Salesforce-style record link (blue + underlined so it reads as clickable) */
+.sf-record-link {
+  color: var(--sf-link, #0176d3);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 500;
+}
+.sf-record-link:hover { filter: brightness(0.9); }
+
+/* List view table typography — header is 2pt bigger and bold than body text */
+.sf-list-table { font-size: var(--app-font-size, 16px); }
+.sf-list-table thead th {
+  font-size: calc(var(--app-font-size, 16px) + 2px);
+  font-weight: 700;
+}
