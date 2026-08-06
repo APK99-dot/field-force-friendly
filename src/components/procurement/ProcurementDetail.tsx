@@ -34,6 +34,7 @@ import { fetchAddressOptions, formatAddressSnapshot, type AddressOption } from "
 import { resolveInvoiceFileUrl } from "@/utils/invoiceAttachments";
 import { useUiMode, isLightning } from "@/hooks/useUiMode";
 import { HighlightsPanel, PathBar, StageLabel } from "@/components/procurement/lightning/LightningShell";
+import { VendorQuoteAttachmentLink } from "@/components/procurement/VendorQuoteAttachmentLink";
 
 export interface StageHistoryEntry {
   status: string;
