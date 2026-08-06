@@ -84,8 +84,13 @@ export default function InvoiceForm({
     return items.filter((it) => (itemVendorMap[it.id] || []).includes(selectedVendorId));
   }, [items, selectedVendorId, itemVendorMap]);
 
+  // Invoice value must match the PO grand total, which is taxable + GST per line.
   const amount = useMemo(
-    () => visibleItems.reduce((s, it) => s + it.rate * it.qty, 0),
+    () =>
+      visibleItems.reduce((s, it) => {
+        const taxable = (Number(it.rate) || 0) * (Number(it.qty) || 0);
+        return s + taxable * (1 + (Number(it.gst_percent) || 0) / 100);
+      }, 0),
     [visibleItems]
   );
 

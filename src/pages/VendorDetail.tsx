@@ -20,7 +20,7 @@ import {
   ClipboardList, FileCheck,
 } from "lucide-react";
 import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
-import { resolveInvoiceFileUrl } from "@/utils/invoiceAttachments";
+
 import { LightningShell, LightningToggle, HighlightsPanel } from "@/components/procurement/lightning/LightningShell";
 import { useUiMode, isLightning } from "@/hooks/useUiMode";
 
@@ -311,7 +311,10 @@ export default function VendorDetail() {
 
   async function downloadAttachment(path: string, name: string) {
     try {
-      const url = await resolveInvoiceFileUrl(path);
+      // procurement_attachments rows live in the procurement-attachments bucket,
+      // not the invoice-attachments bucket.
+      const { data } = await supabase.storage.from("procurement-attachments").createSignedUrl(path, 3600);
+      const url = data?.signedUrl || "";
       if (!url) throw new Error("Unable to resolve file URL");
       const a = document.createElement("a");
       a.href = url;
