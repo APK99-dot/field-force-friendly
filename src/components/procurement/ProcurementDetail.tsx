@@ -840,6 +840,7 @@ export default function ProcurementDetail({
   const items: POItem[] = useMemo(
     () => (order.procurement_items || []).map((it) => ({
       id: it.id, product_id: it.product_id, rate: it.rate, qty: it.qty, uom: it.uom,
+      gst_percent: it.gst_percent ?? 0,
     })),
     [order.procurement_items]
   );
