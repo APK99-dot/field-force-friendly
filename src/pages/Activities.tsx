@@ -1389,9 +1389,7 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onReceiveGo
             {a.attachment_urls && a.attachment_urls.length > 0 && a.attachment_urls.some((url: string) => url.includes("activity-audio")) && (
               <div className="ml-6 mt-1.5">
                 {a.attachment_urls.filter((url: string) => url.includes("activity-audio")).map((url: string, idx: number) => (
-                  <audio key={idx} controls className="h-8 w-full max-w-[240px]" preload="metadata">
-                    <source src={url} type={url.endsWith('.m4a') ? 'audio/mp4' : url.endsWith('.ogg') ? 'audio/ogg' : 'audio/webm'} />
-                  </audio>
+                  <ActivityAudioPlayer key={idx} url={url} />
                 ))}
               </div>
             )}
