@@ -188,10 +188,8 @@ export default function ListViewTable({
                         ) : isIdCol ? (
                           <a
                             href={`/procurement?po=${row.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
                             className="sf-record-link"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpen(row); }}
                           >
                             {String(rawValue(row, key) ?? "—")}
                           </a>
