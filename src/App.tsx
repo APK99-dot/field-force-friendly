@@ -34,6 +34,9 @@ const InstallApp = lazy(() => import("./pages/InstallApp"));
 const VendorQuote = lazy(() => import("./pages/VendorQuote"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const Profile = lazy(() => import("./pages/Profile"));
+const AppSettings = lazy(() => import("./pages/AppSettings"));
+const Documents = lazy(() => import("./pages/Documents"));
+const Help = lazy(() => import("./pages/Help"));
 const MyTeam = lazy(() => import("./pages/MyTeam"));
 const Vendors = lazy(() => import("./pages/Vendors"));
 const VendorDetail = lazy(() => import("./pages/VendorDetail"));
@@ -121,6 +124,9 @@ const App = () => (
             <Route path="/activities" element={<Suspense fallback={<PageFallback />}><Activities /></Suspense>} />
             <Route path="/activity-timeline" element={<Suspense fallback={<PageFallback />}><ActivityTimeline /></Suspense>} />
             <Route path="/profile" element={<Suspense fallback={<PageFallback />}><Profile /></Suspense>} />
+            <Route path="/settings" element={<Suspense fallback={<PageFallback />}><AppSettings /></Suspense>} />
+            <Route path="/documents" element={<Suspense fallback={<PageFallback />}><Documents /></Suspense>} />
+            <Route path="/help" element={<Suspense fallback={<PageFallback />}><Help /></Suspense>} />
             <Route path="/my-team" element={<Suspense fallback={<PageFallback />}><MyTeam /></Suspense>} />
             <Route path="/vendors" element={<Suspense fallback={<PageFallback />}><Vendors /></Suspense>} />
             <Route path="/vendors/:id" element={<Suspense fallback={<PageFallback />}><VendorDetail /></Suspense>} />

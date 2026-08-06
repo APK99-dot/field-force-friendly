@@ -4,6 +4,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { requestNativePermissions } from "./utils/nativePermissions";
 import { checkAndBustCache, startVersionSync } from "./utils/cacheVersion";
+import { initAppearance } from "./hooks/useAppearance";
 
 // Recover from stale lazy-loaded chunks after a new deploy by reloading once.
 const CHUNK_RELOAD_KEY = "chunk_reload_attempt";
@@ -26,6 +27,7 @@ window.addEventListener("unhandledrejection", (e) => handleChunkError(e.reason))
 const reloading = checkAndBustCache();
 
 if (!reloading) {
+  initAppearance();
   requestNativePermissions();
 
   // Register service worker for Web Push (iPhone PWA + desktop).
