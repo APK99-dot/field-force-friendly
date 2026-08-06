@@ -3554,7 +3554,7 @@ export default function ProcurementDetail({
                       <div className="text-[10px] uppercase text-muted-foreground mb-1">Attachments</div>
                       <ul className="space-y-0.5">
                         {q.attachments.map((a, i) => (
-                          <li key={i}><a className="text-primary underline break-all" href={a.url} target="_blank" rel="noreferrer">{a.name || `Attachment ${i + 1}`}</a></li>
+                          <li key={i}><VendorQuoteAttachmentLink url={a.url} name={a.name} index={i} /></li>
                         ))}
                       </ul>
                     </div>
