@@ -29,6 +29,7 @@ export interface POItem {
   rate: number;
   qty: number;
   uom: string | null;
+  gst_percent?: number | null;
 }
 
 interface Props {
