@@ -120,12 +120,12 @@ export default function AttendanceManagement() {
     }
   }, [activeTab, selectedUser, currentUserId, isAdmin]);
 
-  // Auto-refresh when users are added/modified
+  // The users directory is no longer broadcast over realtime (it carries emails
+  // and phone numbers), so refresh the roster when the tab regains focus instead.
   useEffect(() => {
-    const channel = supabase.channel('attendance-mgmt-users')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => { fetchUsers(); })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const onVisible = () => { if (document.visibilityState === "visible") fetchUsers(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { document.removeEventListener("visibilitychange", onVisible); };
   }, []);
 
   const fetchUsers = async () => {
