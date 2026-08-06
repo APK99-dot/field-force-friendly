@@ -49,8 +49,9 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_notify_procurement_orders ON public.procurement_orders;
 CREATE TRIGGER trg_notify_procurement_orders
-  AFTER INSERT OR UPDATE OF status ON public.procurement_orders
+  AFTER INSERT OR UPDATE OF status  ON public.procurement_orders
   FOR EACH ROW EXECUTE FUNCTION public.notify_procurement_orders();
 
 -- 2. Goods receipts -----------------------------------------------------------
@@ -74,8 +75,9 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_notify_procurement_grns ON public.procurement_grns;
 CREATE TRIGGER trg_notify_procurement_grns
-  AFTER INSERT ON public.procurement_grns
+  AFTER INSERT  ON public.procurement_grns
   FOR EACH ROW EXECUTE FUNCTION public.notify_procurement_grns();
 
 -- 3. Expenses -----------------------------------------------------------------
@@ -114,8 +116,9 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_notify_additional_expenses ON public.additional_expenses;
 CREATE TRIGGER trg_notify_additional_expenses
-  AFTER INSERT OR UPDATE OF status ON public.additional_expenses
+  AFTER INSERT OR UPDATE OF status  ON public.additional_expenses
   FOR EACH ROW EXECUTE FUNCTION public.notify_additional_expenses();
 
 -- 4. Site milestones ----------------------------------------------------------
@@ -151,6 +154,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_notify_site_milestones ON public.site_milestones;
 CREATE TRIGGER trg_notify_site_milestones
-  AFTER UPDATE OF status ON public.site_milestones
+  AFTER UPDATE OF status  ON public.site_milestones
   FOR EACH ROW EXECUTE FUNCTION public.notify_site_milestones();
