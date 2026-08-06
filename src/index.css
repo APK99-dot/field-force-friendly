@@ -710,3 +710,195 @@
 .dark .lightning-ui button[data-variant="ghost"]:hover { background: #2a2a2a !important; }
 
 
+
+/* =========================================================================
+   Lightning "Spring '26" refinement layer — softer radii, richer elevation,
+   sharper type scale. Purely visual; overrides the base skin above.
+   ========================================================================= */
+.lightning-ui {
+  --sf-radius: 8px;
+  --sf-radius-sm: 6px;
+  --sf-surface-shell: #f0f2f5;
+  --sf-border: #e3e6ec;
+  --sf-border-strong: #c9cfda;
+  --sf-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 14px -6px rgba(16, 24, 40, 0.12);
+  --sf-shadow-lift: 0 2px 4px rgba(16, 24, 40, 0.06), 0 12px 28px -10px rgba(16, 24, 40, 0.18);
+  font-size: 14px;
+  letter-spacing: -0.003em;
+}
+
+/* Panels: rounder, lifted, hover-responsive */
+.lightning-ui [data-slot="card"],
+.lightning-ui .sf-card,
+.lightning-ui .sf-highlights,
+.lightning-ui .sf-path,
+.lightning-ui [data-slot="accordion-item"] {
+  border-radius: var(--sf-radius) !important;
+  box-shadow: var(--sf-shadow) !important;
+  overflow: hidden;
+}
+.lightning-ui [data-slot="card"] { transition: box-shadow 0.18s ease, transform 0.18s ease; }
+.lightning-ui [data-slot="card"]:hover { box-shadow: var(--sf-shadow-lift) !important; }
+.lightning-ui .rounded-lg,
+.lightning-ui .rounded-xl { border-radius: var(--sf-radius) !important; }
+.lightning-ui .rounded-md { border-radius: var(--sf-radius-sm) !important; }
+
+.lightning-ui [data-slot="card-header"] {
+  padding: 14px 18px !important;
+  background: linear-gradient(180deg, #fbfcfe 0%, var(--sf-surface) 100%) !important;
+}
+.lightning-ui [data-slot="card-title"] { font-size: 15px !important; letter-spacing: -0.01em !important; }
+.lightning-ui [data-slot="card-content"] { padding: 16px 18px !important; }
+
+/* Type scale — bigger, tighter, more confident */
+.lightning-ui h1 { font-size: 24px !important; letter-spacing: -0.02em !important; }
+.lightning-ui h2 { font-size: 18px !important; letter-spacing: -0.015em !important; }
+.lightning-ui h3 { font-size: 15px !important; letter-spacing: -0.01em !important; }
+
+/* Highlights panel — Lightning record banner with tinted wash */
+.lightning-ui .sf-highlights {
+  background:
+    radial-gradient(120% 160% at 0% 0%, rgba(1, 118, 211, 0.07) 0%, rgba(1, 118, 211, 0) 55%),
+    var(--sf-surface) !important;
+  border-color: var(--sf-border) !important;
+  padding: 18px 22px !important;
+}
+.lightning-ui .sf-object-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  background: linear-gradient(140deg, #0b93f6 0%, #0176d3 55%, #014486 100%);
+  box-shadow: 0 6px 14px -6px rgba(1, 118, 211, 0.7);
+}
+.lightning-ui .sf-object-icon svg { width: 22px; height: 22px; }
+.lightning-ui .sf-eyebrow { font-size: 10.5px; letter-spacing: 0.12em; }
+.lightning-ui .sf-title { font-size: 26px; letter-spacing: -0.025em; line-height: 1.15; }
+.lightning-ui .sf-subtitle { font-size: 13px; margin-top: 4px; }
+.lightning-ui .sf-field-row {
+  margin-top: 16px;
+  padding-top: 16px;
+  gap: 14px 28px;
+  border-top: 1px solid var(--sf-border);
+}
+.lightning-ui .sf-field-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.lightning-ui .sf-field-value { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+
+/* Path bar — rounded shell, gradient current step */
+.lightning-ui .sf-path { padding: 6px; gap: 3px; background: var(--sf-surface) !important; }
+.lightning-ui .sf-path-step {
+  background: #eef1f6;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 11px 22px 11px 30px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.lightning-ui .sf-path-step:hover { background: #e3e8f0; }
+.lightning-ui .sf-path-done { background: #d7ede0; color: #16643a; }
+.lightning-ui .sf-path-done:hover { background: #c9e6d5; }
+.lightning-ui .sf-path-current {
+  background: linear-gradient(135deg, #0b93f6 0%, #0176d3 100%);
+  color: #fff;
+  box-shadow: 0 6px 16px -8px rgba(1, 118, 211, 0.9);
+}
+.lightning-ui .sf-path-current:hover { background: linear-gradient(135deg, #0b93f6 0%, #0176d3 100%); }
+
+/* Tabs — pill hover, thicker active rule */
+.lightning-ui [role="tablist"] { padding: 0 10px !important; box-shadow: var(--sf-shadow) !important; }
+.lightning-ui [role="tab"] { font-size: 13.5px !important; font-weight: 600 !important; }
+.lightning-ui [role="tab"]:hover { background: rgba(1, 118, 211, 0.06) !important; }
+
+/* Buttons — medium weight, gentle lift on primary */
+.lightning-ui button,
+.lightning-ui [data-slot="button"] {
+  border-radius: var(--sf-radius-sm) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.005em;
+}
+.lightning-ui button.bg-primary,
+.lightning-ui [data-slot="button"].bg-primary {
+  background: linear-gradient(180deg, #0b8ae8 0%, #0176d3 100%) !important;
+  box-shadow: 0 6px 14px -8px rgba(1, 118, 211, 0.9) !important;
+}
+
+/* Fields */
+.lightning-ui input:not([type="checkbox"]):not([type="radio"]),
+.lightning-ui textarea,
+.lightning-ui [data-slot="select-trigger"] {
+  border-radius: var(--sf-radius-sm) !important;
+  font-size: 13.5px !important;
+}
+.lightning-ui input:focus,
+.lightning-ui textarea:focus,
+.lightning-ui [data-slot="select-trigger"]:focus {
+  box-shadow: 0 0 0 3px rgba(1, 118, 211, 0.18) !important;
+}
+.lightning-ui [data-slot="label"] { font-weight: 600 !important; letter-spacing: 0.07em !important; }
+
+/* Badges — softer pill */
+.lightning-ui [data-slot="badge"],
+.lightning-ui .badge { border-radius: 999px !important; font-size: 10.5px !important; padding: 3px 10px !important; }
+
+/* Tables — roomier rows, crisper header */
+.lightning-ui table { font-size: 13px !important; }
+.lightning-ui thead th {
+  background: #f6f8fb !important;
+  font-weight: 600 !important;
+  font-size: 10.5px !important;
+  letter-spacing: 0.08em !important;
+  padding: 9px 12px !important;
+}
+.lightning-ui tbody td { padding: 11px 12px !important; }
+.lightning-ui tbody tr:hover td { background: #f4f8fd !important; }
+
+/* Accordions */
+.lightning-ui [data-slot="accordion-trigger"],
+.lightning-ui [data-radix-accordion-trigger] {
+  padding: 12px 16px !important;
+  font-size: 13.5px !important;
+  background: linear-gradient(180deg, #fbfcfe 0%, #f5f7fa 100%) !important;
+}
+.lightning-ui [data-slot="accordion-content"],
+.lightning-ui [data-radix-accordion-content] { padding: 16px !important; }
+
+/* Modals — deeper elevation */
+.lightning-ui [data-slot="dialog-header"],
+[role="dialog"].lightning-ui [data-slot="dialog-header"] {
+  background: linear-gradient(180deg, #fbfcfe 0%, var(--sf-surface) 100%) !important;
+  padding: 16px 22px !important;
+}
+.lightning-ui [data-slot="dialog-title"],
+[role="dialog"].lightning-ui [data-slot="dialog-title"] { font-size: 20px !important; letter-spacing: -0.02em !important; }
+.lightning-ui [data-slot="popover-content"],
+.lightning-ui [data-slot="dropdown-menu-content"],
+.lightning-ui [data-slot="select-content"] {
+  border-radius: var(--sf-radius) !important;
+  box-shadow: var(--sf-shadow-lift) !important;
+}
+
+/* Dark mode remap for the refinement layer */
+.dark .lightning-ui {
+  --sf-surface-shell: #131315;
+  --sf-border: #35353a;
+  --sf-border-strong: #4a4a51;
+  --sf-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 20px -10px rgba(0, 0, 0, 0.6);
+  --sf-shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.5), 0 16px 32px -12px rgba(0, 0, 0, 0.7);
+}
+.dark .lightning-ui [data-slot="card-header"],
+.dark .lightning-ui [data-slot="dialog-header"],
+.dark .lightning-ui [data-slot="accordion-trigger"] {
+  background: #202024 !important;
+}
+.dark .lightning-ui thead th { background: #202024 !important; }
+.dark .lightning-ui tbody tr:hover td { background: #26262b !important; }
+.dark .lightning-ui .sf-path-step { background: #2a2a30; color: var(--sf-text-weak); }
+.dark .lightning-ui .sf-path-done { background: #1d3b2a; color: #8fe0ae; }
+.dark .lightning-ui .sf-highlights {
+  background: radial-gradient(120% 160% at 0% 0%, rgba(27, 150, 255, 0.12) 0%, rgba(27, 150, 255, 0) 55%), var(--sf-surface) !important;
+}
