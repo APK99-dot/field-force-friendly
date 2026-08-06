@@ -38,6 +38,11 @@ import SalesforceBulkImportDialog from "@/components/procurement/SalesforceBulkI
 import { LightningShell, LightningToggle } from "@/components/procurement/lightning/LightningShell";
 import { useUiMode, isLightning } from "@/hooks/useUiMode";
 import { ClipboardList, Building2, FileText, Package, Wallet } from "lucide-react";
+import ViewBar from "@/components/procurement/listviews/ViewBar";
+import ViewEditorDialog, { type PickOption } from "@/components/procurement/listviews/ViewEditorDialog";
+import ListViewTable from "@/components/procurement/listviews/ListViewTable";
+import { useListViews } from "@/hooks/useListViews";
+import { applyFilters, sortOrders, DEFAULT_VIEW_COLUMNS, type ListView } from "@/lib/procurementFields";
 
 interface Vendor { id: string; name: string }
 interface Site { id: string; site_name: string }
@@ -145,6 +150,24 @@ export default function Procurement() {
   const [termsUserEdited, setTermsUserEdited] = useState(false);
   const [pendingUoms, setPendingUoms] = useState<string[]>([]);
   const [pendingUomChoices, setPendingUomChoices] = useState<Record<string, boolean>>({});
+
+  // ---- Salesforce-style saved list views ----
+  const {
+    views, activeView, selectView, saveView, deleteView, pinDefault, userId: currentUserId,
+  } = useListViews();
+  const [viewEditorOpen, setViewEditorOpen] = useState(false);
+  const [viewBeingEdited, setViewBeingEdited] = useState<ListView | null>(null);
+  const [viewToDelete, setViewToDelete] = useState<ListView | null>(null);
+  const [display, setDisplay] = useState<"cards" | "table">(
+    () => (localStorage.getItem("procurement.listDisplay") as "cards" | "table") || "cards"
+  );
+  const [people, setPeople] = useState<PickOption[]>([]);
+  useEffect(() => {
+    supabase.from("profiles").select("id, full_name, username").then(({ data }) => {
+      setPeople(((data || []) as any[]).map((p) => ({ value: p.id, label: p.full_name || p.username || p.id })));
+    });
+  }, []);
+  const setDisplayMode = (d: "cards" | "table") => { setDisplay(d); localStorage.setItem("procurement.listDisplay", d); };
 
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -522,9 +545,18 @@ export default function Procurement() {
       );
     }
     if (filterStatus !== "all") list = list.filter((o) => o.status === filterStatus);
+    if (activeView) {
+      list = applyFilters(list, activeView.filters);
+      list = sortOrders(list, activeView.sort_field, activeView.sort_dir);
+    }
     return list;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders, search, filterStatus, sites, ownerNames, vendorNameById]);
+  }, [orders, search, filterStatus, sites, ownerNames, vendorNameById, activeView]);
+
+  const siteOptions: PickOption[] = useMemo(() => sites.map((s) => ({ value: s.id, label: s.site_name })), [sites]);
+  const vendorOptions: PickOption[] = useMemo(() => vendors.map((v) => ({ value: v.id, label: v.name })), [vendors]);
+  const ownerOptions: PickOption[] = people;
+  const activeColumns = activeView?.columns?.length ? activeView.columns : DEFAULT_VIEW_COLUMNS;
 
 
   const fmtDMY = (d?: string | null) => {
@@ -578,14 +610,39 @@ export default function Procurement() {
         </Select>
       </div>
 
+      <ViewBar
+        views={views}
+        activeView={activeView}
+        currentUserId={currentUserId}
+        onSelect={selectView}
+        onNew={() => { setViewBeingEdited(null); setViewEditorOpen(true); }}
+        onEdit={(v) => { setViewBeingEdited(v); setViewEditorOpen(true); }}
+        onDelete={(v) => setViewToDelete(v)}
+        onPin={(v) => pinDefault(v.id)}
+        display={display}
+        onDisplayChange={setDisplayMode}
+        count={filtered.length}
+      />
+
       {isLoading ? (
         <div className="flex justify-center py-12"><div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : filtered.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground text-sm">
           {orders.length === 0 ? "No procurement orders yet." : "No orders match your search/filter."}
         </CardContent></Card>
+      ) : display === "table" ? (
+        <ListViewTable
+          rows={filtered}
+          columns={activeColumns}
+          siteOptions={siteOptions}
+          vendorOptions={vendorOptions}
+          ownerOptions={ownerOptions}
+          onOpen={(row) => setDetail(row as DetailOrder)}
+          onSaved={fetchAll}
+        />
       ) : (
         <div className="space-y-2">
+
           {filtered.map((o) => {
             const isTransfer = o.source_type === "internal_transfer";
             const reqNo = (o as any).requisition_number || "—";
@@ -639,7 +696,36 @@ export default function Procurement() {
         </div>
       )}
 
+      <ViewEditorDialog
+        open={viewEditorOpen}
+        onOpenChange={setViewEditorOpen}
+        view={viewBeingEdited}
+        onSave={(v) => saveView(v)}
+        siteOptions={siteOptions}
+        vendorOptions={vendorOptions}
+        ownerOptions={ownerOptions}
+        people={people}
+      />
+
+      <AlertDialog open={!!viewToDelete} onOpenChange={(o) => !o && setViewToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete list view?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{viewToDelete?.name}" will be removed for everyone it is shared with. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (viewToDelete) deleteView(viewToDelete.id); setViewToDelete(null); }}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Create/Edit Form — Salesforce Lightning styled */}
+
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className={`max-w-none w-screen h-screen sm:rounded-none p-0 gap-0 flex flex-col ${lightning ? "lightning-ui" : ""}`}>
           <DialogHeader className={`px-4 sm:px-6 py-3 border-b shrink-0 ${lightning ? "bg-white" : ""}`}>

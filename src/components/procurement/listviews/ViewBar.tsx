@@ -1,0 +1,104 @@
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown, ListFilter, Pencil, Pin, Plus, Trash2, LayoutGrid, Table2 } from "lucide-react";
+import type { ListView } from "@/lib/procurementFields";
+
+interface Props {
+  views: ListView[];
+  activeView: ListView | null;
+  currentUserId?: string;
+  onSelect: (id: string | null) => void;
+  onNew: () => void;
+  onEdit: (v: ListView) => void;
+  onDelete: (v: ListView) => void;
+  onPin: (v: ListView) => void;
+  display: "cards" | "table";
+  onDisplayChange: (d: "cards" | "table") => void;
+  count: number;
+}
+
+export default function ViewBar({
+  views, activeView, currentUserId, onSelect, onNew, onEdit, onDelete, onPin,
+  display, onDisplayChange, count,
+}: Props) {
+  const canManage = activeView && activeView.owner_id === currentUserId;
+
+  return (
+    <div className="flex items-center justify-between gap-2 flex-wrap border-b pb-2">
+      <div className="flex items-center gap-2 min-w-0">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-1.5 px-2 font-semibold max-w-[60vw]">
+              <ListFilter className="h-4 w-4 shrink-0" />
+              <span className="truncate">{activeView ? activeView.name : "All Requisitions"}</span>
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-64 bg-popover z-50">
+            <DropdownMenuLabel className="text-xs">List Views</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => onSelect(null)}>All Requisitions</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {views.length === 0 && (
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">No saved views yet.</div>
+            )}
+            {views.map((v) => (
+              <DropdownMenuItem key={v.id} onClick={() => onSelect(v.id)} className="flex items-center gap-2">
+                <span className="truncate flex-1">{v.name}</span>
+                {v.is_default && <Pin className="h-3 w-3 opacity-60" />}
+                {v.visibility !== "private" && (
+                  <Badge variant="secondary" className="text-[9px] px-1 py-0">
+                    {v.visibility === "everyone" ? "All" : "Shared"}
+                  </Badge>
+                )}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onNew} className="gap-2"><Plus className="h-3.5 w-3.5" />New View</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <span className="text-xs text-muted-foreground shrink-0">{count} items</span>
+      </div>
+
+      <div className="flex items-center gap-1">
+        {activeView && (
+          <>
+            <Button variant="ghost" size="icon" className="h-8 w-8" title="Pin as default" onClick={() => onPin(activeView)}>
+              <Pin className={`h-4 w-4 ${activeView.is_default ? "text-primary" : "text-muted-foreground"}`} />
+            </Button>
+            {canManage && (
+              <>
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit view" onClick={() => onEdit(activeView)}>
+                  <Pencil className="h-4 w-4 text-muted-foreground" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="Delete view" onClick={() => onDelete(activeView)}>
+                  <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                </Button>
+              </>
+            )}
+          </>
+        )}
+        <div className="flex items-center rounded-md border overflow-hidden ml-1">
+          <button
+            type="button" aria-label="Card view"
+            className={`px-2 py-1.5 ${display === "cards" ? "bg-accent" : ""}`}
+            onClick={() => onDisplayChange("cards")}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
+          <button
+            type="button" aria-label="Table view"
+            className={`px-2 py-1.5 ${display === "table" ? "bg-accent" : ""}`}
+            onClick={() => onDisplayChange("table")}
+          >
+            <Table2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
