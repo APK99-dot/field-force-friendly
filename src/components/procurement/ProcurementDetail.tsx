@@ -2642,7 +2642,7 @@ export default function ProcurementDetail({
                     {(q.attachments || []).length > 0 && (
                       <div className="flex flex-wrap gap-1 pt-1">
                         {(q.attachments || []).map((a, i) => (
-                          <a key={i} href={a.url} target="_blank" rel="noreferrer" className="underline text-amber-800 dark:text-amber-200">{a.name}</a>
+                          <VendorQuoteAttachmentLink key={i} url={a.url} name={a.name} index={i} className="underline text-amber-800 dark:text-amber-200" />
                         ))}
                       </div>
                     )}
