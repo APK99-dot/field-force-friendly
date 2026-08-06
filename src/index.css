@@ -928,3 +928,47 @@
   font-size: calc(var(--app-font-size, 16px) + 2px);
   font-weight: 700;
 }
+
+/* =========================================================================
+   Salesforce-style data entry fields (scoped to .sf-form containers)
+   White field surfaces, rounded edges, soft focus glow.
+   ========================================================================= */
+.sf-form input,
+.sf-form textarea,
+.sf-form select,
+.sf-form [role="combobox"],
+.sf-form button[role="combobox"] {
+  background-color: #ffffff !important;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem !important;
+  box-shadow: 0 1px 2px hsl(220 20% 40% / 0.06);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.sf-form input:hover,
+.sf-form textarea:hover,
+.sf-form select:hover,
+.sf-form button[role="combobox"]:hover {
+  border-color: hsl(var(--primary) / 0.5);
+}
+.sf-form input:focus,
+.sf-form input:focus-visible,
+.sf-form textarea:focus,
+.sf-form textarea:focus-visible,
+.sf-form select:focus,
+.sf-form button[role="combobox"]:focus,
+.sf-form button[role="combobox"]:focus-visible,
+.sf-form [data-state="open"][role="combobox"] {
+  outline: none !important;
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.18) !important;
+}
+.sf-form input:disabled,
+.sf-form textarea:disabled,
+.sf-form button[role="combobox"]:disabled {
+  background-color: hsl(var(--muted) / 0.5) !important;
+  box-shadow: none;
+}
+.sf-form input[type="checkbox"],
+.sf-form input[type="radio"] {
+  box-shadow: none;
+}
