@@ -5,9 +5,10 @@ export type UiMode = "classic" | "lightning";
 const KEY = "bb.ui.procurement";
 
 function read(): UiMode {
-  if (typeof window === "undefined") return "classic";
+  if (typeof window === "undefined") return "lightning";
   const v = window.localStorage.getItem(KEY);
-  return v === "lightning" ? "lightning" : "classic";
+  // Lightning is the default experience; only an explicit opt-out uses classic.
+  return v === "classic" ? "classic" : "lightning";
 }
 
 /**
