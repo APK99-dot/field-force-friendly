@@ -99,9 +99,14 @@ export function useListViews() {
     await load();
   };
 
-  const pinDefault = async (id: string) => {
+  const pinDefault = async (id: string | null) => {
     if (!userId) return;
     await supabase.from("procurement_list_views").update({ is_default: false }).eq("owner_id", userId);
+    if (!id) {
+      toast.success("All Requisitions is now the default view");
+      await load();
+      return;
+    }
     const { error } = await supabase.from("procurement_list_views").update({ is_default: true }).eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("Pinned as default view");

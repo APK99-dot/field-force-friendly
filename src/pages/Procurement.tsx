@@ -168,6 +168,16 @@ export default function Procurement() {
     setDisplay(isMobileView ? "cards" : "table");
   }, [isMobileView]);
 
+  // Column sort (overrides the saved view sort until the view changes)
+  const [sortOverride, setSortOverride] = useState<{ field: string; dir: "asc" | "desc" } | null>(null);
+  useEffect(() => { setSortOverride(null); }, [activeView?.id]);
+  const sortField = sortOverride?.field ?? activeView?.sort_field ?? null;
+  const sortDir = sortOverride?.dir ?? activeView?.sort_dir ?? "desc";
+  const toggleSort = (field: string) =>
+    setSortOverride((prev) =>
+      prev?.field === field ? { field, dir: prev.dir === "asc" ? "desc" : "asc" } : { field, dir: "asc" }
+    );
+
   const [people, setPeople] = useState<PickOption[]>([]);
   useEffect(() => {
     supabase.from("profiles").select("id, full_name, username").then(({ data }) => {
@@ -552,13 +562,11 @@ export default function Procurement() {
       );
     }
     if (filterStatus !== "all") list = list.filter((o) => o.status === filterStatus);
-    if (activeView) {
-      list = applyFilters(list, activeView.filters);
-      list = sortOrders(list, activeView.sort_field, activeView.sort_dir);
-    }
+    if (activeView) list = applyFilters(list, activeView.filters);
+    if (sortField) list = sortOrders(list, sortField, sortDir);
     return list;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders, search, filterStatus, sites, ownerNames, vendorNameById, activeView]);
+  }, [orders, search, filterStatus, sites, ownerNames, vendorNameById, activeView, sortField, sortDir]);
 
   const siteOptions: PickOption[] = useMemo(() => sites.map((s) => ({ value: s.id, label: s.site_name })), [sites]);
   const vendorOptions: PickOption[] = useMemo(() => vendors.map((v) => ({ value: v.id, label: v.name })), [vendors]);
@@ -625,7 +633,11 @@ export default function Procurement() {
         onNew={() => { setViewBeingEdited(null); setViewEditorOpen(true); }}
         onEdit={(v) => { setViewBeingEdited(v); setViewEditorOpen(true); }}
         onDelete={(v) => setViewToDelete(v)}
-        onPin={(v) => pinDefault(v.id)}
+        onPin={(v) => pinDefault(v ? v.id : null)}
+        onClone={(v) => {
+          setViewBeingEdited({ ...v, id: "", name: `${v.name} -Copy`, is_default: false });
+          setViewEditorOpen(true);
+        }}
         display={display}
         onDisplayChange={setDisplayMode}
         count={filtered.length}
@@ -646,6 +658,9 @@ export default function Procurement() {
           ownerOptions={ownerOptions}
           onOpen={(row) => setDetail(row as DetailOrder)}
           onSaved={fetchAll}
+          sortField={sortField}
+          sortDir={sortDir}
+          onSort={toggleSort}
         />
       ) : (
         <div className="space-y-2">
