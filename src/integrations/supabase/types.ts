@@ -6342,6 +6342,7 @@ export type Database = {
         }
         Returns: string
       }
+      vendor_quote_token_open: { Args: { _token: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user" | "data_viewer" | "sales_manager"
