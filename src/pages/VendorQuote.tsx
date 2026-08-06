@@ -197,8 +197,9 @@ export default function VendorQuote() {
           toast.error(`${file.name}: ${upErr.message}`);
           continue;
         }
-        const { data: pub } = supabase.storage.from("vendor-quote-attachments").getPublicUrl(path);
-        next.push({ name: file.name, url: pub.publicUrl, size: file.size, type: file.type });
+        // Store the object path — the bucket is private and internal viewers
+        // resolve it through a short-lived signed URL.
+        next.push({ name: file.name, url: path, size: file.size, type: file.type });
       }
       if (next.length) setAttachments((prev) => [...prev, ...next]);
     } finally {
