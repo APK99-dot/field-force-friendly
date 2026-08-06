@@ -28,12 +28,12 @@ export default function ViewBar({
   const canManage = activeView && activeView.owner_id === currentUserId;
 
   return (
-    <div className="flex items-center justify-between gap-2 flex-wrap border-b pb-2">
+    <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl border border-border bg-card shadow-sm px-3 py-2">
       <div className="flex items-center gap-2 min-w-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-1.5 px-2 font-semibold max-w-[60vw]">
-              <ListFilter className="h-4 w-4 shrink-0" />
+            <Button variant="ghost" size="sm" className="gap-1.5 px-2 text-base font-semibold max-w-[60vw]">
+              <ListFilter className="h-4 w-4 shrink-0 text-primary" />
               <span className="truncate">{activeView ? activeView.name : "All Requisitions"}</span>
               <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
             </Button>
@@ -64,35 +64,38 @@ export default function ViewBar({
         <span className="text-xs text-muted-foreground shrink-0">{count} items</span>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
         {activeView && (
-          <>
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Pin as default" onClick={() => onPin(activeView)}>
+          <div className="flex items-center rounded-lg border border-border bg-background overflow-hidden">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none" title="Pin as default" onClick={() => onPin(activeView)}>
               <Pin className={`h-4 w-4 ${activeView.is_default ? "text-primary" : "text-muted-foreground"}`} />
             </Button>
             {canManage && (
               <>
-                <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit view" onClick={() => onEdit(activeView)}>
+                <span className="w-px h-5 bg-border" />
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none" title="Edit view" onClick={() => onEdit(activeView)}>
                   <Pencil className="h-4 w-4 text-muted-foreground" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" title="Delete view" onClick={() => onDelete(activeView)}>
+                <span className="w-px h-5 bg-border" />
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none" title="Delete view" onClick={() => onDelete(activeView)}>
                   <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                 </Button>
               </>
             )}
-          </>
+          </div>
         )}
-        <div className="flex items-center rounded-md border overflow-hidden ml-1">
+        <div className="flex items-center rounded-lg border border-border bg-background overflow-hidden">
           <button
             type="button" aria-label="Card view"
-            className={`px-2 py-1.5 ${display === "cards" ? "bg-accent" : ""}`}
+            className={`px-2.5 py-2 transition-colors ${display === "cards" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
             onClick={() => onDisplayChange("cards")}
           >
             <LayoutGrid className="h-4 w-4" />
           </button>
+          <span className="w-px h-5 bg-border" />
           <button
             type="button" aria-label="Table view"
-            className={`px-2 py-1.5 ${display === "table" ? "bg-accent" : ""}`}
+            className={`px-2.5 py-2 transition-colors ${display === "table" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
             onClick={() => onDisplayChange("table")}
           >
             <Table2 className="h-4 w-4" />
@@ -102,3 +105,4 @@ export default function ViewBar({
     </div>
   );
 }
+

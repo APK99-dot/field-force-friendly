@@ -58,8 +58,9 @@ export default function ListViewTable({
     const def = fieldDef(key);
     const val = rawValue(row, key);
     if (key === "status") {
-      return <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColor(String(val))}`}>{String(val ?? "—")}</Badge>;
+      return <Badge variant="outline" className={`text-[11px] px-2 py-0.5 rounded-full ${statusColor(String(val))}`}>{String(val ?? "—")}</Badge>;
     }
+
     if (key === "vendor_ids") {
       const ids = (val as string[]) || [];
       if (!ids.length) return "—";
@@ -112,7 +113,7 @@ export default function ListViewTable({
     if (def?.type === "picklist" && opts.length) {
       return (
         <Select value={String(value || "")} onValueChange={(v) => setDraft((p) => ({ ...p, [key]: v }))}>
-          <SelectTrigger className="h-8 text-xs min-w-[130px]"><SelectValue placeholder="Select..." /></SelectTrigger>
+          <SelectTrigger className="h-9 text-sm min-w-[140px]"><SelectValue placeholder="Select..." /></SelectTrigger>
           <SelectContent className="z-50 bg-popover">
             {opts.map((o) => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}
           </SelectContent>
@@ -120,11 +121,11 @@ export default function ListViewTable({
       );
     }
     if (def?.multiline) {
-      return <Textarea rows={2} className="text-xs min-w-[180px]" value={String(value)} onChange={(e) => setDraft((p) => ({ ...p, [key]: e.target.value }))} />;
+      return <Textarea rows={2} className="text-sm min-w-[190px]" value={String(value)} onChange={(e) => setDraft((p) => ({ ...p, [key]: e.target.value }))} />;
     }
     return (
       <Input
-        className="h-8 text-xs min-w-[120px]"
+        className="h-9 text-sm min-w-[130px]"
         type={def?.type === "date" ? "date" : def?.type === "number" ? "number" : "text"}
         value={def?.type === "date" ? String(value || "").slice(0, 10) : String(value)}
         onChange={(e) => setDraft((p) => ({ ...p, [key]: e.target.value }))}
@@ -133,57 +134,80 @@ export default function ListViewTable({
   };
 
   return (
-    <div className="border rounded-md overflow-x-auto">
-      <table className="w-full text-xs">
-        <thead className="bg-muted/50">
-          <tr>
-            {columns.map((key) => (
-              <th key={key} className="text-left font-semibold px-3 py-2 whitespace-nowrap">
-                {fieldDef(key)?.label ?? key}
+    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm bg-card">
+          <thead className="bg-muted/40">
+            <tr>
+              {columns.map((key) => (
+                <th
+                  key={key}
+                  className="text-left font-semibold text-[11px] uppercase tracking-wide text-muted-foreground px-4 py-3 whitespace-nowrap border-b border-border"
+                >
+                  {fieldDef(key)?.label ?? key}
+                </th>
+              ))}
+              <th className="px-4 py-3 w-24 text-right border-b border-border text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+                Actions
               </th>
-            ))}
-            <th className="px-3 py-2 w-24 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const isEditing = editingId === row.id;
-            return (
-              <tr key={row.id} className="border-t hover:bg-muted/30">
-                {columns.map((key) => {
-                  const def = fieldDef(key);
-                  return (
-                    <td key={key} className="px-3 py-2 align-middle whitespace-nowrap max-w-[280px] truncate">
-                      {isEditing && def?.editable ? editor(key) : render(row, key)}
-                    </td>
-                  );
-                })}
-                <td className="px-3 py-2 text-right whitespace-nowrap">
-                  {isEditing ? (
-                    <div className="flex items-center justify-end gap-1">
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" disabled={saving} onClick={() => save(row)}>
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving} onClick={() => setEditingId(null)}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-end gap-1">
-                      <Button size="icon" variant="ghost" className="h-7 w-7" title="Edit inline" onClick={() => startEdit(row)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" title="Open record" onClick={() => onOpen(row)}>
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const isEditing = editingId === row.id;
+              return (
+                <tr key={row.id} className="border-b border-border/60 last:border-0 bg-card hover:bg-accent/40 transition-colors">
+                  {columns.map((key) => {
+                    const def = fieldDef(key);
+                    const isIdCol = key === "requisition_number";
+                    return (
+                      <td key={key} className="px-4 py-3 align-middle whitespace-nowrap max-w-[280px] truncate">
+                        {isEditing && def?.editable ? (
+                          editor(key)
+                        ) : isIdCol ? (
+                          <a
+                            href={`/procurement?po=${row.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary font-medium hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {String(rawValue(row, key) ?? "—")}
+                          </a>
+                        ) : (
+                          render(row, key)
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    {isEditing ? (
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" disabled={saving} onClick={() => save(row)}>
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8" disabled={saving} onClick={() => setEditingId(null)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" className="h-8 w-8" title="Edit inline" onClick={() => startEdit(row)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8" title="Open record" onClick={() => onOpen(row)}>
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
+

@@ -42,6 +42,7 @@ import ViewBar from "@/components/procurement/listviews/ViewBar";
 import ViewEditorDialog, { type PickOption } from "@/components/procurement/listviews/ViewEditorDialog";
 import ListViewTable from "@/components/procurement/listviews/ListViewTable";
 import { useListViews } from "@/hooks/useListViews";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { applyFilters, sortOrders, DEFAULT_VIEW_COLUMNS, type ListView } from "@/lib/procurementFields";
 
 interface Vendor { id: string; name: string }
@@ -158,9 +159,15 @@ export default function Procurement() {
   const [viewEditorOpen, setViewEditorOpen] = useState(false);
   const [viewBeingEdited, setViewBeingEdited] = useState<ListView | null>(null);
   const [viewToDelete, setViewToDelete] = useState<ListView | null>(null);
+  const isMobileView = useIsMobile();
   const [display, setDisplay] = useState<"cards" | "table">(
-    () => (localStorage.getItem("procurement.listDisplay") as "cards" | "table") || "cards"
+    () => (localStorage.getItem("procurement.listDisplay") as "cards" | "table") || "table"
   );
+  useEffect(() => {
+    if (localStorage.getItem("procurement.listDisplay")) return;
+    setDisplay(isMobileView ? "cards" : "table");
+  }, [isMobileView]);
+
   const [people, setPeople] = useState<PickOption[]>([]);
   useEffect(() => {
     supabase.from("profiles").select("id, full_name, username").then(({ data }) => {
