@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Filter, Columns3, Users } from "lucide-react";
+import { Plus, Trash2, Filter, Columns3, Users, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 import {
   PROC_FIELDS, OPERATORS, STATUS_OPTIONS, SOURCE_TYPE_OPTIONS, DEFAULT_VIEW_COLUMNS,
   fieldDef, type FilterCondition, type ListView,
