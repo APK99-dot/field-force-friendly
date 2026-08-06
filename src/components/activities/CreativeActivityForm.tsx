@@ -298,8 +298,11 @@ export default function CreativeActivityForm({
     return () => { cancelled = true; };
   }, [isGrnType, grnPoId]);
 
-  // Reset GRN selection when activity type flips away from GRN
+  // Reset GRN selection when activity type flips away from GRN.
+  // Guard on activityType being set: while editing, the type loads in the same
+  // commit as grn_po_id, and clearing here would wipe the linked PO.
   useEffect(() => {
+    if (!activityType) return;
     if (!isGrnType) {
       setGrnPoId("");
       setGrnItems([]);
@@ -307,7 +310,7 @@ export default function CreativeActivityForm({
       setGrnItemRemarks({});
       setGrnRemarks("");
     }
-  }, [isGrnType]);
+  }, [isGrnType, activityType]);
 
   const filteredProjects = useMemo(() => {
     const q = projectSearch.trim().toLowerCase();
