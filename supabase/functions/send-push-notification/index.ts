@@ -10,6 +10,14 @@ interface FCMPayload {
   user_id: string;
   title: string;
   message: string;
+  /**
+   * Optional in-app path to open when the notification is tapped, e.g.
+   * "/my-reports". When present it is sent as an FCM `data` payload, which the
+   * client reads in the pushNotificationActionPerformed listener. Absent by
+   * default — callers that send no `route` produce exactly the same message
+   * they did before.
+   */
+  route?: string;
 }
 
 /** Build a JWT from the service-account JSON for FCM HTTP v1. */
@@ -81,7 +89,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { user_id, title, message } = (await req.json()) as FCMPayload;
+    const { user_id, title, message, route } = (await req.json()) as FCMPayload;
     if (!user_id || !title) {
       return new Response(JSON.stringify({ error: "Missing user_id or title" }), {
         status: 400,
@@ -122,6 +130,12 @@ Deno.serve(async (req) => {
     const accessToken = await getAccessToken(serviceAccount);
     const fcmUrl = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
 
+    // FCM HTTP v1 requires every `data` value to be a string. Built only when
+    // the caller supplied a route, so the message sent for existing callers
+    // (which pass no `route`) is unchanged.
+    const dataPayload =
+      typeof route === "string" && route.length > 0 ? { route } : undefined;
+
     let sent = 0;
     const staleIds: string[] = [];
 
@@ -136,6 +150,7 @@ Deno.serve(async (req) => {
           message: {
             token: t.token,
             notification: { title, body: message },
+            ...(dataPayload ? { data: dataPayload } : {}),
             android: {
               priority: "high",
               notification: {
