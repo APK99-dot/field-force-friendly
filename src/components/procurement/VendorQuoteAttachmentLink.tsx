@@ -37,6 +37,6 @@ export function VendorQuoteAttachmentLink({ url, name, index, className }: Props
       className={className || "text-primary underline hover:opacity-80 break-all text-left"}
     >
       {name || `Attachment ${index + 1}`}
-ایسے    </button>
+</button>
   );
 }
