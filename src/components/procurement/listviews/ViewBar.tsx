@@ -4,7 +4,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, ListFilter, Pencil, Pin, Plus, Trash2, LayoutGrid, Table2 } from "lucide-react";
+import { ChevronDown, ListFilter, Pencil, Pin, Plus, Trash2, LayoutGrid, Table2, Copy } from "lucide-react";
 import type { ListView } from "@/lib/procurementFields";
 
 interface Props {
@@ -15,14 +15,15 @@ interface Props {
   onNew: () => void;
   onEdit: (v: ListView) => void;
   onDelete: (v: ListView) => void;
-  onPin: (v: ListView) => void;
+  onPin: (v: ListView | null) => void;
+  onClone: (v: ListView) => void;
   display: "cards" | "table";
   onDisplayChange: (d: "cards" | "table") => void;
   count: number;
 }
 
 export default function ViewBar({
-  views, activeView, currentUserId, onSelect, onNew, onEdit, onDelete, onPin,
+  views, activeView, currentUserId, onSelect, onNew, onEdit, onDelete, onPin, onClone,
   display, onDisplayChange, count,
 }: Props) {
   const canManage = activeView && activeView.owner_id === currentUserId;
@@ -58,6 +59,11 @@ export default function ViewBar({
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onNew} className="gap-2"><Plus className="h-3.5 w-3.5" />New View</DropdownMenuItem>
+            {activeView && (
+              <DropdownMenuItem onClick={() => onClone(activeView)} className="gap-2">
+                <Copy className="h-3.5 w-3.5" />Clone "{activeView.name}"
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -65,12 +71,24 @@ export default function ViewBar({
       </div>
 
       <div className="flex items-center gap-2">
-        {activeView && (
+        {(
           <div className="flex items-center rounded-lg border border-border bg-background overflow-hidden">
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none" title="Pin as default" onClick={() => onPin(activeView)}>
-              <Pin className={`h-4 w-4 ${activeView.is_default ? "text-primary" : "text-muted-foreground"}`} />
+            <Button
+              variant="ghost" size="icon" className="h-9 w-9 rounded-none"
+              title={activeView ? "Pin as default view" : "Pin All Requisitions as default"}
+              onClick={() => onPin(activeView)}
+            >
+              <Pin className={`h-4 w-4 ${(activeView ? activeView.is_default : !views.some((v) => v.is_default)) ? "text-primary" : "text-muted-foreground"}`} />
             </Button>
-            {canManage && (
+            {activeView && (
+              <>
+                <span className="w-px h-5 bg-border" />
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none" title="Clone view" onClick={() => onClone(activeView)}>
+                  <Copy className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </>
+            )}
+            {activeView && canManage && (
               <>
                 <span className="w-px h-5 bg-border" />
                 <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none" title="Edit view" onClick={() => onEdit(activeView)}>

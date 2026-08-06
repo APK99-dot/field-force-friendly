@@ -64,13 +64,14 @@ export const OPERATORS: Record<FieldType, { value: string; label: string }[]> = 
     { value: "not_contains", label: "does not contain" },
     { value: "equals", label: "equals" },
     { value: "starts_with", label: "starts with" },
+    { value: "in_list", label: "is one of (comma separated)" },
     { value: "is_empty", label: "is empty" },
     { value: "is_not_empty", label: "is not empty" },
   ],
   picklist: [
     { value: "equals", label: "equals" },
     { value: "not_equals", label: "not equals" },
-    { value: "in", label: "is one of" },
+    { value: "in", label: "is one of (multi-select)" },
     { value: "is_empty", label: "is empty" },
   ],
   date: [
@@ -126,6 +127,12 @@ export function rawValue(order: any, key: string): unknown {
     return ids;
   }
   return order[key];
+}
+
+/** Values for multi-select / comma separated operators. */
+function listValues(c: FilterCondition): string[] {
+  if (c.values && c.values.length) return c.values.map((v) => String(v).trim()).filter(Boolean);
+  return String(c.value ?? "").split(",").map((v) => v.trim()).filter(Boolean);
 }
 
 function startOfMonth(d: Date) {
@@ -195,7 +202,8 @@ function matchOne(order: any, c: FilterCondition): boolean {
     switch (c.operator) {
       case "equals": return arr.includes(c.value);
       case "not_equals": return !arr.includes(c.value);
-      case "in": return (c.values || []).some((v) => arr.includes(v));
+      case "in": return listValues(c).some((v) => arr.includes(v));
+      case "in_list": return listValues(c).some((v) => arr.includes(v));
       case "contains": return arr.join(" ").toLowerCase().includes(c.value.toLowerCase());
       default: return true;
     }
@@ -209,7 +217,8 @@ function matchOne(order: any, c: FilterCondition): boolean {
     case "equals": return String(val ?? "") === c.value;
     case "not_equals": return String(val ?? "") !== c.value;
     case "starts_with": return s.startsWith(q);
-    case "in": return (c.values || []).includes(String(val ?? ""));
+    case "in": return listValues(c).includes(String(val ?? ""));
+    case "in_list": return listValues(c).map((v) => v.toLowerCase()).includes(s);
     default: return true;
   }
 }
