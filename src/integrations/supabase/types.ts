@@ -4456,6 +4456,51 @@ export type Database = {
           },
         ]
       }
+      procurement_list_views: {
+        Row: {
+          columns: Json
+          created_at: string
+          filters: Json
+          id: string
+          is_default: boolean
+          name: string
+          owner_id: string
+          shared_user_ids: string[]
+          sort_dir: string
+          sort_field: string | null
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          columns?: Json
+          created_at?: string
+          filters?: Json
+          id?: string
+          is_default?: boolean
+          name: string
+          owner_id?: string
+          shared_user_ids?: string[]
+          sort_dir?: string
+          sort_field?: string | null
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          columns?: Json
+          created_at?: string
+          filters?: Json
+          id?: string
+          is_default?: boolean
+          name?: string
+          owner_id?: string
+          shared_user_ids?: string[]
+          sort_dir?: string
+          sort_field?: string | null
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
       procurement_orders: {
         Row: {
           bill_to: string | null
