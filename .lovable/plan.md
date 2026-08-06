@@ -1,53 +1,94 @@
-## Goal
+# Procurement List Views (Salesforce-style)
 
-Rewrite `src/utils/purchaseOrderPdf.ts` so the PO renders as a clean, single-page A4 ERP document with a properly aligned 10-column item table.
+Add saveable, shareable list views to the Procurement page, with multi-condition filters, selectable display columns, and inline editing of records straight from the list.
 
-## Root cause of the overlap
+## 1. Saved views
 
-The current `cols` array hardcodes each column's `x` with inconsistent offsets (`marginX + 136`, `marginX + 158`, `rightX - 26`, `rightX`) and the `w` values don't match the gaps. "Taxable", "GST Amt" and "Total" end up drawn nearly on top of each other — exactly what the screenshot shows (`Rs.Rs.040.0.00`).
+A view bar sits above the search box on `/procurement`:
 
-## Changes (all in `src/utils/purchaseOrderPdf.ts`)
+- A dropdown listing: **All Requisitions** (built-in default) plus every view the user owns or that has been shared with them.
+- Actions: **New View**, **Edit View**, **Clone**, **Delete** (owner/admin only), **Pin as default**.
+- The last used view is remembered per user.
 
-### 1. Column model
-Replace ad-hoc x offsets with a width-driven layout computed once from the usable width (186mm), then derive each column's left/right edge:
+## 2. Filters
 
-| Column | Width (mm) | Align |
-|---|---|---|
-| # | 7 | left |
-| Material | 34 | left |
-| Description | 30 | left |
-| Qty | 11 | right |
-| UOM | 12 | left |
-| Rate | 19 | right |
-| Disc % | 13 | right |
-| Rate After Disc | 20 | right |
-| GST % | 11 | right |
-| GST Amt | 19 | right |
-| Line Total | 22 | right |
+Inside the view editor, users build any number of filter rows:
 
-Right-aligned cells anchor to `x + w - 1.5`, left-aligned to `x + 1.5`, with `splitTextToSize(..., w - 3)` on every cell so nothing bleeds into the neighbour. Header row gets a filled band plus thin column separators and a bottom rule; zebra striping on alternate rows.
+```text
+[ Field ▾ ]  [ Operator ▾ ]  [ Value ]            [x]
++ Add filter          Match: (•) All   ( ) Any
+```
 
-Note: `discount` is currently an absolute amount on `POLineInput`. For a "Discount %" column it will be shown as a percentage of gross (`disc / gross * 100`), and "Rate After Discount" as `rate - disc/qty`, so no caller/DB change is needed.
+Filterable fields: Requisition #, Requisition Name, PO #, Status, Source Type, Site, Transfer-to Site,
+Vendor, Owner, Requisition Date, Expected Delivery Date, Total Amount, Estimated Budget, Payment Terms,
+Bill To, Ship To, Notes.
 
-### 2. Header
-Logo left, company name + address/phone/email/GSTIN under it; "PURCHASE ORDER" title right with a bordered metadata box (PO #, Date, Version, Requisition ref). Tighter leading, thinner rules, navy accent line.
+Operators adapt to field type:
+- text: contains, does not contain, equals, starts with, is empty
+- picklist (status/source/site/vendor/owner): equals, not equals, is one of
+- date: on, before, after, between, last N days, this month
+- number: =, ≠, >, <, between
 
-### 3. Party + info blocks
-Three bordered panels in one band — Vendor | Ship To | Bill To — each with a shaded caption bar and fixed height, so the block no longer grows unevenly. Below it a compact 4-cell meta strip: Site, Requisition, Expected Delivery, Payment Terms.
+Filters are applied against the loaded order set (same data the page already fetches), so existing
+search and status controls keep working alongside the active view.
 
-### 4. Financial summary
-Right-aligned bordered box under the table: Gross, Discount (if any), Taxable Amount, Total GST, then a highlighted Grand Total row.
+## 3. Display fields
 
-### 5. Terms & signature
-Terms & Conditions as a compact numbered list at 7.5pt; two signature blocks side by side ("Prepared By" / "Authorised Signatory") pinned near the page bottom, with a page-number footer.
+The editor has a Columns panel: a checkbox list of available fields with drag-to-reorder. When a view
+defines columns, the list renders as a **table** with those columns (horizontally scrollable on mobile);
+the existing card layout stays for the default view and on small screens.
 
-### 6. Currency
-Format as `₹ 1,234.00`. jsPDF's built-in Helvetica has no ₹ glyph, so ₹ needs an embedded Unicode TTF (adds ~150–300 KB to the bundle). Plan: embed a subset-free Noto Sans (or DejaVu Sans) TTF via `doc.addFileToVFS`/`addFont` loaded lazily so it only downloads when a PO is generated. If you'd rather avoid the extra weight, we keep `Rs.` — tell me and I'll switch.
+Also saved per view: sort field + direction, and rows per page.
 
-### 7. Single page
-Reduced vertical rhythm (4.0mm line height, 3mm section gaps), 8pt body / 7.5pt table text. With ≤ ~15 line items the document fits one A4 page; beyond that the table paginates with a repeated header, and the summary/terms/signature always stay together.
+## 4. Sharing
+
+Each view has visibility:
+- **Private** — only the creator
+- **Everyone** — all authenticated users
+- **Selected team members** — pick users from a searchable list
+
+Only the owner (or an admin) can edit or delete a view; others get read-only use, with Clone available.
+
+## 5. Inline record editing
+
+Every row gets a pencil button on the right.
+
+- Clicking it turns the row's editable cells into inputs in place (status select, dates, payment terms,
+  budget, requisition name, bill/ship to, notes), with Save / Cancel at the row end.
+- Save writes only the changed fields to `procurement_orders`, refreshes the row, and toasts.
+- Read-only/derived fields (REQ #, PO #, totals rolled up from line items, stage history) are not editable.
+- Editing respects existing permissions: users without procurement edit rights see no pencil.
+- Rate-related and stage-transition logic is untouched — those stay on the detail screen.
 
 ## Technical notes
-- Only `src/utils/purchaseOrderPdf.ts` changes; `buildPurchaseOrderPdf`'s signature and all call sites in `ProcurementDetail.tsx` stay identical.
-- GST calculation logic (taxable = gross − discount, gstAmt = taxable × gst%) is unchanged.
-- Verification: generate a PO PDF, rasterise it, and visually confirm no column overlap and single-page fit.
+
+New table `procurement_list_views`:
+
+| column | type |
+| --- | --- |
+| id | uuid pk |
+| name | text |
+| owner_id | uuid (auth user) |
+| filters | jsonb — `{ match: 'all' \| 'any', conditions: [{field, operator, value}] }` |
+| columns | jsonb — ordered array of field keys |
+| sort_field / sort_dir | text |
+| visibility | text — `private` \| `everyone` \| `selected` |
+| shared_user_ids | uuid[] |
+| is_default | boolean |
+| created_at / updated_at | timestamptz |
+
+RLS: select where `owner_id = auth.uid()` OR `visibility = 'everyone'` OR `auth.uid() = any(shared_user_ids)`;
+insert/update/delete restricted to the owner or an admin. GRANTs issued for `authenticated` and `service_role`
+in the same migration.
+
+New files:
+- `src/hooks/useListViews.ts` — fetch/create/update/delete views, active-view state persisted in localStorage.
+- `src/components/procurement/listviews/ViewBar.tsx` — view selector + actions.
+- `src/components/procurement/listviews/ViewEditorDialog.tsx` — name, filters, columns, sharing.
+- `src/components/procurement/listviews/FilterRow.tsx` — field/operator/value row.
+- `src/components/procurement/listviews/ListViewTable.tsx` — column-driven table with inline row editing.
+- `src/lib/procurementFields.ts` — the field registry (key, label, type, options source, editable flag).
+
+`src/pages/Procurement.tsx` is updated to render the view bar and to swap between the existing card list
+and the table when a view with columns is active. Existing creation flow, detail dialog, deep-linking
+(`?po=`), Salesforce import and delete behaviour stay as they are.
