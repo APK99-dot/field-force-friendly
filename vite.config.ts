@@ -66,5 +66,6 @@ export default defineConfig(({ mode }) => ({
   },
   optimizeDeps: {
     include: ["react", "react-dom", "react-dom/client", "@tanstack/react-query"],
+    exclude: ["date-fns"],
   },
 }));
