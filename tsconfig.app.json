@@ -19,6 +19,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "date-fns-original": [
+        "./node_modules/date-fns"
       ]
     },
     "skipLibCheck": true,

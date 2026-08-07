@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -9,15 +10,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Type, RotateCcw } from "lucide-react";
+import { Type, RotateCcw, CalendarClock } from "lucide-react";
 import {
   FONT_OPTIONS,
   FONT_SIZE_OPTIONS,
   useAppearance,
 } from "@/hooks/useAppearance";
+import {
+  DATE_FORMAT_OPTIONS,
+  TIME_FORMAT_OPTIONS,
+  deviceTimeZone,
+  getDatePrefs,
+  resetDatePrefs,
+  setDatePrefs,
+  timeZoneOptions,
+} from "@/lib/datePrefs";
+import { format } from "date-fns";
 
 export default function AppSettings() {
   const { fontFamily, fontSize, setFontFamily, setFontSize, reset } = useAppearance();
+  const [prefs, setPrefs] = useState(() => getDatePrefs());
+  const zones = timeZoneOptions();
+
+  const applyPrefs = (
+    next: Partial<{ datePattern: string; timeMode: "12" | "24"; timeZone: string }>,
+  ) => {
+    setDatePrefs(next);
+    setPrefs(getDatePrefs());
+    // Reload so every already-rendered date across the app picks up the change.
+    setTimeout(() => window.location.reload(), 150);
+  };
+
 
   return (
     <motion.div
@@ -94,6 +117,103 @@ export default function AppSettings() {
           </Button>
         </CardContent>
       </Card>
+
+      <Card className="shadow-card">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-primary" />
+            Date &amp; Time
+          </CardTitle>
+          <CardDescription>
+            Every date and time shown across the app follows these settings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-2">
+            <Label>Date format</Label>
+            <Select
+              value={prefs.datePattern}
+              onValueChange={(v) => applyPrefs({ datePattern: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a date format" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {DATE_FORMAT_OPTIONS.map((o) => (
+                  <SelectItem key={o.pattern} value={o.pattern}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Time format</Label>
+            <Select
+              value={prefs.timeMode}
+              onValueChange={(v) => applyPrefs({ timeMode: v as "12" | "24" })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a time format" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIME_FORMAT_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Time zone</Label>
+            <Select
+              value={prefs.timeZone || "device"}
+              onValueChange={(v) => applyPrefs({ timeZone: v === "device" ? "" : v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a time zone" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value="device">
+                  Device time zone ({deviceTimeZone()})
+                </SelectItem>
+                {zones.map((z) => (
+                  <SelectItem key={z} value={z}>
+                    {z}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="rounded-lg border bg-muted/30 p-4 space-y-1">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              Preview
+            </p>
+            <p className="text-sm font-medium">
+              {format(new Date(), "dd MMM yyyy")} · {format(new Date(), "h:mm a")}
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              resetDatePrefs();
+              setPrefs(getDatePrefs());
+              setTimeout(() => window.location.reload(), 150);
+            }}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset date &amp; time
+          </Button>
+        </CardContent>
+      </Card>
+
     </motion.div>
   );
 }
