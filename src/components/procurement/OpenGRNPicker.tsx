@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Search, Truck, Check } from "lucide-react";
+import { Search, Truck, Check, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { statusColor, fmtAmt } from "@/lib/procurement";
 
@@ -244,7 +244,7 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
                   }}
                   className="inline-block text-xs text-primary hover:underline mt-0.5 bg-transparent p-0 border-0 cursor-pointer"
                 >
-                  See more
+                  Read more
                 </button>
                 <div className="text-[11px] text-muted-foreground truncate">
                   {p.source_type === "internal_transfer"
@@ -261,7 +261,18 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 flex-wrap">
-              <span>{preview?.po.po_number || (preview?.po.source_type === "internal_transfer" ? "(No TRF #)" : "(No PO #)")}</span>
+              {preview && (
+                <a
+                  href={`/procurement?po=${preview.po.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline underline-offset-2 hover:opacity-80 inline-flex items-center gap-1"
+                  title="Open full record"
+                >
+                  {preview.po.po_number || (preview.po.source_type === "internal_transfer" ? "(No TRF #)" : "(No PO #)")}
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              )}
               {preview?.po.source_type === "internal_transfer" && (
                 <Badge variant="outline" className="text-[10px] bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Transfer</Badge>
               )}
