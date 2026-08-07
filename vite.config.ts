@@ -39,9 +39,16 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
   ].filter(Boolean),
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    alias: [
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+      // Route the real package first, then swap the bare specifier for our shim
+      // so every format() call follows the user's date/time preferences.
+      {
+        find: /^date-fns-original$/,
+        replacement: path.resolve(__dirname, "./node_modules/date-fns/index.mjs"),
+      },
+      { find: /^date-fns$/, replacement: path.resolve(__dirname, "./src/lib/dateFnsShim.ts") },
+    ],
   },
   build: {
     chunkSizeWarningLimit: 1500,
