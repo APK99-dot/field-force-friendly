@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Suspense, lazy } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense, lazy } from "react";
 import { motion } from "framer-motion";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
@@ -281,42 +281,72 @@ export default function GPSTracking() {
     })),
   ];
 
-  // Distance from raw GPS fixes over-counts badly: a stationary phone's fix
-  // wanders tens of metres between samples, and with a sample every minute or
-  // so that drift accumulates into kilometres of travel that never happened.
-  // Three filters, in addition to the existing outlier guards:
-  //   * discard fixes too inaccurate to trust at all
-  //   * ignore movement smaller than the fixes' own error radius — that is
-  //     jitter, not travel
-  //   * keep the existing implausible-speed and huge-hop rejections
+  // --- GPS cleaning -------------------------------------------------------
+  // Devices intermittently return a second, wrong position — typically a
+  // cached or network-derived fix — and report good accuracy for it. On a real
+  // day's trail that shows up as the track flipping between two clusters: a
+  // measured day gave 165 hops under 50m, ZERO between 50m and 200m, and 70
+  // jumps of ~1.3km, turning a 1km walk into 96km.
+  //
+  // That bimodal gap is the signature. It cannot be fixed with a distance
+  // threshold (the bad fixes are far away) or an accuracy threshold (they claim
+  // 13-45m, same as the good ones). What identifies them is the round trip: the
+  // track leaps away and immediately returns to where it was.
   const ACCURACY_LIMIT_M = 100; // a fix worse than this says little about where you are
-  const JITTER_FLOOR_M = 25;    // never count movement below this as travel
+  const JITTER_FLOOR_M = 25;    // movement below this is drift, not travel
+  const SPIKE_M = 150;          // an out-and-back longer than this is not real
 
-  const totalDistance = (() => {
+  const metresBetween = (
+    a: { latitude: number; longitude: number },
+    b: { latitude: number; longitude: number },
+  ) => {
+    const R = 6371000;
+    const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
+    const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((a.latitude * Math.PI) / 180) *
+        Math.cos((b.latitude * Math.PI) / 180) *
+        Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  };
+
+  const displayPoints = useMemo(() => {
     const usable = gpsPoints.filter((p) => {
       const acc = Number((p as any).accuracy ?? 0);
-      // accuracy 0/null means "unknown" on some devices — keep those rather
-      // than discarding a whole day's trail.
+      // 0/null means "unknown" on some devices — keep rather than discard a day.
       return !acc || acc <= ACCURACY_LIMIT_M;
     });
-    if (usable.length < 2) return 0;
+    if (usable.length < 3) return usable;
 
+    // Drop any point that is far from BOTH neighbours while those neighbours
+    // are close to each other — i.e. the track jumped away and came straight
+    // back. Consecutive bad fixes are handled by comparing against the last
+    // point we kept, not the raw predecessor.
+    const kept: typeof usable = [usable[0]];
+    for (let i = 1; i < usable.length - 1; i++) {
+      const prev = kept[kept.length - 1];
+      const cur = usable[i];
+      const next = usable[i + 1];
+      const dPrev = metresBetween(prev, cur);
+      const dNext = metresBetween(cur, next);
+      const dSkip = metresBetween(prev, next);
+      if (dPrev > SPIKE_M && dNext > SPIKE_M && dSkip < Math.min(dPrev, dNext)) continue;
+      kept.push(cur);
+    }
+    kept.push(usable[usable.length - 1]);
+    return kept;
+  }, [gpsPoints]);
+
+  const totalDistance = useMemo(() => {
+    if (displayPoints.length < 2) return 0;
     let total = 0;
-    for (let i = 1; i < usable.length; i++) {
-      const p = usable[i];
-      const prev = usable[i - 1];
-      const R = 6371;
-      const dLat = ((p.latitude - prev.latitude) * Math.PI) / 180;
-      const dLon = ((p.longitude - prev.longitude) * Math.PI) / 180;
-      const h =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos((prev.latitude * Math.PI) / 180) *
-          Math.cos((p.latitude * Math.PI) / 180) *
-          Math.sin(dLon / 2) ** 2;
-      const segKm = R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-      const segM = segKm * 1000;
+    for (let i = 1; i < displayPoints.length; i++) {
+      const p = displayPoints[i];
+      const prev = displayPoints[i - 1];
+      const segM = metresBetween(prev, p);
 
-      // Movement within the error radius of either fix cannot be distinguished
+      // Movement within the error radius of either fix is indistinguishable
       // from the fixes drifting while the phone sat still.
       const floorM = Math.max(
         JITTER_FLOOR_M,
@@ -325,6 +355,7 @@ export default function GPSTracking() {
       );
       if (segM < floorM) continue;
 
+      const segKm = segM / 1000;
       const dtHours = Math.max(
         (new Date(p.timestamp).getTime() - new Date(prev.timestamp).getTime()) / 3_600_000,
         1 / 3600, // guard against 0
@@ -334,7 +365,7 @@ export default function GPSTracking() {
       total += segKm;
     }
     return total;
-  })();
+  }, [displayPoints]);
 
   const firstPoint = gpsPoints.length > 0 ? gpsPoints[0] : null;
   const lastPoint = gpsPoints.length > 0 ? gpsPoints[gpsPoints.length - 1] : null;
@@ -555,7 +586,7 @@ export default function GPSTracking() {
                 ) : gpsPoints.length > 0 || activityMarkers.length > 0 ? (
                   <Suspense fallback={<MapFallback />}>
                     <LeafletMap
-                      gpsPoints={gpsPoints}
+                      gpsPoints={displayPoints}
                       activityMarkers={allMapMarkers}
                     />
                   </Suspense>
