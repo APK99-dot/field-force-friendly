@@ -200,6 +200,9 @@ Deno.serve(async (req) => {
       message,
       related_table,
       related_id,
+      // Read straight off the body: `route` is not parsed until further down,
+      // after this call.
+      route: typeof body.route === "string" ? body.route.trim() : "",
     });
 
     // 3) Send FCM push notifications (Android APK)
@@ -526,7 +529,13 @@ async function encryptPayload(
 async function sendWebPush(
   supabase: any,
   recipientIds: string[],
-  payload: { title: string; message: string; related_table?: string | null; related_id?: string | null }
+  payload: {
+    title: string;
+    message: string;
+    related_table?: string | null;
+    related_id?: string | null;
+    route?: string | null;
+  }
 ): Promise<{ sent: number; failed: number; pruned: number; skipped?: string }> {
   const pub = Deno.env.get("VAPID_PUBLIC_KEY");
   const priv = Deno.env.get("VAPID_PRIVATE_KEY");
@@ -553,7 +562,15 @@ async function sendWebPush(
     JSON.stringify({
       title: payload.title,
       message: payload.message,
-      data: { related_table: payload.related_table, related_id: payload.related_id, url: "/" },
+      // sw.js navigates to data.url on notificationclick. Carry the caller's
+      // route so a PWA banner opens the thing it is about — for a report that
+      // is /my-reports?open=<id>, which opens the PDF straight away — rather
+      // than dumping the user on the app root.
+      data: {
+        related_table: payload.related_table,
+        related_id: payload.related_id,
+        url: payload.route || "/",
+      },
     })
   );
 
