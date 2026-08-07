@@ -35,12 +35,38 @@ const STATUS_POLL_MS = 60 * 1000;
 // when the OS reports rapidly). One row per ~60s is plenty for a day trail.
 const NATIVE_MIN_INSERT_MS = 60 * 1000;
 
+// A fix worse than this tells us too little about where someone is to be worth
+// storing.
+const MAX_ACCURACY_M = 100;
+// Below this, a "move" is indistinguishable from the fix drifting while the
+// phone sits still, so storing it just adds a duplicate row.
+const MIN_MOVE_M = 30;
+// ...but still record something periodically when stationary, so a day on one
+// site is visibly a day on that site rather than a gap in the trail.
+const HEARTBEAT_MS = 10 * 60 * 1000;
+
+function metresBetween(
+  aLat: number, aLng: number, bLat: number, bLng: number,
+): number {
+  const R = 6371000;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLon = ((bLng - aLng) * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((aLat * Math.PI) / 180) *
+      Math.cos((bLat * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
 export function useContinuousGPS(userId?: string | null) {
   const pingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const statusTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const trackingRef = useRef(false);
   const capturingRef = useRef(false);
   const lastNativeInsertRef = useRef(0);
+  // Last position actually written, so we can skip redundant rows.
+  const lastStoredRef = useRef<{ lat: number; lng: number; at: number } | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -53,8 +79,23 @@ export function useContinuousGPS(userId?: string | null) {
       lng: number,
       accuracy: number | null,
     ) => {
+      // Drop fixes too vague to be useful. 0/null means "unknown" on some
+      // devices, so only reject a value we actually have.
+      if (accuracy != null && accuracy > 0 && accuracy > MAX_ACCURACY_M) return;
+
+      // Skip a row that says the same thing as the last one. Movement smaller
+      // than the fix's own error radius is drift, not travel — writing it
+      // produced hundreds of identical rows per day.
+      const last = lastStoredRef.current;
+      if (last) {
+        const moved = metresBetween(last.lat, last.lng, lat, lng);
+        const threshold = Math.max(MIN_MOVE_M, accuracy ?? 0);
+        const stale = Date.now() - last.at >= HEARTBEAT_MS;
+        if (moved < threshold && !stale) return;
+      }
+
       try {
-        await supabase.from("gps_tracking").insert({
+        const { error } = await supabase.from("gps_tracking").insert({
           user_id: userId,
           latitude: lat,
           longitude: lng,
@@ -62,6 +103,11 @@ export function useContinuousGPS(userId?: string | null) {
           date: format(new Date(), "yyyy-MM-dd"),
           timestamp: new Date().toISOString(),
         });
+        if (error) {
+          console.warn("GPS insert failed:", error);
+          return; // leave lastStored alone so the next fix is still considered
+        }
+        lastStoredRef.current = { lat, lng, at: Date.now() };
       } catch (err) {
         console.warn("GPS insert failed:", err);
       }
