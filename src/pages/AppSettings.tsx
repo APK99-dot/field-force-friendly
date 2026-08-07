@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -9,15 +10,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Type, RotateCcw } from "lucide-react";
+import { Type, RotateCcw, CalendarClock } from "lucide-react";
 import {
   FONT_OPTIONS,
   FONT_SIZE_OPTIONS,
   useAppearance,
 } from "@/hooks/useAppearance";
+import {
+  DATE_FORMAT_OPTIONS,
+  TIME_FORMAT_OPTIONS,
+  deviceTimeZone,
+  getDatePrefs,
+  resetDatePrefs,
+  setDatePrefs,
+  timeZoneOptions,
+} from "@/lib/datePrefs";
+import { format } from "date-fns";
 
 export default function AppSettings() {
   const { fontFamily, fontSize, setFontFamily, setFontSize, reset } = useAppearance();
+  const [prefs, setPrefs] = useState(() => getDatePrefs());
+  const zones = timeZoneOptions();
+
+  const applyPrefs = (
+    next: Partial<{ datePattern: string; timeMode: "12" | "24"; timeZone: string }>,
+  ) => {
+    setDatePrefs(next);
+    setPrefs(getDatePrefs());
+    // Reload so every already-rendered date across the app picks up the change.
+    setTimeout(() => window.location.reload(), 150);
+  };
+
 
   return (
     <motion.div
