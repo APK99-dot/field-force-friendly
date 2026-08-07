@@ -648,6 +648,167 @@ export default function CreativeActivityForm({
 
   const micBusy = isStartingRecording || isTranscribing || isFinalizing;
 
+  const renderIconRail = () => (
+                <div className="mt-2 pt-2 border-t border-border/60 flex flex-wrap items-center gap-1 min-w-0 max-w-full">
+                  {/* Photo */}
+                  {cfgTakePhoto && (
+                    <>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handlePhotoPick}
+                        className="hidden"
+                      />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={handleOpenCamera}
+                            disabled={uploadingPhoto}
+                            className="h-9 w-9 rounded-full flex items-center justify-center text-fuchsia-600 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/30 disabled:opacity-60 transition"
+                            aria-label="Add photo"
+                          >
+                            {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Add photo{photos.length > 0 ? ` (${photos.length})` : ""}</TooltipContent>
+                      </Tooltip>
+                    </>
+                  )}
+
+                  {/* Activity Check in / Check out */}
+                  {cfgCheckIn && (
+                    <>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={handleActivityCheckIn}
+                            disabled={checkedIn || checkingIn || !isEdit}
+                            className={cn(
+                              "h-9 w-9 rounded-full flex items-center justify-center transition",
+                              checkedIn
+                                ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
+                                : "text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30",
+                              (checkingIn || !isEdit) && "opacity-60",
+                            )}
+                            aria-label="Activity check in"
+                          >
+                            {checkingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {!isEdit ? "Save post first to check in" : checkedIn ? "Checked in for this activity" : "Check in at site"}
+                        </TooltipContent>
+                      </Tooltip>
+                      {isEdit && checkedIn && !(editActivity as any)?.check_out_at && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={handleActivityCheckOut}
+                              disabled={checkingIn}
+                              className="h-9 w-9 rounded-full flex items-center justify-center text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
+                              aria-label="Activity check out"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Check out</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </>
+                  )}
+
+                  {/* Risk indicator (opens menu) */}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className={cn(
+                              "h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted transition",
+                              currentRisk.iconColor
+                            )}
+                            aria-label="Risk status"
+                          >
+                            <TrendingUp className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>Risk: {currentRisk.label}</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="start">
+                      {RISK_OPTIONS.map((r) => (
+                        <DropdownMenuItem key={r.key} onClick={() => setRisk(r.key)} className="gap-2">
+                          <span className={cn("h-2.5 w-2.5 rounded-full", r.dot)} />
+                          {r.label}
+                          {r.key === risk && <Check className="h-3.5 w-3.5 ml-auto" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Voice mic dropdown */}
+                  <DropdownMenu open={micMenuOpen} onOpenChange={setMicMenuOpen}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            disabled={micBusy}
+                            className={cn(
+                              "h-9 w-9 rounded-full flex items-center justify-center transition",
+                              isRecording
+                                ? "text-red-600 bg-red-50 dark:bg-red-950/30 animate-pulse"
+                                : "text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/30",
+                              micBusy && "opacity-60"
+                            )}
+                            onClick={(e) => {
+                              if (isRecording) {
+                                e.preventDefault();
+                                stopRecording();
+                              }
+                            }}
+                            aria-label="Voice"
+                          >
+                            {isTranscribing || isFinalizing ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : isRecording ? (
+                              <Square className="h-4 w-4" />
+                            ) : (
+                              <Mic className="h-4 w-4" />
+                            )}
+                          </button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {isRecording ? "Stop recording" : "Voice-to-text or record audio"}
+                      </TooltipContent>
+                    </Tooltip>
+                    {!isRecording && (
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => handleMicOptionClick('text')} className="gap-2">
+                          <Mic className="h-3.5 w-3.5" /> Voice to text
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMicOptionClick('audio')} className="gap-2">
+                          <AudioLines className="h-3.5 w-3.5" /> Record audio
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    )}
+                  </DropdownMenu>
+
+                  {isRecording && (
+                    <span className="text-[11px] text-red-600 font-medium ml-1 min-w-0 break-words">
+                      {voiceToTextMode ? "Listening" : "Recording"} · {formatDuration(elapsed)}
+                    </span>
+                  )}
+                </div>
+  );
+
   return (
     <TooltipProvider delayDuration={200}>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -924,165 +1085,7 @@ export default function CreativeActivityForm({
                   />
                 </div>
 
-                {/* Icon action rail — under description */}
-                <div className="mt-2 pt-2 border-t border-border/60 flex flex-wrap items-center gap-1 min-w-0 max-w-full">
-                  {/* Photo */}
-                  {cfgTakePhoto && (
-                    <>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handlePhotoPick}
-                        className="hidden"
-                      />
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={handleOpenCamera}
-                            disabled={uploadingPhoto}
-                            className="h-9 w-9 rounded-full flex items-center justify-center text-fuchsia-600 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/30 disabled:opacity-60 transition"
-                            aria-label="Add photo"
-                          >
-                            {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Add photo{photos.length > 0 ? ` (${photos.length})` : ""}</TooltipContent>
-                      </Tooltip>
-                    </>
-                  )}
-
-                  {/* Activity Check in / Check out */}
-                  {cfgCheckIn && (
-                    <>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={handleActivityCheckIn}
-                            disabled={checkedIn || checkingIn || !isEdit}
-                            className={cn(
-                              "h-9 w-9 rounded-full flex items-center justify-center transition",
-                              checkedIn
-                                ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
-                                : "text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30",
-                              (checkingIn || !isEdit) && "opacity-60",
-                            )}
-                            aria-label="Activity check in"
-                          >
-                            {checkingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {!isEdit ? "Save post first to check in" : checkedIn ? "Checked in for this activity" : "Check in at site"}
-                        </TooltipContent>
-                      </Tooltip>
-                      {isEdit && checkedIn && !(editActivity as any)?.check_out_at && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              onClick={handleActivityCheckOut}
-                              disabled={checkingIn}
-                              className="h-9 w-9 rounded-full flex items-center justify-center text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
-                              aria-label="Activity check out"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>Check out</TooltipContent>
-                        </Tooltip>
-                      )}
-                    </>
-                  )}
-
-                  {/* Risk indicator (opens menu) */}
-                  <DropdownMenu>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            className={cn(
-                              "h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted transition",
-                              currentRisk.iconColor
-                            )}
-                            aria-label="Risk status"
-                          >
-                            <TrendingUp className="h-4 w-4" />
-                          </button>
-                        </DropdownMenuTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent>Risk: {currentRisk.label}</TooltipContent>
-                    </Tooltip>
-                    <DropdownMenuContent align="start">
-                      {RISK_OPTIONS.map((r) => (
-                        <DropdownMenuItem key={r.key} onClick={() => setRisk(r.key)} className="gap-2">
-                          <span className={cn("h-2.5 w-2.5 rounded-full", r.dot)} />
-                          {r.label}
-                          {r.key === risk && <Check className="h-3.5 w-3.5 ml-auto" />}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  {/* Voice mic dropdown */}
-                  <DropdownMenu open={micMenuOpen} onOpenChange={setMicMenuOpen}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            disabled={micBusy}
-                            className={cn(
-                              "h-9 w-9 rounded-full flex items-center justify-center transition",
-                              isRecording
-                                ? "text-red-600 bg-red-50 dark:bg-red-950/30 animate-pulse"
-                                : "text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/30",
-                              micBusy && "opacity-60"
-                            )}
-                            onClick={(e) => {
-                              if (isRecording) {
-                                e.preventDefault();
-                                stopRecording();
-                              }
-                            }}
-                            aria-label="Voice"
-                          >
-                            {isTranscribing || isFinalizing ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : isRecording ? (
-                              <Square className="h-4 w-4" />
-                            ) : (
-                              <Mic className="h-4 w-4" />
-                            )}
-                          </button>
-                        </DropdownMenuTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {isRecording ? "Stop recording" : "Voice-to-text or record audio"}
-                      </TooltipContent>
-                    </Tooltip>
-                    {!isRecording && (
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuItem onClick={() => handleMicOptionClick('text')} className="gap-2">
-                          <Mic className="h-3.5 w-3.5" /> Voice to text
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMicOptionClick('audio')} className="gap-2">
-                          <AudioLines className="h-3.5 w-3.5" /> Record audio
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    )}
-                  </DropdownMenu>
-
-                  {isRecording && (
-                    <span className="text-[11px] text-red-600 font-medium ml-1 min-w-0 break-words">
-                      {voiceToTextMode ? "Listening" : "Recording"} · {formatDuration(elapsed)}
-                    </span>
-                  )}
-                </div>
+                {renderIconRail()}
 
                 {/* Photos preview */}
                 {photos.length > 0 && (
