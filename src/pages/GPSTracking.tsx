@@ -311,6 +311,11 @@ export default function GPSTracking() {
     return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
   };
 
+  // How many of the following fixes must agree with a jump before it is
+  // believed, and how far ahead to look for that agreement.
+  const CONFIRM_LOOKAHEAD = 4;
+  const CONFIRM_REQUIRED = 3;
+
   const displayPoints = useMemo(() => {
     const usable = gpsPoints.filter((p) => {
       const acc = Number((p as any).accuracy ?? 0);
@@ -319,22 +324,32 @@ export default function GPSTracking() {
     });
     if (usable.length < 3) return usable;
 
-    // Drop any point that is far from BOTH neighbours while those neighbours
-    // are close to each other — i.e. the track jumped away and came straight
-    // back. Consecutive bad fixes are handled by comparing against the last
-    // point we kept, not the raw predecessor.
+    // A real move is one the device sticks to. A glitched fix appears once (or
+    // twice) a kilometre away and the very next reading is back where it was —
+    // a measured day had fixes 1368m apart NINE SECONDS apart, i.e. 547km/h.
+    //
+    // So a jump is only accepted if the fixes that follow agree with it.
+    // Checking against the last KEPT point rather than the raw predecessor
+    // means a run of consecutive bad fixes cannot drag the track along with it.
     const kept: typeof usable = [usable[0]];
-    for (let i = 1; i < usable.length - 1; i++) {
-      const prev = kept[kept.length - 1];
+    for (let i = 1; i < usable.length; i++) {
+      const anchor = kept[kept.length - 1];
       const cur = usable[i];
-      const next = usable[i + 1];
-      const dPrev = metresBetween(prev, cur);
-      const dNext = metresBetween(cur, next);
-      const dSkip = metresBetween(prev, next);
-      if (dPrev > SPIKE_M && dNext > SPIKE_M && dSkip < Math.min(dPrev, dNext)) continue;
-      kept.push(cur);
+
+      if (metresBetween(anchor, cur) <= SPIKE_M) {
+        kept.push(cur); // ordinary movement, no corroboration needed
+        continue;
+      }
+
+      let agree = 0;
+      for (let k = i + 1; k < Math.min(i + 1 + CONFIRM_LOOKAHEAD, usable.length); k++) {
+        if (metresBetween(cur, usable[k]) <= SPIKE_M) agree++;
+      }
+      // Near the end of the day there may not be enough fixes left to
+      // corroborate; accept rather than silently truncate the trail.
+      const remaining = usable.length - (i + 1);
+      if (agree >= Math.min(CONFIRM_REQUIRED, remaining)) kept.push(cur);
     }
-    kept.push(usable[usable.length - 1]);
     return kept;
   }, [gpsPoints]);
 
@@ -360,7 +375,9 @@ export default function GPSTracking() {
         (new Date(p.timestamp).getTime() - new Date(prev.timestamp).getTime()) / 3_600_000,
         1 / 3600, // guard against 0
       );
-      if (segKm > 50 || segKm / dtHours > 200) continue;
+      // 120km/h is beyond any realistic road speed here, so a segment implying
+      // more is a bad fix, not travel. Measured example: 1342m in 11 seconds.
+      if (segKm > 50 || segKm / dtHours > 120) continue;
 
       total += segKm;
     }
