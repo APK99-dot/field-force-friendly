@@ -265,8 +265,12 @@ export default function CreativeActivityForm({
         const productIds = [...new Set(raw.map((r) => r.product_id).filter(Boolean))];
         let pmap: Record<string, string> = {};
         if (productIds.length) {
-          const { data: prods } = await supabase.from("master_products").select("id, name").in("id", productIds);
-          (prods || []).forEach((p: any) => { pmap[p.id] = p.name; });
+          const { data: prods, error: prodErr } = await supabase
+            .from("master_products")
+            .select("id, product_name")
+            .in("id", productIds);
+          if (prodErr) console.error("Failed to load product names:", prodErr);
+          (prods || []).forEach((p: any) => { pmap[p.id] = p.product_name; });
         }
         // already received per procurement_item_id
         const { data: grns } = await supabase

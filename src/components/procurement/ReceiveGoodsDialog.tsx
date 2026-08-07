@@ -64,9 +64,13 @@ export default function ReceiveGoodsDialog({ open, onOpenChange, poId, currentUs
 
     const productIds = [...new Set(its.filter((i) => i.product_id).map((i) => i.product_id as string))];
     if (productIds.length) {
-      const { data: prods } = await supabase.from("master_products").select("id, name").in("id", productIds);
+      const { data: prods, error: prodErr } = await supabase
+        .from("master_products")
+        .select("id, product_name")
+        .in("id", productIds);
+      if (prodErr) console.error("Failed to load product names:", prodErr);
       const pmap: Record<string, string> = {};
-      (prods || []).forEach((p: any) => { pmap[p.id] = p.name; });
+      (prods || []).forEach((p: any) => { pmap[p.id] = p.product_name; });
       setProducts(pmap);
     }
 

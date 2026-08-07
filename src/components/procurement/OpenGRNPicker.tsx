@@ -151,8 +151,14 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
     const prodIds = [...new Set(items.map((i) => i.product_id).filter(Boolean))];
     const pmap: Record<string, string> = {};
     if (prodIds.length) {
-      const { data: prods } = await supabase.from("master_products").select("id, name").in("id", prodIds);
-      (prods || []).forEach((p: any) => { pmap[p.id] = p.name; });
+      // The column is product_name, not name. Asking for "name" made PostgREST
+      // reject the query, which left every line showing a dash.
+      const { data: prods, error: prodErr } = await supabase
+        .from("master_products")
+        .select("id, product_name")
+        .in("id", prodIds);
+      if (prodErr) console.error("Failed to load product names:", prodErr);
+      (prods || []).forEach((p: any) => { pmap[p.id] = p.product_name; });
     }
     const grnRes: any = await (supabase.from("procurement_grns") as any).select("id").eq("po_id", po.id);
     const grnIds = ((grnRes.data || []) as any[]).map((g) => g.id);
