@@ -281,29 +281,60 @@ export default function GPSTracking() {
     })),
   ];
 
-  const totalDistance = gpsPoints.length > 1
-    ? gpsPoints.reduce((acc, p, i) => {
-        if (i === 0) return 0;
-        const prev = gpsPoints[i - 1];
-        const R = 6371;
-        const dLat = ((p.latitude - prev.latitude) * Math.PI) / 180;
-        const dLon = ((p.longitude - prev.longitude) * Math.PI) / 180;
-        const a =
-          Math.sin(dLat / 2) ** 2 +
-          Math.cos((prev.latitude * Math.PI) / 180) *
-            Math.cos((p.latitude * Math.PI) / 180) *
-            Math.sin(dLon / 2) ** 2;
-        const segKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        // Skip implausible jumps (>200 km/h implied speed, or >50km single
-        // hop) — these are stray outliers, not real travel.
-        const dtHours = Math.max(
-          (new Date(p.timestamp).getTime() - new Date(prev.timestamp).getTime()) / 3_600_000,
-          1 / 3600, // guard against 0
-        );
-        if (segKm > 50 || segKm / dtHours > 200) return acc;
-        return acc + segKm;
-      }, 0)
-    : 0;
+  // Distance from raw GPS fixes over-counts badly: a stationary phone's fix
+  // wanders tens of metres between samples, and with a sample every minute or
+  // so that drift accumulates into kilometres of travel that never happened.
+  // Three filters, in addition to the existing outlier guards:
+  //   * discard fixes too inaccurate to trust at all
+  //   * ignore movement smaller than the fixes' own error radius — that is
+  //     jitter, not travel
+  //   * keep the existing implausible-speed and huge-hop rejections
+  const ACCURACY_LIMIT_M = 100; // a fix worse than this says little about where you are
+  const JITTER_FLOOR_M = 25;    // never count movement below this as travel
+
+  const totalDistance = (() => {
+    const usable = gpsPoints.filter((p) => {
+      const acc = Number((p as any).accuracy ?? 0);
+      // accuracy 0/null means "unknown" on some devices — keep those rather
+      // than discarding a whole day's trail.
+      return !acc || acc <= ACCURACY_LIMIT_M;
+    });
+    if (usable.length < 2) return 0;
+
+    let total = 0;
+    for (let i = 1; i < usable.length; i++) {
+      const p = usable[i];
+      const prev = usable[i - 1];
+      const R = 6371;
+      const dLat = ((p.latitude - prev.latitude) * Math.PI) / 180;
+      const dLon = ((p.longitude - prev.longitude) * Math.PI) / 180;
+      const h =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((prev.latitude * Math.PI) / 180) *
+          Math.cos((p.latitude * Math.PI) / 180) *
+          Math.sin(dLon / 2) ** 2;
+      const segKm = R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+      const segM = segKm * 1000;
+
+      // Movement within the error radius of either fix cannot be distinguished
+      // from the fixes drifting while the phone sat still.
+      const floorM = Math.max(
+        JITTER_FLOOR_M,
+        Number((p as any).accuracy ?? 0),
+        Number((prev as any).accuracy ?? 0),
+      );
+      if (segM < floorM) continue;
+
+      const dtHours = Math.max(
+        (new Date(p.timestamp).getTime() - new Date(prev.timestamp).getTime()) / 3_600_000,
+        1 / 3600, // guard against 0
+      );
+      if (segKm > 50 || segKm / dtHours > 200) continue;
+
+      total += segKm;
+    }
+    return total;
+  })();
 
   const firstPoint = gpsPoints.length > 0 ? gpsPoints[0] : null;
   const lastPoint = gpsPoints.length > 0 ? gpsPoints[gpsPoints.length - 1] : null;
