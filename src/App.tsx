@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import { lazyWithRetry } from "@/utils/lazyWithRetry";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
