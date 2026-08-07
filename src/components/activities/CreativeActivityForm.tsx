@@ -1017,11 +1017,12 @@ export default function CreativeActivityForm({
               <div className="rounded-2xl bg-card border border-border px-3 sm:px-4 py-2.5 shadow-sm flex items-center gap-2 min-w-0">
                 <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                 <label className="text-xs font-semibold text-muted-foreground shrink-0">Activity Date</label>
+                {/* No max attribute: activities are planned ahead as well as
+                    logged after the fact, so future dates must be selectable. */}
                 <input
                   type="date"
                   value={activityDate}
                   onChange={(e) => setActivityDate(e.target.value)}
-                  max={format(new Date(), "yyyy-MM-dd")}
                   className="flex-1 min-w-0 bg-transparent text-sm outline-none text-right"
                 />
               </div>
