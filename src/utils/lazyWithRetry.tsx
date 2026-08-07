@@ -10,7 +10,7 @@ function isChunkError(err: unknown): boolean {
 }
 
 /**
- * React.lazy with resilience against stale/失败 chunk fetches after a deploy.
+ * React.lazy with resilience against stale or failed chunk fetches after a deploy.
  * 1) retries the import once after a short delay (transient network / CDN warm-up)
  * 2) if it still fails and the error is a chunk error, force one hard reload
  *    (guarded via sessionStorage so we never loop)
