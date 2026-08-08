@@ -26,8 +26,16 @@ import { StarRating, getVendorRatingFlag } from "@/components/procurement/Vendor
 import { LightningShell, LightningToggle, HighlightsPanel } from "@/components/procurement/lightning/LightningShell";
 import { useUiMode, isLightning } from "@/hooks/useUiMode";
 
-function VendorHeaderBar({ vendor, flag }: { vendor: any; flag: { className: string; emoji: string; label: string } }) {
+function VendorHeaderBar({ vendor, flag, rating }: { vendor: any; flag: { className: string; emoji: string; label: string }; rating: { avg: number; count: number } | null }) {
   const [uiMode] = useUiMode();
+  const ratingNode = (
+    <span className="flex items-center gap-1.5">
+      <StarRating value={rating ? Math.round(rating.avg) : 0} readOnly size={13} />
+      <span className="text-xs">
+        {rating ? `${rating.avg.toFixed(1)} / 5 · ${rating.count} feedback` : "No feedback yet"}
+      </span>
+    </span>
+  );
   if (isLightning(uiMode)) {
     return (
       <HighlightsPanel
@@ -37,7 +45,8 @@ function VendorHeaderBar({ vendor, flag }: { vendor: any; flag: { className: str
         subtitle={[vendor.city, vendor.state].filter(Boolean).join(", ") || undefined}
         fields={[
           { label: "Status", value: <Badge variant="outline" className={`text-[10px] ${statusColor(vendor.status)}`}>{vendor.status}</Badge> },
-          { label: "Rating", value: <span>{flag.emoji} {flag.label}</span> },
+          { label: "Avg Rating", value: ratingNode },
+          { label: "Rating Flag", value: <span>{flag.emoji} {flag.label}</span> },
           { label: "Phone", value: vendor.phone?.[0] || "—" },
           { label: "Email", value: vendor.email?.[0] || "—" },
           { label: "GSTIN", value: vendor.gstin || "—" },
@@ -47,13 +56,17 @@ function VendorHeaderBar({ vendor, flag }: { vendor: any; flag: { className: str
     );
   }
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <h1 className="text-xl font-bold">{vendor.name}</h1>
-      <Badge variant="outline" className={`text-xs ${statusColor(vendor.status)}`}>{vendor.status}</Badge>
-      <Badge variant="outline" className={`text-[10px] ${flag.className}`}>{flag.emoji} {flag.label}</Badge>
+    <div className="space-y-1">
+      <div className="flex items-center gap-2 flex-wrap">
+        <h1 className="text-xl font-bold">{vendor.name}</h1>
+        <Badge variant="outline" className={`text-xs ${statusColor(vendor.status)}`}>{vendor.status}</Badge>
+        <Badge variant="outline" className={`text-[10px] ${flag.className}`}>{flag.emoji} {flag.label}</Badge>
+      </div>
+      <div className="text-muted-foreground">{ratingNode}</div>
     </div>
   );
 }
+
 
 function toStringArray(val: any): string[] {
   if (Array.isArray(val)) return val.map(String).filter(Boolean);
