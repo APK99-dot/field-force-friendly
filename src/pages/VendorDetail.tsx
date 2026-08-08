@@ -899,9 +899,13 @@ export default function VendorDetail() {
                 <Card key={f.id}>
                   <CardContent className="py-3 text-xs space-y-1.5">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <span className="font-medium">{f.po?.po_number || "—"}</span>
+                      <span className="font-medium">
+                        {f.po?.po_number || f.po?.requisition_number || "—"}
+                        {f.grn?.grn_number && <span className="text-muted-foreground font-normal"> · {f.grn.grn_number}</span>}
+                      </span>
                       <span className="text-muted-foreground">{fmtDate(f.created_at)}</span>
                     </div>
+
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <StarRating value={Math.round(fb)} readOnly size={14} />
                       <span>{fb.toFixed(1)}</span>
