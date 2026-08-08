@@ -1,6 +1,6 @@
 import { lazy, type ComponentType } from "react";
+import { hardReloadForStaleChunk } from "./cacheVersion";
 
-const RELOAD_KEY = "lazy_chunk_reload_at";
 
 function isChunkError(err: unknown): boolean {
   const msg = (err as Error)?.message || String(err);
@@ -29,11 +29,7 @@ export function lazyWithRetry<T extends ComponentType<any>>(
       try {
         return await factory();
       } catch (err2) {
-        const last = Number(sessionStorage.getItem(RELOAD_KEY) || "0");
-        if (Date.now() - last > 15_000) {
-          sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
-          console.warn("[lazy] stale chunk, reloading app…");
-          window.location.reload();
+        if (hardReloadForStaleChunk()) {
           // keep Suspense pending while the reload happens
           return await new Promise<{ default: T }>(() => {});
         }

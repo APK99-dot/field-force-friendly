@@ -3,22 +3,18 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { requestNativePermissions } from "./utils/nativePermissions";
-import { checkAndBustCache, startVersionSync } from "./utils/cacheVersion";
+import { checkAndBustCache, startVersionSync, hardReloadForStaleChunk } from "./utils/cacheVersion";
 import { initAppearance } from "./hooks/useAppearance";
 
-// Recover from stale lazy-loaded chunks after a new deploy by reloading once.
-const CHUNK_RELOAD_KEY = "chunk_reload_attempt";
+// Recover from stale lazy-loaded chunks after a new deploy by purging caches
+// and reloading once with a cache-busting token.
 function isChunkLoadError(msg: unknown): boolean {
   const s = typeof msg === "string" ? msg : (msg as Error)?.message || "";
   return /Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError/i.test(s);
 }
 function handleChunkError(err: unknown) {
   if (!isChunkLoadError(err)) return;
-  const last = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) || "0");
-  if (Date.now() - last < 10_000) return; // avoid reload loop
-  sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
-  console.warn("[App] Stale chunk detected, reloading…");
-  window.location.reload();
+  hardReloadForStaleChunk();
 }
 window.addEventListener("error", (e) => handleChunkError(e.error || e.message));
 window.addEventListener("unhandledrejection", (e) => handleChunkError(e.reason));
