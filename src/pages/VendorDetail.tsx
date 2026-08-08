@@ -388,7 +388,7 @@ export default function VendorDetail() {
         <LightningToggle />
       </div>
 
-      <VendorHeaderBar vendor={vendor} flag={flag} />
+      <VendorHeaderBar vendor={vendor} flag={flag} rating={rating ? { avg: rating.avg, count: rating.count } : null} />
 
       <div className="flex gap-2">
         {vendor.phone[0] && (
