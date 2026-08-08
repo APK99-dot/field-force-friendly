@@ -10,7 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { rollupNegativeScore, scoreBand, feedbackPenalty, improvementLabel } from "@/lib/vendorScore";
+import { rollupNegativeScore, scoreBand, feedbackPenalty, improvementLabel, IMPROVEMENT_AREAS } from "@/lib/vendorScore";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
