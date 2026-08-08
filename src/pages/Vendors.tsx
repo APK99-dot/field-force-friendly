@@ -207,31 +207,26 @@ export default function Vendors() {
   });
 
   const ratingsByVendor = useMemo(() => {
-    const map: Record<string, {
-      avg: number;
-      count: number;
-      delivery: number;
-      quality: number;
-      quantity: number;
-      overall: number;
-      history: any[];
-    }> = {};
+    const map: Record<string, { avg: number; count: number; history: any[] }> = {};
     const grouped: Record<string, any[]> = {};
     for (const f of feedback as any[]) {
       (grouped[f.vendor_id] ||= []).push(f);
     }
     for (const [vid, list] of Object.entries(grouped)) {
-      const n = list.length;
-      const sum = (k: string) => list.reduce((a, f) => a + (f[k] || 0), 0);
-      const delivery = sum("delivery_timeliness") / n;
-      const quality = sum("material_quality") / n;
-      const quantity = sum("quantity_accuracy") / n;
-      const overall = sum("overall_experience") / n;
-      const avg = (delivery + quality + quantity + overall) / 4;
-      map[vid] = { avg, count: n, delivery, quality, quantity, overall, history: list };
+      // Sub-ratings are optional (activity feedback captures only an overall star),
+      // so average each dimension over the records that actually carry it.
+      const avgOf = (k: string) => {
+        const vals = list.map((f) => f[k]).filter((v) => v != null).map(Number);
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      };
+      const dims = [avgOf("delivery_timeliness"), avgOf("material_quality"), avgOf("quantity_accuracy"), avgOf("overall_experience")]
+        .filter((v): v is number => v != null);
+      const avg = dims.length ? dims.reduce((a, b) => a + b, 0) / dims.length : 0;
+      map[vid] = { avg, count: list.length, history: list };
     }
     return map;
   }, [feedback]);
+
 
 
 
@@ -496,6 +491,18 @@ export default function Vendors() {
                         );
                       })()}
                     </div>
+                    {(() => {
+                      const r = ratingsByVendor[v.id];
+                      return (
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <StarRating value={r ? Math.round(r.avg) : 0} readOnly size={13} />
+                          <span className="text-[11px] text-muted-foreground">
+                            {r ? `${r.avg.toFixed(1)} / 5 · ${r.count} feedback` : "No feedback yet"}
+                          </span>
+                        </div>
+                      );
+                    })()}
+
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Phone className="h-3 w-3" /> {v.phone[0] || "—"}
                       {v.phone.length > 1 && <span className="text-[10px] text-primary">+{v.phone.length - 1} more</span>}
