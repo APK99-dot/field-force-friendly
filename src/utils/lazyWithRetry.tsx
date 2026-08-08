@@ -29,11 +29,7 @@ export function lazyWithRetry<T extends ComponentType<any>>(
       try {
         return await factory();
       } catch (err2) {
-        const last = Number(sessionStorage.getItem(RELOAD_KEY) || "0");
-        if (Date.now() - last > 15_000) {
-          sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
-          console.warn("[lazy] stale chunk, reloading app…");
-          window.location.reload();
+        if (hardReloadForStaleChunk()) {
           // keep Suspense pending while the reload happens
           return await new Promise<{ default: T }>(() => {});
         }
