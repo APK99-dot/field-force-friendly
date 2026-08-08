@@ -42,6 +42,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import CameraCapture from "@/components/CameraCapture";
 import { isNative, takeNativePhoto } from "@/utils/nativePermissions";
 import OpenGRNPicker from "@/components/procurement/OpenGRNPicker";
+import VendorFeedbackInput from "@/components/procurement/VendorFeedbackInput";
 import { receiptDrivenStatus } from "@/lib/procurement";
 
 interface GrnLineItem {
@@ -195,6 +196,10 @@ export default function CreativeActivityForm({
   const [grnRecv, setGrnRecv] = useState<Record<string, string>>({});
   const [grnItemRemarks, setGrnItemRemarks] = useState<Record<string, string>>({});
   const [grnRemarks, setGrnRemarks] = useState("");
+  const [grnVendorId, setGrnVendorId] = useState<string | null>(null);
+  const [grnVendorName, setGrnVendorName] = useState<string>("");
+  const [vendorStars, setVendorStars] = useState(0);
+  const [vendorAreas, setVendorAreas] = useState<string[]>([]);
   const [grnLoadingPo, setGrnLoadingPo] = useState(false);
 
   useEffect(() => {
@@ -218,6 +223,10 @@ export default function CreativeActivityForm({
       setGrnRecv({});
       setGrnItemRemarks({});
       setGrnRemarks("");
+      setGrnVendorId(null);
+      setGrnVendorName("");
+      setVendorStars(0);
+      setVendorAreas([]);
       return;
     }
     // Prefill on edit
@@ -257,7 +266,7 @@ export default function CreativeActivityForm({
       try {
         const { data: po } = await supabase
           .from("procurement_orders")
-          .select("po_number, procurement_items(id, product_id, qty, uom)")
+          .select("po_number, vendor_id, vendors(name), procurement_items(id, product_id, qty, uom)")
           .eq("id", grnPoId)
           .single();
         if (cancelled) return;
@@ -285,6 +294,8 @@ export default function CreativeActivityForm({
         });
         if (cancelled) return;
         setGrnPoNumber((po as any)?.po_number || "");
+        setGrnVendorId((po as any)?.vendor_id || null);
+        setGrnVendorName((po as any)?.vendors?.name || "");
         setGrnItems(raw.map((r) => ({
           id: r.id,
           product_id: r.product_id,
@@ -313,6 +324,10 @@ export default function CreativeActivityForm({
       setGrnRecv({});
       setGrnItemRemarks({});
       setGrnRemarks("");
+      setGrnVendorId(null);
+      setGrnVendorName("");
+      setVendorStars(0);
+      setVendorAreas([]);
     }
   }, [isGrnType, activityType]);
 
@@ -500,6 +515,10 @@ export default function CreativeActivityForm({
         toast.error("Enter received quantity for at least one item");
         return;
       }
+      if (vendorStars > 0 && vendorStars < 3 && vendorAreas.length === 0) {
+        toast.error("Select at least one area under 'Improvement Required In'");
+        return;
+      }
       for (const r of grnRowsToInsert) {
         const pending = Math.max(0, r.it.ordered - r.it.prevReceived);
         if (r.received > pending + 1e-9) {
@@ -551,7 +570,7 @@ export default function CreativeActivityForm({
       } else {
         payload.status = "planned";
         payload.status_history = [{ status: "planned", at: new Date().toISOString() } as ActivityStatusEntry];
-        await createActivity(payload);
+        const createdActivity = await createActivity(payload);
 
         // Create the GRN record + items + advance PO status
         if (isGrnType && grnPoId && grnRowsToInsert.length > 0) {
@@ -586,6 +605,21 @@ export default function CreativeActivityForm({
             }));
             const { error: ie } = await supabase.from("procurement_grn_items").insert(itemRows);
             if (ie) throw ie;
+
+            if (vendorStars > 0 && grnVendorId) {
+              const { error: fbErr } = await supabase.from("procurement_vendor_feedback").insert({
+                grn_id: grn.id,
+                vendor_id: grnVendorId,
+                po_id: grnPoId,
+                overall_experience: vendorStars,
+                improvement_areas: vendorStars < 3 ? vendorAreas : [],
+                comments: grnRemarks.trim() || null,
+                activity_id: (createdActivity as any)?.id || null,
+                source: "activity",
+                created_by: user?.id || null,
+              } as any);
+              if (fbErr) console.error("Vendor feedback failed:", fbErr);
+            }
 
             const next = receiptDrivenStatus(ordered, cumulative, "");
             if (next) {
@@ -1252,6 +1286,15 @@ export default function CreativeActivityForm({
                             })}
                           </div>
                         </div>
+                        {!isEdit && (
+                          <VendorFeedbackInput
+                            vendorName={grnVendorName}
+                            rating={vendorStars}
+                            onRatingChange={setVendorStars}
+                            areas={vendorAreas}
+                            onAreasChange={setVendorAreas}
+                          />
+                        )}
                         <div className="space-y-1">
                           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Good receipt remarks</p>
                           <Textarea

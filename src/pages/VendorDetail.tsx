@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { rollupNegativeScore, scoreBand, feedbackPenalty, improvementLabel } from "@/lib/vendorScore";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -248,14 +250,23 @@ export default function VendorDetail() {
     const list = feedback as any[];
     if (list.length === 0) return null;
     const n = list.length;
-    const sum = (k: string) => list.reduce((a, f) => a + (f[k] || 0), 0);
-    const delivery = sum("delivery_timeliness") / n;
-    const quality = sum("material_quality") / n;
-    const quantity = sum("quantity_accuracy") / n;
-    const overall = sum("overall_experience") / n;
-    const avg = (delivery + quality + quantity + overall) / 4;
+    // Sub-ratings are optional (activity feedback captures only an overall star),
+    // so average each dimension over the records that actually carry it.
+    const avgOf = (k: string) => {
+      const vals = list.map((f) => f[k]).filter((v) => v != null).map(Number);
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    };
+    const delivery = avgOf("delivery_timeliness");
+    const quality = avgOf("material_quality");
+    const quantity = avgOf("quantity_accuracy");
+    const overall = avgOf("overall_experience");
+    const dims = [delivery, quality, quantity, overall].filter((v): v is number => v != null);
+    const avg = dims.length ? dims.reduce((a, b) => a + b, 0) / dims.length : 0;
     return { avg, count: n, delivery, quality, quantity, overall, history: list };
   }, [feedback]);
+
+  const negative = useMemo(() => rollupNegativeScore(feedback as any[]), [feedback]);
+
 
   const perf = useMemo(() => {
     const pos = (orders as any[]).filter((o) => o.po_number);
@@ -395,6 +406,7 @@ export default function VendorDetail() {
           <TabsTrigger value="payments" className="text-xs">Payments ({payments.length})</TabsTrigger>
           <TabsTrigger value="documents" className="text-xs">Documents ({attachments.length})</TabsTrigger>
           <TabsTrigger value="performance" className="text-xs">Performance</TabsTrigger>
+          <TabsTrigger value="feedback" className="text-xs">Feedback ({(feedback as any[]).length})</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
@@ -624,38 +636,108 @@ export default function VendorDetail() {
                   { label: "Material Quality", v: rating.quality },
                   { label: "Quantity Accuracy", v: rating.quantity },
                   { label: "Overall Experience", v: rating.overall },
-                ].map((c) => (
+                ].filter((c) => c.v != null).map((c) => (
                   <div key={c.label} className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">{c.label}</span>
                     <div className="flex items-center gap-1.5">
-                      <StarRating value={Math.round(c.v)} readOnly size={14} />
-                      <span className="text-xs w-7 text-right">{c.v.toFixed(1)}</span>
+                      <StarRating value={Math.round(c.v as number)} readOnly size={14} />
+                      <span className="text-xs w-7 text-right">{(c.v as number).toFixed(1)}</span>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="space-y-2 pt-2">
-                <p className="text-xs font-medium">Feedback History</p>
-                {rating.history.map((f: any) => {
-                  const fb = (f.delivery_timeliness + f.material_quality + f.quantity_accuracy + f.overall_experience) / 4;
-                  return (
-                    <div key={f.id} className="rounded-lg border p-2 text-xs space-y-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium">{f.po?.po_number || "—"}</span>
-                        <span className="text-muted-foreground">{fmtDate(f.created_at)}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <StarRating value={Math.round(fb)} readOnly size={12} />
-                        <span>{fb.toFixed(1)}</span>
-                      </div>
-                      {f.comments && <p className="text-muted-foreground">{f.comments}</p>}
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           )}
         </TabsContent>
+
+        {/* Feedback */}
+        <TabsContent value="feedback" className="mt-4 space-y-4">
+          <Card>
+            <CardContent className="py-4 space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <p className="text-sm font-semibold">Negative Score</p>
+                  <p className="text-xs text-muted-foreground">Rolled up across {negative.count} feedback record{negative.count === 1 ? "" : "s"}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold tabular-nums">{negative.score ?? "—"}</span>
+                  <span className="text-xs text-muted-foreground">/ 100</span>
+                  <Badge className={cn("text-[10px]", scoreBand(negative.score).className)}>{scoreBand(negative.score).label}</Badge>
+                </div>
+              </div>
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    (negative.score ?? 0) <= 20 ? "bg-emerald-500" : (negative.score ?? 0) <= 40 ? "bg-yellow-500" : (negative.score ?? 0) <= 70 ? "bg-orange-500" : "bg-red-500",
+                  )}
+                  style={{ width: `${negative.score ?? 0}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">{scoreBand(negative.score).description}</p>
+
+              <div className="rounded-lg bg-muted/50 p-3 text-xs space-y-1.5">
+                <p className="font-semibold">How the score works</p>
+                <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
+                  <li>Each Goods Receipt feedback earns a penalty: <strong>(5 − stars) × 10</strong> — 0 points for 5★, 40 points for 1★.</li>
+                  <li>Every “Improvement Required In” area flagged adds <strong>5 points</strong> (max 20 for all four areas).</li>
+                  <li>Maximum penalty per feedback is 60, normalised to a 0–100 scale.</li>
+                  <li>The vendor score is the <strong>average</strong> of all normalised penalties. Lower is better.</li>
+                  <li>Bands: 0–20 Low Risk · 21–40 Moderate · 41–70 High Risk · 71+ Critical.</li>
+                </ul>
+              </div>
+
+              {Object.keys(negative.areaCounts).length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold">Most flagged improvement areas</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(negative.areaCounts)
+                      .sort((a, b) => Number(b[1]) - Number(a[1]))
+                      .map(([k, v]) => (
+                        <Badge key={k} variant="outline" className="text-[10px]">{improvementLabel(k)} · {String(v)}</Badge>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Feedback History ({(feedback as any[]).length})</p>
+            {(feedback as any[]).length === 0 && (
+              <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">No feedback captured yet.</CardContent></Card>
+            )}
+            {(feedback as any[]).map((f: any) => {
+              const dims = [f.delivery_timeliness, f.material_quality, f.quantity_accuracy, f.overall_experience].filter((v) => v != null).map(Number);
+              const fb = dims.length ? dims.reduce((a, b) => a + b, 0) / dims.length : 0;
+              const pen = f.overall_experience != null ? feedbackPenalty(Number(f.overall_experience), f.improvement_areas || []) : null;
+              return (
+                <Card key={f.id}>
+                  <CardContent className="py-3 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="font-medium">{f.po?.po_number || "—"}</span>
+                      <span className="text-muted-foreground">{fmtDate(f.created_at)}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <StarRating value={Math.round(fb)} readOnly size={14} />
+                      <span>{fb.toFixed(1)}</span>
+                      {pen != null && <Badge variant="outline" className="text-[10px]">Penalty {pen}</Badge>}
+                    </div>
+                    {(f.improvement_areas || []).length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {(f.improvement_areas as string[]).map((a) => (
+                          <Badge key={a} className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{improvementLabel(a)}</Badge>
+                        ))}
+                      </div>
+                    )}
+                    {f.comments && <p className="text-muted-foreground">{f.comments}</p>}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </TabsContent>
+
       </Tabs>
 
       {isAdmin && (
