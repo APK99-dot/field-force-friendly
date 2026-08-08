@@ -157,7 +157,11 @@ export default function CategoryMaster() {
                 <TableBody>
                   {filtered.map((r) => (
                     <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.category_name}</TableCell>
+                      <TableCell className="font-medium">
+                        <button className="text-primary underline underline-offset-2 text-left" onClick={() => navigate(`/master-data/categories/${r.id}`)}>
+                          {r.category_name}
+                        </button>
+                      </TableCell>
                       <TableCell>{r.sub_category_name || "—"}</TableCell>
                       <TableCell className="text-center">
                         <Badge
