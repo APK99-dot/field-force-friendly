@@ -491,6 +491,18 @@ export default function Vendors() {
                         );
                       })()}
                     </div>
+                    {(() => {
+                      const r = ratingsByVendor[v.id];
+                      return (
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <StarRating value={r ? Math.round(r.avg) : 0} readOnly size={13} />
+                          <span className="text-[11px] text-muted-foreground">
+                            {r ? `${r.avg.toFixed(1)} / 5 · ${r.count} feedback` : "No feedback yet"}
+                          </span>
+                        </div>
+                      );
+                    })()}
+
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Phone className="h-3 w-3" /> {v.phone[0] || "—"}
                       {v.phone.length > 1 && <span className="text-[10px] text-primary">+{v.phone.length - 1} more</span>}
