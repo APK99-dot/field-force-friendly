@@ -153,7 +153,7 @@ export default function VendorDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("procurement_vendor_feedback")
-        .select("*, po:procurement_orders(po_number)")
+        .select("*, po:procurement_orders(po_number, requisition_number), grn:procurement_grns(grn_number)")
         .eq("vendor_id", id)
         .order("created_at", { ascending: false });
       if (error) throw error;
