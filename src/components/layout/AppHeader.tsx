@@ -72,6 +72,7 @@ const allNavigationItems = [
   { icon: CalendarDays, label: "Events", href: "/events", color: "from-fuchsia-500 to-fuchsia-600", module: "module_events" },
   { icon: Target, label: "Opportunities", href: "/opportunities", color: "from-lime-500 to-lime-600", module: "module_opportunities" },
   { icon: Handshake, label: "Vendor Master", href: "/vendors", color: "from-yellow-500 to-amber-600", module: null as string | null },
+  { icon: Package, label: "Product Master", href: "/master-data/products", color: "from-violet-500 to-purple-600", module: null as string | null },
   { icon: FileBarChart, label: "Reports", href: "/reports", color: "from-teal-500 to-teal-600", module: "module_reports" },
 ];
 
