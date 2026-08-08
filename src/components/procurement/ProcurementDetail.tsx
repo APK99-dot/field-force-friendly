@@ -3121,6 +3121,15 @@ export default function ProcurementDetail({
           </AlertDialogContent>
         </AlertDialog>
 
+        {aiAdvisorOpen && (
+          <AiSourcingAdvisor
+            open={aiAdvisorOpen}
+            onOpenChange={setAiAdvisorOpen}
+            poId={order.id}
+            title={(order as any).requisition_number || order.po_number || undefined}
+          />
+        )}
+
 
         {grnOpen && (() => {
           const scopedVendors = scopedVendorId
