@@ -38,7 +38,6 @@ import {
   Contact,
   CalendarDays,
   Target,
-  Handshake,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NavLink } from "@/components/NavLink";
