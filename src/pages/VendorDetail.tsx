@@ -248,14 +248,23 @@ export default function VendorDetail() {
     const list = feedback as any[];
     if (list.length === 0) return null;
     const n = list.length;
-    const sum = (k: string) => list.reduce((a, f) => a + (f[k] || 0), 0);
-    const delivery = sum("delivery_timeliness") / n;
-    const quality = sum("material_quality") / n;
-    const quantity = sum("quantity_accuracy") / n;
-    const overall = sum("overall_experience") / n;
-    const avg = (delivery + quality + quantity + overall) / 4;
+    // Sub-ratings are optional (activity feedback captures only an overall star),
+    // so average each dimension over the records that actually carry it.
+    const avgOf = (k: string) => {
+      const vals = list.map((f) => f[k]).filter((v) => v != null).map(Number);
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    };
+    const delivery = avgOf("delivery_timeliness");
+    const quality = avgOf("material_quality");
+    const quantity = avgOf("quantity_accuracy");
+    const overall = avgOf("overall_experience");
+    const dims = [delivery, quality, quantity, overall].filter((v): v is number => v != null);
+    const avg = dims.length ? dims.reduce((a, b) => a + b, 0) / dims.length : 0;
     return { avg, count: n, delivery, quality, quantity, overall, history: list };
   }, [feedback]);
+
+  const negative = useMemo(() => rollupNegativeScore(feedback as any[]), [feedback]);
+
 
   const perf = useMemo(() => {
     const pos = (orders as any[]).filter((o) => o.po_number);
