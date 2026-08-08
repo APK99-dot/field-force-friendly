@@ -1286,6 +1286,15 @@ export default function CreativeActivityForm({
                             })}
                           </div>
                         </div>
+                        {!isEdit && (
+                          <VendorFeedbackInput
+                            vendorName={grnVendorName}
+                            rating={vendorStars}
+                            onRatingChange={setVendorStars}
+                            areas={vendorAreas}
+                            onAreasChange={setVendorAreas}
+                          />
+                        )}
                         <div className="space-y-1">
                           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Good receipt remarks</p>
                           <Textarea
