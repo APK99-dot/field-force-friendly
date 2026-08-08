@@ -79,6 +79,29 @@ function forceReload(targetBuild: string, reason: string): void {
 }
 
 /**
+ * Recovery path for a stale lazy chunk (index.html cached by the browser/CDN
+ * still points at assets that no longer exist). Purges every cache layer and
+ * reloads with a cache-busting token. Guarded to once per 30s per tab.
+ */
+export function hardReloadForStaleChunk(): boolean {
+  const KEY = "stale_chunk_reload_at";
+  const last = Number(sessionStorage.getItem(KEY) || "0");
+  if (Date.now() - last < 30_000) return false;
+  sessionStorage.setItem(KEY, String(Date.now()));
+
+  console.warn("[App] Stale chunk — purging caches and hard-reloading…");
+  // Clear build bookkeeping so the fresh load is accepted without another hop
+  localStorage.removeItem(BUILD_KEY);
+  localStorage.removeItem(RELOAD_GUARD);
+  purgeAllCaches();
+
+  const url = new URL(window.location.href);
+  url.searchParams.set("__v", String(Date.now()));
+  window.location.replace(url.toString());
+  return true;
+}
+
+/**
  * Startup check: compares compiled build ID vs localStorage.
  * Returns true if a reload was triggered (caller should stop rendering).
  */
