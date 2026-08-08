@@ -44,6 +44,8 @@ const VendorDetail = lazyWithRetry(() => import("./pages/VendorDetail"));
 const MasterData = lazyWithRetry(() => import("./pages/MasterData"));
 const CategoryMaster = lazyWithRetry(() => import("./pages/master/CategoryMaster"));
 const ProductMaster = lazyWithRetry(() => import("./pages/master/ProductMaster"));
+const ProductDetail = lazyWithRetry(() => import("./pages/master/ProductDetail"));
+const CategoryDetail = lazyWithRetry(() => import("./pages/master/CategoryDetail"));
 const AddressBook = lazyWithRetry(() => import("./pages/master/AddressBook"));
 const UomMaster = lazyWithRetry(() => import("./pages/master/UomMaster"));
 const LeadSourcesMaster = lazyWithRetry(() => import("./pages/master/LeadSourcesMaster"));
