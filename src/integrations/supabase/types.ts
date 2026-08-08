@@ -4627,48 +4627,64 @@ export type Database = {
       }
       procurement_vendor_feedback: {
         Row: {
+          activity_id: string | null
           comments: string | null
           created_at: string
           created_by: string | null
-          delivery_timeliness: number
+          delivery_timeliness: number | null
           grn_id: string
           id: string
-          material_quality: number
+          improvement_areas: string[]
+          material_quality: number | null
           overall_experience: number
           po_id: string | null
-          quantity_accuracy: number
+          quantity_accuracy: number | null
+          source: string
           updated_at: string
           vendor_id: string
         }
         Insert: {
+          activity_id?: string | null
           comments?: string | null
           created_at?: string
           created_by?: string | null
-          delivery_timeliness: number
+          delivery_timeliness?: number | null
           grn_id: string
           id?: string
-          material_quality: number
+          improvement_areas?: string[]
+          material_quality?: number | null
           overall_experience: number
           po_id?: string | null
-          quantity_accuracy: number
+          quantity_accuracy?: number | null
+          source?: string
           updated_at?: string
           vendor_id: string
         }
         Update: {
+          activity_id?: string | null
           comments?: string | null
           created_at?: string
           created_by?: string | null
-          delivery_timeliness?: number
+          delivery_timeliness?: number | null
           grn_id?: string
           id?: string
-          material_quality?: number
+          improvement_areas?: string[]
+          material_quality?: number | null
           overall_experience?: number
           po_id?: string | null
-          quantity_accuracy?: number
+          quantity_accuracy?: number | null
+          source?: string
           updated_at?: string
           vendor_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "procurement_vendor_feedback_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activity_events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "procurement_vendor_feedback_grn_id_fkey"
             columns: ["grn_id"]
