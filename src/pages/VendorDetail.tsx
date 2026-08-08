@@ -22,12 +22,13 @@ import {
 import {
   ArrowLeft, Phone, Mail, MapPin, Edit, Trash2, Filter, User, Briefcase, StickyNote,
   FileText, Hash, IndianRupee, Users, Download, Package, Receipt, Wallet, TrendingUp,
-  ClipboardList, FileCheck,
+  ClipboardList, FileCheck, Sparkles,
 } from "lucide-react";
 import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
 
 import { LightningShell, LightningToggle, HighlightsPanel } from "@/components/procurement/lightning/LightningShell";
 import { useUiMode, isLightning } from "@/hooks/useUiMode";
+import AiRecordSummary from "@/components/ai/AiRecordSummary";
 
 function VendorHeaderBar({ vendor, flag, rating }: { vendor: any; flag: { className: string; emoji: string; label: string }; rating: { avg: number; count: number } | null }) {
   const [uiMode] = useUiMode();
@@ -133,6 +134,8 @@ export default function VendorDetail() {
   const queryClient = useQueryClient();
   const { isAdmin } = useUserProfile();
   const [tab, setTab] = useState("overview");
+  const [showAiSummary, setShowAiSummary] = useState(false);
+
 
   const { data: vendor, isLoading } = useQuery({
     queryKey: ["vendor", id],
@@ -447,8 +450,21 @@ export default function VendorDetail() {
         <Button variant="ghost" size="sm" className="gap-1.5 -ml-2" onClick={() => navigate("/vendors")}>
           <ArrowLeft className="h-4 w-4" /> Back to Vendor Management
         </Button>
-        <LightningToggle />
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="secondary" className="gap-1.5" onClick={() => setShowAiSummary(true)}>
+            <Sparkles className="h-4 w-4" /> AI Summary
+          </Button>
+          <LightningToggle />
+        </div>
       </div>
+
+      <AiRecordSummary
+        open={showAiSummary}
+        onOpenChange={setShowAiSummary}
+        type="vendor"
+        recordId={vendor.id}
+        title={vendor.name}
+      />
 
       <VendorHeaderBar vendor={vendor} flag={flag} rating={rating ? { avg: rating.avg, count: rating.count } : null} />
 

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import {
   Loader2, Edit, Users, Building2, Image as ImageIcon,
-  Target, Activity as ActivityIcon, X, Plus,
+  Target, Activity as ActivityIcon, X, Plus, Sparkles,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ import SiteGallery from "@/components/admin/site-hub/SiteGallery";
 import SiteDocuments from "@/components/admin/site-hub/SiteDocuments";
 import SiteMilestoneList from "@/components/admin/site-hub/SiteMilestoneList";
 import SiteActivityList from "@/components/admin/site-hub/SiteActivityList";
+import AiRecordSummary from "@/components/ai/AiRecordSummary";
 import { useNavigate } from "react-router-dom";
 import type { Activity } from "@/hooks/useActivities";
 
@@ -72,6 +73,7 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
   const [status, setStatus] = useState<string | null>(null);
   const [savingStatus, setSavingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [showAiSummary, setShowAiSummary] = useState(false);
   const [showAddMilestone, setShowAddMilestone] = useState(false);
   const [subParentName, setSubParentName] = useState<string>("");
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
@@ -273,11 +275,21 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="h-9 ml-auto"
+                  className="h-9 ml-auto gap-1"
+                  onClick={() => setShowAiSummary(true)}
+                  disabled={!site}
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> AI Summary
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-9"
                   onClick={() => site && onEdit(site)}
                 >
                   <Edit className="h-3.5 w-3.5 mr-1" /> Edit Site
                 </Button>
+
                 {activeTab === "milestones" && site && (
                   <Button
                     size="sm"
@@ -473,6 +485,16 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
       </Dialog>
 
 
+
+      {site && (
+        <AiRecordSummary
+          open={showAiSummary}
+          onOpenChange={setShowAiSummary}
+          type="project"
+          recordId={site.id}
+          title={site.site_name}
+        />
+      )}
 
     </>
   );
