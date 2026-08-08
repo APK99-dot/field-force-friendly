@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { rollupNegativeScore, scoreBand, feedbackPenalty, improvementLabel } from "@/lib/vendorScore";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -404,6 +406,7 @@ export default function VendorDetail() {
           <TabsTrigger value="payments" className="text-xs">Payments ({payments.length})</TabsTrigger>
           <TabsTrigger value="documents" className="text-xs">Documents ({attachments.length})</TabsTrigger>
           <TabsTrigger value="performance" className="text-xs">Performance</TabsTrigger>
+          <TabsTrigger value="feedback" className="text-xs">Feedback ({(feedback as any[]).length})</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
@@ -689,9 +692,9 @@ export default function VendorDetail() {
                   <p className="text-xs font-semibold">Most flagged improvement areas</p>
                   <div className="flex flex-wrap gap-1.5">
                     {Object.entries(negative.areaCounts)
-                      .sort((a, b) => b[1] - a[1])
+                      .sort((a, b) => Number(b[1]) - Number(a[1]))
                       .map(([k, v]) => (
-                        <Badge key={k} variant="outline" className="text-[10px]">{improvementLabel(k)} · {v}</Badge>
+                        <Badge key={k} variant="outline" className="text-[10px]">{improvementLabel(k)} · {String(v)}</Badge>
                       ))}
                   </div>
                 </div>
