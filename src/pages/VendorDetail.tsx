@@ -280,6 +280,65 @@ export default function VendorDetail() {
 
   const negative = useMemo(() => rollupNegativeScore(feedback as any[]), [feedback]);
 
+  // Component breakdown of the negative score (average star penalty + average area penalty)
+  const scoreBreakdown = useMemo(() => {
+    const list = (feedback as any[]).filter((f) => f.overall_experience != null);
+    if (list.length === 0) return null;
+    const starPts = list.reduce((s, f) => s + (5 - Math.min(5, Math.max(1, Number(f.overall_experience)))) * 10, 0);
+    const areaFlags = list.reduce((s, f) => s + Math.min(4, (f.improvement_areas || []).length), 0);
+    const areaPts = areaFlags * 5;
+    const avgStars = list.reduce((s, f) => s + Number(f.overall_experience), 0) / list.length;
+    return {
+      count: list.length,
+      avgStars,
+      starPts,
+      areaPts,
+      areaFlags,
+      totalPts: starPts + areaPts,
+      maxPts: list.length * 60,
+    };
+  }, [feedback]);
+
+  // Feedback tab filters + sorting
+  const [fbFrom, setFbFrom] = useState("");
+  const [fbTo, setFbTo] = useState("");
+  const [fbRef, setFbRef] = useState("all");
+  const [fbAreas, setFbAreas] = useState<string[]>([]);
+  const [fbSort, setFbSort] = useState("date_desc");
+
+  const fbRefOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [];
+    const seen = new Set<string>();
+    (feedback as any[]).forEach((f) => {
+      const label = [f.po?.po_number || f.po?.requisition_number, f.grn?.grn_number].filter(Boolean).join(" · ");
+      const key = f.po_id || f.grn_id;
+      if (key && label && !seen.has(key)) { seen.add(key); opts.push({ value: key, label }); }
+    });
+    return opts;
+  }, [feedback]);
+
+  const filteredFeedback = useMemo(() => {
+    let list = [...(feedback as any[])];
+    if (fbFrom) list = list.filter((f) => new Date(f.created_at) >= new Date(`${fbFrom}T00:00:00`));
+    if (fbTo) list = list.filter((f) => new Date(f.created_at) <= new Date(`${fbTo}T23:59:59`));
+    if (fbRef !== "all") list = list.filter((f) => f.po_id === fbRef || f.grn_id === fbRef);
+    if (fbAreas.length) list = list.filter((f) => (f.improvement_areas || []).some((a: string) => fbAreas.includes(a)));
+    const starsOf = (f: any) => Number(f.overall_experience || 0);
+    const penOf = (f: any) => (f.overall_experience != null ? feedbackPenalty(Number(f.overall_experience), f.improvement_areas || []) : 0);
+    list.sort((a, b) => {
+      switch (fbSort) {
+        case "date_asc": return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case "rating_desc": return starsOf(b) - starsOf(a);
+        case "rating_asc": return starsOf(a) - starsOf(b);
+        case "penalty_desc": return penOf(b) - penOf(a);
+        default: return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+    return list;
+  }, [feedback, fbFrom, fbTo, fbRef, fbAreas, fbSort]);
+
+
+
 
   const perf = useMemo(() => {
     const pos = (orders as any[]).filter((o) => o.po_number);
