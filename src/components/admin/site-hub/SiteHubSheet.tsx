@@ -273,11 +273,21 @@ export default function SiteHubSheet({ site, open, onClose, onEdit, onStatusChan
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="h-9 ml-auto"
+                  className="h-9 ml-auto gap-1"
+                  onClick={() => setShowAiSummary(true)}
+                  disabled={!site}
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> AI Summary
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-9"
                   onClick={() => site && onEdit(site)}
                 >
                   <Edit className="h-3.5 w-3.5 mr-1" /> Edit Site
                 </Button>
+
                 {activeTab === "milestones" && site && (
                   <Button
                     size="sm"
