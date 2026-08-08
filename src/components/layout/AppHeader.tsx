@@ -23,6 +23,7 @@ import {
   Users2,
   Shield,
   Handshake,
+  Package,
   AlertTriangle,
   Receipt,
   ClipboardList,
