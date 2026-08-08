@@ -1,6 +1,6 @@
 import { lazy, type ComponentType } from "react";
+import { hardReloadForStaleChunk } from "./cacheVersion";
 
-const RELOAD_KEY = "lazy_chunk_reload_at";
 
 function isChunkError(err: unknown): boolean {
   const msg = (err as Error)?.message || String(err);
