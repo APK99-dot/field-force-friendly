@@ -308,7 +308,11 @@ export default function ProductMaster() {
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Checkbox checked={checked} onCheckedChange={(v) => toggleOne(r.id, !!v)} aria-label={`Select ${r.product_name}`} />
                         </TableCell>
-                        <TableCell className="font-medium">{r.product_name}</TableCell>
+                      <TableCell className="font-medium">
+                        <button className="text-primary underline underline-offset-2 text-left" onClick={() => navigate(`/master-data/products/${r.id}`)}>
+                          {r.product_name}
+                        </button>
+                      </TableCell>
                         <TableCell>{c?.category_name || "—"}</TableCell>
                         <TableCell>{r.default_uom || "—"}</TableCell>
                         <TableCell className="text-right">{r.budgeted_rate != null ? `₹${Number(r.budgeted_rate).toLocaleString("en-IN")}` : "—"}</TableCell>
