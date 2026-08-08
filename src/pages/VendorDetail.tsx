@@ -134,6 +134,8 @@ export default function VendorDetail() {
   const queryClient = useQueryClient();
   const { isAdmin } = useUserProfile();
   const [tab, setTab] = useState("overview");
+  const [showAiSummary, setShowAiSummary] = useState(false);
+
 
   const { data: vendor, isLoading } = useQuery({
     queryKey: ["vendor", id],
