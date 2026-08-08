@@ -195,6 +195,10 @@ export default function CreativeActivityForm({
   const [grnRecv, setGrnRecv] = useState<Record<string, string>>({});
   const [grnItemRemarks, setGrnItemRemarks] = useState<Record<string, string>>({});
   const [grnRemarks, setGrnRemarks] = useState("");
+  const [grnVendorId, setGrnVendorId] = useState<string | null>(null);
+  const [grnVendorName, setGrnVendorName] = useState<string>("");
+  const [vendorStars, setVendorStars] = useState(0);
+  const [vendorAreas, setVendorAreas] = useState<string[]>([]);
   const [grnLoadingPo, setGrnLoadingPo] = useState(false);
 
   useEffect(() => {
