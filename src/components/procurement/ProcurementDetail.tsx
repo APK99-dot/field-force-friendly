@@ -19,7 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, ChevronUp, Save, ArrowRight, Undo2, Download, MessageCircle, Link2, Copy, Plus, Trash2, Search, X, Info } from "lucide-react";
+import { Sparkles, CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, ChevronUp, Save, ArrowRight, Undo2, Download, MessageCircle, Link2, Copy, Plus, Trash2, Search, X, Info } from "lucide-react";
 import {
   STATUS_FLOW, allowedTransitions, statusColor, fmtAmt, PAYMENT_TERMS, statusFlowFor, type ProcStatus,
 } from "@/lib/procurement";
@@ -35,6 +35,7 @@ import { resolveInvoiceFileUrl } from "@/utils/invoiceAttachments";
 import { useUiMode, isLightning } from "@/hooks/useUiMode";
 import { HighlightsPanel, PathBar, StageLabel } from "@/components/procurement/lightning/LightningShell";
 import { VendorQuoteAttachmentLink } from "@/components/procurement/VendorQuoteAttachmentLink";
+import AiSourcingAdvisor from "@/components/procurement/AiSourcingAdvisor";
 
 export interface StageHistoryEntry {
   status: string;
@@ -204,6 +205,7 @@ export default function ProcurementDetail({
   const [uiMode] = useUiMode();
   const lightning = isLightning(uiMode);
   const [stageHistoryOpen, setStageHistoryOpen] = useState(false);
+  const [aiAdvisorOpen, setAiAdvisorOpen] = useState(false);
   const [grns, setGrns] = useState<GrnRow[]>([]);
   const [grnItems, setGrnItems] = useState<GrnItemRow[]>([]);
   const [invoices, setInvoices] = useState<InvRow[]>([]);
@@ -1764,6 +1766,16 @@ export default function ProcurementDetail({
                     onClick={() => setAdvanceOpen(true)}
                   >
                     Mark as {nextStage} <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
+                {!isTransfer && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-1.5 w-full sm:w-auto border-primary/40 text-primary hover:bg-primary/10"
+                    onClick={() => setAiAdvisorOpen(true)}
+                  >
+                    <Sparkles className="h-4 w-4" /> AI Sourcing Advisor
                   </Button>
                 )}
                 {!canAdvance && nextStage && (
