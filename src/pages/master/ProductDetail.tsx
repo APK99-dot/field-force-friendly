@@ -164,7 +164,7 @@ export default function ProductDetail() {
                   {lines.map((l) => (
                     <TableRow key={l.itemId}>
                       <TableCell>
-                        <button className="text-primary underline underline-offset-2" onClick={() => navigate(`/procurement?record=${l.orderId}`)}>
+                        <button className="text-primary underline underline-offset-2" onClick={() => navigate(`/procurement?po=${l.orderId}`)}>
                           {l.reqNumber}
                         </button>
                       </TableCell>
