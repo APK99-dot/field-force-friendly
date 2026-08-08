@@ -751,16 +751,48 @@ export default function VendorDetail() {
               </div>
               <p className="text-xs text-muted-foreground">{scoreBand(negative.score).description}</p>
 
-              <div className="rounded-lg bg-muted/50 p-3 text-xs space-y-1.5">
+              <div className="rounded-lg bg-muted/50 p-3 text-xs space-y-2">
                 <p className="font-semibold">How the score works</p>
                 <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
-                  <li>Each Goods Receipt feedback earns a penalty: <strong>(5 − stars) × 10</strong> — 0 points for 5★, 40 points for 1★.</li>
+                  <li>Each Goods Receipt feedback earns a star penalty: <strong>(5 − stars) × 10</strong> — 0 points for 5★, 40 points for 1★.</li>
                   <li>Every “Improvement Required In” area flagged adds <strong>5 points</strong> (max 20 for all four areas).</li>
-                  <li>Maximum penalty per feedback is 60, normalised to a 0–100 scale.</li>
+                  <li>Maximum penalty per feedback is <strong>60</strong>, normalised to a 0–100 scale.</li>
                   <li>The vendor score is the <strong>average</strong> of all normalised penalties. Lower is better.</li>
                   <li>Bands: 0–20 Low Risk · 21–40 Moderate · 41–70 High Risk · 71+ Critical.</li>
                 </ul>
               </div>
+
+              {scoreBreakdown && (
+                <div className="rounded-lg border p-3 text-xs space-y-2">
+                  <p className="font-semibold">Score breakdown for this vendor</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="rounded-md bg-muted/40 p-2">
+                      <p className="text-[10px] text-muted-foreground">Contributing feedback</p>
+                      <p className="text-sm font-semibold tabular-nums">{scoreBreakdown.count}</p>
+                    </div>
+                    <div className="rounded-md bg-muted/40 p-2">
+                      <p className="text-[10px] text-muted-foreground">Average stars</p>
+                      <p className="text-sm font-semibold tabular-nums">{scoreBreakdown.avgStars.toFixed(2)} / 5</p>
+                    </div>
+                    <div className="rounded-md bg-muted/40 p-2">
+                      <p className="text-[10px] text-muted-foreground">Star penalty points</p>
+                      <p className="text-sm font-semibold tabular-nums">{scoreBreakdown.starPts}</p>
+                    </div>
+                    <div className="rounded-md bg-muted/40 p-2">
+                      <p className="text-[10px] text-muted-foreground">Area penalty points</p>
+                      <p className="text-sm font-semibold tabular-nums">{scoreBreakdown.areaPts}<span className="text-[10px] text-muted-foreground font-normal"> ({scoreBreakdown.areaFlags} flags × 5)</span></p>
+                    </div>
+                  </div>
+                  <div className="rounded-md bg-background border p-2 font-mono text-[11px] leading-relaxed overflow-x-auto">
+                    Score = (Star {scoreBreakdown.starPts} + Areas {scoreBreakdown.areaPts}) ÷ ({scoreBreakdown.count} × 60) × 100
+                    {" = "}
+                    <strong>{negative.score ?? 0}</strong> / 100
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Total penalty {scoreBreakdown.totalPts} of a possible {scoreBreakdown.maxPts} points across {scoreBreakdown.count} feedback record{scoreBreakdown.count === 1 ? "" : "s"}.
+                  </p>
+                </div>
+              )}
 
               {Object.keys(negative.areaCounts).length > 0 && (
                 <div className="space-y-1.5">
@@ -777,12 +809,89 @@ export default function VendorDetail() {
             </CardContent>
           </Card>
 
+          {/* Filters & sorting */}
+          <Card>
+            <CardContent className="py-3 space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-xs font-semibold flex items-center gap-1.5"><Filter className="h-3.5 w-3.5" /> Filter feedback</p>
+                {(fbFrom || fbTo || fbRef !== "all" || fbAreas.length > 0 || fbSort !== "date_desc") && (
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setFbFrom(""); setFbTo(""); setFbRef("all"); setFbAreas([]); setFbSort("date_desc"); }}>
+                    Clear
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground">From</label>
+                  <Input type="date" value={fbFrom} onChange={(e) => setFbFrom(e.target.value)} className="h-8 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground">To</label>
+                  <Input type="date" value={fbTo} onChange={(e) => setFbTo(e.target.value)} className="h-8 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground">GRN / PO</label>
+                  <Select value={fbRef} onValueChange={setFbRef}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All records</SelectItem>
+                      {fbRefOptions.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-muted-foreground">Sort by</label>
+                  <Select value={fbSort} onValueChange={setFbSort}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date_desc">Newest first</SelectItem>
+                      <SelectItem value="date_asc">Oldest first</SelectItem>
+                      <SelectItem value="rating_desc">Rating: high to low</SelectItem>
+                      <SelectItem value="rating_asc">Rating: low to high</SelectItem>
+                      <SelectItem value="penalty_desc">Highest penalty first</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground">Improvement categories</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {IMPROVEMENT_AREAS.map((a) => {
+                    const active = fbAreas.includes(a.value);
+                    return (
+                      <button
+                        key={a.value}
+                        type="button"
+                        onClick={() => setFbAreas((p) => (active ? p.filter((x) => x !== a.value) : [...p, a.value]))}
+                        className={cn(
+                          "rounded-full border px-2.5 py-1 text-[10px] transition-colors",
+                          active ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted",
+                        )}
+                      >
+                        {a.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="space-y-2">
-            <p className="text-sm font-semibold">Feedback History ({(feedback as any[]).length})</p>
+            <p className="text-sm font-semibold">
+              Feedback History ({filteredFeedback.length}
+              {filteredFeedback.length !== (feedback as any[]).length ? ` of ${(feedback as any[]).length}` : ""})
+            </p>
             {(feedback as any[]).length === 0 && (
               <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">No feedback captured yet.</CardContent></Card>
             )}
-            {(feedback as any[]).map((f: any) => {
+            {(feedback as any[]).length > 0 && filteredFeedback.length === 0 && (
+              <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">No feedback matches these filters.</CardContent></Card>
+            )}
+            {filteredFeedback.map((f: any) => {
+
               const dims = [f.delivery_timeliness, f.material_quality, f.quantity_accuracy, f.overall_experience].filter((v) => v != null).map(Number);
               const fb = dims.length ? dims.reduce((a, b) => a + b, 0) / dims.length : 0;
               const pen = f.overall_experience != null ? feedbackPenalty(Number(f.overall_experience), f.improvement_areas || []) : null;
