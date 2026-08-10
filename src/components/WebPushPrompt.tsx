@@ -7,9 +7,9 @@ import {
   detectPushSupport,
   subscribeToWebPush,
   getCurrentPermission,
+  hasLiveBrowserSubscription,
   type PushSupport,
 } from "@/utils/webPush";
-import { supabase } from "@/integrations/supabase/client";
 import IOSInstallPrompt from "./IOSInstallPrompt";
 
 const DISMISS_KEY = "webpush-prompt-dismissed";
@@ -41,13 +41,15 @@ export default function WebPushPrompt({ userId }: Props) {
 
       const perm = await getCurrentPermission();
       if (perm === "granted") {
-        // Already granted — only re-prompt if no live subscription exists.
-        const { data } = await supabase
-          .from("web_push_subscriptions" as any)
-          .select("id")
-          .eq("user_id", userId)
-          .limit(1);
-        if ((data?.length ?? 0) > 0) return;
+        // Already granted — only re-prompt if THIS browser has no subscription.
+        //
+        // This used to query web_push_subscriptions by user_id, which answers a
+        // different question: whether any device of theirs ever subscribed. One
+        // row from a desktop session was enough to suppress the banner on a
+        // phone that had no subscription at all, leaving that phone permanently
+        // silent. ensureWebPushSubscribed() normally repairs this before we get
+        // here; the banner is the backstop for when it cannot.
+        if (await hasLiveBrowserSubscription()) return;
       } else if (perm === "denied") {
         return; // can't re-ask once denied
       }

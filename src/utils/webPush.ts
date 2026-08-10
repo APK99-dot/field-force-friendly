@@ -100,3 +100,53 @@ export async function getCurrentPermission(): Promise<NotificationPermission | "
   if (!("Notification" in window)) return "unsupported";
   return Notification.permission;
 }
+
+/**
+ * Does THIS browser hold a live push subscription right now?
+ *
+ * The distinction matters: a row in web_push_subscriptions proves some device
+ * of this user once subscribed, not that the device in your hand is still
+ * reachable. Asking the browser is the only answer that means anything.
+ */
+export async function hasLiveBrowserSubscription(): Promise<boolean> {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+    const reg = await navigator.serviceWorker.getRegistration("/");
+    if (!reg) return false;
+    return (await reg.pushManager.getSubscription()) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Re-establish this device's push subscription silently on app start.
+ *
+ * Without this, a device could sit indefinitely with permission granted and no
+ * subscription — after a service worker unregistration, a browser data clear,
+ * or a push service expiring the endpoint — while the opt-in banner stayed
+ * hidden because some *other* device of the same user had a row in the table.
+ * Pushes then went to whichever endpoint the table happened to hold and this
+ * device stayed silent, with the server reporting a successful send.
+ *
+ * Safe to call on every load: permission is already granted, so no prompt is
+ * raised, and an existing subscription is reused rather than replaced.
+ */
+export async function ensureWebPushSubscribed(userId: string): Promise<void> {
+  try {
+    if (!userId) return;
+    const support = detectPushSupport();
+    // Native uses FCM; the other two cannot subscribe at all.
+    if (support === "native-android" || support === "unsupported" || support === "ios-needs-install") {
+      return;
+    }
+    // Only act on an already-granted permission. Asking here would raise a
+    // prompt with no user gesture behind it, which iOS rejects outright.
+    if (Notification.permission !== "granted") return;
+
+    const result = await subscribeToWebPush(userId);
+    if (!result.ok) console.warn("[web-push] silent re-subscribe failed:", result.reason);
+  } catch (e) {
+    console.warn("[web-push] silent re-subscribe threw:", e);
+  }
+}

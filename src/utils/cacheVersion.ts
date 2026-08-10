@@ -43,7 +43,19 @@ async function fetchServerBuildId(): Promise<string | null> {
 function purgeAllCaches(): void {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.getRegistrations().then((regs) => {
-      regs.forEach((r) => r.unregister());
+      regs.forEach((r) => {
+        // Keep the Web Push worker registered.
+        //
+        // Unregistering a service worker also drops the device's push
+        // subscription, and nothing re-creates it on its own — so every deploy
+        // was silently switching push off for every PWA device until someone
+        // tapped Enable again. sw.js holds no caches (it is push-only), so it
+        // was never what this purge is here to clear.
+        const url =
+          r.active?.scriptURL || r.waiting?.scriptURL || r.installing?.scriptURL || "";
+        if (url.includes("/sw.js")) return;
+        r.unregister();
+      });
     });
   }
 

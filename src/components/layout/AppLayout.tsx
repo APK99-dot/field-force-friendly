@@ -11,6 +11,7 @@ import WebPushPrompt from "@/components/WebPushPrompt";
 import { useNativeStartup } from "@/hooks/useNativeStartup";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useContinuousGPS } from "@/hooks/useContinuousGPS";
+import { ensureWebPushSubscribed } from "@/utils/webPush";
 
 // Keys of caches scoped to the signed-in user. Must be cleared on user change.
 const USER_SCOPED_CACHE_KEYS = [
@@ -40,6 +41,12 @@ export function AppLayout() {
   const [mustChangePassword, setMustChangePassword] = useState<boolean>(false);
   usePushNotifications(userId ?? undefined);
   useContinuousGPS(userId ?? undefined);
+
+  // Repair this device's Web Push subscription on every sign-in. Permission is
+  // only ever read here, never requested, so nothing is prompted.
+  useEffect(() => {
+    if (userId) void ensureWebPushSubscribed(userId);
+  }, [userId]);
 
   useEffect(() => {
     const handleSession = (session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]) => {
