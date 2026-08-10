@@ -609,8 +609,29 @@ function cellText(v: unknown): string {
   return String(v);
 }
 
+/** ISO yyyy-mm-dd -> dd/mm/yyyy. Anything else passes through untouched. */
+function fmtDMY(s: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((s ?? "").trim());
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+}
+
+/**
+ * The period line for the file header.
+ *
+ * A daily report's label is the ISO date, so the old format repeated it three
+ * times: "Period: 2026-08-10 (2026-08-10 to 2026-08-10)". A single-day period
+ * now prints the date once, and every date reads dd/mm/yyyy like the rest of
+ * the app.
+ */
+function periodLine(period: Period): string {
+  const from = fmtDMY(period.date_from);
+  const to = fmtDMY(period.date_to);
+  if (from === to) return `Period: ${from}`;
+  return `Period: ${fmtDMY(period.label)} (${from} to ${to})`;
+}
+
 function metaLines(name: string, period: Period, opts: RenderOpts): string[] {
-  const lines = [name, `Period: ${period.label} (${period.date_from} to ${period.date_to})`];
+  const lines = [name, periodLine(period)];
   if (opts.recipientName) lines.push(`Recipient: ${opts.recipientName}`);
   if (opts.scopeLabel) lines.push(`Scope: ${opts.scopeLabel}`);
   if (opts.filtersLabel) lines.push(`Filters: ${opts.filtersLabel}`);
@@ -946,14 +967,7 @@ async function renderPdf(
   // ---- Report name + period + meta ----------------------------------------
   text(name, PDF_MARGIN, y, 13, bold, PDF_INK);
   y -= 15;
-  text(
-    `Period: ${period.label} (${period.date_from} to ${period.date_to})`,
-    PDF_MARGIN,
-    y,
-    9,
-    font,
-    PDF_TEXT,
-  );
+  text(periodLine(period), PDF_MARGIN, y, 9, font, PDF_TEXT);
   y -= 12;
 
   const meta: string[] = [];
@@ -1088,7 +1102,11 @@ function filtersLabelFrom(filters: any): string | null {
   const parts: string[] = [];
   for (const [k, v] of Object.entries(filters)) {
     if (v === null || v === undefined || v === "") continue;
+    // report_variant selects the column set inside get_attendance_report. It is
+    // plumbing, not a filter the reader chose, and printing it put
+    // "report variant: check_in" on the face of every daily report.
     if (k === "scope_user_id" || k === "date_from" || k === "date_to") continue;
+    if (k === "report_variant") continue;
     const label = k.replace(/_id$/, "").replace(/_/g, " ");
     const val = typeof v === "string" && v.length > 12 ? `${v.slice(0, 8)}…` : String(v);
     parts.push(`${label}: ${val}`);
