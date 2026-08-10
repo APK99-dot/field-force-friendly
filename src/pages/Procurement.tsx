@@ -35,7 +35,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 import SalesforceImportDialog from "@/components/procurement/SalesforceImportDialog";
 import SalesforceBulkImportDialog from "@/components/procurement/SalesforceBulkImportDialog";
-import { LightningShell, LightningToggle } from "@/components/procurement/lightning/LightningShell";
+import { LightningShell } from "@/components/procurement/lightning/LightningShell";
 import { useUiMode, isLightning } from "@/hooks/useUiMode";
 import { ClipboardList, Building2, FileText, Package, Wallet } from "lucide-react";
 import ViewBar from "@/components/procurement/listviews/ViewBar";
@@ -592,7 +592,6 @@ export default function Procurement() {
           <p className="text-xs text-muted-foreground">{orders.length} requisitions</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <LightningToggle />
           {hasAdminAccess && (
             <Button size="sm" variant="outline" onClick={() => setSfImportOpen(true)} className="gap-1.5">
               Import from Salesforce

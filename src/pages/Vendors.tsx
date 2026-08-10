@@ -25,7 +25,7 @@ import {
   Plus, Search, Phone, Mail, Edit, Trash2, Filter, User, X, Download, Eye,
 } from "lucide-react";
 import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
-import { LightningShell, LightningToggle } from "@/components/procurement/lightning/LightningShell";
+import { LightningShell } from "@/components/procurement/lightning/LightningShell";
 
 const CATEGORIES = [
   "Civil", "Electrical", "Plumbing", "Painting", "Carpentry",
@@ -407,7 +407,6 @@ export default function Vendors() {
           <p className="text-xs text-muted-foreground">{vendors.length} vendors</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <LightningToggle />
           {isAdmin && (
             <div className="flex gap-2">
               <Button

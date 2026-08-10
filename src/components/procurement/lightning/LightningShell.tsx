@@ -1,8 +1,4 @@
 import { ReactNode } from "react";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Zap } from "lucide-react";
-import { useUiMode, isLightning } from "@/hooks/useUiMode";
 import { cn } from "@/lib/utils";
 
 export const stageLabelBaseClass = "proc-stage-label";
@@ -18,37 +14,12 @@ export function StageLabel({
 }
 
 /**
- * Wraps a page in the Lightning design token layer when the toggle is on.
- * All child styling stays the same when off — this is a purely additive shell.
+ * Wraps a page in the Lightning design token layer. Procurement and Vendor 360
+ * are Lightning-only now, so this applies unconditionally — the switch that
+ * used to turn it off has been removed from those headers.
  */
 export function LightningShell({ children, className }: { children: ReactNode; className?: string }) {
-  const [mode] = useUiMode();
-  return (
-    <div className={cn(isLightning(mode) && "lightning-ui", className)}>
-      {children}
-    </div>
-  );
-}
-
-/** Small pill switch used in page headers. */
-export function LightningToggle({ className }: { className?: string }) {
-  const [mode, , toggle] = useUiMode();
-  const on = isLightning(mode);
-  return (
-    <div
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs",
-        on ? "border-[#0176D3]/40 bg-[#0176D3]/5 text-[#0176D3]" : "border-border bg-background text-muted-foreground",
-        className,
-      )}
-    >
-      <Zap className={cn("h-3.5 w-3.5", on ? "fill-current" : "")} />
-      <Label htmlFor="lightning-toggle" className="cursor-pointer text-xs font-medium">
-        Lightning
-      </Label>
-      <Switch id="lightning-toggle" checked={on} onCheckedChange={toggle} className="scale-75" />
-    </div>
-  );
+  return <div className={cn("lightning-ui", className)}>{children}</div>;
 }
 
 /**

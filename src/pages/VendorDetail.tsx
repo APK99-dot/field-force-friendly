@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { StarRating, getVendorRatingFlag } from "@/components/procurement/VendorRating";
 
-import { LightningShell, LightningToggle, HighlightsPanel } from "@/components/procurement/lightning/LightningShell";
+import { LightningShell, HighlightsPanel } from "@/components/procurement/lightning/LightningShell";
 import { useUiMode, isLightning } from "@/hooks/useUiMode";
 import AiRecordSummary from "@/components/ai/AiRecordSummary";
 
@@ -454,7 +454,6 @@ export default function VendorDetail() {
           <Button size="sm" variant="secondary" className="gap-1.5" onClick={() => setShowAiSummary(true)}>
             <Sparkles className="h-4 w-4" /> AI Summary
           </Button>
-          <LightningToggle />
         </div>
       </div>
 
