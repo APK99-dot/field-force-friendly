@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CheckCircle, XCircle, LogOut, Loader2, Clock, Edit3, Camera, Shield, MapPin, Save, Upload, CalendarDays, Download, Users } from "lucide-react";
+import { CheckCircle, XCircle, LogOut, Loader2, Clock, Camera, Shield, MapPin, Save, Upload, CalendarDays, Download, Users } from "lucide-react";
 import jsPDF from "jspdf";
 import { downloadPDF as downloadPDFNative } from "@/utils/nativeDownload";
 
@@ -788,8 +788,13 @@ export default function Attendance() {
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {cfgAllowRegularisation && (
-                          <Button size="icon" variant="outline" className="h-8 w-8 border-orange-300 text-orange-700 hover:bg-orange-50" onClick={() => handleOpenRegularizationModal(record)} title={hasRejectedRequest ? "Resubmit Regularization" : "Request Regularization"}>
-                            <Edit3 className="h-4 w-4" />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-3 border-orange-300 text-orange-700 hover:bg-orange-50"
+                            onClick={() => handleOpenRegularizationModal(record)}
+                          >
+                            {hasRejectedRequest ? "Resubmit" : "Regularize"}
                           </Button>
                           )}
 
