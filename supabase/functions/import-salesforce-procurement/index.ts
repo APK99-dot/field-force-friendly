@@ -101,20 +101,35 @@ function mapStatus(sf: string | null): string {
   }
 }
 
+async function sfFetchJson(url: string, apiKey: string, gatewayKey: string): Promise<any> {
+  let lastErr = "";
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${gatewayKey}`, "X-Connection-Api-Key": apiKey },
+    });
+    const text = await resp.text();
+    let parsed: any = null;
+    try { parsed = JSON.parse(text); } catch { /* non-JSON upstream error */ }
+    if (resp.ok && parsed) return parsed;
+    lastErr = `Salesforce query failed [${resp.status}]: ${text.slice(0, 300)}`;
+    const transient = resp.status >= 500 || resp.status === 429 || !parsed;
+    if (!transient) throw new Error(lastErr);
+    await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+  }
+  throw new Error(lastErr || "Salesforce query failed");
+}
+
 async function sfQuery<T = unknown>(soql: string, apiKey: string, gatewayKey: string): Promise<T[]> {
   const results: T[] = [];
   let next: string | null = `/query?q=${encodeURIComponent(soql)}`;
   while (next) {
-    const resp = await fetch(`${GATEWAY_URL}${next}`, {
-      headers: { Authorization: `Bearer ${gatewayKey}`, "X-Connection-Api-Key": apiKey },
-    });
-    const json = await resp.json();
-    if (!resp.ok) throw new Error(`Salesforce query failed [${resp.status}]: ${JSON.stringify(json).slice(0, 400)}`);
+    const json = await sfFetchJson(`${GATEWAY_URL}${next}`, apiKey, gatewayKey);
     results.push(...(json.records ?? []));
     next = json.nextRecordsUrl ? json.nextRecordsUrl.replace("/services/data/v62.0", "") : null;
   }
   return results;
 }
+
 
 async function sfDownloadFile(versionId: string, apiKey: string, gatewayKey: string): Promise<Uint8Array> {
   const resp = await fetch(`${GATEWAY_URL}/sobjects/ContentVersion/${versionId}/VersionData`, {
