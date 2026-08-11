@@ -394,7 +394,7 @@ Deno.serve(async (req) => {
 
     // ---- Quotes ----
     await admin.from("procurement_vendor_quotes").delete().eq("po_id", orderId);
-    let quoteCount = 0, quoteItemCount = 0;
+    let quoteCount = 0, quoteItemCount = 0, duplicateQuoteLines = 0;
     for (const [accId, lines] of quotesByVendorAcc) {
       const vendorLocalId = vendorMap.get(accId);
       if (!vendorLocalId) continue;
@@ -413,11 +413,30 @@ Deno.serve(async (req) => {
       if (qErr) throw new Error(`insert quote for vendor ${accId}: ${qErr.message}`);
       quoteCount++;
 
+      // procurement_vendor_quote_items is UNIQUE (quote_id, procurement_item_id),
+      // so one vendor can only quote a given line item once.
+      //
+      // Two Salesforce quote lines can still land on the same local item:
+      // itemIdByProductId is keyed by product, so a requisition listing the same
+      // product twice keeps only the last item in that map, and any quote line
+      // resolving through Product_Lookup__c collides with it. The insert then
+      // threw and took the whole requisition down with it — that is 5 of the 7
+      // failures in the Nov 2023 backfill, and re-running could never clear them.
+      //
+      // First mapping wins, and the collisions are counted into the report so a
+      // skip stays visible rather than becoming a silently missing quote line.
+      const quotedItemIds = new Set<string>();
+
       for (const line of lines) {
         let itemId: string | undefined;
         if (line.Product_Requisition__c) itemId = itemIdByPrId.get(line.Product_Requisition__c);
         if (!itemId && line.Product_Lookup__c) itemId = itemIdByProductId.get(line.Product_Lookup__c);
         if (!itemId) continue;
+        if (quotedItemIds.has(itemId)) {
+          duplicateQuoteLines++;
+          continue;
+        }
+        quotedItemIds.add(itemId);
         const rate = line.Rate_per_unit__c ?? 0;
         const discount = line.Discount__c ?? 0;
         const rateAfter = line.Rate_Per_Unit_After_Discount__c ?? rate;
@@ -445,7 +464,12 @@ Deno.serve(async (req) => {
         }).eq("id", itemId);
       }
     }
-    step("quotes_created", { quotes: quoteCount, quote_items: quoteItemCount });
+    step("quotes_created", {
+      quotes: quoteCount,
+      quote_items: quoteItemCount,
+      // Only present when it happened, so it reads as a signal rather than noise.
+      ...(duplicateQuoteLines > 0 ? { duplicate_quote_lines_skipped: duplicateQuoteLines } : {}),
+    });
 
     // ---- Roll up total_amount from finalized line-item rate*qty ----
     {
