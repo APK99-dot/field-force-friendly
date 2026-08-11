@@ -73,28 +73,38 @@ export default function SalesforceBulkImportDialog({ open, onOpenChange, onImpor
       let cumulative = { created: 0, updated: 0, failed: 0 };
       const allRecords: RecordResult[] = [];
 
+      let retries = 0;
       while (true) {
         const { data, error } = await supabase.functions.invoke("bulk-import-salesforce-procurement", {
           body: { from, to, run_id: runId, cursor, batch_size: 1 },
         });
-        if (error) throw new Error(await getFunctionErrorMessage(error));
-        const d = data as BatchResponse;
-        if (d?.error) throw new Error(d.error);
+        const d = data as BatchResponse | null;
+        if (error || d?.error) {
+          const msg = error ? await getFunctionErrorMessage(error) : String(d?.error);
+          if (retries < 4) {
+            retries++;
+            await new Promise((r) => setTimeout(r, 2000 * retries));
+            continue;
+          }
+          throw new Error(msg);
+        }
+        retries = 0;
 
-        runId = d.run_id;
-        cursor = d.next_cursor;
-        total = d.total;
-        cumulative = d.cumulative || {
-          created: cumulative.created + (d.created || 0),
-          updated: cumulative.updated + (d.updated || 0),
-          failed: cumulative.failed + (d.failed || 0),
+        runId = d!.run_id;
+        cursor = d!.next_cursor;
+        total = d!.total;
+        cumulative = d!.cumulative || {
+          created: cumulative.created + (d!.created || 0),
+          updated: cumulative.updated + (d!.updated || 0),
+          failed: cumulative.failed + (d!.failed || 0),
         };
-        allRecords.push(...(d.records || []));
+        allRecords.push(...(d!.records || []));
         setRecords([...allRecords]);
         setSummary({ total, processed: cursor, ...cumulative });
 
-        if (d.done) break;
+        if (d!.done) break;
       }
+
 
       toast.success(`Import finished: ${cumulative.created} new, ${cumulative.updated} updated, ${cumulative.failed} failed`);
       onImported?.();
