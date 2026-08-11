@@ -37,21 +37,29 @@ function validateSalesforceId(id: string) {
 
 async function sfFetchJson(url: string, apiKey: string, gatewayKey: string): Promise<any> {
   let lastErr = "";
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const resp = await fetch(url, {
-      headers: { Authorization: `Bearer ${gatewayKey}`, "X-Connection-Api-Key": apiKey },
-    });
-    const text = await resp.text();
-    let parsed: any = null;
-    try { parsed = JSON.parse(text); } catch { /* non-JSON upstream error */ }
-    if (resp.ok && parsed) return parsed;
-    lastErr = `Salesforce query failed [${resp.status}]: ${text.slice(0, 300)}`;
-    const transient = resp.status >= 500 || resp.status === 429 || !parsed;
-    if (!transient) throw new Error(lastErr);
-    await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const resp = await fetch(url, {
+        headers: { Authorization: `Bearer ${gatewayKey}`, "X-Connection-Api-Key": apiKey },
+      });
+      const text = await resp.text();
+      let parsed: any = null;
+      try { parsed = JSON.parse(text); } catch { /* non-JSON upstream error */ }
+      if (resp.ok && parsed) return parsed;
+      lastErr = `Salesforce query failed [${resp.status}]: ${text.slice(0, 300)}`;
+      const transient = resp.status >= 500 || resp.status === 429 || !parsed;
+      if (!transient) throw new Error(lastErr);
+    } catch (e) {
+      // Network-level failures (TLS handshake eof, connection reset) throw here
+      const msg = (e as Error).message ?? String(e);
+      if (msg.startsWith("Salesforce query failed [4")) throw e;
+      lastErr = `Salesforce request error: ${msg}`;
+    }
+    await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
   }
   throw new Error(lastErr || "Salesforce query failed");
 }
+
 
 async function sfQuery<T = unknown>(soql: string, apiKey: string, gatewayKey: string): Promise<T[]> {
   const results: T[] = [];
