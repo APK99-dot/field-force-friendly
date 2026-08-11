@@ -234,12 +234,34 @@ Deno.serve(async (req) => {
         continue;
       }
       const email = v.Vendor_Email__c ? [v.Vendor_Email__c] : [];
-      const phone = v.Vendor__r?.Phone ? [v.Vendor__r.Phone] : [];
-      const { data: inserted, error } = await admin.from("vendors")
+      const rawPhone = v.Vendor__r?.Phone ? String(v.Vendor__r.Phone).trim() : "";
+      let phone: string[] = rawPhone ? [rawPhone] : [];
+
+      // A phone number can only belong to one vendor (DB trigger). If another
+      // vendor already owns it, reuse that vendor instead of failing the import.
+      if (rawPhone) {
+        const { data: byPhone } = await admin.from("vendors")
+          .select("id, name").contains("phone", [rawPhone]).limit(1).maybeSingle();
+        if (byPhone?.id) {
+          await admin.from("vendors").update({ salesforce_id: accId }).eq("id", byPhone.id);
+          vendorMap.set(accId, byPhone.id as string);
+          vendorNameMap.set(byPhone.id as string, (byPhone as any).name);
+          continue;
+        }
+      }
+
+      let { data: inserted, error } = await admin.from("vendors")
         .insert({ name, salesforce_id: accId, created_by: uid, status: "active", phone, email })
         .select("id, name").single();
+      if (error && /already exists for another vendor/i.test(error.message)) {
+        phone = [];
+        ({ data: inserted, error } = await admin.from("vendors")
+          .insert({ name, salesforce_id: accId, created_by: uid, status: "active", phone, email })
+          .select("id, name").single());
+      }
       if (error) throw new Error(`create vendor ${name}: ${error.message}`);
       vendorMap.set(accId, inserted!.id as string); vendorNameMap.set(inserted!.id as string, (inserted as any).name);
+
     }
 
     // ---- Products ----
