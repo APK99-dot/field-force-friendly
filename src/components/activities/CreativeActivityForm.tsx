@@ -186,6 +186,7 @@ export default function CreativeActivityForm({
   } = useAudioRecorder();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [viewPhoto, setViewPhoto] = useState<string | null>(null);
   const dateStr = format(new Date(), "yyyy-MM-dd");
 
   // ---- GRN inline state ----
@@ -1135,21 +1136,37 @@ export default function CreativeActivityForm({
                         className="relative aspect-square rounded-xl overflow-hidden bg-muted group"
                       >
                         {photoPreviews[ph.url] ? (
-                          <img
-                            src={photoPreviews[ph.url]}
-                            alt="upload"
-                            className="w-full h-full object-cover"
-                          />
+                          // The tile crops to a square, which cuts the geo
+                          // stamp off the bottom of the photo — so the whole
+                          // tile opens the full frame.
+                          <button
+                            type="button"
+                            onClick={() => setViewPhoto(photoPreviews[ph.url])}
+                            className="w-full h-full block"
+                            aria-label="View photo"
+                          >
+                            <img
+                              src={photoPreviews[ph.url]}
+                              alt="upload"
+                              className="w-full h-full object-cover"
+                            />
+                          </button>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                           </div>
                         )}
                         <button
-                          onClick={() =>
-                            setPhotos((p) => p.filter((x) => x.url !== ph.url))
-                          }
-                          className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPhotos((p) => p.filter((x) => x.url !== ph.url));
+                          }}
+                          // Always visible on touch: hover does not exist there,
+                          // so the hover-only version left no way to remove a
+                          // photo on a phone.
+                          className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition"
+                          aria-label="Remove photo"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -1458,6 +1475,31 @@ export default function CreativeActivityForm({
         onCapture={(blob) => { void uploadPhotoBlob(blob); }}
         title="Take Photo"
       />
+
+      {/* Full-frame photo viewer. object-contain, not cover: the point of
+          opening it is to read the geo stamp along the bottom edge. */}
+      <Dialog open={!!viewPhoto} onOpenChange={(o) => !o && setViewPhoto(null)}>
+        <DialogContent className="max-w-3xl p-2">
+          {viewPhoto && (
+            <div className="space-y-2">
+              <img
+                src={viewPhoto}
+                alt="Activity photo"
+                className="w-full max-h-[75vh] object-contain rounded"
+              />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => window.open(viewPhoto, "_blank")}
+                >
+                  Open full size
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }
