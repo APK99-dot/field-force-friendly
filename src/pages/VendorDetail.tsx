@@ -445,7 +445,7 @@ export default function VendorDetail() {
 
   return (
     <LightningShell>
-    <motion.div className="space-y-4 p-4 pb-24 max-w-5xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.div className="space-y-4 py-4 px-4 sm:px-6 lg:px-8 pb-24 w-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <Button variant="ghost" size="sm" className="gap-1.5 -ml-2" onClick={() => navigate("/vendors")}>
           <ArrowLeft className="h-4 w-4" /> Back to Vendor Management

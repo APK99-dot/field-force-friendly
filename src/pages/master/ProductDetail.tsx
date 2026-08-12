@@ -94,7 +94,7 @@ export default function ProductDetail() {
   }
 
   return (
-    <motion.div className="p-4 space-y-6 max-w-6xl mx-auto" variants={container} initial="hidden" animate="show">
+    <motion.div className="py-4 px-4 sm:px-6 lg:px-8 space-y-6 w-full" variants={container} initial="hidden" animate="show">
       <motion.div variants={item}>
         <Card className="shadow-card">
           <CardContent className="p-4 sm:p-6">
