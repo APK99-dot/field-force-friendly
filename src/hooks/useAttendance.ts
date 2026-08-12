@@ -169,25 +169,11 @@ export function useAttendance(userId: string | undefined) {
 
     await fetchData();
 
-    // Notify ALL active users about check-in (broadcast)
-    try {
-      const { broadcastNotificationToActiveUsers } = await import('@/utils/notificationHelpers');
-      const { data: userData } = await supabase
-        .from('users')
-        .select('full_name')
-        .eq('id', userId)
-        .single();
-
-      await broadcastNotificationToActiveUsers(userId, {
-        title: `Check-In - ${userData?.full_name || 'Employee'}`,
-        message: `Checked in at ${format(new Date(), 'h:mm a, MMM dd yyyy')}`,
-        type: 'attendance',
-        related_table: 'attendance',
-      });
-    } catch (notifError) {
-      console.error('Error sending check-in notification:', notifError);
-    }
-
+    // No per-check-in notification. Attendance is reported by the two daily
+    // subscriptions instead — the check-in report at 11:30 and the check-out
+    // report at 19:00 — so admins get one summary a day rather than a banner
+    // per person. Broadcasting each check-in to every active user was both the
+    // noise this replaced and a push to every device on every arrival.
   };
 
   const checkOut = async (data?: CheckOutData) => {
@@ -219,25 +205,8 @@ export function useAttendance(userId: string | undefined) {
 
     await fetchData();
 
-    // Notify ALL active users about check-out / Day End (broadcast)
-    try {
-      const { broadcastNotificationToActiveUsers } = await import('@/utils/notificationHelpers');
-      const { data: userData } = await supabase
-        .from('users')
-        .select('full_name')
-        .eq('id', userId)
-        .single();
-
-      await broadcastNotificationToActiveUsers(userId, {
-        title: `Day End - ${userData?.full_name || 'Employee'}`,
-        message: `Checked out at ${format(new Date(), 'h:mm a, MMM dd yyyy')}`,
-        type: 'attendance',
-        related_table: 'attendance',
-      });
-    } catch (notifError) {
-      console.error('Error sending check-out notification:', notifError);
-    }
-
+    // No per-check-out notification — see checkIn above. The 19:00 check-out
+    // report carries the same information, with total hours, in one message.
   };
 
   // Build attendance map
