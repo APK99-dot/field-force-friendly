@@ -10,6 +10,7 @@ import {
   CheckSquare,
   Loader,
   Activity,
+  CalendarClock,
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -77,8 +78,12 @@ export default function Dashboard() {
 
   const overviewCards = [
     { label: "My Activities", value: myActivities.total, icon: ListTodo, colorClass: "bg-info/5 text-info", path: "/activities", module: "module_activities" },
-    { label: "Completed", value: myActivities.completed, icon: CheckSquare, colorClass: "bg-success/5 text-success", path: "/activities?status=completed", module: "module_activities" },
+    // Planned sits with the other two statuses so the trio reads together.
+    // Expenses is the last card and is gated off for profiles that do not use
+    // the module, which is what left a hole in the grid before this.
+    { label: "Planned", value: myActivities.planned, icon: CalendarClock, colorClass: "bg-muted text-muted-foreground", path: "/activities?status=planned", module: "module_activities" },
     { label: "In Progress", value: myActivities.inProgress, icon: Loader, colorClass: "bg-warning/5 text-warning", path: "/activities?status=in_progress", module: "module_activities" },
+    { label: "Completed", value: myActivities.completed, icon: CheckSquare, colorClass: "bg-success/5 text-success", path: "/activities?status=completed", module: "module_activities" },
     { label: "Today's Activities", value: todayActivities, icon: Activity, colorClass: "bg-primary/5 text-primary", path: "/activities", module: "module_activities" },
     { label: "Pending Leaves", value: pendingLeaves, icon: CalendarOff, colorClass: "bg-accent/5 text-accent", path: "/attendance", module: "module_attendance" },
     { label: "Pending Expenses", value: pendingExpenses.count, icon: Receipt, colorClass: "bg-destructive/5 text-destructive", path: "/expenses", module: "module_expenses" },

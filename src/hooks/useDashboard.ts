@@ -67,6 +67,17 @@ export function useDashboard(userId: string | undefined) {
       total: summary?.activities_total ?? 0,
       completed: summary?.activities_completed ?? 0,
       inProgress: summary?.activities_in_progress ?? 0,
+      // Derived rather than queried. An activity is planned, in_progress or
+      // completed — the set the Activities page filters on — so the remainder
+      // is exactly the planned count, and get_dashboard_summary does not need
+      // a fourth subquery for it. Floored at 0 so an unexpected status can
+      // never render a negative tile.
+      planned: Math.max(
+        0,
+        (summary?.activities_total ?? 0) -
+          (summary?.activities_completed ?? 0) -
+          (summary?.activities_in_progress ?? 0),
+      ),
     },
     pendingExpenses: {
       count: summary?.pending_expenses_count ?? 0,
