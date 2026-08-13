@@ -986,6 +986,10 @@ export default function ProcurementDetail({
           logo_url: companyProfile?.logo_url || null,
         },
         items,
+        // Whoever generated this document. Falls back to blank rather than a
+        // placeholder, so an unnamed profile leaves a signable line instead of
+        // printing something misleading above it.
+        preparedBy: currentProfile?.full_name || currentProfile?.username || "",
       });
 
       const blob = doc.output("blob");

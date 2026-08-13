@@ -125,8 +125,10 @@ export async function buildPurchaseOrderPdf(params: {
   vendor: POVendorInput;
   company: POCompanyInput;
   items: POLineInput[];
+  /** Name printed under "Prepared By" — the user generating the document. */
+  preparedBy?: string | null;
 }): Promise<jsPDF> {
-  const { order, vendor, company, items } = params;
+  const { order, vendor, company, items, preparedBy } = params;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -497,7 +499,7 @@ export async function buildPurchaseOrderPdf(params: {
   const sigY = Math.max(y + 12, pageH - 22);
   const sigW = 60;
   const sigBlocks: Array<[string, string]> = [
-    ["Prepared By", ""],
+    ["Prepared By", (preparedBy || "").trim()],
     ["Authorised Signatory", company.company_name || "Bharat Builders"],
   ];
   sigBlocks.forEach(([label, sub], i) => {
@@ -511,7 +513,10 @@ export async function buildPurchaseOrderPdf(params: {
     if (sub) {
       f("normal", 7);
       setText(130);
-      doc.text(sub, x + sigW, sigY + 7.6, { align: "right" });
+      // Sub-line follows its label's alignment. Right-aligning both would have
+      // pushed the preparer's name to the far end of the left-hand rule,
+      // detached from the "Prepared By" it belongs to.
+      doc.text(sub, i === 0 ? x : x + sigW, sigY + 7.6, { align: i === 0 ? "left" : "right" });
     }
   });
 
