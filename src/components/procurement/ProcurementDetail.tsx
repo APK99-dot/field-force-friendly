@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useModuleConfig } from "@/hooks/useModuleConfig";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -202,6 +203,12 @@ export default function ProcurementDetail({
   const procCfg = useModuleConfig("procurement");
   const canEditRatesPostApproval = procCfg.canDo("editRatesAfterApproval");
   const { profile: currentProfile, isAdmin } = useUserProfile();
+  // Overriding a vendor's quote status, and reverting a stage, used to be a
+  // hardcoded isAdmin check — so a site engineer could not be given it without
+  // being made an admin outright. It is now a grantable action, with admins
+  // keeping it implicitly so nothing they can do today is taken away.
+  const { hasActionPermission } = useProfilePermissions();
+  const canOverrideStatus = isAdmin || hasActionPermission("action_procurement_override_status");
   const [uiMode] = useUiMode();
   const lightning = isLightning(uiMode);
   const [stageHistoryOpen, setStageHistoryOpen] = useState(false);
@@ -1410,7 +1417,11 @@ export default function ProcurementDetail({
         if (l.rate_source === "quote" || l.rate_source === "manual_adjusted") return l;
         if (l.rate_source_vendor_id) return l;
         if (autoAppliedRef.current.has(l.id)) return l;
-        if (Number(l.rate) > 0) return l;
+        // Only a rate the buyer typed blocks auto-apply. This used to be
+        // `rate > 0`, which also caught the budget rate every requisition
+        // carries — so on any priced requisition the sole vendor never applied
+        // and a pointless manual selection was always required.
+        if (l.rate_source === "manual") return l;
         const submitted = vendorQuotes.filter(
           (q) => q.status === "submitted" &&
                  (q.procurement_vendor_quote_items || []).some(
@@ -1634,7 +1645,15 @@ export default function ProcurementDetail({
   // Update a single line's rate (manual edit clears/flips the source tag).
   const setLineRate = (lineId: string, value: string) => {
     setRateLines((prev) => prev.map((l) => l.id === lineId
-      ? { ...l, rate: value, rate_source: l.rate_source === "quote" ? "manual_adjusted" : l.rate_source }
+      ? {
+          ...l,
+          rate: value,
+          // A rate the buyer types is theirs, so tag it. Before this an edited
+          // line kept a null source, which is exactly what a budget rate
+          // carried in from the requisition looks like — leaving the sole-quote
+          // auto-apply below no way to tell the two apart.
+          rate_source: l.rate_source === "quote" ? "manual_adjusted" : (l.rate_source || "manual"),
+        }
       : l));
   };
 
@@ -1781,7 +1800,7 @@ export default function ProcurementDetail({
                 {!canAdvance && nextStage && (
                   <span className="text-[11px] text-muted-foreground">Requires approval rights to advance.</span>
                 )}
-                {isAdmin && prevStage && (
+                {canOverrideStatus && prevStage && (
                   <button
                     type="button"
                     className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive underline underline-offset-2"
@@ -2206,7 +2225,7 @@ export default function ProcurementDetail({
                                     s === "reopened" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300" :
                                     s === "draft" ? "bg-muted text-muted-foreground border-border" :
                                     "bg-muted text-muted-foreground border-border";
-                                  const canOverride = poUnlocked && isAdmin && !!row.vendor_id;
+                                  const canOverride = poUnlocked && canOverrideStatus && !!row.vendor_id;
                                   const canReopen = poUnlocked && !!row.vendor_id && (s === "submitted" || s === "changes_requested");
                                   return (
                                     <div className="flex items-center gap-1.5">
