@@ -183,7 +183,15 @@ export default function AttendanceManagement() {
         leave_types: leaveTypes?.find((lt) => lt.id === app.leave_type_id),
       })) || [];
 
-      setLeaveApplications(enrichedData);
+      // Same rule as regularisation: no self-approval. Filtered here rather
+      // than in the query because this list also serves as leave history —
+      // dropping the admin's own rows outright would hide their past leave.
+      // Only the pending ones, the actionable rows, are withheld.
+      const withoutOwnPending = currentUserId
+        ? enrichedData.filter((app) => !(app.user_id === currentUserId && app.status === "pending"))
+        : enrichedData;
+
+      setLeaveApplications(withoutOwnPending);
     } catch (error) {
       console.error("Error fetching leave applications:", error);
       toast.error("Failed to fetch leave applications");
@@ -206,6 +214,16 @@ export default function AttendanceManagement() {
 
       if (!isAdmin) {
         query = query.in("user_id", subordinateIds);
+      }
+
+      // Nobody approves their own regularisation. Admins skip the subordinate
+      // filter above and so used to see every pending request including their
+      // own, which let them regularise their own attendance unreviewed. Other
+      // admins still see it, so the request is not stranded — it simply has to
+      // be someone else who approves it. Non-admins were never at risk, since
+      // subordinateIds cannot contain the requester.
+      if (currentUserId) {
+        query = query.neq("user_id", currentUserId);
       }
 
       if (selectedUser !== "all") query = query.eq("user_id", selectedUser);
