@@ -18,28 +18,41 @@ const GEO_FIX_TIMEOUT_MS = 8000;
 const GEOCODE_TIMEOUT_MS = 4000;
 
 /**
+ * Reverse-geocode a coordinate to a street address. Never throws, and never
+ * blocks for longer than GEOCODE_TIMEOUT_MS — a slow Nominatim must not hold up
+ * a photo upload. Returns null when it cannot answer in time; coordinates alone
+ * still make a usable stamp.
+ *
+ * Exported because attendance check-in photos stamp the same caption, and it
+ * already has its own GPS fix from the check-in flow — so it needs the address
+ * lookup without the position lookup that captureGeo does.
+ */
+export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), GEOCODE_TIMEOUT_MS);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+        { signal: ctrl.signal }
+      );
+      const geo = await res.json();
+      return geo?.display_name || null;
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Capture GPS + reverse-geocoded address for a photo. Never throws.
  */
 async function captureGeo(): Promise<{ lat: number | null; lng: number | null; address: string | null }> {
   try {
     const pos = await getCurrentPosition({ timeout: GEO_FIX_TIMEOUT_MS });
-    let address: string | null = null;
-    try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), GEOCODE_TIMEOUT_MS);
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${pos.latitude}&lon=${pos.longitude}&format=json`,
-          { signal: ctrl.signal }
-        );
-        const geo = await res.json();
-        if (geo?.display_name) address = geo.display_name;
-      } finally {
-        clearTimeout(timer);
-      }
-    } catch {
-      /* ignore reverse geocode failure — coordinates alone still stamp */
-    }
+    const address = await reverseGeocode(pos.latitude, pos.longitude);
     return { lat: pos.latitude, lng: pos.longitude, address };
   } catch {
     return { lat: null, lng: null, address: null };

@@ -15,6 +15,8 @@ import { downloadPDF as downloadPDFNative } from "@/utils/nativeDownload";
 
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentPosition } from "@/utils/nativePermissions";
+import { stampGeo } from "@/utils/geoStamp";
+import { reverseGeocode } from "@/utils/activityPhotos";
 import MyTeamAttendance from "@/components/attendance/MyTeamAttendance";
 import { useAttendance, isWeekOffDate } from "@/hooks/useAttendance";
 import { useFaceMatching } from "@/hooks/useFaceMatching";
@@ -274,9 +276,32 @@ export default function Attendance() {
       const timestamp = Date.now();
       const filePath = `${userId}/attendance/${dateStr}_${type}_${timestamp}.jpg`;
 
+      // Burn the location and time into the photo, as activity photos do. The
+      // caption travels with the image once it leaves the app, so a check-in
+      // photo forwarded or exported still carries where and when it was taken.
+      //
+      // Reuses the fix taken in Step 1 rather than asking for another, and the
+      // blob arrives already compressed from CameraCapture — so this stamps
+      // after the resize, which is what keeps the text readable.
+      let toUpload: Blob = blob;
+      if (location?.latitude != null && location?.longitude != null) {
+        try {
+          const address = await reverseGeocode(location.latitude, location.longitude);
+          toUpload = await stampGeo(blob, {
+            at: new Date(),
+            address,
+            lat: location.latitude,
+            lng: location.longitude,
+          });
+        } catch (e) {
+          // Never cost someone their check-in over a caption.
+          console.warn("Attendance geo stamp failed; uploading unstamped:", e);
+        }
+      }
+
       const { error: uploadError } = await supabase.storage
         .from("attendance-photos")
-        .upload(filePath, blob, { contentType: "image/jpeg", upsert: true });
+        .upload(filePath, toUpload, { contentType: "image/jpeg", upsert: true });
 
       if (uploadError) throw uploadError;
 
