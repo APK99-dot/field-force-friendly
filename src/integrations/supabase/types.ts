@@ -6294,6 +6294,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      maintenance_cleanup: { Args: never; Returns: string }
       notif_fill: {
         Args: {
           p_actor_name: string
