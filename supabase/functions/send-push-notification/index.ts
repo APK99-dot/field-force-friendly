@@ -98,10 +98,33 @@ Deno.serve(async (req) => {
       });
     }
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // Web Push (PWA) runs FIRST and independently of FCM.
+    //
+    // Both FCM guards below return early — one when no service-account key is
+    // configured, one when the user has no device token. A PWA-only user has no
+    // token by definition, so anything placed after them never runs for exactly
+    // the people it exists to serve. The two channels are unrelated; neither
+    // should gate the other.
+    let webPush: unknown = null;
+    try {
+      webPush = await sendWebPush(supabase, [user_id], {
+        title,
+        message,
+        route: route || "",
+      });
+    } catch (e) {
+      console.error("Web push failed:", e);
+      webPush = { error: String(e) };
+    }
+
     const fcmKeyJson = Deno.env.get("FCM_SERVICE_ACCOUNT_KEY");
     if (!fcmKeyJson) {
-      console.warn("FCM_SERVICE_ACCOUNT_KEY not configured — skipping push");
-      return new Response(JSON.stringify({ skipped: true }), {
+      console.warn("FCM_SERVICE_ACCOUNT_KEY not configured — skipping FCM");
+      return new Response(JSON.stringify({ fcm_skipped: true, web_push: webPush }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -110,19 +133,16 @@ Deno.serve(async (req) => {
     const serviceAccount = JSON.parse(fcmKeyJson);
     const projectId = serviceAccount.project_id;
 
-    // Get tokens for this user
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
     const { data: tokens, error: tokErr } = await supabase
       .from("push_tokens")
       .select("id, token")
       .eq("user_id", user_id);
 
     if (tokErr || !tokens || tokens.length === 0) {
-      console.log("No push tokens for user", user_id);
-      return new Response(JSON.stringify({ sent: 0 }), {
+      // No APK on this account — normal for a PWA-only user. Web push above has
+      // already run, so this is a partial success, not a no-op.
+      console.log("No FCM tokens for user", user_id);
+      return new Response(JSON.stringify({ sent: 0, web_push: webPush }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -182,25 +202,6 @@ Deno.serve(async (req) => {
     if (staleIds.length > 0) {
       await supabase.from("push_tokens").delete().in("id", staleIds);
       console.log("Removed stale tokens:", staleIds);
-    }
-
-    // Web Push for the PWA. This function is what the notifications INSERT
-    // trigger calls, and until now it only spoke FCM — so every notification
-    // routed through the trigger reached the APK and silently skipped every
-    // PWA user. Both channels now fire from the same call.
-    //
-    // Failures here must not fail the request: FCM may well have delivered,
-    // and the caller is a database trigger that cannot act on the result.
-    let webPush: unknown = null;
-    try {
-      webPush = await sendWebPush(supabase, [user_id], {
-        title,
-        message,
-        route: route || "",
-      });
-    } catch (e) {
-      console.error("Web push failed:", e);
-      webPush = { error: String(e) };
     }
 
     return new Response(
