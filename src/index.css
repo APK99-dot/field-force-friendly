@@ -972,3 +972,27 @@
 .sf-form input[type="radio"] {
   box-shadow: none;
 }
+
+/* ---------------------------------------------------------------------------
+   Full-screen dialogs and the device's system bars.
+
+   index.html sets viewport-fit=cover, so in the APK's WebView the page is drawn
+   underneath the status bar and the gesture bar. Centred dialogs never reach
+   those edges and are unaffected, but the procurement surfaces open as
+   full-screen sheets (max-w-none w-screen h-screen) flush to the top — putting
+   their header, and the close button inside it, beneath the status bar where it
+   cannot be tapped.
+
+   Padding the content box pushes the header into the visible area. It applies
+   to every full-screen dialog at once — GRN detail and form, invoice form,
+   procurement detail, requisition form and the sourcing advisor — rather than
+   each having to remember. env() resolves to 0 on hardware without insets, so
+   the browser and desktop layouts do not move.
+
+   Unlayered on purpose: Tailwind's p-0 in the same class list would otherwise
+   compete, and this must win.
+--------------------------------------------------------------------------- */
+[role="dialog"].h-screen {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
