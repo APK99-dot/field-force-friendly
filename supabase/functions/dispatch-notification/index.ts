@@ -112,10 +112,29 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const shouldBroadcastAttendance =
+    // Per-person attendance notifications are no longer wanted: the 11:30 and
+    // 19:00 reports carry the same information in one message. The client stopped
+    // sending them in 1aec576, but an app version that has not updated — or an
+    // APK serving a cached bundle — still does, and this function used to
+    // recognise those titles and broadcast them to every active user on its own.
+    //
+    // Refusing them here rather than only on the client means it stops for
+    // everyone the moment this deploys, without waiting for every device to
+    // update. Any caller can still broadcast deliberately via broadcast_all_active.
+    const isPerPersonAttendance =
       related_table === "attendance" &&
       type === "attendance" &&
       (title.startsWith("Check-In - ") || title.startsWith("Day End - "));
+
+    if (isPerPersonAttendance) {
+      console.log(`[dispatch] Ignored per-person attendance notification: "${title}"`);
+      return new Response(
+        JSON.stringify({ ignored: "per_person_attendance_disabled" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const shouldBroadcastAttendance = false;
 
     let recipient_ids: string[] = [];
     if (body.broadcast_all_active || shouldBroadcastAttendance) {
