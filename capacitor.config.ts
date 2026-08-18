@@ -11,7 +11,12 @@ const config: CapacitorConfig = {
   server: {
     // Point to the published production site (NOT the preview sandbox) and
     // append a release token so each new APK fetches fresh assets.
-    url: `https://field-force-friendly.lovable.app?v=${RELEASE_TOKEN}&forceHideBadge=true`,
+    //
+    // Use the custom domain directly. The old lovable.app host 301s here, and
+    // while the query string does survive that hop, a cross-origin redirect on
+    // every launch is a variable worth removing from a WebView that has been
+    // serving stale assets — the redirect itself is cacheable.
+    url: `https://bb.quickapp.ai?v=${RELEASE_TOKEN}&forceHideBadge=true`,
     cleartext: true,
   },
   android: {
