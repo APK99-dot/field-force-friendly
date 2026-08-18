@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendWebPush } from "../_shared/webPush.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -183,10 +184,29 @@ Deno.serve(async (req) => {
       console.log("Removed stale tokens:", staleIds);
     }
 
-    return new Response(JSON.stringify({ sent, cleaned: staleIds.length }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Web Push for the PWA. This function is what the notifications INSERT
+    // trigger calls, and until now it only spoke FCM — so every notification
+    // routed through the trigger reached the APK and silently skipped every
+    // PWA user. Both channels now fire from the same call.
+    //
+    // Failures here must not fail the request: FCM may well have delivered,
+    // and the caller is a database trigger that cannot act on the result.
+    let webPush: unknown = null;
+    try {
+      webPush = await sendWebPush(supabase, [user_id], {
+        title,
+        message,
+        route: route || "",
+      });
+    } catch (e) {
+      console.error("Web push failed:", e);
+      webPush = { error: String(e) };
+    }
+
+    return new Response(
+      JSON.stringify({ sent, cleaned: staleIds.length, web_push: webPush }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (err) {
     console.error("Push notification error:", err);
     return new Response(JSON.stringify({ error: String(err) }), {
