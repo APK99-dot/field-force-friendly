@@ -33,6 +33,15 @@ export function NotificationBell() {
       // Scheduled-report delivery (generate-report writes related_table =
       // 'report_subscriptions'). /my-reports lists this user's delivered files.
       navigate('/my-reports');
+    } else if (n.related_table === 'procurement_orders' && n.related_id) {
+      // Rule-driven procurement notifications. Procurement reads ?po=<id> and
+      // opens that record; without this the bell fell through to no navigation
+      // at all, leaving the user on whatever page they were already on.
+      navigate(`/procurement?po=${n.related_id}`);
+    } else if (n.related_table === 'procurement_grns') {
+      // A goods receipt has no route of its own, and the notification row does
+      // not carry the PO it belongs to — the list is the closest honest target.
+      navigate('/procurement');
     }
   };
 
