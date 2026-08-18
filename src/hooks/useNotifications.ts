@@ -70,14 +70,24 @@ export function useNotifications() {
     };
   }, [userId, fetchNotifications]);
 
+  // read_at is written alongside is_read so the admin history can show WHEN a
+  // notification was opened, not merely that it was. Setting one without the
+  // other would leave the Read at column permanently blank.
   const markAsRead = useCallback(async (id: string) => {
-    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    await supabase
+      .from('notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() } as any)
+      .eq('id', id);
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
   const markAllAsRead = useCallback(async () => {
     if (!userId) return;
-    await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false);
+    await supabase
+      .from('notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() } as any)
+      .eq('user_id', userId)
+      .eq('is_read', false);
     setNotifications([]);
   }, [userId]);
 
