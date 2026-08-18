@@ -283,20 +283,26 @@ export default function Attendance() {
       // Reuses the fix taken in Step 1 rather than asking for another, and the
       // blob arrives already compressed from CameraCapture — so this stamps
       // after the resize, which is what keeps the text readable.
+      // Stamped unconditionally, as activity photos are. Gating this on a GPS
+      // fix meant a phone that could not see the sky produced a photo with no
+      // caption at all — not even the time — so whether a check-in photo could
+      // be trusted came down to signal. The time is always known; the location
+      // is added when there is one.
       let toUpload: Blob = blob;
-      if (location?.latitude != null && location?.longitude != null) {
-        try {
-          const address = await reverseGeocode(location.latitude, location.longitude);
-          toUpload = await stampGeo(blob, {
-            at: new Date(),
-            address,
-            lat: location.latitude,
-            lng: location.longitude,
-          });
-        } catch (e) {
-          // Never cost someone their check-in over a caption.
-          console.warn("Attendance geo stamp failed; uploading unstamped:", e);
-        }
+      const hasFix = location?.latitude != null && location?.longitude != null;
+      try {
+        const address = hasFix
+          ? await reverseGeocode(location.latitude, location.longitude)
+          : null;
+        toUpload = await stampGeo(blob, {
+          at: new Date(),
+          address,
+          lat: hasFix ? location.latitude : null,
+          lng: hasFix ? location.longitude : null,
+        });
+      } catch (e) {
+        // Never cost someone their check-in over a caption.
+        console.warn("Attendance geo stamp failed; uploading unstamped:", e);
       }
 
       const { error: uploadError } = await supabase.storage
