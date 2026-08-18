@@ -2346,9 +2346,13 @@ export type Database = {
       notifications: {
         Row: {
           created_at: string
+          deleted_at: string | null
+          delivery_status: string | null
           id: string
           is_read: boolean | null
           message: string
+          metadata: Json | null
+          read_at: string | null
           related_id: string | null
           related_table: string | null
           title: string
@@ -2357,9 +2361,13 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
+          delivery_status?: string | null
           id?: string
           is_read?: boolean | null
           message: string
+          metadata?: Json | null
+          read_at?: string | null
           related_id?: string | null
           related_table?: string | null
           title: string
@@ -2368,9 +2376,13 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
+          delivery_status?: string | null
           id?: string
           is_read?: boolean | null
           message?: string
+          metadata?: Json | null
+          read_at?: string | null
           related_id?: string | null
           related_table?: string | null
           title?: string
