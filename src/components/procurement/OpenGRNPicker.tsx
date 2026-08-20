@@ -64,6 +64,11 @@ export default function OpenGRNPicker({ siteId, value, onChange }: Props) {
         .from("procurement_orders")
         .select("id, po_number, status, order_date, total_amount, vendor_id, source_type, transfer_from_site_id")
         .eq("site_id", siteId)
+        // Salesforce history only. Those 534 imported POs arrived already
+        // closed out in Salesforce — receiving against one here would create a
+        // GRN for goods delivered long ago, and buries the handful of live POs
+        // a site engineer is actually looking for.
+        .is("salesforce_id", null)
         .in("status", [...new Set([...VENDOR_OPEN, ...TRANSFER_OPEN])])
         .order("order_date", { ascending: false });
       let rows = (data || []) as any[];
