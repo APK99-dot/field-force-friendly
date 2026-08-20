@@ -1463,7 +1463,43 @@ export default function ProcurementDetail({
       const next = prev.map((l) => {
         // Skip if buyer has already made an explicit choice/edit, or if this
         // line was already auto-applied once in this session (idempotency).
-        if (l.rate_source === "quote" || l.rate_source === "manual_adjusted") return l;
+        // A line already taken from a quote is re-synced when that vendor
+        // revises it. Without this, reopening and resubmitting left the line
+        // holding the superseded figures while still claiming rate_source
+        // "quote" — the record asserted it came from the quote while carrying
+        // numbers the quote no longer contained, which is how PO-0563 ended up
+        // showing 340 / 0% against a live quote of 288.14 / 18%.
+        //
+        // manual_adjusted is untouched: the buyer edited after applying, and
+        // their figure is not the vendor's to overwrite.
+        if (l.rate_source === "quote" && l.rate_source_vendor_id) {
+          const cur = vendorQuotes.find(
+            (q) => q.vendor_id === l.rate_source_vendor_id && q.status === "submitted",
+          );
+          const cqi = (cur?.procurement_vendor_quote_items || []).find(
+            (x) => x.procurement_item_id === l.id,
+          );
+          if (!cqi) return l;
+          const curRate = Number((cqi as any).rate_after_discount ?? cqi.rate) || 0;
+          const curGst = (cqi as any).gst_percent != null
+            ? Number((cqi as any).gst_percent) || 0
+            : (l.gst_percent || 0);
+          const drifted =
+            curRate > 0 &&
+            (Math.abs(curRate - (parseFloat(l.rate) || 0)) > 0.005 ||
+              curGst !== (l.gst_percent || 0));
+          if (!drifted) return l;
+          changed = true;
+          persistUpdates.push({
+            id: l.id, rate: curRate, gst: curGst,
+            vendor_id: l.rate_source_vendor_id,
+            vendor_ids: l.vendor_ids.includes(l.rate_source_vendor_id)
+              ? l.vendor_ids : [...l.vendor_ids, l.rate_source_vendor_id],
+            qty: l.qty || 0,
+          });
+          return { ...l, rate: String(curRate), gst_percent: curGst };
+        }
+        if (l.rate_source === "manual_adjusted") return l;
         if (l.rate_source_vendor_id) return l;
         if (autoAppliedRef.current.has(l.id)) return l;
         // Only a rate the buyer typed blocks auto-apply. This used to be
