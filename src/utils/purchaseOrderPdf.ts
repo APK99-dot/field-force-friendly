@@ -87,6 +87,9 @@ export interface POOrderInput {
    *  forces the vendor to chase it before they can raise their invoice. */
   bill_to_gst?: string | null;
   ship_to_gst?: string | null;
+  /** People assigned to the site, so a vendor delivering goods has someone to
+   *  call on arrival instead of ringing the office. */
+  site_contacts?: { name: string; phone: string | null }[] | null;
   ship_to?: string | null;
   requisition_number?: string | null;
   requisition_name?: string | null;
@@ -249,6 +252,10 @@ export async function buildPurchaseOrderPdf(params: {
   if (vendor.gst_number) vendorBlock.push(`GSTIN: ${vendor.gst_number}`);
   if (!vendorBlock.length) vendorBlock.push("-");
 
+  const contactLines = (order.site_contacts || [])
+    .filter((c) => c.name)
+    .map((c) => (c.phone ? `${c.name} (${c.phone})` : c.name));
+
   const blocks: Array<{ title: string; lines: string[] }> = [
     { title: "VENDOR", lines: vendorBlock },
     {
@@ -256,6 +263,7 @@ export async function buildPurchaseOrderPdf(params: {
       lines: [
         ...(order.ship_to || "-").split("\n"),
         ...(order.ship_to_gst ? [`GSTIN: ${order.ship_to_gst}`] : []),
+        ...(contactLines.length ? ["", "Contact at site:", ...contactLines] : []),
       ],
     },
     {
