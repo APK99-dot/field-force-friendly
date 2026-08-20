@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, eachDayOfInterval } from "date-fns";
@@ -50,6 +51,7 @@ export default function ActivityReport() {
   const [sites, setSites] = useState<{ value: string; label: string }[]>([]);
   const [milestones, setMilestones] = useState<{ value: string; label: string; site_id: string }[]>([]);
   const [actTypes, setActTypes] = useState<{ value: string; label: string }[]>([]);
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -329,7 +331,13 @@ export default function ActivityReport() {
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
-              <TableRow key={r.id}>
+              // Activities reads ?id= and opens that record; from= brings the
+              // user back to this report when they close it.
+              <TableRow
+                key={r.id}
+                onClick={() => navigate(`/activities?id=${r.id}&from=${encodeURIComponent("/analytics?tab=activities")}`)}
+                className="cursor-pointer hover:bg-muted/50"
+              >
                 <TableCell>{format(new Date(r.activity_date), "dd MMM yyyy")}</TableCell>
                 <TableCell className="font-medium">{r.full_name}</TableCell>
                 <TableCell>{r.site}</TableCell>
