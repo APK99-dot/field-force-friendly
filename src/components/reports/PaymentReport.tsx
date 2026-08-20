@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -15,6 +16,8 @@ import { generateReportPdf } from "./reportPdf";
 
 interface Row {
   id: string;
+  /** Purchase order behind the invoice. Null when the invoice has no PO. */
+  po_id: string | null;
   po_number: string;
   vendor: string;
   invoice_number: string;
@@ -52,6 +55,7 @@ export default function PaymentReport() {
   const [payStatus, setPayStatus] = useState("all");
   const [sites, setSites] = useState<{ value: string; label: string }[]>([]);
   const [vendors, setVendors] = useState<{ value: string; label: string }[]>([]);
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -118,6 +122,9 @@ export default function PaymentReport() {
         const ps = paid <= 0 ? "Unpaid" : paid >= amount && amount > 0 ? "Paid" : "Partial";
         return {
           id: inv.id,
+          // id above is the invoice; the PO is what the row navigates to, and
+          // an invoice can exist without one, hence nullable.
+          po_id: (inv.po_id as string | null) ?? null,
           po_number: order?.po_number || "—",
           vendor: order?.vendor_id ? vendorMap.get(order.vendor_id) || "-" : "-",
           invoice_number: inv.invoice_number || "—",
@@ -324,7 +331,11 @@ export default function PaymentReport() {
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
-              <TableRow key={r.id}>
+              <TableRow
+                key={r.id}
+                onClick={() => r.po_id && navigate(`/procurement?po=${r.po_id}`)}
+                className={r.po_id ? "cursor-pointer hover:bg-muted/50" : undefined}
+              >
                 <TableCell className="font-medium">{r.po_number}</TableCell>
                 <TableCell>{r.vendor}</TableCell>
                 <TableCell>{r.invoice_number}</TableCell>

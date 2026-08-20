@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -55,6 +56,7 @@ export default function ProcurementReport() {
   const [status, setStatus] = useState("all");
   const [sites, setSites] = useState<{ value: string; label: string }[]>([]);
   const [vendors, setVendors] = useState<{ value: string; label: string }[]>([]);
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -366,7 +368,13 @@ export default function ProcurementReport() {
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
-              <TableRow key={r.id}>
+              // The row id is the purchase order id, so the report links
+              // straight at the record rather than making people search for it.
+              <TableRow
+                key={r.id}
+                onClick={() => navigate(`/procurement?po=${r.id}`)}
+                className="cursor-pointer hover:bg-muted/50"
+              >
                 <TableCell className="font-medium">{r.po_number}</TableCell>
                 <TableCell>{r.order_date ? format(new Date(r.order_date), "dd MMM yyyy") : "--"}</TableCell>
                 <TableCell>{r.vendor}</TableCell>
