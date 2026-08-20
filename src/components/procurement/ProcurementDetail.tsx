@@ -960,25 +960,40 @@ export default function ProcurementDetail({
         };
       });
 
-      // Who to call at the delivery site. Fetched at generation time rather
-      // than stored on the order, so a PO regenerated after the site roster
-      // changes carries whoever is actually assigned now.
+      // Site engineers, for the vendor to call on delivery.
+      //
+      // Chosen by role rather than by site assignment: everyone assigned to a
+      // site includes admins and office staff, which put five names on the PO
+      // when only the two engineers are useful to a driver. The role is the
+      // thing that actually means "person at site".
       let siteContacts: { name: string; phone: string | null }[] = [];
-      if (order.site_id) {
-        const { data: assigned } = await supabase
-          .from("site_assignments")
-          .select("user_id")
-          .eq("site_id", order.site_id);
-        const ids = (assigned || []).map((a: any) => a.user_id).filter(Boolean);
-        if (ids.length) {
-          const { data: people } = await supabase
-            .from("users")
-            .select("full_name, phone, is_active")
-            .in("id", ids);
-          siteContacts = (people || [])
-            .filter((u: any) => u.is_active && u.full_name)
-            .map((u: any) => ({ name: u.full_name as string, phone: (u.phone as string) || null }));
+      try {
+        const { data: engineerProfile } = await supabase
+          .from("security_profiles")
+          .select("id")
+          .eq("name", "Site Engineer")
+          .maybeSingle();
+
+        if (engineerProfile?.id) {
+          const { data: holders } = await supabase
+            .from("user_security_profiles")
+            .select("user_id")
+            .eq("profile_id", engineerProfile.id);
+          const ids = (holders || []).map((h: any) => h.user_id).filter(Boolean);
+          if (ids.length) {
+            const { data: people } = await supabase
+              .from("users")
+              .select("full_name, phone, is_active")
+              .in("id", ids)
+              .order("full_name");
+            siteContacts = (people || [])
+              .filter((u: any) => u.is_active && u.full_name)
+              .map((u: any) => ({ name: u.full_name as string, phone: (u.phone as string) || null }));
+          }
         }
+      } catch (e) {
+        // A PO must still generate without contacts.
+        console.warn("Site contact lookup failed:", e);
       }
 
       const nextVersion = (poDocs.filter((d) => d.vendor_id === vendorId).reduce((m, d) => Math.max(m, Number(d.version || 0)), 0)) + 1;
