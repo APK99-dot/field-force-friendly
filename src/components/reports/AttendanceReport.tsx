@@ -14,6 +14,7 @@ import {
   Percent,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { isWeekOffDate } from "@/hooks/useAttendance";
 import { ReportShell } from "./ReportShell";
 import { ReportChartCard } from "./ReportChartCard";
 import { KpiGrid, ChartGrid, KpiItem } from "./KpiCards";
@@ -68,6 +69,11 @@ export default function AttendanceReport() {
   const [employee, setEmployee] = useState("all");
   const [status, setStatus] = useState("all");
   const [rows, setRows] = useState<Row[]>([]);
+  // Working days in the selected range, per person. This is the denominator
+  // attendance % needs: an absent day has NO row in `attendance`, so dividing
+  // present days by rows.length divided present by present and reported 100%
+  // for everyone, always.
+  const [workingDays, setWorkingDays] = useState(0);
   const [regularizedCount, setRegularizedCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -91,6 +97,21 @@ export default function AttendanceReport() {
       setRows(
         (data || []).map((r) => ({ ...r, full_name: nameMap.get(r.user_id) || "Unknown" }))
       );
+
+      // Expected working days: every date in range, less week-offs and holidays.
+      const [{ data: weekOffs }, { data: holis }] = await Promise.all([
+        supabase.from("week_off_config").select("day_of_week, is_off, alternate_pattern"),
+        supabase.from("holidays").select("date").gte("date", from).lte("date", to),
+      ]);
+      const holidaySet = new Set((holis || []).map((h: any) => h.date));
+      let wd = 0;
+      for (let d = new Date(from); d <= new Date(to); d.setDate(d.getDate() + 1)) {
+        const iso = d.toISOString().slice(0, 10);
+        if (holidaySet.has(iso)) continue;
+        if (isWeekOffDate(new Date(d), (weekOffs || []) as any)) continue;
+        wd += 1;
+      }
+      setWorkingDays(wd);
 
       // Regularizations approved within date range (for KPI)
       let rq = supabase
@@ -146,10 +167,15 @@ export default function AttendanceReport() {
     const present = rows.filter((r) => r.status === "present" || r.status === "late").length;
     const absent = rows.filter((r) => r.status === "absent").length;
     const leaves = rows.filter((r) => r.status === "leave").length;
-    const total = rows.length || 1;
-    const attendancePct = (present / total) * 100;
+    // One person's expected days x the number of people in scope. Falls back
+    // to row count only when the working-day calculation could not run, so the
+    // figure degrades rather than silently reverting to the old 100%.
+    const headcount = employee !== "all" ? 1 : (scope.users.length || 1);
+    const expected = workingDays > 0 ? workingDays * headcount : rows.length;
+    const total = expected || 1;
+    const attendancePct = Math.min(100, (present / total) * 100);
     return [
-      { label: "Attendance %", value: `${attendancePct.toFixed(1)}%`, sub: `${present}/${rows.length} records`, icon: Percent, tone: "primary" },
+      { label: "Attendance %", value: `${attendancePct.toFixed(1)}%`, sub: `${present} of ${workingDays > 0 ? workingDays * (employee !== "all" ? 1 : (scope.users.length || 1)) : rows.length} working days`, icon: Percent, tone: "primary" },
       { label: "Present", value: String(present), icon: UserCheck, tone: "success" },
       { label: "Absent", value: String(absent), icon: UserX, tone: "danger" },
       { label: "Leaves", value: String(leaves), icon: CalendarOff, tone: "info" },
@@ -158,7 +184,7 @@ export default function AttendanceReport() {
       { label: "Avg Working Hours", value: `${derived.avgHours.toFixed(2)}h`, sub: `${derived.totalWorkedHours.toFixed(1)}h total`, icon: Clock, tone: "info" },
       { label: "Regularizations", value: String(regularizedCount), sub: "Approved in range", icon: CalendarCheck, tone: "muted" },
     ];
-  }, [rows, derived, regularizedCount]);
+  }, [rows, derived, regularizedCount, workingDays, employee, scope.users]);
 
   // Daily stacked-bar trend (Present, Late, Absent, Leave)
   const dailyTrend = useMemo(() => {
@@ -195,10 +221,16 @@ export default function AttendanceReport() {
       m.set(r.full_name, e);
     });
     return Array.from(m.entries())
-      .map(([name, v]) => ({ name, value: v.total ? +((v.present / v.total) * 100).toFixed(1) : 0 }))
+      // Same denominator per person, not their own row count.
+      .map(([name, v]) => ({
+        name,
+        value: workingDays > 0
+          ? +Math.min(100, (v.present / workingDays) * 100).toFixed(1)
+          : (v.total ? +((v.present / v.total) * 100).toFixed(1) : 0),
+      }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 12);
-  }, [rows]);
+  }, [rows, workingDays]);
 
   const statusChart = useMemo(() => {
     const m = new Map<string, number>();
