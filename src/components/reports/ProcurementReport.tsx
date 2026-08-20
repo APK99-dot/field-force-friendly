@@ -372,7 +372,7 @@ export default function ProcurementReport() {
               // straight at the record rather than making people search for it.
               <TableRow
                 key={r.id}
-                onClick={() => navigate(`/procurement?po=${r.id}`)}
+                onClick={() => navigate(`/procurement?po=${r.id}&from=${encodeURIComponent("/analytics?tab=procurement")}`)}
                 className="cursor-pointer hover:bg-muted/50"
               >
                 <TableCell className="font-medium">{r.po_number}</TableCell>

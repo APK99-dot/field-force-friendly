@@ -287,7 +287,13 @@ export default function Procurement() {
   // Focus target when navigated from a deep link (e.g., Vendor 360°)
   const [detailFocus, setDetailFocus] = useState<{ vendorId?: string | null; section?: "quote" | "invoices" | "grns" | "financials"; invoiceId?: string | null } | null>(null);
 
-  // Open detail when navigated with ?po=<id>&vendor=&section=&invoice=
+  // Where to go when the detail closes, when the caller asked for one. A report
+  // row sets ?from=/analytics?tab=payments so closing the PO returns to that
+  // report rather than stranding the user on the procurement list they never
+  // chose to visit.
+  const [returnTo, setReturnTo] = useState<string | null>(null);
+
+  // Open detail when navigated with ?po=<id>&vendor=&section=&invoice=&from=
   useEffect(() => {
     const poId = searchParams.get("po");
     if (poId && orders.length) {
@@ -296,13 +302,17 @@ export default function Procurement() {
         const vendorId = searchParams.get("vendor");
         const section = searchParams.get("section") as any;
         const invoiceId = searchParams.get("invoice");
+        const from = searchParams.get("from");
+        // Same-origin in-app paths only — never follow an absolute URL from a
+        // query string.
+        setReturnTo(from && from.startsWith("/") && !from.startsWith("//") ? from : null);
         setDetailFocus({
           vendorId: vendorId || null,
           section: (["quote", "invoices", "grns", "financials"].includes(section) ? section : undefined),
           invoiceId: invoiceId || null,
         });
         setDetail(found);
-        setSearchParams((prev) => { prev.delete("po"); prev.delete("vendor"); prev.delete("section"); prev.delete("invoice"); return prev; }, { replace: true });
+        setSearchParams((prev) => { prev.delete("po"); prev.delete("vendor"); prev.delete("section"); prev.delete("invoice"); prev.delete("from"); return prev; }, { replace: true });
       }
     }
   }, [searchParams, orders]);
@@ -1080,7 +1090,13 @@ export default function Procurement() {
       {detail && (
         <ProcurementDetail
           open={!!detail}
-          onOpenChange={(o) => { if (!o) { setDetail(null); setDetailFocus(null); } }}
+          onOpenChange={(o) => {
+            if (!o) {
+              setDetail(null);
+              setDetailFocus(null);
+              if (returnTo) { const back = returnTo; setReturnTo(null); navigate(back); }
+            }
+          }}
           order={detail}
           canApprove={canApprove}
           currentUserId={profile?.id}

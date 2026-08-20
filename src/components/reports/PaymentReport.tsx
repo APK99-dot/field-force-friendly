@@ -333,7 +333,7 @@ export default function PaymentReport() {
             {rows.map((r) => (
               <TableRow
                 key={r.id}
-                onClick={() => r.po_id && navigate(`/procurement?po=${r.po_id}`)}
+                onClick={() => r.po_id && navigate(`/procurement?po=${r.po_id}&from=${encodeURIComponent("/analytics?tab=payments")}`)}
                 className={r.po_id ? "cursor-pointer hover:bg-muted/50" : undefined}
               >
                 <TableCell className="font-medium">{r.po_number}</TableCell>
