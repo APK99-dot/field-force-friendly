@@ -309,7 +309,17 @@ export async function buildPurchaseOrderPdf(params: {
     ["Site / Project", order.site_name || "-"],
     ["Requisition", [order.requisition_number, order.requisition_name].filter(Boolean).join(" · ") || "-"],
     ["Expected Delivery", fmtDate(order.expected_delivery_date)],
-    ["Payment Terms", order.payment_terms || "-"],
+    // A bare "15" tells a vendor nothing. Days is appended only when the value
+    // is a plain number, so free-text terms like "Immediate" or "Net 30" are
+    // left exactly as entered.
+    [
+      "Payment Terms",
+      (() => {
+        const t = (order.payment_terms || "").trim();
+        if (!t) return "-";
+        return /^\d+(\.\d+)?$/.test(t) ? `${t} (days)` : t;
+      })(),
+    ],
   ];
   const cellW = usableW / metaCells.length;
   f("normal", 7.5);
