@@ -950,7 +950,13 @@ export default function ProcurementDetail({
           uom: (l as any).uom || null,
           rate,
           discount: discountAmt,
-          gst_percent: Number((l as any).gst_percent || 0),
+          // Fall back to the vendor's quoted GST, exactly as `rate` above does.
+          // Without this a line whose GST lives on the quote — not yet copied
+          // onto the line — printed 0% and zero tax on a document being sent
+          // to the vendor.
+          gst_percent: Number(
+            (qi as any)?.gst_percent ?? (l as any).gst_percent ?? 0
+          ),
         };
       });
 
@@ -967,6 +973,8 @@ export default function ProcurementDetail({
           requisition_number: (order as any).requisition_number || null,
           requisition_name: reqName,
           site_name: siteName(order.site_id) || null,
+          bill_to_gst: (order as any).bill_to_gst || null,
+          ship_to_gst: (order as any).ship_to_gst || null,
           version: nextVersion,
         },
         vendor: {

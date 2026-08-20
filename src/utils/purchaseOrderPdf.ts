@@ -83,6 +83,10 @@ export interface POOrderInput {
   expected_delivery_date?: string | null;
   payment_terms?: string | null;
   bill_to?: string | null;
+  /** GSTIN printed under the address. A PO is a tax document; omitting it
+   *  forces the vendor to chase it before they can raise their invoice. */
+  bill_to_gst?: string | null;
+  ship_to_gst?: string | null;
   ship_to?: string | null;
   requisition_number?: string | null;
   requisition_name?: string | null;
@@ -247,8 +251,20 @@ export async function buildPurchaseOrderPdf(params: {
 
   const blocks: Array<{ title: string; lines: string[] }> = [
     { title: "VENDOR", lines: vendorBlock },
-    { title: "SHIP TO", lines: (order.ship_to || "-").split("\n") },
-    { title: "BILL TO", lines: (order.bill_to || "-").split("\n") },
+    {
+      title: "SHIP TO",
+      lines: [
+        ...(order.ship_to || "-").split("\n"),
+        ...(order.ship_to_gst ? [`GSTIN: ${order.ship_to_gst}`] : []),
+      ],
+    },
+    {
+      title: "BILL TO",
+      lines: [
+        ...(order.bill_to || "-").split("\n"),
+        ...(order.bill_to_gst ? [`GSTIN: ${order.bill_to_gst}`] : []),
+      ],
+    },
   ];
 
   // Pre-measure so all three panels share one height.
