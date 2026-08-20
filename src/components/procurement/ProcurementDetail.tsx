@@ -679,28 +679,7 @@ export default function ProcurementDetail({
         const { data: { user } } = await supabase.auth.getUser();
         const prevItems = existing.procurement_vendor_quote_items || [];
         const oldToken = existing.token;
-        // Who to call at the delivery site. Fetched at generation time rather
-      // than stored on the order, so a PO regenerated after the site roster
-      // changes carries whoever is actually assigned now.
-      let siteContacts: { name: string; phone: string | null }[] = [];
-      if (order.site_id) {
-        const { data: assigned } = await supabase
-          .from("site_assignments")
-          .select("user_id")
-          .eq("site_id", order.site_id);
-        const ids = (assigned || []).map((a: any) => a.user_id).filter(Boolean);
-        if (ids.length) {
-          const { data: people } = await supabase
-            .from("users")
-            .select("full_name, phone, is_active")
-            .in("id", ids);
-          siteContacts = (people || [])
-            .filter((u: any) => u.is_active && u.full_name)
-            .map((u: any) => ({ name: u.full_name as string, phone: (u.phone as string) || null }));
-        }
-      }
-
-      const nextVersion = (existing.version || 1) + 1;
+        const nextVersion = (existing.version || 1) + 1;
         const scratchToken = crypto.randomUUID().replace(/-/g, "") + "-v" + (existing.version || 1);
 
         // 1. Release the token from the old row + mark it archived.
@@ -980,6 +959,27 @@ export default function ProcurementDetail({
           ),
         };
       });
+
+      // Who to call at the delivery site. Fetched at generation time rather
+      // than stored on the order, so a PO regenerated after the site roster
+      // changes carries whoever is actually assigned now.
+      let siteContacts: { name: string; phone: string | null }[] = [];
+      if (order.site_id) {
+        const { data: assigned } = await supabase
+          .from("site_assignments")
+          .select("user_id")
+          .eq("site_id", order.site_id);
+        const ids = (assigned || []).map((a: any) => a.user_id).filter(Boolean);
+        if (ids.length) {
+          const { data: people } = await supabase
+            .from("users")
+            .select("full_name, phone, is_active")
+            .in("id", ids);
+          siteContacts = (people || [])
+            .filter((u: any) => u.is_active && u.full_name)
+            .map((u: any) => ({ name: u.full_name as string, phone: (u.phone as string) || null }));
+        }
+      }
 
       const nextVersion = (poDocs.filter((d) => d.vendor_id === vendorId).reduce((m, d) => Math.max(m, Number(d.version || 0)), 0)) + 1;
 
