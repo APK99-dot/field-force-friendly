@@ -235,11 +235,26 @@ export default function AttendanceReport() {
   const statusChart = useMemo(() => {
     const m = new Map<string, number>();
     rows.forEach((r) => m.set(r.status, (m.get(r.status) || 0) + 1));
+
+    // Absent days are not stored — a no-show simply leaves no row — so a
+    // distribution built only from rows can never contain anything but the
+    // statuses people did record. That is why this read 100% Present with a
+    // single-entry legend while the daily bars plainly had gaps.
+    //
+    // The missing slice is expected working days minus the days accounted for.
+    const headcount = employee !== "all" ? 1 : (scope.users.length || 1);
+    const expected = workingDays * headcount;
+    if (expected > 0) {
+      const accounted = Array.from(m.values()).reduce((a, b) => a + b, 0);
+      const absent = expected - accounted;
+      if (absent > 0) m.set("absent", (m.get("absent") || 0) + absent);
+    }
+
     return Array.from(m.entries()).map(([k, value]) => ({
       name: k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, " "),
       value,
     }));
-  }, [rows]);
+  }, [rows, workingDays, employee, scope.users]);
 
   const hoursTrend = useMemo(() => {
     const m = new Map<string, { sum: number; count: number }>();
