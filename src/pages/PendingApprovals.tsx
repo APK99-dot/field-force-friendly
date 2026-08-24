@@ -128,10 +128,11 @@ export default function PendingApprovals() {
 
       if (app) {
         try {
-          const { sendNotificationWithPush, getAdminUserIds } = await import('@/utils/notificationHelpers');
-          const adminIds = await getAdminUserIds();
-          const recipients = Array.from(new Set([app.user_id, ...adminIds]));
-          await sendNotificationWithPush(recipients, {
+          const { sendNotificationWithPush } = await import('@/utils/notificationHelpers');
+          // The applicant only — the message is written in the second person
+          // ("Your leave..."), so copying admins told each of them their own
+          // leave had been decided.
+          await sendNotificationWithPush([app.user_id], {
             title: `Leave ${status === "approved" ? "Approved" : "Rejected"}`,
             message: `Your ${app.leave_type_name} from ${format(new Date(app.from_date), "MMM dd")} to ${format(new Date(app.to_date), "MMM dd")}${status === "rejected" && reason ? ` - Reason: ${reason}` : ""} has been ${status}.`,
             type: "leave_decision", related_table: "leave_applications", related_id: id,
@@ -178,10 +179,8 @@ export default function PendingApprovals() {
       if (error) throw error;
 
       try {
-        const { sendNotificationWithPush, getAdminUserIds } = await import('@/utils/notificationHelpers');
-        const adminIds = await getAdminUserIds();
-        const recipients = Array.from(new Set([request.user_id, ...adminIds]));
-        await sendNotificationWithPush(recipients, {
+        const { sendNotificationWithPush } = await import('@/utils/notificationHelpers');
+        await sendNotificationWithPush([request.user_id], {
           title: `Regularisation ${status === "approved" ? "Approved" : "Rejected"}`,
           message: `Your regularisation for ${format(new Date(request.attendance_date || request.date), "MMM dd, yyyy")}${status === "rejected" && reason ? ` - Reason: ${reason}` : ""} has been ${status}.`,
           type: "regularization_decision", related_table: "regularization_requests", related_id: id,
