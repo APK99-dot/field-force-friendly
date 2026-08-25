@@ -966,31 +966,17 @@ export default function ProcurementDetail({
       // site includes admins and office staff, which put five names on the PO
       // when only the two engineers are useful to a driver. The role is the
       // thing that actually means "person at site".
+      // Via an RPC, not a direct read: user_security_profiles is owner-only for
+      // non-admins, so reading it here put the contacts on admin-generated POs
+      // and left them off everyone else's.
       let siteContacts: { name: string; phone: string | null }[] = [];
       try {
-        const { data: engineerProfile } = await supabase
-          .from("security_profiles")
-          .select("id")
-          .eq("name", "Site Engineer")
-          .maybeSingle();
-
-        if (engineerProfile?.id) {
-          const { data: holders } = await supabase
-            .from("user_security_profiles")
-            .select("user_id")
-            .eq("profile_id", engineerProfile.id);
-          const ids = (holders || []).map((h: any) => h.user_id).filter(Boolean);
-          if (ids.length) {
-            const { data: people } = await supabase
-              .from("users")
-              .select("full_name, phone, is_active")
-              .in("id", ids)
-              .order("full_name");
-            siteContacts = (people || [])
-              .filter((u: any) => u.is_active && u.full_name)
-              .map((u: any) => ({ name: u.full_name as string, phone: (u.phone as string) || null }));
-          }
-        }
+        const { data: people, error } = await supabase.rpc("po_site_contacts");
+        if (error) throw error;
+        siteContacts = (people || []).map((u: any) => ({
+          name: u.name as string,
+          phone: (u.phone as string) || null,
+        }));
       } catch (e) {
         // A PO must still generate without contacts.
         console.warn("Site contact lookup failed:", e);
