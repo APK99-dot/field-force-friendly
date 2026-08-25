@@ -608,8 +608,12 @@ export default function GRNForm({
             <Button variant="outline" className="flex-1 sm:flex-none sm:min-w-[120px]" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button className="flex-1 sm:flex-none sm:min-w-[160px]" onClick={handleSave} disabled={saving}>
-              <Save className="h-4 w-4 mr-2" />{saving ? "Saving..." : "Save GRN"}
+            {/* Saving mid-upload silently drops the photo: the path is only
+                pushed into `photos` once the upload resolves, and closing the
+                dialog abandons it. On site mobile data that window is long. */}
+            <Button className="flex-1 sm:flex-none sm:min-w-[160px]" onClick={handleSave} disabled={saving || uploadingPhoto}>
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? "Saving..." : uploadingPhoto ? "Uploading photo..." : "Save GRN"}
             </Button>
           </div>
         </div>
