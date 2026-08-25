@@ -520,7 +520,16 @@ Deno.serve(async (req) => {
       const vendorLocalId = accId ? vendorMap.get(accId) : null;
       if (!vendorLocalId) { psSkipped++; continue; }
 
-      const amt = ps.Amount_To_Be_Paid__c ?? ps.Amount_Processed__c ?? 0;
+      // Despite the names, Amount_Processed__c is the GROSS invoice and
+      // Amount_To_Be_Paid__c is the NET actually disbursed after TDS —
+      // confirmed against PS-531 (invoice 20,000, TDS 400, paid 19,600).
+      // Reading them the other way round made "Paid" exceed "Invoice Amt" on
+      // every record that had tax deducted.
+      // `??` alone is wrong here: an unpaid schedule has Amount_Processed__c 0,
+      // not null, which would zero the invoice.
+      const amt = (ps.Amount_Processed__c && ps.Amount_Processed__c > 0)
+        ? ps.Amount_Processed__c
+        : (ps.Amount_To_Be_Paid__c ?? 0);
       const invDate = ps.Invoice_Date_from_Vendor__c || (ps.CreatedDate ? ps.CreatedDate.slice(0, 10) : null) || ps.Payment_Due_Date__c || ps.Payment_Date__c || new Date().toISOString().slice(0, 10);
 
       const { data: existingInv } = await admin.from("procurement_invoices")
@@ -545,7 +554,8 @@ Deno.serve(async (req) => {
       invoiceIdBySfPsId.set(ps.Id, invoiceId);
 
       const status = (ps.Status__c || "").toLowerCase();
-      const paidAmt = ps.Amount_Processed__c ?? 0;
+      // The net figure — what actually left the bank after TDS.
+      const paidAmt = ps.Amount_To_Be_Paid__c ?? 0;
       if (status === "paid" && paidAmt > 0) {
         const paySfId = `${ps.Id}-pay`;
         const { data: existingPay } = await admin.from("procurement_invoice_payments")
