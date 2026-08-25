@@ -76,6 +76,21 @@ export default function GRNForm({
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(
     vendorId || (poVendors && poVendors.length === 1 ? poVendors[0].id : null),
   );
+
+  // Both inputs arrive after the first render: vendorId is null for quote-flow
+  // POs (the vendor lives in the assignments, not on procurement_orders), and
+  // poVendors is fetched async. The initialiser above therefore ran against an
+  // empty list, leaving the GRN with no vendor and invisible to the vendor row.
+  // Adopt whichever resolves, but never overwrite a deliberate choice.
+  useEffect(() => {
+    if (selectedVendorId) return;
+    if (vendorId) {
+      setSelectedVendorId(vendorId);
+    } else if (poVendors && poVendors.length === 1) {
+      setSelectedVendorId(poVendors[0].id);
+    }
+  }, [vendorId, poVendors, selectedVendorId]);
+
   const visibleItems = useMemo(() => {
     if (!selectedVendorId || !itemVendorMap) return items;
     return items.filter((it) => (itemVendorMap[it.id] || []).includes(selectedVendorId));
@@ -192,8 +207,10 @@ export default function GRNForm({
           remarks: remarks.trim() || null,
           status,
           photos: photos.map((p) => p.path),
+          // Last resort: a single-vendor PO can only have received from that
+          // vendor, and a null here orphans the receipt from the vendor row.
+          vendor_id: selectedVendorId ?? (poVendors?.length === 1 ? poVendors[0].id : null),
           created_by: createdBy,
-          vendor_id: selectedVendorId,
         })
         .select("id")
         .single();
