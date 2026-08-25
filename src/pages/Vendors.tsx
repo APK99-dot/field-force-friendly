@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useProfilePermissions } from "@/hooks/useProfilePermissions";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -165,6 +166,10 @@ export default function Vendors() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { profile, isAdmin } = useUserProfile();
+  const { hasPermission } = useProfilePermissions();
+  // Adding a vendor is ordinary procurement work; the Salesforce import is not
+  // — it pulls hundreds of records in one go and stays admin-only below.
+  const canAddVendor = isAdmin || hasPermission("module_vendors", "edit");
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -407,21 +412,25 @@ export default function Vendors() {
           <p className="text-xs text-muted-foreground">{vendors.length} vendors</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {isAdmin && (
+          {(isAdmin || canAddVendor) && (
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setImportConfirm(true)}
-                disabled={importMutation.isPending}
-                className="gap-1.5"
-              >
-                <Download className="h-4 w-4" />
-                {importMutation.isPending ? "Importing..." : "Import from Salesforce"}
-              </Button>
-              <Button size="sm" onClick={openAdd} className="gap-1.5">
-                <Plus className="h-4 w-4" /> Add Vendor
-              </Button>
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setImportConfirm(true)}
+                  disabled={importMutation.isPending}
+                  className="gap-1.5"
+                >
+                  <Download className="h-4 w-4" />
+                  {importMutation.isPending ? "Importing..." : "Import from Salesforce"}
+                </Button>
+              )}
+              {canAddVendor && (
+                <Button size="sm" onClick={openAdd} className="gap-1.5">
+                  <Plus className="h-4 w-4" /> Add Vendor
+                </Button>
+              )}
             </div>
           )}
         </div>
