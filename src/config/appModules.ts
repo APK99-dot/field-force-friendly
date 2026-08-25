@@ -28,6 +28,12 @@ export const APP_MODULES: AppModule[] = [
   { name: "module_events", label: "Events", sort_order: 14 },
   { name: "module_opportunities", label: "Opportunities", sort_order: 15 },
   { name: "module_vendors", label: "Vendors", sort_order: 16 },
+  // Navigation visibility only. Deliberately separate from module_master_data,
+  // which controls who can WRITE master records — site engineers need that to
+  // add products from a requisition, but should not see the master screens.
+  { name: "module_vendor_master", label: "Vendor Master (screen)", sort_order: 17 },
+  { name: "module_product_master", label: "Product Master (screen)", sort_order: 18 },
+  { name: "module_address_book", label: "Address Book (screen)", sort_order: 19 },
 ];
 
 export function getAppModuleNames(): string[] {

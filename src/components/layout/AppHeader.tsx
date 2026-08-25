@@ -37,6 +37,7 @@ import {
   FileBarChart,
   UserPlus,
   Contact,
+  MapPin,
   CalendarDays,
   Target,
 } from "lucide-react";
@@ -72,8 +73,11 @@ const allNavigationItems = [
   { icon: UserPlus, label: "Leads", href: "/leads", color: "from-amber-500 to-amber-600", module: "module_leads" },
   { icon: CalendarDays, label: "Events", href: "/events", color: "from-fuchsia-500 to-fuchsia-600", module: "module_events" },
   { icon: Target, label: "Opportunities", href: "/opportunities", color: "from-lime-500 to-lime-600", module: "module_opportunities" },
-  { icon: Handshake, label: "Vendor Master", href: "/vendors", color: "from-yellow-500 to-amber-600", module: null as string | null },
-  { icon: Package, label: "Product Master", href: "/master-data/products", color: "from-violet-500 to-purple-600", module: null as string | null },
+  // These three were `module: null`, which the filter below treats as "always
+  // visible" — so site engineers saw the vendor and product masters. Gated now.
+  { icon: Handshake, label: "Vendor Master", href: "/vendors", color: "from-yellow-500 to-amber-600", module: "module_vendor_master" as string | null },
+  { icon: Package, label: "Product Master", href: "/master-data/products", color: "from-violet-500 to-purple-600", module: "module_product_master" as string | null },
+  { icon: MapPin, label: "Address Book", href: "/master-data/addresses", color: "from-emerald-500 to-teal-600", module: "module_address_book" as string | null },
   { icon: FileBarChart, label: "Reports", href: "/reports", color: "from-teal-500 to-teal-600", module: "module_reports" },
 ];
 
