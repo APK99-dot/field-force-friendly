@@ -29,6 +29,7 @@ import {
   Calendar,
   Trash2,
   Paperclip,
+  ImagePlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -75,6 +76,7 @@ interface Props {
   canAssign: boolean;
   cfgCheckIn: boolean;
   cfgTakePhoto: boolean;
+  cfgUploadGallery: boolean;
   createActivity: (activity: any, targetUserId?: string, silent?: boolean) => Promise<any>;
   updateActivity?: (id: string, updates: any) => Promise<any>;
   checkInForDate: (userId: string, date: string) => Promise<any>;
@@ -138,6 +140,7 @@ export default function CreativeActivityForm({
   canAssign,
   cfgCheckIn,
   cfgTakePhoto,
+  cfgUploadGallery,
   createActivity,
   updateActivity,
   checkInForDate,
@@ -185,6 +188,9 @@ export default function CreativeActivityForm({
     formatDuration,
   } = useAudioRecorder();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Separate input: the camera one carries capture="environment", which forces
+  // the camera and gives no way to reach the gallery.
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
   const dateStr = format(new Date(), "yyyy-MM-dd");
@@ -358,10 +364,12 @@ export default function CreativeActivityForm({
   }, []);
 
   const handlePhotoPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    // The gallery input allows multiple; the camera one yields exactly one.
+    const files = Array.from(e.target.files || []);
     e.target.value = "";
-    if (!file) return;
-    await uploadPhotoBlob(file);
+    for (const file of files) {
+      await uploadPhotoBlob(file);
+    }
   };
 
   const handleOpenCamera = useCallback(async () => {
@@ -713,6 +721,34 @@ export default function CreativeActivityForm({
                           </button>
                         </TooltipTrigger>
                         <TooltipContent>Add photo{photos.length > 0 ? ` (${photos.length})` : ""}</TooltipContent>
+                      </Tooltip>
+                    </>
+                  )}
+
+                  {/* Gallery */}
+                  {cfgUploadGallery && (
+                    <>
+                      <input
+                        ref={galleryInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handlePhotoPick}
+                        className="hidden"
+                      />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => galleryInputRef.current?.click()}
+                            disabled={uploadingPhoto}
+                            className="h-9 w-9 rounded-full flex items-center justify-center text-fuchsia-600 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/30 disabled:opacity-60 transition"
+                            aria-label="Upload from gallery"
+                          >
+                            <ImagePlus className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Upload from gallery</TooltipContent>
                       </Tooltip>
                     </>
                   )}

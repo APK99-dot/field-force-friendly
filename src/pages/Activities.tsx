@@ -1006,6 +1006,7 @@ export default function Activities() {
         canAssign={canAssign}
         cfgCheckIn={cfgCheckIn}
         cfgTakePhoto={cfgTakePhoto}
+        cfgUploadGallery={cfgUploadGallery}
         createActivity={createActivity}
         updateActivity={updateActivity}
         checkInForDate={checkInForDate}
