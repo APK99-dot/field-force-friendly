@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,8 @@ interface Props {
   itemVendorMap?: Record<string, string[]>;
   /** Existing invoices already on this PO — used for duplicate detection */
   existingInvoices?: { invoice_number: string | null; invoice_amount: number; vendor_id?: string | null }[];
+  /** When set the dialog edits this invoice instead of creating one. */
+  editingInvoice?: { id: string; invoice_number: string | null; invoice_date: string | null; vendor_id: string | null } | null;
 }
 
 
@@ -45,6 +47,10 @@ interface PaymentLine {
   bank_name: string;
   amount: string;
   payment_date: string;
+  /** Set for a row that already exists in the database, so an edit updates it
+   *  in place rather than deleting and re-inserting — which would discard the
+   *  salesforce_id on imported payments. */
+  dbId?: string;
 }
 
 function formatBytes(bytes: number): string {
@@ -64,8 +70,9 @@ const newPayment = (): PaymentLine => ({
 
 export default function InvoiceForm({
   open, onOpenChange, poId, poNumber, vendorNameStr, items, productName, createdBy, onSaved,
-  poVendors, itemVendorMap, existingInvoices,
+  poVendors, itemVendorMap, existingInvoices, editingInvoice,
 }: Props) {
+  const isEdit = !!editingInvoice;
   const [uiMode] = useUiMode();
   const lightning = isLightning(uiMode);
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -78,6 +85,37 @@ export default function InvoiceForm({
     poVendors && poVendors.length === 1 ? poVendors[0].id : null,
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [loadingExisting, setLoadingExisting] = useState(false);
+
+  // Prefill when editing. Payments are fetched rather than passed in, so the
+  // caller does not have to load them for every invoice in the list.
+  useEffect(() => {
+    if (!open || !editingInvoice) return;
+    setInvoiceNumber(editingInvoice.invoice_number || "");
+    setInvoiceDate(editingInvoice.invoice_date || new Date().toISOString().slice(0, 10));
+    setSelectedVendorId(editingInvoice.vendor_id ?? null);
+    setLoadingExisting(true);
+    (async () => {
+      const { data } = await supabase
+        .from("procurement_invoice_payments")
+        .select("id, reference_number, bank_name, amount, payment_date")
+        .eq("invoice_id", editingInvoice.id)
+        .order("payment_date");
+      setPayments(
+        (data || []).length
+          ? (data || []).map((p: any) => ({
+              id: p.id,
+              dbId: p.id,
+              reference_number: p.reference_number || "",
+              bank_name: p.bank_name || "",
+              amount: p.amount != null ? String(p.amount) : "",
+              payment_date: p.payment_date || "",
+            }))
+          : [newPayment()]
+      );
+      setLoadingExisting(false);
+    })();
+  }, [open, editingInvoice]);
 
   const visibleItems = useMemo(() => {
     if (!selectedVendorId || !itemVendorMap) return items;
@@ -132,8 +170,9 @@ export default function InvoiceForm({
   const handleSave = async () => {
     if (!invoiceNumber.trim()) { toast.error("Invoice number is required"); return; }
 
-    // Duplicate detection: same invoice number (case-insensitive) OR near-identical amount
-    if (!duplicateAcknowledged && existingInvoices && existingInvoices.length) {
+    // Duplicate detection is for new invoices only — editing one would always
+    // match itself.
+    if (!isEdit && !duplicateAcknowledged && existingInvoices && existingInvoices.length) {
       const num = invoiceNumber.trim().toLowerCase();
       const dup = existingInvoices.find((e) => {
         const sameNumber = (e.invoice_number || "").trim().toLowerCase() === num;
@@ -149,19 +188,38 @@ export default function InvoiceForm({
 
     setSaving(true);
     try {
-      const { data: inv, error } = await supabase
-        .from("procurement_invoices")
-        .insert({
-          po_id: poId,
-          invoice_number: invoiceNumber.trim(),
-          invoice_date: invoiceDate,
-          invoice_amount: amount,
-          created_by: createdBy,
-          vendor_id: selectedVendorId,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
+      let inv: { id: string };
+      if (isEdit) {
+        const { error } = await supabase
+          .from("procurement_invoices")
+          .update({
+            invoice_number: invoiceNumber.trim(),
+            invoice_date: invoiceDate,
+            invoice_amount: amount,
+            vendor_id: selectedVendorId,
+          })
+          .eq("id", editingInvoice!.id);
+        if (error) throw error;
+        inv = { id: editingInvoice!.id };
+
+        // Line items are derived from the PO, so replace them wholesale.
+        await supabase.from("procurement_invoice_items").delete().eq("invoice_id", inv.id);
+      } else {
+        const { data, error } = await supabase
+          .from("procurement_invoices")
+          .insert({
+            po_id: poId,
+            invoice_number: invoiceNumber.trim(),
+            invoice_date: invoiceDate,
+            invoice_amount: amount,
+            created_by: createdBy,
+            vendor_id: selectedVendorId,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        inv = data as { id: string };
+      }
 
       const itemRows = visibleItems.map((it) => ({
         invoice_id: inv.id,
@@ -189,7 +247,43 @@ export default function InvoiceForm({
       const validPayments = payments.filter(
         (p) => (parseFloat(p.amount) || 0) > 0 || p.reference_number.trim() || p.bank_name.trim()
       );
-      if (validPayments.length) {
+
+      if (isEdit) {
+        // Update rows in place, insert new ones, delete the ones removed —
+        // rather than delete-all-and-reinsert, which would drop salesforce_id
+        // on imported payments and break re-import matching.
+        const keptIds = validPayments.map((p) => p.dbId).filter(Boolean) as string[];
+        const { data: current } = await supabase
+          .from("procurement_invoice_payments")
+          .select("id")
+          .eq("invoice_id", inv.id);
+        const removed = (current || [])
+          .map((r: any) => r.id as string)
+          .filter((id) => !keptIds.includes(id));
+        if (removed.length) {
+          const { error: de } = await supabase
+            .from("procurement_invoice_payments").delete().in("id", removed);
+          if (de) throw de;
+        }
+        for (const p of validPayments) {
+          const row = {
+            reference_number: p.reference_number.trim() || null,
+            bank_name: p.bank_name.trim() || null,
+            amount: parseFloat(p.amount) || 0,
+            payment_date: p.payment_date || null,
+          };
+          if (p.dbId) {
+            const { error: ue } = await supabase
+              .from("procurement_invoice_payments").update(row).eq("id", p.dbId);
+            if (ue) throw ue;
+          } else {
+            const { error: pe } = await supabase
+              .from("procurement_invoice_payments")
+              .insert({ ...row, invoice_id: inv.id, created_by: createdBy });
+            if (pe) throw pe;
+          }
+        }
+      } else if (validPayments.length) {
         const { error: pe } = await supabase.from("procurement_invoice_payments").insert(
           validPayments.map((p) => ({
             invoice_id: inv.id,
@@ -203,7 +297,7 @@ export default function InvoiceForm({
         if (pe) throw pe;
       }
 
-      toast.success("Invoice recorded");
+      toast.success(isEdit ? "Invoice updated" : "Invoice recorded");
       onOpenChange(false);
       onSaved();
     } catch (err: any) {
@@ -230,7 +324,7 @@ export default function InvoiceForm({
             <div className="min-w-0 flex-1">
               {lightning && <div className="sf-eyebrow">Procurement</div>}
               <DialogTitle className={cn("truncate", lightning ? "sf-title" : "text-base")}>
-                Record Invoice — {poNumber}
+                {isEdit ? "Edit Invoice" : "Record Invoice"} — {poNumber}
               </DialogTitle>
               {lightning && <div className="sf-subtitle truncate">Vendor invoice &amp; payment capture</div>}
             </div>
@@ -481,7 +575,8 @@ export default function InvoiceForm({
               Cancel
             </Button>
             <Button className="flex-1 sm:flex-none sm:min-w-[160px]" onClick={handleSave} disabled={saving}>
-              <Save className="h-4 w-4 mr-2" />{saving ? "Saving..." : "Save Invoice"}
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? "Saving..." : loadingExisting ? "Loading..." : isEdit ? "Update Invoice" : "Save Invoice"}
             </Button>
           </div>
         </div>

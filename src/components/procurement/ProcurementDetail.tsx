@@ -221,6 +221,7 @@ export default function ProcurementDetail({
   const [invAttachments, setInvAttachments] = useState<{ id: string; invoice_id: string; file_name: string; file_path: string; file_size: number | null }[]>([]);
   const [grnOpen, setGrnOpen] = useState(false);
   const [invOpen, setInvOpen] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<InvRow | null>(null);
   const [selectedGrn, setSelectedGrn] = useState<GrnRow | null>(null);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [payForm, setPayForm] = useState<{ open: boolean; payment_date: string; amount: string; reference: string; notes: string }>({ open: false, payment_date: new Date().toISOString().slice(0, 10), amount: "", reference: "", notes: "" });
@@ -284,6 +285,7 @@ export default function ProcurementDetail({
     const inv = invoices.find((i) => i.id === focus.invoiceId);
     if (inv) {
       setSelectedInvoiceId(inv.id);
+      setEditingInvoice(null);
       setInvOpen(true);
       onFocusConsumed?.();
     }
@@ -2552,7 +2554,7 @@ export default function ProcurementDetail({
                                                     size="sm" variant="outline" className="h-6 text-[11px] shrink-0"
                                                     disabled={!hasGrn && vInvs.length === 0}
                                                     title={!hasGrn && vInvs.length === 0 ? "Receive goods first" : "Add Invoice"}
-                                                    onClick={(e) => { e.stopPropagation(); if (!hasGrn && vInvs.length === 0) return; setScopedVendorId(row.vendor_id!); setInvVendorId(row.vendor_id!); setInvOpen(true); }}
+                                                    onClick={(e) => { e.stopPropagation(); if (!hasGrn && vInvs.length === 0) return; setScopedVendorId(row.vendor_id!); setInvVendorId(row.vendor_id!); setEditingInvoice(null); setInvOpen(true); }}
                                                   >
                                                     <Plus className="h-3 w-3 mr-1" />Add Invoice
                                                   </Button>
@@ -2571,7 +2573,25 @@ export default function ProcurementDetail({
                                                         <div className="font-medium">{i.invoice_number}</div>
                                                         <div className="text-[10px] text-muted-foreground">{i.invoice_date}</div>
                                                       </div>
-                                                      <div className="font-medium">{fmtAmt(i.invoice_amount)}</div>
+                                                      <div className="flex items-center gap-1">
+                                                        <div className="font-medium">{fmtAmt(i.invoice_amount)}</div>
+                                                        {canOverrideStatus && (
+                                                          <button
+                                                            type="button"
+                                                            aria-label={`Edit ${i.invoice_number || "invoice"}`}
+                                                            className="p-1 rounded hover:bg-muted"
+                                                            onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              setScopedVendorId(row.vendor_id!);
+                                                              setInvVendorId(row.vendor_id!);
+                                                              setEditingInvoice(i);
+                                                              setInvOpen(true);
+                                                            }}
+                                                          >
+                                                            <Pencil className="h-3 w-3" />
+                                                          </button>
+                                                        )}
+                                                      </div>
                                                     </div>
                                                   ))}
                                                 </div>
@@ -3246,7 +3266,8 @@ export default function ProcurementDetail({
             : derivedVendorIds.map((id) => ({ id, name: vendorName(id) }));
           return (
             <InvoiceForm
-              open={invOpen} onOpenChange={(o) => { setInvOpen(o); if (!o) setScopedVendorId(null); }}
+              open={invOpen} onOpenChange={(o) => { setInvOpen(o); if (!o) { setScopedVendorId(null); setEditingInvoice(null); } }}
+              editingInvoice={editingInvoice}
               poId={order.id} poNumber={order.po_number || "(No PO #)"}
               vendorNameStr={vendorName(scopedVendorId || order.vendor_id)}
               items={items} productName={productName} createdBy={currentUserId}
