@@ -196,6 +196,13 @@ export default function GRNForm({
       toast.error("Enter received quantity for at least one item");
       return;
     }
+    // A receipt with no vendor is invisible to the vendor row on the PO, which
+    // filters on vendor_id. The single-vendor case is filled in below; when
+    // several vendors supplied the PO only the receiver knows which delivered.
+    if (!isTransfer && !selectedVendorId && (poVendors?.length ?? 0) > 1) {
+      toast.error("Select which vendor delivered these goods");
+      return;
+    }
     setSaving(true);
     try {
       const { data: grn, error } = await supabase
