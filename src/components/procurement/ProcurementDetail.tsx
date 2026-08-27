@@ -95,7 +95,7 @@ interface Props {
 
 interface GrnRow { id: string; grn_number: string | null; receipt_date: string; status: string; received_by: string | null; remarks: string | null; vendor_id: string | null; photos?: string[] | null; }
 interface GrnItemRow { grn_id: string; procurement_item_id: string | null; received_qty: number; }
-interface InvRow { id: string; invoice_number: string | null; invoice_date: string; invoice_amount: number; vendor_id: string | null; }
+interface InvRow { id: string; invoice_number: string | null; invoice_date: string; invoice_amount: number; vendor_id: string | null; extra_numbers?: string[]; }
 interface InvItemRow { invoice_id: string; procurement_item_id: string | null; invoiced_rate: number; }
 interface InvPaymentRow { invoice_id: string; amount: number; payment_date: string | null; reference_number: string | null; notes?: string | null; }
 
@@ -860,14 +860,22 @@ export default function ProcurementDetail({
   const fetchSub = useCallback(async () => {
     const [g, inv, docs] = await Promise.all([
       supabase.from("procurement_grns").select("*, procurement_grn_items(*)").eq("po_id", order.id).order("created_at"),
-      supabase.from("procurement_invoices").select("*, procurement_invoice_items(*), procurement_invoice_payments(*), procurement_invoice_attachments(*)").eq("po_id", order.id).order("created_at"),
+      supabase.from("procurement_invoices").select("*, procurement_invoice_items(*), procurement_invoice_payments(*), procurement_invoice_attachments(*), procurement_invoice_numbers(invoice_number, sort_order)").eq("po_id", order.id).order("created_at"),
       supabase.from("procurement_attachments").select("id, vendor_id, file_name, file_path, file_size, version, notes, created_at, created_by").eq("po_id", order.id).eq("scope", "po_document").order("created_at", { ascending: false }),
     ]);
     const gRows = (g.data || []) as any[];
     setGrns(gRows.map((r) => ({ id: r.id, grn_number: r.grn_number, receipt_date: r.receipt_date, status: r.status, received_by: r.received_by, remarks: r.remarks, vendor_id: r.vendor_id ?? null, photos: r.photos ?? null })));
     setGrnItems(gRows.flatMap((r) => (r.procurement_grn_items || []) as GrnItemRow[]));
     const iRows = (inv.data || []) as any[];
-    setInvoices(iRows.map((r) => ({ id: r.id, invoice_number: r.invoice_number, invoice_date: r.invoice_date, invoice_amount: r.invoice_amount, vendor_id: r.vendor_id ?? null })));
+    setInvoices(iRows.map((r) => ({
+      id: r.id, invoice_number: r.invoice_number, invoice_date: r.invoice_date,
+      invoice_amount: r.invoice_amount, vendor_id: r.vendor_id ?? null,
+      // Any numbers beyond the first — the first is already invoice_number.
+      extra_numbers: ((r.procurement_invoice_numbers || []) as any[])
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        .slice(1)
+        .map((n) => n.invoice_number as string),
+    })));
     setInvItems(iRows.flatMap((r) => (r.procurement_invoice_items || []) as InvItemRow[]));
     setInvPayments(iRows.flatMap((r) => (r.procurement_invoice_payments || []).map((p: any) => ({ invoice_id: r.id, amount: Number(p.amount || 0), payment_date: p.payment_date, reference_number: p.reference_number, notes: p.notes ?? null }))));
     setInvAttachments(iRows.flatMap((r) => (r.procurement_invoice_attachments || []).map((a: any) => ({ id: a.id, invoice_id: r.id, file_name: a.file_name, file_path: a.file_path, file_size: a.file_size ?? null }))));
@@ -2570,7 +2578,14 @@ export default function ProcurementDetail({
                                                       className="flex items-center justify-between px-2 py-1 text-[11px] cursor-pointer hover:bg-muted/60"
                                                     >
                                                       <div>
-                                                        <div className="font-medium">{i.invoice_number}</div>
+                                                        <div className="font-medium">
+                                                          {i.invoice_number}
+                                                          {!!i.extra_numbers?.length && (
+                                                            <span className="text-muted-foreground font-normal">
+                                                              {" "}+ {i.extra_numbers.join(", ")}
+                                                            </span>
+                                                          )}
+                                                        </div>
                                                         <div className="text-[10px] text-muted-foreground">{i.invoice_date}</div>
                                                       </div>
                                                       <div className="flex items-center gap-1">

@@ -60,6 +60,19 @@ function formatBytes(bytes: number): string {
   return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
+interface NumberLine {
+  id: string;
+  invoice_number: string;
+  invoice_date: string;
+  dbId?: string;
+}
+
+const newNumber = (): NumberLine => ({
+  id: Math.random().toString(36).slice(2),
+  invoice_number: "",
+  invoice_date: new Date().toISOString().slice(0, 10),
+});
+
 const newPayment = (): PaymentLine => ({
   id: Math.random().toString(36).slice(2),
   reference_number: "",
@@ -75,8 +88,14 @@ export default function InvoiceForm({
   const isEdit = !!editingInvoice;
   const [uiMode] = useUiMode();
   const lightning = isLightning(uiMode);
-  const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
+  // A vendor may split one billing across several invoice numbers. The first
+  // entry is mirrored onto procurement_invoices.invoice_number/date, which is
+  // what every existing reader (reports, vendor tab, importer) still uses.
+  const [numbers, setNumbers] = useState<NumberLine[]>([newNumber()]);
+  const invoiceNumber = numbers[0]?.invoice_number ?? "";
+  const invoiceDate = numbers[0]?.invoice_date ?? new Date().toISOString().slice(0, 10);
+  const updateNumber = (id: string, patch: Partial<NumberLine>) =>
+    setNumbers((p) => p.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const [files, setFiles] = useState<AttachedFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [payments, setPayments] = useState<PaymentLine[]>([newPayment()]);
@@ -91,11 +110,31 @@ export default function InvoiceForm({
   // caller does not have to load them for every invoice in the list.
   useEffect(() => {
     if (!open || !editingInvoice) return;
-    setInvoiceNumber(editingInvoice.invoice_number || "");
-    setInvoiceDate(editingInvoice.invoice_date || new Date().toISOString().slice(0, 10));
     setSelectedVendorId(editingInvoice.vendor_id ?? null);
     setLoadingExisting(true);
     (async () => {
+      const { data: nums } = await supabase
+        .from("procurement_invoice_numbers")
+        .select("id, invoice_number, invoice_date")
+        .eq("invoice_id", editingInvoice.id)
+        .order("sort_order");
+      setNumbers(
+        (nums || []).length
+          ? (nums || []).map((n: any) => ({
+              id: n.id,
+              dbId: n.id,
+              invoice_number: n.invoice_number || "",
+              invoice_date: n.invoice_date || "",
+            }))
+          // Pre-migration record with no list rows yet: fall back to the
+          // invoice's own number so editing never starts blank.
+          : [{
+              id: "primary",
+              invoice_number: editingInvoice.invoice_number || "",
+              invoice_date: editingInvoice.invoice_date || new Date().toISOString().slice(0, 10),
+            }]
+      );
+
       const { data } = await supabase
         .from("procurement_invoice_payments")
         .select("id, reference_number, bank_name, amount, payment_date")
@@ -220,6 +259,20 @@ export default function InvoiceForm({
         if (error) throw error;
         inv = data as { id: string };
       }
+
+      // Replace the number list wholesale — it is a small, self-contained set
+      // with nothing else referencing it.
+      const validNumbers = numbers.filter((n) => n.invoice_number.trim());
+      await supabase.from("procurement_invoice_numbers").delete().eq("invoice_id", inv.id);
+      const { error: ne } = await supabase.from("procurement_invoice_numbers").insert(
+        validNumbers.map((n, idx) => ({
+          invoice_id: inv.id,
+          invoice_number: n.invoice_number.trim(),
+          invoice_date: n.invoice_date || null,
+          sort_order: idx,
+        }))
+      );
+      if (ne) throw ne;
 
       const itemRows = visibleItems.map((it) => ({
         invoice_id: inv.id,
@@ -386,15 +439,52 @@ export default function InvoiceForm({
                     )}
                   </div>
                 )}
-                <div>
+                <div className="md:col-span-2">
                   <Label className={FIELD_LABEL}>
                     Invoice Number <span className="text-destructive">*</span>
                   </Label>
-                  <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="INV-0001" className="h-9 mt-1" />
-                </div>
-                <div>
-                  <Label className={FIELD_LABEL}>Invoice Date</Label>
-                  <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} className="h-9 mt-1" />
+                  <div className="mt-1 space-y-2">
+                    {numbers.map((n, idx) => (
+                      <div key={n.id} className="flex items-end gap-2">
+                        <div className="flex-1 min-w-0">
+                          <Input
+                            value={n.invoice_number}
+                            onChange={(e) => updateNumber(n.id, { invoice_number: e.target.value })}
+                            placeholder={idx === 0 ? "INV-0001" : "Additional invoice number"}
+                            className="h-9"
+                          />
+                        </div>
+                        <div className="w-[9.5rem] shrink-0">
+                          <Input
+                            type="date"
+                            value={n.invoice_date}
+                            onChange={(e) => updateNumber(n.id, { invoice_date: e.target.value })}
+                            className="h-9"
+                          />
+                        </div>
+                        <Button
+                          type="button" variant="ghost" size="icon"
+                          className="h-9 w-9 shrink-0"
+                          aria-label="Remove invoice number"
+                          disabled={numbers.length === 1}
+                          onClick={() => setNumbers((p) => p.filter((r) => r.id !== n.id))}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    type="button" variant="outline" size="sm" className="mt-2 gap-1.5"
+                    onClick={() => setNumbers((p) => [...p, newNumber()])}
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add invoice number
+                  </Button>
+                  {numbers.length > 1 && (
+                    <p className="text-[11px] text-muted-foreground mt-1.5">
+                      One billing, {numbers.length} vendor invoice numbers. The amount below covers all of them.
+                    </p>
+                  )}
                 </div>
               </div>
             </section>
