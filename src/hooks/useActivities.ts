@@ -153,6 +153,8 @@ export function useActivities() {
           status_history: Array.isArray(a.status_history) ? a.status_history : [],
           photo_urls: Array.isArray(a.photo_urls) ? a.photo_urls : [],
           user_full_name: userMap[a.user_id] || "",
+          user_avatar_url: avatarMap[a.user_id] || null,
+
           project_name: a.project_id ? projectMap[a.project_id] || "" : "",
           site_name: siteInfo ? `${siteInfo.name}${!siteInfo.active ? " (Inactive)" : ""}` : "",
           site_flag: siteInfo?.flag || "",
