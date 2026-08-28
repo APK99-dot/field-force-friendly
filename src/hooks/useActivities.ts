@@ -63,7 +63,9 @@ export interface Activity {
   created_at: string;
   // joined
   user_full_name?: string;
+  user_avatar_url?: string | null;
   project_name?: string;
+
   site_name?: string;
   site_flag?: string;
   milestone_name?: string;
