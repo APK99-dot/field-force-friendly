@@ -67,6 +67,8 @@ import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 
 import ActivityPhotoManager from "@/components/activities/ActivityPhotoManager";
+import { resolveActivityPhotoUrl } from "@/utils/activityPhotos";
+
 
 import { MultiUserPicker } from "@/components/pm/MultiUserPicker";
 import { milestoneStatusLabel } from "@/components/admin/SiteMilestonesDialog";
