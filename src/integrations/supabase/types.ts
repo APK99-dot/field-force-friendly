@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -4301,6 +4301,41 @@ export type Database = {
           },
         ]
       }
+      procurement_invoice_numbers: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_date: string | null
+          invoice_id: string
+          invoice_number: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_id: string
+          invoice_number: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_id?: string
+          invoice_number?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_invoice_numbers_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       procurement_invoice_payments: {
         Row: {
           amount: number
@@ -6345,6 +6380,13 @@ export type Database = {
       notify_send_test: {
         Args: { p_message?: string; p_title?: string }
         Returns: Json
+      }
+      po_site_contacts: {
+        Args: never
+        Returns: {
+          name: string
+          phone: string
+        }[]
       }
       recalculate_monthly_leave_accruals: {
         Args: { _target_user_id?: string }
