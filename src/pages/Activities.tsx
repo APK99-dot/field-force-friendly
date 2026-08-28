@@ -67,6 +67,8 @@ import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 
 import ActivityPhotoManager from "@/components/activities/ActivityPhotoManager";
+import { resolveActivityPhotoUrl } from "@/utils/activityPhotos";
+
 
 import { MultiUserPicker } from "@/components/pm/MultiUserPicker";
 import { milestoneStatusLabel } from "@/components/admin/SiteMilestonesDialog";
@@ -1339,74 +1341,152 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onReceiveGo
     }
   };
 
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [editingComment, setEditingComment] = useState(false);
+  const [commentDraft, setCommentDraft] = useState(a.description || "");
+  const [savingComment, setSavingComment] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const entries = (a.photo_urls || []).slice(0, 6);
+    if (entries.length === 0) { setPhotoUrls([]); return; }
+    Promise.all(entries.map((p) => resolveActivityPhotoUrl(p.url).catch(() => "")))
+      .then((urls) => { if (!cancelled) setPhotoUrls(urls.filter(Boolean)); });
+    return () => { cancelled = true; };
+  }, [a.photo_urls]);
+
+  useEffect(() => { setCommentDraft(a.description || ""); }, [a.description]);
+
+  const saveComment = async () => {
+    setSavingComment(true);
+    try {
+      await updateActivity(a.id, { description: commentDraft.trim() || null });
+      setEditingComment(false);
+      onStatusChanged();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save comment");
+    } finally {
+      setSavingComment(false);
+    }
+  };
+
+  const startAt = (a as any).check_in_at || a.start_time;
+  const endAt = (a as any).check_out_at || a.end_time;
+  const spentLabel = (() => {
+    if (!startAt || !endAt) return null;
+    const mins = Math.round((new Date(endAt).getTime() - new Date(startAt).getTime()) / 60000);
+    if (!Number.isFinite(mins) || mins < 0) return null;
+    if (mins < 60) return `${mins} min spent`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m ? `${h}h ${m}m spent` : `${h}h spent`;
+  })();
+
+  const title = a.site_name ? `${a.activity_name} - ${a.site_name}` : a.activity_name;
+
   return (
     <Card className="shadow-card">
       <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onOpenDetails(a)}>
-
-            <div className="flex items-center gap-2 mb-1">
-              <Activity className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="font-semibold text-sm truncate">{a.activity_name}</span>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-2 mb-1 cursor-pointer" onClick={() => onOpenDetails(a)}>
+              {a.user_avatar_url ? (
+                <img
+                  src={a.user_avatar_url}
+                  alt={a.user_full_name || "Owner"}
+                  className="h-8 w-8 rounded-full object-cover shrink-0 border border-border"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <span className="text-[11px] font-semibold text-primary">
+                    {(a.user_full_name || "?").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              <span className="font-semibold text-sm break-words min-w-0">{title}</span>
             </div>
-            <p className="text-xs text-muted-foreground ml-6">{a.activity_type}</p>
-            {a.location_address && (
-              <p className="text-xs text-muted-foreground ml-6 mt-0.5">
-                <MapPin className="h-3 w-3 inline mr-1" />{a.location_address}
-              </p>
-            )}
+
             {a.start_time && (
-              <p className="text-xs text-muted-foreground ml-6 mt-0.5">
+              <p className="text-xs text-muted-foreground ml-10 mt-0.5">
                 <Clock className="h-3 w-3 inline mr-1" />
                 {format(parseISO(a.start_time), "h:mm a")}
                 {a.end_time && ` - ${format(parseISO(a.end_time), "h:mm a")}`}
-                {a.total_hours ? ` (${a.total_hours}h)` : ""}
               </p>
             )}
-            {(a.site_name || a.project_name) && (
-              <div className="ml-6 mt-0.5 space-y-0.5">
-                <p className="text-xs text-primary">
-                  📍 {a.site_name || a.project_name}
-                  {a.site_flag && (
-                    <span className={`ml-1.5 inline-block h-2 w-2 rounded-full ${a.site_flag === "red" ? "bg-red-500" : a.site_flag === "orange" ? "bg-orange-500" : "bg-emerald-500"}`} />
-                  )}
-                </p>
-                {a.milestone_name && (
-                  <p className="text-xs text-muted-foreground">
-                    🎯 {a.milestone_name}
-                    <span className="ml-1.5 text-[10px]">
-                      ({milestoneStatusLabel(a.milestone_status)})
-                    </span>
-                  </p>
-                )}
+
+            {a.milestone_name && (
+              <p className="text-xs text-muted-foreground ml-10 mt-0.5">
+                🎯 {a.milestone_name}
+                <span className="ml-1.5 text-[10px]">({milestoneStatusLabel(a.milestone_status)})</span>
+              </p>
+            )}
+
+            {/* Editable comment */}
+            <div className="ml-10 mt-1.5">
+              {editingComment ? (
+                <div className="space-y-1.5">
+                  <Textarea
+                    rows={3}
+                    value={commentDraft}
+                    onChange={(e) => setCommentDraft(e.target.value)}
+                    className="text-xs"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" className="h-7 text-xs" onClick={saveComment} disabled={savingComment}>
+                      {savingComment ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setEditingComment(false); setCommentDraft(a.description || ""); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEditingComment(true)}
+                  className="w-full text-left rounded-lg border border-amber-200 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-900/50 px-2.5 py-1.5"
+                >
+                  <span className="block text-[9px] font-semibold tracking-wide text-amber-700 dark:text-amber-500">COMMENT</span>
+                  <span className="block text-xs text-foreground/80 break-words">
+                    {a.description || <span className="text-muted-foreground italic">Add a comment…</span>}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Photos */}
+            {photoUrls.length > 0 && (
+              <div className="ml-10 mt-2 grid grid-cols-3 gap-1.5">
+                {photoUrls.map((url, idx) => (
+                  <img
+                    key={idx}
+                    src={url}
+                    alt="Activity photo"
+                    loading="lazy"
+                    className="aspect-square w-full rounded-lg object-cover border border-border"
+                  />
+                ))}
               </div>
             )}
-            {a.user_full_name && (
-              <p className="text-xs text-muted-foreground ml-6 mt-0.5">👤 {a.user_full_name}</p>
-            )}
-            {a.description && (
-              <p className="text-xs text-muted-foreground ml-6 mt-1 line-clamp-2">{a.description}</p>
-            )}
+
             {/* Audio attachments */}
             {a.attachment_urls && a.attachment_urls.length > 0 && a.attachment_urls.some((url: string) => url.includes("activity-audio")) && (
-              <div className="ml-6 mt-1.5">
+              <div className="ml-10 mt-1.5">
                 {a.attachment_urls.filter((url: string) => url.includes("activity-audio")).map((url: string, idx: number) => (
                   <ActivityAudioPlayer key={idx} url={url} />
                 ))}
               </div>
             )}
+
             {/* Status change location & timestamp */}
             {a.status_changed_at && (
-              <p className="text-[10px] text-muted-foreground ml-6 mt-1">
+              <p className="text-[10px] text-muted-foreground ml-10 mt-1.5">
                 📍 Status updated {format(parseISO(a.status_changed_at), "h:mm a, MMM d")}
                 {a.status_change_lat && a.status_change_lng && (
                   <span> • {Number(a.status_change_lat).toFixed(4)}, {Number(a.status_change_lng).toFixed(4)}</span>
                 )}
-              </p>
-            )}
-            {a.photo_urls && a.photo_urls.length > 0 && (
-              <p className="text-[10px] text-muted-foreground ml-6 mt-1">
-                📷 {a.photo_urls.length} photo{a.photo_urls.length > 1 ? "s" : ""}
+                {a.user_full_name && <span> by {a.user_full_name}</span>}
               </p>
             )}
           </div>
@@ -1415,6 +1495,11 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onReceiveGo
             <Badge variant="outline" className={statusColors[a.status] || ""}>
               {statusLabels[a.status] || a.status}
             </Badge>
+            {spentLabel && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:text-sky-300 whitespace-nowrap">
+                <Clock className="h-3 w-3" />{spentLabel}
+              </span>
+            )}
             {a.activity_type?.trim().toLowerCase().includes("grn") && (a as any).grn_po_id && (
               <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => onReceiveGoods((a as any).grn_po_id)}>
                 <Route className="h-3.5 w-3.5" />
@@ -1422,15 +1507,15 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onReceiveGo
               </Button>
             )}
             {a.status === "planned" && (
-              <Button size="sm" className="h-8 gap-1.5" onClick={() => handleStatusChange("in_progress")} disabled={changingStatus}>
-                {changingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5" />}
-                Start / Check-In
+              <Button size="sm" className="h-8 gap-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => handleStatusChange("in_progress")} disabled={changingStatus}>
+                {changingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogIn className="h-3.5 w-3.5" />}
+                Check-in
               </Button>
             )}
             {a.status === "in_progress" && (
-              <Button size="sm" className="h-8 gap-1.5 bg-success text-success-foreground hover:bg-success/90" onClick={() => handleStatusChange("completed")} disabled={changingStatus}>
-                {changingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                Complete
+              <Button size="sm" className="h-8 gap-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => handleStatusChange("completed")} disabled={changingStatus}>
+                {changingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
+                Check-out
               </Button>
             )}
             <div className="flex gap-1">
@@ -1448,6 +1533,7 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onReceiveGo
     </Card>
   );
 }
+
 
 // ---- Haversine distance calculation (km) ----
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {

@@ -169,6 +169,28 @@ export default function CreativeActivityForm({
   const [changingStatus, setChangingStatus] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [checkedIn, setCheckedIn] = useState(false);
+  const [isEnriching, setIsEnriching] = useState(false);
+
+  const handleEnrichWithAI = useCallback(async () => {
+    const topic = activityType?.trim() || "Field activity";
+    setIsEnriching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("elaborate-activity-details", {
+        body: { name: topic, draft: description },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); return; }
+      if (data?.details) {
+        setDescription(data.details);
+        toast.success("Enriched with AI");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to enrich");
+    } finally {
+      setIsEnriching(false);
+    }
+  }, [activityType, description]);
+
 
   const [checkingIn, setCheckingIn] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -1160,6 +1182,21 @@ export default function CreativeActivityForm({
                     className="min-w-0 flex-1 resize-none border-0 bg-transparent focus-visible:ring-0 shadow-none px-0 text-[15px] placeholder:text-muted-foreground/70 break-words [overflow-wrap:anywhere]"
                   />
                 </div>
+
+                <div className="flex justify-end mt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1.5 text-xs"
+                    onClick={handleEnrichWithAI}
+                    disabled={isEnriching}
+                  >
+                    {isEnriching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    Enrich with AI
+                  </Button>
+                </div>
+
 
                 {renderIconRail()}
 
