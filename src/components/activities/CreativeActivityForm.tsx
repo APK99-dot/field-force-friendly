@@ -1161,6 +1161,21 @@ export default function CreativeActivityForm({
                   />
                 </div>
 
+                <div className="flex justify-end mt-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1.5 text-xs"
+                    onClick={handleEnrichWithAI}
+                    disabled={isEnriching}
+                  >
+                    {isEnriching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    Enrich with AI
+                  </Button>
+                </div>
+
+
                 {renderIconRail()}
 
                 {/* Photos preview */}
