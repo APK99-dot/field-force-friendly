@@ -4,21 +4,23 @@ import { format, parseISO } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   CalendarDays,
   ChevronLeft,
   Clock,
   LogIn,
   LogOut,
-  Activity,
-  MapPin,
+  Search,
+  Users,
   Download,
   Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useActivities, type Activity as ActivityType } from "@/hooks/useActivities";
+import { useActivities } from "@/hooks/useActivities";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import jsPDF from "jspdf";
 import { toast } from "sonner";
@@ -37,18 +39,24 @@ const statusLabels: Record<string, string> = {
 
 export default function ActivityTimeline() {
   const navigate = useNavigate();
-  const { activities, loading, fetchAttendanceForDate } = useActivities();
+  const { activities, loading, users, fetchAttendanceForDate } = useActivities();
   const { isAdmin } = useUserProfile();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentUserId, setCurrentUserId] = useState("");
   const [attendance, setAttendance] = useState<{ check_in_time: string | null; check_out_time: string | null } | null>(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("all");
+  const [subordinateIds, setSubordinateIds] = useState<string[]>([]);
 
   const dateStr = format(selectedDate, "yyyy-MM-dd");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setCurrentUserId(data.user.id);
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      setCurrentUserId(data.user.id);
+      const { data: subs } = await supabase.rpc("get_user_hierarchy", { _manager_id: data.user.id });
+      if (subs && subs.length > 0) setSubordinateIds(subs.map((s: any) => s.user_id));
     });
   }, []);
 
@@ -61,16 +69,31 @@ export default function ActivityTimeline() {
     });
   }, [currentUserId, dateStr, fetchAttendanceForDate]);
 
+  const selectableUsers = useMemo(() => {
+    if (subordinateIds.length === 0) return [];
+    const subSet = new Set(subordinateIds);
+    return users.filter((u) => subSet.has(u.id) || u.id === currentUserId);
+  }, [users, subordinateIds, currentUserId]);
+
   const dayActivities = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return activities
       .filter((a) => a.activity_date === dateStr)
+      .filter((a) => selectedUserId === "all" || a.user_id === selectedUserId)
+      .filter((a) =>
+        !q ||
+        a.activity_name.toLowerCase().includes(q) ||
+        (a.site_name || "").toLowerCase().includes(q) ||
+        (a.activity_type || "").toLowerCase().includes(q) ||
+        (a.user_full_name || "").toLowerCase().includes(q)
+      )
       .sort((a, b) => {
         if (!a.start_time && !b.start_time) return 0;
         if (!a.start_time) return 1;
         if (!b.start_time) return -1;
         return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
       });
-  }, [activities, dateStr]);
+  }, [activities, dateStr, searchQuery, selectedUserId]);
 
   const handleDownloadPDF = useCallback(async () => {
     try {
@@ -123,53 +146,78 @@ export default function ActivityTimeline() {
   const hasCheckOut = attendance?.check_out_time;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Header */}
       <div className="sticky top-0 z-30 bg-background border-b px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/activities")}>
+        <div className="flex items-center gap-2 min-w-0">
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigate("/activities")}>
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-base font-semibold flex-1">
-            Timeline View - {format(selectedDate, "MMM dd, yyyy")}
+          <h1 className="text-base font-semibold flex-1 min-w-0 truncate">
+            Timeline - {format(selectedDate, "MMM dd, yyyy")}
           </h1>
         </div>
       </div>
 
-      {/* Timeline Header + Controls */}
-      <div className="px-4 pt-4">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-xl font-extrabold tracking-tight">TIMELINE</h2>
-            <div className="h-1 w-16 bg-foreground rounded-full mt-1" />
+      {/* Controls */}
+      <div className="px-4 pt-4 space-y-3">
+        <div>
+          <h2 className="text-xl font-extrabold tracking-tight">TIMELINE</h2>
+          <div className="h-1 w-16 bg-foreground rounded-full mt-1" />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 text-xs min-w-0 flex-1 sm:flex-none">
+                <CalendarDays className="h-4 w-4 shrink-0" />
+                <span className="truncate">{format(selectedDate, "MMM d, yyyy")}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(d) => d && setSelectedDate(d)}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          <Button variant="outline" size="sm" className="gap-2 text-xs shrink-0" onClick={handleDownloadPDF}>
+            <Download className="h-4 w-4" />
+            <span className="truncate">PDF</span>
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[160px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search activities..."
+              className="pl-9 h-9 text-sm"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-          <div className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2 text-sm">
-                  <CalendarDays className="h-4 w-4" />
-                  {format(selectedDate, "MMMM do, yyyy")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(d) => d && setSelectedDate(d)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-            <Button variant="outline" className="gap-2 text-sm" onClick={handleDownloadPDF}>
-              <Download className="h-4 w-4" />
-              Download PDF
-            </Button>
-          </div>
+          {selectableUsers.length > 0 && (
+            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <SelectTrigger className="h-9 w-[150px] text-xs">
+                <Users className="h-3.5 w-3.5 mr-1 opacity-70" />
+                <SelectValue placeholder="All members" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All members</SelectItem>
+                {selectableUsers.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{u.full_name || "Unknown"}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 
       {/* Timeline Content */}
-      <div className="px-4 pb-24">
+      <div className="px-4 pt-4 pb-24">
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -196,14 +244,11 @@ export default function ActivityTimeline() {
               </div>
             )}
 
-            {/* No check-in, no activities */}
+            {/* Empty state */}
             {!hasCheckIn && dayActivities.length === 0 && (
               <div className="text-center py-12">
                 <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground/40" />
                 <p className="text-muted-foreground font-medium">No activities recorded for this date.</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Activities will appear here once you place orders or record no-order reasons.
-                </p>
               </div>
             )}
 
@@ -211,16 +256,31 @@ export default function ActivityTimeline() {
             {dayActivities.map((a) => (
               <div key={a.id} className="flex gap-4 mb-5 relative">
                 <div className="z-10 shrink-0">
-                  <div className="w-9 h-9 rounded-full bg-primary/15 border-2 border-primary/30 flex items-center justify-center">
-                    <Activity className="h-4 w-4 text-primary" />
-                  </div>
+                  {a.user_avatar_url ? (
+                    <img
+                      src={a.user_avatar_url}
+                      alt={a.user_full_name || "Owner"}
+                      className="w-9 h-9 rounded-full object-cover border-2 border-primary/30"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-primary/15 border-2 border-primary/30 flex items-center justify-center">
+                      <span className="text-[10px] font-semibold text-primary">
+                        {(a.user_full_name || "?").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex-1 pt-0.5">
-                  <Card className="shadow-sm">
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <Card
+                    className="shadow-sm cursor-pointer hover:bg-muted/40 transition-colors"
+                    onClick={() => navigate(`/activities?id=${a.id}`)}
+                  >
                     <CardContent className="p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-sm">{a.activity_name}</span>
-                        <Badge variant="outline" className={`text-[10px] py-0 ${statusColors[a.status]}`}>
+                      <div className="flex items-start gap-2 mb-1 min-w-0">
+                        <span className="font-semibold text-sm break-words min-w-0">
+                          {a.site_name ? `${a.activity_name} - ${a.site_name}` : a.activity_name}
+                        </span>
+                        <Badge variant="outline" className={`text-[10px] py-0 shrink-0 ${statusColors[a.status]}`}>
                           {statusLabels[a.status] || a.status}
                         </Badge>
                       </div>
@@ -228,14 +288,11 @@ export default function ActivityTimeline() {
                         {a.start_time ? format(parseISO(a.start_time), "h:mm a") : "--:--"}
                         {a.end_time && ` - ${format(parseISO(a.end_time), "h:mm a")}`}
                       </p>
-                      {a.site_name && (
-                        <p className="text-xs text-muted-foreground mt-0.5">📁 {a.site_name}</p>
-                      )}
                       {a.description && (
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2 break-words">{a.description}</p>
                       )}
-                      {isAdmin && a.user_full_name && (
-                        <p className="text-xs text-muted-foreground mt-0.5">👤 {a.user_full_name}</p>
+                      {a.user_full_name && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5">👤 {a.user_full_name}</p>
                       )}
                     </CardContent>
                   </Card>
