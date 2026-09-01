@@ -4393,6 +4393,8 @@ export type Database = {
           invoice_number: string | null
           po_id: string
           salesforce_id: string | null
+          tds_amount: number
+          tds_percentage: number
           updated_at: string
           vendor_id: string | null
         }
@@ -4405,6 +4407,8 @@ export type Database = {
           invoice_number?: string | null
           po_id: string
           salesforce_id?: string | null
+          tds_amount?: number
+          tds_percentage?: number
           updated_at?: string
           vendor_id?: string | null
         }
@@ -4417,6 +4421,8 @@ export type Database = {
           invoice_number?: string | null
           po_id?: string
           salesforce_id?: string | null
+          tds_amount?: number
+          tds_percentage?: number
           updated_at?: string
           vendor_id?: string | null
         }

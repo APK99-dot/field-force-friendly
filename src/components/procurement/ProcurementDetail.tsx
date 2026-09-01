@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Sparkles, CalendarDays, Truck, FileText, Pencil, ChevronRight, ChevronDown, ChevronUp, Save, ArrowRight, Undo2, Download, MessageCircle, Link2, Copy, Plus, Trash2, Search, X, Info } from "lucide-react";
 import {
-  STATUS_FLOW, allowedTransitions, statusColor, fmtAmt, PAYMENT_TERMS, statusFlowFor, type ProcStatus,
+  STATUS_FLOW, allowedTransitions, statusColor, fmtAmt, PAYMENT_TERMS, statusFlowFor, invoiceNetPayable, type ProcStatus,
 } from "@/lib/procurement";
 import jsPDF from "jspdf";
 import { downloadPDF } from "@/utils/nativeDownload";
@@ -95,7 +95,7 @@ interface Props {
 
 interface GrnRow { id: string; grn_number: string | null; receipt_date: string; status: string; received_by: string | null; remarks: string | null; vendor_id: string | null; photos?: string[] | null; }
 interface GrnItemRow { grn_id: string; procurement_item_id: string | null; received_qty: number; }
-interface InvRow { id: string; invoice_number: string | null; invoice_date: string; invoice_amount: number; vendor_id: string | null; extra_numbers?: string[]; }
+interface InvRow { id: string; invoice_number: string | null; invoice_date: string; invoice_amount: number; tds_percentage: number; tds_amount: number; vendor_id: string | null; extra_numbers?: string[]; }
 interface InvItemRow { invoice_id: string; procurement_item_id: string | null; invoiced_rate: number; }
 interface InvPaymentRow { invoice_id: string; amount: number; payment_date: string | null; reference_number: string | null; notes?: string | null; }
 
@@ -547,6 +547,10 @@ export default function ProcurementDetail({
         .reduce((s, l) => s + (parseFloat(l.rate) || 0) * (l.qty || 0), 0);
       const vInvoices = invoices.filter((i) => i.vendor_id === vid);
       const invoicedTotal = vInvoices.reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
+      // TDS is withheld by us, not owed to the vendor — the balance is due on
+      // the net payable, or a TDS-deducted invoice never reaches zero.
+      const tdsTotal = vInvoices.reduce((s, i) => s + Number(i.tds_amount || 0), 0);
+      const netPayable = invoicedTotal - tdsTotal;
       const invoiceIds = new Set(vInvoices.map((i) => i.id));
       const vPayments = invPayments.filter((p) => invoiceIds.has(p.invoice_id));
       const paidTotal = vPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
@@ -555,8 +559,10 @@ export default function ProcurementDetail({
         vendor_name: vendorName(vid),
         line_amount: lineAmount,
         invoiced_total: invoicedTotal,
+        tds_total: tdsTotal,
+        net_payable: netPayable,
         paid_total: paidTotal,
-        balance_due: invoicedTotal - paidTotal,
+        balance_due: netPayable - paidTotal,
         payments: vPayments,
         invoices: vInvoices,
       };
@@ -624,6 +630,8 @@ export default function ProcurementDetail({
         .filter((l) => scopedLineIds.has(l.id))
         .reduce((s, l) => s + (parseFloat(l.rate) || 0) * (l.qty || 0), 0);
       const invoicedTotal = vInvs.reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
+      // Vendors are owed the invoice total minus TDS deducted at source.
+      const netPayable = invoicedTotal - vInvs.reduce((s, i) => s + Number(i.tds_amount || 0), 0);
       const paidTotal = vPays.reduce((s, p) => s + Number(p.amount || 0), 0);
 
       // Assigned = vendor row exists but no quote link generated yet.
@@ -646,7 +654,7 @@ export default function ProcurementDetail({
           : "Partially Invoiced";
       }
       if (paidTotal > 0) {
-        status = paidTotal >= invoicedTotal - 1 && invoicedTotal > 0
+        status = paidTotal >= netPayable - 1 && netPayable > 0
           ? "Paid"
           : "Partially Paid";
       }
@@ -870,6 +878,7 @@ export default function ProcurementDetail({
     setInvoices(iRows.map((r) => ({
       id: r.id, invoice_number: r.invoice_number, invoice_date: r.invoice_date,
       invoice_amount: r.invoice_amount, vendor_id: r.vendor_id ?? null,
+      tds_percentage: Number(r.tds_percentage || 0), tds_amount: Number(r.tds_amount || 0),
       // Any numbers beyond the first — the first is already invoice_number.
       extra_numbers: ((r.procurement_invoice_numbers || []) as any[])
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -2623,6 +2632,12 @@ export default function ProcurementDetail({
                                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
                                                 <div><span className="text-muted-foreground">PO Value: </span><span className="font-medium">{fmtAmt(finSummary!.line_amount)}</span></div>
                                                 <div><span className="text-muted-foreground">Invoiced: </span><span className="font-medium">{fmtAmt(finSummary!.invoiced_total)}</span></div>
+                                                {finSummary!.tds_total > 0 && (
+                                                  <>
+                                                    <div><span className="text-muted-foreground">TDS: </span><span className="font-medium text-red-600">−{fmtAmt(finSummary!.tds_total)}</span></div>
+                                                    <div><span className="text-muted-foreground">Net Payable: </span><span className="font-medium">{fmtAmt(finSummary!.net_payable)}</span></div>
+                                                  </>
+                                                )}
                                                 <div><span className="text-muted-foreground">Paid: </span><span className="font-medium">{fmtAmt(finSummary!.paid_total)}</span></div>
                                                 <div><span className="text-muted-foreground">Outstanding: </span>
                                                   <span className={`font-semibold ${finSummary!.balance_due > 1 ? "text-red-600" : "text-green-600"}`}>{fmtAmt(finSummary!.balance_due)}</span>
@@ -3328,7 +3343,9 @@ export default function ProcurementDetail({
           const lineItems = invItems.filter((ii) => (ii as any).invoice_id === inv.id);
           const payments = invPayments.filter((p) => p.invoice_id === inv.id);
           const paidTotal = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
-          const balance = Number(inv.invoice_amount || 0) - paidTotal;
+          const tdsAmt = Number(inv.tds_amount || 0);
+          const netPayable = invoiceNetPayable(Number(inv.invoice_amount || 0), tdsAmt);
+          const balance = netPayable - paidTotal;
           return (
             <Dialog open={!!selectedInvoiceId} onOpenChange={(o) => { if (!o) setSelectedInvoiceId(null); }}>
               <DialogContent className="max-w-2xl">
@@ -3343,6 +3360,12 @@ export default function ProcurementDetail({
                     <div><div className="text-xs text-muted-foreground">Invoice Date</div><div className="font-medium">{inv.invoice_date || "—"}</div></div>
                     <div><div className="text-xs text-muted-foreground">Vendor</div><div className="font-medium">{inv.vendor_id ? vendorName(inv.vendor_id) : "—"}</div></div>
                     <div><div className="text-xs text-muted-foreground">Invoice Amount</div><div className="font-medium">{fmtAmt(inv.invoice_amount)}</div></div>
+                    {tdsAmt > 0 && (
+                      <>
+                        <div><div className="text-xs text-muted-foreground">TDS ({Number(inv.tds_percentage || 0)}% on taxable)</div><div className="font-medium text-red-600">−{fmtAmt(tdsAmt)}</div></div>
+                        <div><div className="text-xs text-muted-foreground">Net Payable</div><div className="font-medium">{fmtAmt(netPayable)}</div></div>
+                      </>
+                    )}
                     <div><div className="text-xs text-muted-foreground">Paid / Balance</div><div className="font-medium">{fmtAmt(paidTotal)} <span className="text-muted-foreground">/</span> {fmtAmt(balance)}</div></div>
                   </div>
                   {lineItems.length > 0 && (

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Save, FileText, Paperclip, X, Plus, Trash2, Package, Wallet } from "lucide-react";
-import { fmtAmt } from "@/lib/procurement";
+import { fmtAmt, tdsAmountOnTaxable, invoiceNetPayable } from "@/lib/procurement";
 import { uploadInvoiceFile, removeInvoiceFile } from "@/utils/invoiceAttachments";
 import { cn } from "@/lib/utils";
 import { useUiMode, isLightning } from "@/hooks/useUiMode";
@@ -31,7 +31,7 @@ interface Props {
   /** Existing invoices already on this PO — used for duplicate detection */
   existingInvoices?: { invoice_number: string | null; invoice_amount: number; vendor_id?: string | null }[];
   /** When set the dialog edits this invoice instead of creating one. */
-  editingInvoice?: { id: string; invoice_number: string | null; invoice_date: string | null; vendor_id: string | null } | null;
+  editingInvoice?: { id: string; invoice_number: string | null; invoice_date: string | null; vendor_id: string | null; tds_percentage?: number | null } | null;
 }
 
 
@@ -99,6 +99,9 @@ export default function InvoiceForm({
   const [files, setFiles] = useState<AttachedFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [payments, setPayments] = useState<PaymentLine[]>([newPayment()]);
+  // TDS the buyer deducts before paying — a percentage of the taxable
+  // (pre-GST) base, entered as e.g. "1" or "2".
+  const [tdsPct, setTdsPct] = useState("");
   const [saving, setSaving] = useState(false);
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(
     poVendors && poVendors.length === 1 ? poVendors[0].id : null,
@@ -111,6 +114,7 @@ export default function InvoiceForm({
   useEffect(() => {
     if (!open || !editingInvoice) return;
     setSelectedVendorId(editingInvoice.vendor_id ?? null);
+    setTdsPct(editingInvoice.tds_percentage ? String(editingInvoice.tds_percentage) : "");
     setLoadingExisting(true);
     (async () => {
       const { data: nums } = await supabase
@@ -171,11 +175,20 @@ export default function InvoiceForm({
     [visibleItems]
   );
 
+  // TDS is deducted on the taxable (pre-GST) base, not the invoice total.
+  const taxableTotal = useMemo(
+    () => visibleItems.reduce((s, it) => s + (Number(it.rate) || 0) * (Number(it.qty) || 0), 0),
+    [visibleItems]
+  );
+  const tdsPctNum = parseFloat(tdsPct) || 0;
+  const tdsAmt = tdsAmountOnTaxable(taxableTotal, tdsPctNum);
+  const netPayable = invoiceNetPayable(amount, tdsAmt);
+
   const totalPaid = useMemo(
     () => payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0),
     [payments]
   );
-  const balanceDue = amount - totalPaid;
+  const balanceDue = netPayable - totalPaid;
 
   const handleFiles = async (list: FileList | null) => {
     if (!list || list.length === 0) return;
@@ -235,6 +248,8 @@ export default function InvoiceForm({
             invoice_number: invoiceNumber.trim(),
             invoice_date: invoiceDate,
             invoice_amount: amount,
+            tds_percentage: tdsPctNum,
+            tds_amount: tdsAmt,
             vendor_id: selectedVendorId,
           })
           .eq("id", editingInvoice!.id);
@@ -251,6 +266,8 @@ export default function InvoiceForm({
             invoice_number: invoiceNumber.trim(),
             invoice_date: invoiceDate,
             invoice_amount: amount,
+            tds_percentage: tdsPctNum,
+            tds_amount: tdsAmt,
             created_by: createdBy,
             vendor_id: selectedVendorId,
           })
@@ -639,6 +656,31 @@ export default function InvoiceForm({
                     <span className="text-muted-foreground">Invoice Total</span>
                     <span className="font-semibold tabular-nums">{fmtAmt(amount)}</span>
                   </div>
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <Label htmlFor="invoice-tds-pct" className="text-sm font-normal text-muted-foreground">
+                      TDS % <span className="text-[11px]">(on taxable {fmtAmt(taxableTotal)})</span>
+                    </Label>
+                    <Input
+                      id="invoice-tds-pct"
+                      type="number" inputMode="decimal" min="0" max="100" step="0.01"
+                      value={tdsPct}
+                      onChange={(e) => setTdsPct(e.target.value)}
+                      placeholder="0"
+                      className="h-7 w-20 bg-background text-right"
+                    />
+                  </div>
+                  {tdsAmt > 0 && (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">TDS ({tdsPctNum}% on taxable)</span>
+                        <span className="font-semibold tabular-nums text-destructive">−{fmtAmt(tdsAmt)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm border-t pt-1.5">
+                        <span className="text-muted-foreground">Net Payable</span>
+                        <span className="font-semibold tabular-nums">{fmtAmt(netPayable)}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Total Paid</span>
                     <span className="font-semibold tabular-nums">{fmtAmt(totalPaid)}</span>

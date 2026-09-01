@@ -98,7 +98,7 @@ export function OverviewTab() {
       // Payments: invoices in range + payments recorded against them
       const { data: invoices } = await supabase
         .from("procurement_invoices")
-        .select("id, invoice_amount")
+        .select("id, invoice_amount, tds_amount")
         .gte("invoice_date", from)
         .lte("invoice_date", to);
       const invIds = (invoices || []).map((i) => i.id);
@@ -111,6 +111,9 @@ export function OverviewTab() {
         collected = (payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
       }
       const invoicedTotal = (invoices || []).reduce((s, i) => s + (Number(i.invoice_amount) || 0), 0);
+      // Pending is measured against the net payable — TDS deducted at source
+      // is withheld by us and will never arrive as a payment.
+      const tdsTotal = (invoices || []).reduce((s, i) => s + (Number(i.tds_amount) || 0), 0);
 
       const userActivityCounts = new Map<string, number>();
       (acts || []).forEach((a) => {
@@ -156,7 +159,7 @@ export function OverviewTab() {
         expByCategory,
         payments: [
           { name: "Collected", value: collected },
-          { name: "Pending", value: Math.max(0, invoicedTotal - collected) },
+          { name: "Pending", value: Math.max(0, invoicedTotal - tdsTotal - collected) },
         ].filter((d) => d.value > 0),
       };
     },

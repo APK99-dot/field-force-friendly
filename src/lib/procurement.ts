@@ -147,6 +147,18 @@ export function grnStatusColor(status: string) {
 export const fmtAmt = (n: number) =>
   `₹${(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+// ---- TDS (Tax Deducted at Source) -----------------------------------------
+// Buyers deduct TDS on the taxable (pre-GST) base — never on the
+// GST-inclusive invoice total.
+export const tdsAmountOnTaxable = (taxableBase: number, tdsPct: number) =>
+  (Number(taxableBase) || 0) * ((Number(tdsPct) || 0) / 100);
+
+// What the vendor is actually owed: invoice total minus the TDS deduction.
+// Balance due must be computed against this, not the invoice total, or a
+// TDS-deducted invoice can never reach a zero balance.
+export const invoiceNetPayable = (invoiceAmount: number, tdsAmount: number) =>
+  (Number(invoiceAmount) || 0) - (Number(tdsAmount) || 0);
+
 // Determine PO status after a GRN receipt, based on total received vs ordered.
 export function receiptDrivenStatus(
   totalOrdered: number,

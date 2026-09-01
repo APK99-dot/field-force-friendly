@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { rollupNegativeScore, scoreBand, feedbackPenalty, improvementLabel, IMPROVEMENT_AREAS } from "@/lib/vendorScore";
+import { invoiceNetPayable } from "@/lib/procurement";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -221,13 +222,15 @@ export default function VendorDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("procurement_invoices")
-        .select("id, po_id, invoice_number, invoice_date, invoice_amount, po:procurement_orders(id, po_number, requisition_number), payments:procurement_invoice_payments(amount), attachments:procurement_invoice_attachments(file_name, file_path)")
+        .select("id, po_id, invoice_number, invoice_date, invoice_amount, tds_percentage, tds_amount, po:procurement_orders(id, po_number, requisition_number), payments:procurement_invoice_payments(amount), attachments:procurement_invoice_attachments(file_name, file_path)")
         .eq("vendor_id", id)
         .order("invoice_date", { ascending: false });
       if (error) throw error;
       return (data || []).map((inv: any) => {
         const paid = (inv.payments || []).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
-        const balance = Number(inv.invoice_amount || 0) - paid;
+        // Balance is due on the net payable (invoice total minus TDS deducted
+        // at source), or a TDS-deducted invoice never shows as Paid.
+        const balance = invoiceNetPayable(Number(inv.invoice_amount || 0), Number(inv.tds_amount || 0)) - paid;
         const paymentStatus = balance <= 0.01 ? "Paid" : paid > 0 ? "Partial" : "Unpaid";
         return { ...inv, paid, balance, paymentStatus };
       });
@@ -350,8 +353,9 @@ export default function VendorDetail() {
     const pos = (orders as any[]).filter((o) => o.po_number);
     const totalPoValue = pos.reduce((s, o) => s + Number(o.total_amount || 0), 0);
     const totalInvoiced = (invoices as any[]).reduce((s, i) => s + Number(i.invoice_amount || 0), 0);
+    const totalTds = (invoices as any[]).reduce((s, i) => s + Number(i.tds_amount || 0), 0);
     const totalPaid = (invoices as any[]).reduce((s, i) => s + Number(i.paid || 0), 0);
-    const pending = totalInvoiced - totalPaid;
+    const pending = totalInvoiced - totalTds - totalPaid;
 
     // On-time delivery: GRN receipt_date vs PO expected_delivery_date
     const poMap = new Map(pos.map((o) => [o.id, o]));
@@ -641,7 +645,10 @@ export default function VendorDetail() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Paid: {fmtInr(inv.paid)}</span>
+                  <span>
+                    Paid: {fmtInr(inv.paid)}
+                    {Number(inv.tds_amount || 0) > 0 && <> · TDS ({Number(inv.tds_percentage || 0)}%): −{fmtInr(inv.tds_amount)}</>}
+                  </span>
                   <span>Outstanding: <span className={inv.balance > 0 ? "text-rose-600 font-medium" : "text-emerald-600 font-medium"}>{fmtInr(inv.balance)}</span></span>
                 </div>
                 {(inv.attachments || []).length > 0 && (

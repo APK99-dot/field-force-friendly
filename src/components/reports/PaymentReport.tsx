@@ -22,6 +22,8 @@ interface Row {
   vendor: string;
   invoice_number: string;
   invoice_amount: number;
+  /** TDS deducted at source — payable is invoice_amount minus this. */
+  tds: number;
   paid: number;
   balance: number;
   reference: string;
@@ -80,7 +82,7 @@ export default function PaymentReport() {
     try {
       const { data: invoices, error } = await supabase
         .from("procurement_invoices")
-        .select("id, po_id, invoice_number, invoice_date, invoice_amount")
+        .select("id, po_id, invoice_number, invoice_date, invoice_amount, tds_amount")
         .gte("invoice_date", from)
         .lte("invoice_date", to)
         .order("invoice_date", { ascending: false });
@@ -118,8 +120,11 @@ export default function PaymentReport() {
         const order = inv.po_id ? orderMap.get(inv.po_id) : null;
         const pay = payMap.get(inv.id);
         const amount = Number(inv.invoice_amount || 0);
+        const tds = Number(inv.tds_amount || 0);
+        // TDS is withheld by us, so the vendor is owed amount - tds.
+        const net = amount - tds;
         const paid = pay?.total || 0;
-        const ps = paid <= 0 ? "Unpaid" : paid >= amount && amount > 0 ? "Paid" : "Partial";
+        const ps = paid <= 0 ? "Unpaid" : paid >= net - 0.005 && net > 0 ? "Paid" : "Partial";
         return {
           id: inv.id,
           // id above is the invoice; the PO is what the row navigates to, and
@@ -129,8 +134,9 @@ export default function PaymentReport() {
           vendor: order?.vendor_id ? vendorMap.get(order.vendor_id) || "-" : "-",
           invoice_number: inv.invoice_number || "—",
           invoice_amount: amount,
+          tds,
           paid,
-          balance: Math.max(0, amount - paid),
+          balance: Math.max(0, net - paid),
           reference: pay?.last?.reference_number || "-",
           bank: pay?.last?.bank_name || "-",
           payment_date: pay?.last?.payment_date || null,
@@ -157,7 +163,9 @@ export default function PaymentReport() {
     const invoiced = rows.reduce((s, r) => s + r.invoice_amount, 0);
     const paid = rows.reduce((s, r) => s + r.paid, 0);
     const balance = rows.reduce((s, r) => s + r.balance, 0);
-    const collectionRate = invoiced ? (paid / invoiced) * 100 : 0;
+    // Rate against the net payable — TDS is withheld, never "collected".
+    const payable = rows.reduce((s, r) => s + (r.invoice_amount - r.tds), 0);
+    const collectionRate = payable ? (paid / payable) * 100 : 0;
     const paidCount = rows.filter((r) => r.payment_status === "Paid").length;
     const unpaidCount = rows.filter((r) => r.payment_status === "Unpaid").length;
     const short = (n: number) =>
@@ -229,6 +237,7 @@ export default function PaymentReport() {
           { header: "Vendor", width: 2 },
           { header: "Invoice No.", width: 1.5 },
           { header: "Invoice Amt", width: 1.6, align: "right" },
+          { header: "TDS", width: 1.2, align: "right" },
           { header: "Paid", width: 1.5, align: "right" },
           { header: "Balance", width: 1.5, align: "right" },
           { header: "Reference", width: 1.6 },
@@ -240,6 +249,7 @@ export default function PaymentReport() {
           r.vendor,
           r.invoice_number,
           inr(r.invoice_amount),
+          r.tds > 0 ? inr(r.tds) : "--",
           inr(r.paid),
           inr(r.balance),
           r.reference,
@@ -321,6 +331,7 @@ export default function PaymentReport() {
               <TableHead>Vendor</TableHead>
               <TableHead>Invoice No.</TableHead>
               <TableHead className="text-right">Invoice Amt</TableHead>
+              <TableHead className="text-right">TDS</TableHead>
               <TableHead className="text-right">Paid</TableHead>
               <TableHead className="text-right">Balance</TableHead>
               <TableHead>Reference</TableHead>
@@ -340,6 +351,7 @@ export default function PaymentReport() {
                 <TableCell>{r.vendor}</TableCell>
                 <TableCell>{r.invoice_number}</TableCell>
                 <TableCell className="text-right">{inr(r.invoice_amount)}</TableCell>
+                <TableCell className="text-right">{r.tds > 0 ? inr(r.tds) : "--"}</TableCell>
                 <TableCell className="text-right">{inr(r.paid)}</TableCell>
                 <TableCell className="text-right">{inr(r.balance)}</TableCell>
                 <TableCell>{r.reference}</TableCell>

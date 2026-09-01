@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
 
       const poIds = (orders || []).map((o: any) => o.id);
       const [{ data: invoices }, { data: payments }, { data: vendors }] = await Promise.all([
-        poIds.length ? supabase.from("procurement_invoices").select("id, po_id, invoice_amount, invoice_date").in("po_id", poIds) : Promise.resolve({ data: [] as any[] }),
+        poIds.length ? supabase.from("procurement_invoices").select("id, po_id, invoice_amount, tds_amount, invoice_date").in("po_id", poIds) : Promise.resolve({ data: [] as any[] }),
         poIds.length ? supabase.from("procurement_invoice_payments").select("invoice_id, amount, payment_date").limit(2000) : Promise.resolve({ data: [] as any[] }),
         supabase.from("vendors").select("id, name"),
       ]);
@@ -119,6 +119,8 @@ Deno.serve(async (req) => {
       const committed = (orders || []).reduce((a: number, o: any) => a + num(o.total_amount), 0);
       const budget = (orders || []).reduce((a: number, o: any) => a + num(o.estimated_budget), 0);
       const invoiced = (invoices || []).reduce((a: number, i: any) => a + num(i.invoice_amount), 0);
+      // TDS deducted at source is withheld, not owed — outstanding is net of it.
+      const tdsTotal = (invoices || []).reduce((a: number, i: any) => a + num(i.tds_amount), 0);
 
       const elapsed = days(site.start_date, today);
       const total = days(site.start_date, site.end_date);
@@ -138,7 +140,7 @@ Deno.serve(async (req) => {
         committed_spend: round(committed),
         invoiced: round(invoiced),
         paid: round(paidTotal),
-        outstanding: round(invoiced - paidTotal),
+        outstanding: round(invoiced - tdsTotal - paidTotal),
         planned_end: site.end_date,
       };
 
@@ -185,7 +187,7 @@ Be specific: cite milestone names, dates, percentages and amounts from the data.
       const [{ data: items }, { data: grns }, { data: invoices }, { data: feedback }, { data: quotes }, { data: sites }, { data: products }] = await Promise.all([
         poIds.length ? supabase.from("procurement_items").select("procurement_id, product_id, qty, uom, rate, amount, rate_source_vendor_id").in("procurement_id", poIds) : Promise.resolve({ data: [] as any[] }),
         supabase.from("procurement_grns").select("id, po_id, grn_number, receipt_date, status").eq("vendor_id", id),
-        supabase.from("procurement_invoices").select("id, po_id, invoice_number, invoice_amount, invoice_date").eq("vendor_id", id),
+        supabase.from("procurement_invoices").select("id, po_id, invoice_number, invoice_amount, tds_amount, invoice_date").eq("vendor_id", id),
         supabase.from("procurement_vendor_feedback").select("overall_experience, material_quality, delivery_timeliness, quantity_accuracy, improvement_areas, comments, created_at, po_id, grn_id").eq("vendor_id", id),
         supabase.from("procurement_vendor_quotes").select("id, po_id, status, total_amount, created_at, is_latest").eq("vendor_id", id),
         supabase.from("project_sites").select("id, site_name"),
@@ -252,6 +254,8 @@ Be specific: cite milestone names, dates, percentages and amounts from the data.
       fbList.forEach((f) => f.areas.forEach((a: string) => { areaCounts[a] = (areaCounts[a] || 0) + 1; }));
 
       const invoiced = (invoices || []).reduce((a: number, i: any) => a + num(i.invoice_amount), 0);
+      // TDS deducted at source is withheld, not owed — outstanding is net of it.
+      const vendorTds = (invoices || []).reduce((a: number, i: any) => a + num(i.tds_amount), 0);
       const paid = (payments || []).reduce((a: number, p: any) => a + num(p.amount), 0);
       const spend = (orders || []).reduce((a: number, o: any) => a + num(o.total_amount), 0);
       const orderDates = (orders || []).map((o: any) => o.order_date).filter(Boolean).sort();
@@ -268,7 +272,7 @@ Be specific: cite milestone names, dates, percentages and amounts from the data.
         total_spend: round(spend),
         invoiced: round(invoiced),
         paid: round(paid),
-        outstanding: round(invoiced - paid),
+        outstanding: round(invoiced - vendorTds - paid),
         on_time_deliveries: onTime,
         late_deliveries: late,
         on_time_pct: onTime + late ? Math.round((onTime / (onTime + late)) * 100) : null,
