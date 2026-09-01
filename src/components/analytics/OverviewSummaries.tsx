@@ -432,7 +432,7 @@ function PaymentsSummary({ from, to }: SectionProps) {
 
       const { data: invoices } = await supabase
         .from("procurement_invoices")
-        .select("id, po_id, invoice_number, invoice_date, invoice_amount")
+        .select("id, po_id, invoice_number, invoice_date, invoice_amount, tds_amount")
         .gte("invoice_date", from)
         .lte("invoice_date", to)
         .order("invoice_date", { ascending: false });
@@ -464,13 +464,15 @@ function PaymentsSummary({ from, to }: SectionProps) {
         const pay = payMap.get(inv.id);
         const amount = Number(inv.invoice_amount || 0);
         const paid = pay?.total || 0;
+        // Pending is what the vendor is still owed — net of TDS deducted at source.
+        const net = amount - Number(inv.tds_amount || 0);
         return {
           id: inv.id,
           vendor: order?.vendor_id ? vendorMap.get(order.vendor_id) || "-" : "-",
           invoice_number: inv.invoice_number || "—",
           amount,
           paid,
-          balance: Math.max(0, amount - paid),
+          balance: Math.max(0, net - paid),
           payment_date: pay?.last || null,
         };
       });
