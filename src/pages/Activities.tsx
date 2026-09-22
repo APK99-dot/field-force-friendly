@@ -1382,7 +1382,17 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onReceiveGo
     return m ? `${h}h ${m}m spent` : `${h}h spent`;
   })();
 
-  const title = a.site_name ? `${a.activity_name} - ${a.site_name}` : a.activity_name;
+  const title = a.site_name
+    ? `${a.activity_name} - ${a.site_name}`
+    : a.project_name
+      ? `${a.activity_name} - ${a.project_name}`
+      : a.activity_name;
+
+  const flagDotClass: Record<string, string> = {
+    green: "bg-emerald-500",
+    amber: "bg-amber-500",
+    red: "bg-red-500",
+  };
 
   return (
     <Card className="shadow-card">
@@ -1404,6 +1414,23 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onReceiveGo
                 </div>
               )}
               <span className="font-semibold text-sm break-words min-w-0">{title}</span>
+            </div>
+
+            <div className="ml-10 mt-0.5 space-y-0.5">
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                {a.site_flag && (
+                  <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${flagDotClass[a.site_flag] || "bg-muted-foreground"}`} />
+                )}
+                <span className="break-words">
+                  {a.activity_type}
+                  {!a.site_name && a.project_name ? ` • ${a.project_name}` : ""}
+                </span>
+              </p>
+              {a.location_address && (
+                <p className="text-xs text-muted-foreground break-words">
+                  <MapPin className="h-3 w-3 inline mr-1" />{a.location_address}
+                </p>
+              )}
             </div>
 
             {a.start_time && (
