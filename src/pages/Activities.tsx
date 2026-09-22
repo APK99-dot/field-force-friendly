@@ -1382,7 +1382,17 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onReceiveGo
     return m ? `${h}h ${m}m spent` : `${h}h spent`;
   })();
 
-  const title = a.site_name ? `${a.activity_name} - ${a.site_name}` : a.activity_name;
+  const title = a.site_name
+    ? `${a.activity_name} - ${a.site_name}`
+    : a.project_name
+      ? `${a.activity_name} - ${a.project_name}`
+      : a.activity_name;
+
+  const flagDotClass: Record<string, string> = {
+    green: "bg-emerald-500",
+    amber: "bg-amber-500",
+    red: "bg-red-500",
+  };
 
   return (
     <Card className="shadow-card">
