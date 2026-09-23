@@ -295,7 +295,7 @@ export default function CreativeActivityForm({
       try {
         const { data: po } = await supabase
           .from("procurement_orders")
-          .select("po_number, vendor_id, vendors(name), procurement_items(id, product_id, qty, uom)")
+          .select("po_number, vendor_id, vendors(name), procurement_items(id, product_id, qty, uom, vendor_ids)")
           .eq("id", grnPoId)
           .single();
         if (cancelled) return;
@@ -321,10 +321,40 @@ export default function CreativeActivityForm({
             if (gi.procurement_item_id) rmap[gi.procurement_item_id] = (rmap[gi.procurement_item_id] || 0) + Number(gi.received_qty || 0);
           });
         });
+        // Resolve the vendor this receipt belongs to.
+        //
+        // procurement_orders.vendor_id is only a denormalised copy of
+        // derivedVendorIds[0], written when a PO is saved from the procurement
+        // screen (ProcurementDetail.tsx:819). On a quote-flow PO it is null —
+        // the vendor lives in the per-line assignments, which is the same trap
+        // GRNForm documents at its line 80. Falling back to the line
+        // assignments is what keeps the receipt attached to a vendor row;
+        // without it the GRN is written with vendor_id null and never shows up
+        // under Assign Vendors, even though the PO advances to Goods Received.
+        //
+        // Only an unambiguous single vendor is adopted. On a split PO there is
+        // no way to tell from here which vendor delivered, and guessing would
+        // file the receipt against the wrong one.
+        const lineVendorIds = [
+          ...new Set(raw.flatMap((r) => (Array.isArray(r.vendor_ids) ? r.vendor_ids : [])).filter(Boolean)),
+        ] as string[];
+        const resolvedVendorId: string | null =
+          (po as any)?.vendor_id || (lineVendorIds.length === 1 ? lineVendorIds[0] : null);
+
+        let resolvedVendorName: string = (po as any)?.vendors?.name || "";
+        if (!resolvedVendorName && resolvedVendorId) {
+          const { data: v } = await supabase
+            .from("vendors")
+            .select("name")
+            .eq("id", resolvedVendorId)
+            .maybeSingle();
+          resolvedVendorName = (v as any)?.name || "";
+        }
+
         if (cancelled) return;
         setGrnPoNumber((po as any)?.po_number || "");
-        setGrnVendorId((po as any)?.vendor_id || null);
-        setGrnVendorName((po as any)?.vendors?.name || "");
+        setGrnVendorId(resolvedVendorId);
+        setGrnVendorName(resolvedVendorName);
         setGrnItems(raw.map((r) => ({
           id: r.id,
           product_id: r.product_id,
@@ -621,6 +651,12 @@ export default function CreativeActivityForm({
                 received_by: currentProfile?.full_name || null,
                 remarks: grnRemarks.trim() || null,
                 status: grnStatus,
+                // Without this the receipt is orphaned: ProcurementDetail lists
+                // a vendor's receipts with grns.filter(g => g.vendor_id ===
+                // row.vendor_id), so a null leaves the vendor row reading
+                // "No goods received from this vendor yet" and still offering
+                // Receive Goods, however far the PO's own status has moved.
+                vendor_id: grnVendorId,
                 created_by: user?.id || null,
               })
               .select("id")
