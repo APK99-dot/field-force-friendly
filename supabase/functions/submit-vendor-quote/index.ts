@@ -185,6 +185,101 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error("auto-advance on quote submit failed", e);
       }
+
+      // Apply the quoted rates to the PO's line items.
+      //
+      // Until now this happened ONLY in the browser: ProcurementDetail runs an
+      // effect when the drawer opens that copies the sole submitted quote's
+      // rates onto procurement_items (its line 1545). A PO whose drawer nobody
+      // opened therefore kept rate 0 and amount 0 — and every downstream screen
+      // reading the line rate showed zero with it, the invoice form's PO Rate /
+      // Amount / Invoice Total most visibly. Worse, the rate landing at all
+      // depended on who clicked where, so two POs in the same state could
+      // disagree.
+      //
+      // Doing it here means the rates land the moment the vendor submits, on
+      // every path, whether or not anyone ever opens the PO.
+      //
+      // The rule deliberately matches the client's, so the two cannot diverge:
+      //   * never overwrite a rate the buyer typed (rate_source 'manual') or a
+      //     line already won by a vendor (rate_source_vendor_id set);
+      //   * only when this is the ONLY latest submitted quote covering the line
+      //     — if a second vendor has also quoted it, the buyer picks the winner;
+      //   * only a positive rate.
+      //
+      // Best-effort: a failure here must not fail the vendor's submission. The
+      // client effect still runs as a backstop when someone opens the drawer.
+      try {
+        const quotedIds = items
+          .map((i) => i.procurement_item_id)
+          .filter((id) => validIds.has(id));
+
+        if (quotedIds.length) {
+          // Lines another vendor has also quoted in their latest submission.
+          const { data: rivals } = await supabase
+            .from("procurement_vendor_quotes")
+            .select("id, procurement_vendor_quote_items(procurement_item_id)")
+            .eq("po_id", quote.po_id)
+            .eq("status", "submitted")
+            .eq("is_latest", true)
+            .neq("id", quote.id);
+          const contested = new Set<string>();
+          for (const r of (rivals ?? []) as any[]) {
+            for (const ri of r.procurement_vendor_quote_items ?? []) {
+              if (ri.procurement_item_id) contested.add(ri.procurement_item_id);
+            }
+          }
+
+          const { data: lines } = await supabase
+            .from("procurement_items")
+            .select("id, qty, rate_source, rate_source_vendor_id, vendor_ids")
+            .in("id", quotedIds);
+
+          for (const line of (lines ?? []) as any[]) {
+            if (contested.has(line.id)) continue;
+            if (line.rate_source === "manual") continue;
+            if (line.rate_source_vendor_id) continue;
+
+            const it = items.find((i) => i.procurement_item_id === line.id);
+            if (!it || !quote.vendor_id) continue;
+            const rate = Number((it.rate * (1 - it.discount_pct / 100)).toFixed(2));
+            if (!(rate > 0)) continue;
+
+            const qty = Number(line.qty || 0);
+            const vendorIds: string[] = Array.isArray(line.vendor_ids) ? [...line.vendor_ids] : [];
+            if (!vendorIds.includes(quote.vendor_id)) vendorIds.push(quote.vendor_id);
+
+            const { error: rateErr } = await supabase
+              .from("procurement_items")
+              .update({
+                rate,
+                amount: rate * qty,
+                gst_percent: it.gst_percent ?? 0,
+                rate_source: "quote",
+                rate_source_vendor_id: quote.vendor_id,
+                vendor_ids: vendorIds,
+              })
+              .eq("id", line.id);
+            if (rateErr) console.error("rate apply failed", line.id, rateErr);
+          }
+
+          // Keep the PO's header total in step with the lines just priced.
+          const { data: allLines } = await supabase
+            .from("procurement_items")
+            .select("amount")
+            .eq("procurement_id", quote.po_id);
+          const total = (allLines ?? []).reduce(
+            (s: number, l: any) => s + Number(l.amount || 0),
+            0,
+          );
+          await supabase
+            .from("procurement_orders")
+            .update({ total_amount: total })
+            .eq("id", quote.po_id);
+        }
+      } catch (e) {
+        console.error("rate apply on quote submit failed", e);
+      }
     }
 
     // Notify requisition owner on change request
