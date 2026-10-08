@@ -154,7 +154,7 @@ BEGIN
 
   UPDATE public.procurement_orders o
   SET total_amount = (
-        SELECT COALESCE(SUM(x.amount), 0)
+        SELECT COALESCE(SUM(x.amount * (1 + COALESCE(x.gst_percent, 0) / 100.0)), 0)
         FROM public.procurement_items x
         WHERE x.procurement_id = o.id
       ),

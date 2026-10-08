@@ -4256,6 +4256,41 @@ export type Database = {
           },
         ]
       }
+      procurement_invoice_charges: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id: string
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          label?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_invoice_charges_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "procurement_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       procurement_invoice_items: {
         Row: {
           created_at: string
@@ -4391,7 +4426,9 @@ export type Database = {
           invoice_amount: number
           invoice_date: string
           invoice_number: string | null
+          notes: string | null
           po_id: string
+          round_off: number
           salesforce_id: string | null
           tds_amount: number
           tds_percentage: number
@@ -4405,7 +4442,9 @@ export type Database = {
           invoice_amount?: number
           invoice_date?: string
           invoice_number?: string | null
+          notes?: string | null
           po_id: string
+          round_off?: number
           salesforce_id?: string | null
           tds_amount?: number
           tds_percentage?: number
@@ -4419,7 +4458,9 @@ export type Database = {
           invoice_amount?: number
           invoice_date?: string
           invoice_number?: string | null
+          notes?: string | null
           po_id?: string
+          round_off?: number
           salesforce_id?: string | null
           tds_amount?: number
           tds_percentage?: number
