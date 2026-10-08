@@ -264,17 +264,21 @@ Deno.serve(async (req) => {
           }
 
           // Keep the PO's header total in step with the lines just priced.
+          // total_amount is the GST-INCLUSIVE grand total everywhere else in
+          // the app (see lineGstBreakup in ProcurementDetail.tsx), so include
+          // each line's gst_percent here — amount alone is the taxable value.
           const { data: allLines } = await supabase
             .from("procurement_items")
-            .select("amount")
+            .select("amount, gst_percent")
             .eq("procurement_id", quote.po_id);
           const total = (allLines ?? []).reduce(
-            (s: number, l: any) => s + Number(l.amount || 0),
+            (s: number, l: any) =>
+              s + Number(l.amount || 0) * (1 + (Number(l.gst_percent) || 0) / 100),
             0,
           );
           await supabase
             .from("procurement_orders")
-            .update({ total_amount: total })
+            .update({ total_amount: Math.round(total * 100) / 100 })
             .eq("id", quote.po_id);
         }
       } catch (e) {

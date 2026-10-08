@@ -1390,6 +1390,7 @@ function ActivityCard({ a, isAdmin, onEdit, onDelete, onOpenDetails, onReceiveGo
 
   const flagDotClass: Record<string, string> = {
     green: "bg-emerald-500",
+    orange: "bg-orange-500",
     amber: "bg-amber-500",
     red: "bg-red-500",
   };
