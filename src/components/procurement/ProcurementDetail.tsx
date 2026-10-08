@@ -95,7 +95,7 @@ interface Props {
 
 interface GrnRow { id: string; grn_number: string | null; receipt_date: string; status: string; received_by: string | null; remarks: string | null; vendor_id: string | null; photos?: string[] | null; }
 interface GrnItemRow { grn_id: string; procurement_item_id: string | null; received_qty: number; }
-interface InvRow { id: string; invoice_number: string | null; invoice_date: string; invoice_amount: number; tds_percentage: number; tds_amount: number; vendor_id: string | null; extra_numbers?: string[]; }
+interface InvRow { id: string; invoice_number: string | null; invoice_date: string; invoice_amount: number; tds_percentage: number; tds_amount: number; round_off?: number | null; notes?: string | null; vendor_id: string | null; extra_numbers?: string[]; }
 interface InvItemRow { invoice_id: string; procurement_item_id: string | null; invoiced_rate: number; }
 interface InvPaymentRow { invoice_id: string; amount: number; payment_date: string | null; reference_number: string | null; notes?: string | null; }
 

@@ -4,8 +4,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Save, FileText, Paperclip, X, Plus, Trash2, Package, Wallet } from "lucide-react";
+import { Save, FileText, Paperclip, X, Plus, Trash2, Package, Wallet, IndianRupee } from "lucide-react";
 import { fmtAmt, tdsAmountOnTaxable, invoiceNetPayable } from "@/lib/procurement";
 import { uploadInvoiceFile, removeInvoiceFile } from "@/utils/invoiceAttachments";
 import { cn } from "@/lib/utils";
@@ -31,7 +32,15 @@ interface Props {
   /** Existing invoices already on this PO — used for duplicate detection */
   existingInvoices?: { invoice_number: string | null; invoice_amount: number; vendor_id?: string | null }[];
   /** When set the dialog edits this invoice instead of creating one. */
-  editingInvoice?: { id: string; invoice_number: string | null; invoice_date: string | null; vendor_id: string | null; tds_percentage?: number | null } | null;
+  editingInvoice?: {
+    id: string;
+    invoice_number: string | null;
+    invoice_date: string | null;
+    vendor_id: string | null;
+    tds_percentage?: number | null;
+    round_off?: number | null;
+    notes?: string | null;
+  } | null;
 }
 
 
@@ -81,6 +90,31 @@ const newPayment = (): PaymentLine => ({
   payment_date: new Date().toISOString().slice(0, 10),
 });
 
+/** Loading, freight, unloading — anything the vendor bills on top of the PO
+ *  lines. Replaced wholesale on save, like the number and payment lists. */
+interface ChargeLine {
+  id: string;
+  label: string;
+  amount: string;
+}
+
+const newCharge = (): ChargeLine => ({
+  id: Math.random().toString(36).slice(2),
+  label: "",
+  amount: "",
+});
+
+/** Common extras, offered as datalist suggestions rather than a fixed dropdown
+ *  so an unusual charge can still be typed. */
+const CHARGE_SUGGESTIONS = [
+  "Freight charges",
+  "Loading charges",
+  "Unloading charges",
+  "Transport charges",
+  "Packing charges",
+  "Handling charges",
+];
+
 export default function InvoiceForm({
   open, onOpenChange, poId, poNumber, vendorNameStr, items, productName, createdBy, onSaved,
   poVendors, itemVendorMap, existingInvoices, editingInvoice,
@@ -99,6 +133,10 @@ export default function InvoiceForm({
   const [files, setFiles] = useState<AttachedFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [payments, setPayments] = useState<PaymentLine[]>([newPayment()]);
+  const [charges, setCharges] = useState<ChargeLine[]>([]);
+  // Signed: a vendor rounding 1,017.60 down to 1,017 is -0.60.
+  const [roundOff, setRoundOff] = useState("");
+  const [notes, setNotes] = useState("");
   // TDS the buyer deducts before paying — a percentage of the taxable
   // (pre-GST) base, entered as e.g. "1" or "2".
   const [tdsPct, setTdsPct] = useState("");
@@ -115,8 +153,27 @@ export default function InvoiceForm({
     if (!open || !editingInvoice) return;
     setSelectedVendorId(editingInvoice.vendor_id ?? null);
     setTdsPct(editingInvoice.tds_percentage ? String(editingInvoice.tds_percentage) : "");
+    setRoundOff(
+      editingInvoice.round_off != null && Number(editingInvoice.round_off) !== 0
+        ? String(editingInvoice.round_off)
+        : "",
+    );
+    setNotes(editingInvoice.notes ?? "");
     setLoadingExisting(true);
     (async () => {
+      const { data: chargeRows } = await supabase
+        .from("procurement_invoice_charges" as any)
+        .select("id, label, amount, sort_order")
+        .eq("invoice_id", editingInvoice.id)
+        .order("sort_order");
+      setCharges(
+        ((chargeRows || []) as any[]).map((c) => ({
+          id: c.id,
+          label: c.label || "",
+          amount: c.amount != null ? String(c.amount) : "",
+        })),
+      );
+
       const { data: nums } = await supabase
         .from("procurement_invoice_numbers")
         .select("id, invoice_number, invoice_date")
@@ -165,8 +222,9 @@ export default function InvoiceForm({
     return items.filter((it) => (itemVendorMap[it.id] || []).includes(selectedVendorId));
   }, [items, selectedVendorId, itemVendorMap]);
 
-  // Invoice value must match the PO grand total, which is taxable + GST per line.
-  const amount = useMemo(
+  // The PO-derived subtotal: taxable + GST per line. Not editable — it is what
+  // the PO says those goods cost.
+  const linesTotal = useMemo(
     () =>
       visibleItems.reduce((s, it) => {
         const taxable = (Number(it.rate) || 0) * (Number(it.qty) || 0);
@@ -175,7 +233,21 @@ export default function InvoiceForm({
     [visibleItems]
   );
 
-  // TDS is deducted on the taxable (pre-GST) base, not the invoice total.
+  // Extras the vendor billed on top of the lines. A row with no amount typed
+  // contributes nothing, so a half-filled row cannot skew the total.
+  const chargesTotal = useMemo(
+    () => charges.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0),
+    [charges]
+  );
+  const roundOffNum = parseFloat(roundOff) || 0;
+
+  // What the vendor actually billed, and what every downstream reader means by
+  // invoice_amount: lines + extras + rounding.
+  const amount = linesTotal + chargesTotal + roundOffNum;
+
+  // TDS is deducted on the taxable (pre-GST) base of the PO LINES. Freight and
+  // the like are not part of that base, so the extras deliberately do not
+  // enlarge it — adding them here would over-deduct and underpay the vendor.
   const taxableTotal = useMemo(
     () => visibleItems.reduce((s, it) => s + (Number(it.rate) || 0) * (Number(it.qty) || 0), 0),
     [visibleItems]
@@ -183,6 +255,17 @@ export default function InvoiceForm({
   const tdsPctNum = parseFloat(tdsPct) || 0;
   const tdsAmt = tdsAmountOnTaxable(taxableTotal, tdsPctNum);
   const netPayable = invoiceNetPayable(amount, tdsAmt);
+
+  const updateCharge = (id: string, patch: Partial<ChargeLine>) =>
+    setCharges((p) => p.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  const removeCharge = (id: string) => setCharges((p) => p.filter((c) => c.id !== id));
+
+  /** Snap the grand total to the nearest rupee by deriving the adjustment. */
+  const autoRoundOff = () => {
+    const base = linesTotal + chargesTotal;
+    const diff = Math.round(base) - base;
+    setRoundOff(Math.abs(diff) < 0.005 ? "" : diff.toFixed(2));
+  };
 
   const totalPaid = useMemo(
     () => payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0),
@@ -250,8 +333,10 @@ export default function InvoiceForm({
             invoice_amount: amount,
             tds_percentage: tdsPctNum,
             tds_amount: tdsAmt,
+            round_off: roundOffNum,
+            notes: notes.trim() || null,
             vendor_id: selectedVendorId,
-          })
+          } as any)
           .eq("id", editingInvoice!.id);
         if (error) throw error;
         inv = { id: editingInvoice!.id };
@@ -268,9 +353,11 @@ export default function InvoiceForm({
             invoice_amount: amount,
             tds_percentage: tdsPctNum,
             tds_amount: tdsAmt,
+            round_off: roundOffNum,
+            notes: notes.trim() || null,
             created_by: createdBy,
             vendor_id: selectedVendorId,
-          })
+          } as any)
           .select("id")
           .single();
         if (error) throw error;
@@ -290,6 +377,25 @@ export default function InvoiceForm({
         }))
       );
       if (ne) throw ne;
+
+      // Charges are replaced wholesale, like the number list: a small,
+      // self-contained set with nothing referencing it. Rows left blank by the
+      // user are dropped rather than stored as zero-value noise.
+      const validCharges = charges.filter(
+        (c) => c.label.trim() && (parseFloat(c.amount) || 0) !== 0,
+      );
+      await supabase.from("procurement_invoice_charges" as any).delete().eq("invoice_id", inv.id);
+      if (validCharges.length) {
+        const { error: ce } = await supabase.from("procurement_invoice_charges" as any).insert(
+          validCharges.map((c, idx) => ({
+            invoice_id: inv.id,
+            label: c.label.trim(),
+            amount: parseFloat(c.amount) || 0,
+            sort_order: idx,
+          })),
+        );
+        if (ce) throw ce;
+      }
 
       const itemRows = visibleItems.map((it) => ({
         invoice_id: inv.id,
@@ -544,8 +650,10 @@ export default function InvoiceForm({
                   </tbody>
                   <tfoot>
                     <tr className="border-t bg-muted/30">
-                      <td colSpan={3} className="px-4 py-3 text-right text-sm font-semibold">Invoice Total</td>
-                      <td className="px-4 py-3 text-right text-base font-bold text-primary tabular-nums">{fmtAmt(amount)}</td>
+                      {/* Foots this table's own rows. Extras and rounding are
+                          added further down, in the summary beside Payments. */}
+                      <td colSpan={3} className="px-4 py-3 text-right text-sm font-semibold">Line Items Total</td>
+                      <td className="px-4 py-3 text-right text-base font-bold text-primary tabular-nums">{fmtAmt(linesTotal)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -605,6 +713,86 @@ export default function InvoiceForm({
               </div>
             </section>
 
+            {/* Other charges + notes.
+                Its own section rather than squeezed into the totals card: a
+                charge needs a description beside its amount, which the narrow
+                summary box cannot carry. Sits directly above Payment Details so
+                the reading order matches the money: what was billed, then what
+                was paid. */}
+            <section className="sf-card rounded-md border bg-card">
+              <div className="px-4 sm:px-5 py-3 border-b flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <IndianRupee className="h-4 w-4 text-muted-foreground" />
+                  <h2 className="text-sm font-semibold">Other Charges &amp; Notes</h2>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => setCharges((p) => [...p, newCharge()])}>
+                  <Plus className="h-4 w-4 mr-1" />Add Charge
+                </Button>
+              </div>
+              <div className="p-4 sm:p-5 space-y-3">
+                <datalist id="invoice-charge-suggestions">
+                  {CHARGE_SUGGESTIONS.map((s) => <option key={s} value={s} />)}
+                </datalist>
+
+                {charges.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    Loading, freight, unloading and similar extras billed on top of the PO lines.
+                    Add them here and they are included in the invoice total.
+                  </p>
+                ) : (
+                  charges.map((c, i) => (
+                    <div key={c.id} className="rounded-md border p-3 space-y-2.5 bg-muted/20">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Charge {i + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeCharge(c.id)}
+                          className="rounded-full p-1 hover:bg-muted text-muted-foreground"
+                          aria-label="Remove charge"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="sm:col-span-2">
+                          <Label className={FIELD_LABEL}>Description</Label>
+                          <Input
+                            list="invoice-charge-suggestions"
+                            value={c.label}
+                            onChange={(e) => updateCharge(c.id, { label: e.target.value })}
+                            placeholder="Freight charges"
+                            className="h-9 mt-1 bg-background"
+                          />
+                        </div>
+                        <div>
+                          <Label className={FIELD_LABEL}>Amount (₹)</Label>
+                          <Input
+                            type="number" inputMode="decimal" step="0.01"
+                            value={c.amount}
+                            onChange={(e) => updateCharge(c.id, { amount: e.target.value })}
+                            placeholder="0"
+                            className="h-9 mt-1 bg-background text-right"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                <div>
+                  <Label htmlFor="invoice-notes" className={FIELD_LABEL}>Notes</Label>
+                  <Textarea
+                    id="invoice-notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Anything worth recording against this invoice"
+                    rows={3}
+                    className="mt-1 bg-background"
+                  />
+                </div>
+              </div>
+            </section>
+
             {/* Payments */}
             <section className="sf-card rounded-md border bg-card">
               <div className="px-4 sm:px-5 py-3 border-b flex items-center justify-between gap-2">
@@ -652,7 +840,47 @@ export default function InvoiceForm({
                 ))}
 
                 <div className="rounded-md border bg-muted/30 p-3 sm:ml-auto sm:max-w-sm space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
+                  {/* Built up in the order the money accumulates, so the bold
+                      Invoice Total below is visibly the sum of what precedes
+                      it. The line subtotal is only broken out when there is
+                      something added to it — on a plain invoice the old
+                      single-line reading is unchanged. */}
+                  {(chargesTotal !== 0 || roundOffNum !== 0) && (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Line Items</span>
+                        <span className="tabular-nums">{fmtAmt(linesTotal)}</span>
+                      </div>
+                      {chargesTotal !== 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Other Charges</span>
+                          <span className="tabular-nums">{fmtAmt(chargesTotal)}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <Label htmlFor="invoice-round-off" className="text-sm font-normal text-muted-foreground">
+                      Round Off
+                      <button
+                        type="button"
+                        onClick={autoRoundOff}
+                        className="ml-1.5 text-[11px] underline underline-offset-2 hover:text-foreground"
+                        title="Snap the total to the nearest rupee"
+                      >
+                        auto
+                      </button>
+                    </Label>
+                    <Input
+                      id="invoice-round-off"
+                      type="number" inputMode="decimal" step="0.01"
+                      value={roundOff}
+                      onChange={(e) => setRoundOff(e.target.value)}
+                      placeholder="0"
+                      className="h-7 w-24 bg-background text-right"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-sm border-t pt-1.5">
                     <span className="text-muted-foreground">Invoice Total</span>
                     <span className="font-semibold tabular-nums">{fmtAmt(amount)}</span>
                   </div>
