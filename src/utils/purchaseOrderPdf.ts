@@ -347,7 +347,10 @@ export async function buildPurchaseOrderPdf(params: {
     { label: "Description", w: 29, align: "left" },
     { label: "Qty", w: 11, align: "right" },
     { label: "UOM", w: 11, align: "left" },
-    { label: `Rate (${RUPEE})`, w: 17, align: "right" },
+    // Spelled out because vendors were quoting a GST-inclusive figure here.
+    // The column has always been the pre-GST rate — GST % and GST Amt are
+    // separate columns to its right — but nothing on the page said so.
+    { label: `Rate (${RUPEE}, without GST)`, w: 17, align: "right" },
     { label: "Disc %", w: 10, align: "right" },
     { label: `Rate a/Disc (${RUPEE})`, w: 18, align: "right" },
     { label: "GST %", w: 9, align: "right" },

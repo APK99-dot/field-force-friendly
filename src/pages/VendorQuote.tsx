@@ -473,7 +473,10 @@ export default function VendorQuote() {
                   <th className="p-2 font-semibold">UOM</th>
                   <th className="p-2 font-semibold">Quality Instructions</th>
                   <th className="p-2 font-semibold">Delivery Commitment</th>
-                  <th className="p-2 font-semibold text-right">Rate/Unit</th>
+                  {/* The portal where the mistake actually happens: vendors
+                      were typing a GST-inclusive rate here, then GST was
+                      applied again by the GST % column alongside. */}
+                  <th className="p-2 font-semibold text-right">Rate/Unit<br /><span className="font-normal text-[10px] text-muted-foreground">(without GST)</span></th>
                   <th className="p-2 font-semibold text-right">Discount %</th>
                   <th className="p-2 font-semibold text-right">Rate After Disc.</th>
                   <th className="p-2 font-semibold text-right">GST %</th>
