@@ -1105,10 +1105,32 @@ export default function ProcurementDetail({
   const isTransfer = order.source_type === "internal_transfer";
   const transitions = allowedTransitions(order.status, order.source_type).filter((t) => !t.approver || canApprove);
   const editable = order.status === "Requisition";
-  // After approval, admins can fill the remaining PO details (until goods are received) — vendor flow only
-  const poUnlocked = !isTransfer && canApprove && ["Requisition Approved", "Quote Requested", "Quote Received", "PO Issued"].includes(order.status);
-  // Editing rates once the PO has been issued is gated by the editRatesAfterApproval config
-  const ratesLocked = order.status === "PO Issued" && !canEditRatesPostApproval;
+  // After approval, admins can fill in the remaining PO details — vendor flow only.
+  //
+  // This used to stop at "PO Issued", which left every later stage read-only.
+  // That is fine for a PO raised in this app, which collects its details on the
+  // way through, but wrong for the Salesforce imports: they arrive already at
+  // Goods Received / Paid / Closed, frequently missing a delivery date, payment
+  // terms or a vendor assignment, and there was no way to supply them
+  // afterwards — nor even to generate the PO document, since that button lives
+  // behind this same flag.
+  //
+  // Rejected and Requisition stay out: the former is dead, and the latter is
+  // the requisition-editing stage covered by `editable` above.
+  const poUnlocked =
+    !isTransfer &&
+    canApprove &&
+    !["Requisition", "Rejected"].includes(order.status);
+
+  // Rates are the exception to the widening above. Changing a rate on a PO that
+  // has already been received, invoiced or paid rewrites history the invoices
+  // and payments were built on, so the existing editRatesAfterApproval config —
+  // which already guarded this at "PO Issued" — now guards every stage from
+  // there on. Admins who have that config switched on keep the old freedom.
+  const ratesLocked =
+    !canEditRatesPostApproval &&
+    ["PO Issued", "Partially Received", "Goods Received", "Partially Invoiced",
+     "Invoice Received", "Partially Paid", "Paid", "Closed"].includes(order.status);
   // Per-vendor GRN/Invoice must remain available even after the overall PO status has
   // advanced (e.g. one vendor fully paid while others still need receipt/billing).
   const canReceive = isTransfer
@@ -2032,6 +2054,15 @@ export default function ProcurementDetail({
                   </div>
                   {!poUnlocked && (
                     <p className="text-[11px] text-muted-foreground">Vendor(s), delivery date, payment terms and rates can be set once the requisition is approved.</p>
+                  )}
+                  {/* Says plainly what is and is not editable this late in the
+                      flow, so a historical PO being completed does not look
+                      half-broken when the rate column refuses to budge. */}
+                  {poUnlocked && ratesLocked && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Details, vendors and documents can still be edited on this {order.status.toLowerCase()} PO.
+                      Rates are locked — they are what the invoices and payments were raised against.
+                    </p>
                   )}
                 </>
               )}
