@@ -879,6 +879,7 @@ export default function ProcurementDetail({
       id: r.id, invoice_number: r.invoice_number, invoice_date: r.invoice_date,
       invoice_amount: r.invoice_amount, vendor_id: r.vendor_id ?? null,
       tds_percentage: Number(r.tds_percentage || 0), tds_amount: Number(r.tds_amount || 0),
+      round_off: r.round_off ?? null, notes: r.notes ?? null,
       // Any numbers beyond the first — the first is already invoice_number.
       extra_numbers: ((r.procurement_invoice_numbers || []) as any[])
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
