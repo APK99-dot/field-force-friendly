@@ -87,6 +87,9 @@ interface Props {
   vendorName: (id: string | null) => string;
   siteName: (id: string | null) => string;
   productName: (id: string | null) => string;
+  /** master_products.product_description, for the Description column on the
+   *  generated PO. Optional so a caller that has no product list still renders. */
+  productDescription?: (id: string | null) => string | null;
   onEdit: (o: DetailOrder) => void;
   onChanged: () => void;
   focus?: ProcurementDetailFocus | null;
@@ -197,7 +200,7 @@ const fmtDT = (iso?: string | null) => iso ? new Date(iso).toLocaleString("en-GB
 
 export default function ProcurementDetail({
   open, onOpenChange, order, canApprove, currentUserId,
-  vendorName, siteName, productName, onEdit, onChanged,
+  vendorName, siteName, productName, productDescription, onEdit, onChanged,
   focus, onFocusConsumed,
 }: Props) {
   const procCfg = useModuleConfig("procurement");
@@ -965,7 +968,10 @@ export default function ProcurementDetail({
             : 0;
         return {
           product_name: productName(l.product_id) || "-",
-          description: null,
+          // Was hard-coded null, so the PO's Description column printed empty
+          // on every document while the vendor quote portal showed the text
+          // fine — it reads master_products.product_description directly.
+          description: productDescription?.(l.product_id) || null,
           qty: Number(l.qty || 0),
           uom: (l as any).uom || null,
           rate,
@@ -1084,7 +1090,7 @@ export default function ProcurementDetail({
       setPoDocBusy(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order.id, order.po_number, order.order_date, order.expected_delivery_date, order.payment_terms, order.bill_to, order.ship_to, order.site_id, order.status, poDocs, companyProfile, currentUserId, productName, vendorName, siteName, fetchSub, onChanged]);
+  }, [order.id, order.po_number, order.order_date, order.expected_delivery_date, order.payment_terms, order.bill_to, order.ship_to, order.site_id, order.status, poDocs, companyProfile, currentUserId, productName, productDescription, vendorName, siteName, fetchSub, onChanged]);
 
 
   const receivedByItem = useMemo(() => {

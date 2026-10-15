@@ -359,6 +359,9 @@ export default function Procurement() {
   const vName = (id: string | null) => vendors.find((v) => v.id === id)?.name || "—";
   const sName = (id: string | null) => sites.find((s) => s.id === id)?.site_name || "—";
   const pName = (id: string | null) => products.find((p) => p.id === id)?.product_name || "—";
+  // Already fetched alongside the name in the master_products query above; the
+  // generated PO needs it for its Description column.
+  const pDesc = (id: string | null) => products.find((p) => p.id === id)?.product_description || null;
 
   const lineTotal = useMemo(
     () => lines.reduce((sum, l) => sum + (parseFloat(l.rate) || 0) * (parseFloat(l.qty) || 0), 0),
@@ -1103,6 +1106,7 @@ export default function Procurement() {
           vendorName={vName}
           siteName={sName}
           productName={pName}
+          productDescription={pDesc}
           onEdit={openEdit}
           onChanged={fetchAll}
           focus={detailFocus}
