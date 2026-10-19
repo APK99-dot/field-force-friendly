@@ -1354,7 +1354,7 @@ export default function ProcurementDetail({
       doc.setFont("helvetica", "normal"); doc.text(val || "-", 55, y);
       y += 6;
     };
-    line("Requisition", reqName);
+    line("Requisition", quoteLabel);
     line("Site", siteName(order.site_id) || "-");
     line("Requisition Date", order.order_date || "-");
     if (order.expected_delivery_date) line("Expected Delivery", order.expected_delivery_date);
@@ -1394,7 +1394,7 @@ export default function ProcurementDetail({
   const generateQuotePdf = async () => {
     try {
       const doc = buildQuoteDoc();
-      await downloadPDF(doc, `Quote-Request-${reqName}.pdf`);
+      await downloadPDF(doc, `Quote-Request-${quoteLabel}.pdf`);
     } catch (err: any) {
       toast.error(err?.message || "Failed to generate PDF");
     }
@@ -1407,7 +1407,7 @@ export default function ProcurementDetail({
       const blob = doc.output("blob");
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
-      const path = `${user.id}/${Date.now()}-Quote-Request-${reqName.replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`;
+      const path = `${user.id}/${Date.now()}-Quote-Request-${quoteLabel.replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`;
       const { error: upErr } = await supabase.storage
         .from("temp-downloads")
         .upload(path, blob, { contentType: "application/pdf", upsert: true });
@@ -1426,7 +1426,7 @@ export default function ProcurementDetail({
     setBusy(true);
     try {
       const summaryLines = [
-        `*Quote Request — ${reqName}*`,
+        `*Quote Request — ${quoteLabel}*`,
         `Site: ${siteName(order.site_id) || "-"}`,
       ];
       if (primaryVendor) summaryLines.push(`Vendor: ${primaryVendor.name}`);
@@ -1678,7 +1678,7 @@ export default function ProcurementDetail({
     const v = vendors.find((x) => x.id === vendorId);
     const link = quoteUrl(token);
     const msg = [
-      `*Quote Request — ${reqName}*`,
+      `*Quote Request — ${quoteLabel}*`,
       v ? `To: ${v.name}` : "",
       `Site: ${siteName(order.site_id) || "-"}`,
       "",
