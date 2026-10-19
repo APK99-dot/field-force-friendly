@@ -1318,7 +1318,10 @@ export default function ProcurementDetail({
   const nextTransition = allowedTransitions(order.status, order.source_type)[0] || null;
   const canAdvance = !!nextStage && (!nextTransition?.approver || canApprove);
 
-  const reqName = order.po_number || "Requisition";
+  // The requisition's own name, not the PO number. This was `order.po_number`,
+  // which is why the PO's Requisition strip read "REQ-0607 · PO-0607" — the
+  // number twice over, and the actual name nowhere on the document.
+  const reqName = ((order as any).requisition_name as string | null) || null;
   const selectedVendors = vendors.filter((v) => derivedVendorIds.includes(v.id));
   const primaryVendor = selectedVendors[0] || null;
   const vendorNameById = useMemo(() => {

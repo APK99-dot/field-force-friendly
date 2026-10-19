@@ -236,9 +236,26 @@ Deno.serve(async (req) => {
             .in("id", quotedIds);
 
           for (const line of (lines ?? []) as any[]) {
-            if (contested.has(line.id)) continue;
-            if (line.rate_source === "manual") continue;
-            if (line.rate_source_vendor_id) continue;
+            // Does this line already belong to the vendor submitting now?
+            const ownsLine = line.rate_source_vendor_id === quote.vendor_id;
+
+            // A rate the buyer typed, or adjusted after applying, is theirs.
+            if (line.rate_source === "manual" || line.rate_source === "manual_adjusted") continue;
+
+            // A line another vendor has also quoted is the buyer's choice to
+            // make — unless this vendor already holds it, in which case their
+            // revision simply refreshes what they already won.
+            if (!ownsLine && contested.has(line.id)) continue;
+
+            // A line won by a DIFFERENT vendor is not ours to overwrite. But a
+            // line this vendor already holds MUST be refreshed: that is the
+            // reopen -> resubmit path, and skipping it was leaving the line on
+            // the superseded V1 figures while the PO document — which reads the
+            // quote directly rather than the line — showed the new ones. Hence
+            // a PO printing the revised rate while Vendor Comparison's header
+            // and the invoice form, both of which read the line, showed the old
+            // rate and an 0% GST slab.
+            if (line.rate_source_vendor_id && !ownsLine) continue;
 
             const it = items.find((i) => i.procurement_item_id === line.id);
             if (!it || !quote.vendor_id) continue;

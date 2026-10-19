@@ -215,6 +215,7 @@ export async function buildPurchaseOrderPdf(params: {
   ];
   if (order.version) metaRows.push(["Version", `v${order.version}`]);
   if (order.requisition_number) metaRows.push(["Requisition", order.requisition_number]);
+  if (order.requisition_name) metaRows.push(["Req. Name", order.requisition_name]);
   const metaBoxY = y + 9;
   const metaRowH = 4.6;
   const metaBoxH = metaRows.length * metaRowH + 2;
@@ -228,7 +229,20 @@ export async function buildPurchaseOrderPdf(params: {
     doc.text(k, metaBoxX + 2, my);
     f("bold", 8);
     setText(30);
-    doc.text(String(v), metaBoxX + metaBoxW - 2, my, { align: "right" });
+    // The box is a fixed 68mm and the value is right-aligned, so a long value
+    // grows leftwards into the label. Every other row is a short code; the
+    // requisition name is free text and can be any length, so clip it to the
+    // space actually left beside its label.
+    const labelW = doc.getTextWidth(k);
+    const maxValW = metaBoxW - 4 - labelW - 2;
+    let val = String(v);
+    if (doc.getTextWidth(val) > maxValW) {
+      while (val.length > 1 && doc.getTextWidth(`${val}...`) > maxValW) {
+        val = val.slice(0, -1);
+      }
+      val = `${val}...`;
+    }
+    doc.text(val, metaBoxX + metaBoxW - 2, my, { align: "right" });
     my += metaRowH;
   });
 
