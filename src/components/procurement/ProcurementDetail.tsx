@@ -1321,7 +1321,11 @@ export default function ProcurementDetail({
   // The requisition's own name, not the PO number. This was `order.po_number`,
   // which is why the PO's Requisition strip read "REQ-0607 · PO-0607" — the
   // number twice over, and the actual name nowhere on the document.
-  const reqName = ((order as any).requisition_name as string | null) || null;
+  const reqName = (((order as any).requisition_name as string | null) || "").trim() || null;
+  // Quote sharing must always address the order by something: older orders and
+  // bulk Salesforce imports have no requisition_name, and a null here used to
+  // reach the WhatsApp text and the PDF filename as the literal "null".
+  const quoteLabel = reqName || order.po_number || "Requisition";
   const selectedVendors = vendors.filter((v) => derivedVendorIds.includes(v.id));
   const primaryVendor = selectedVendors[0] || null;
   const vendorNameById = useMemo(() => {
