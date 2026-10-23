@@ -957,10 +957,14 @@ export default function ProcurementDetail({
         const qi = quote?.procurement_vendor_quote_items?.find((x) => x.procurement_item_id === l.id);
         const rateAfter = qi ? Number((qi as any).rate_after_discount) : NaN;
         const rateBefore = qi ? Number(qi.rate) : NaN;
-        const rate = Number.isFinite(rateAfter) && rateAfter > 0
-          ? rateAfter
-          : Number.isFinite(rateBefore) && rateBefore > 0
-            ? rateBefore
+        // The PO's "Rate" column is the pre-discount rate; the PDF derives
+        // Disc % and Rate a/Disc from it and `discount` below. Passing the
+        // after-discount rate here made the PDF compute the discount against
+        // an already-discounted base (10% showed as 11.1%).
+        const rate = Number.isFinite(rateBefore) && rateBefore > 0
+          ? rateBefore
+          : Number.isFinite(rateAfter) && rateAfter > 0
+            ? rateAfter
             : Number((l as any).rate || 0);
         const discountAmt =
           qi && Number.isFinite(rateBefore) && rateBefore > 0 && Number.isFinite(rateAfter)
