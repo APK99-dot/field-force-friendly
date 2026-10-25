@@ -32,6 +32,16 @@ export function useFaceMatching() {
         return bypassResult;
       }
 
+      // The function answers HTTP 200 with status "bypassed" when the AI
+      // gateway, image fetch or API key failed. That is a service problem, not
+      // a mismatch — reading it as confidence 0 told the user their face did
+      // not match and, after 3 tries, locked them out of ending their day.
+      if (data?.status === "bypassed") {
+        const bypassResult: FaceMatchResult = { confidence: 0, matched: false, status: "bypassed" };
+        setResult(bypassResult);
+        return bypassResult;
+      }
+
       const confidence = data.confidence || 0;
       const matched = confidence >= 75 && (data.matched === true);
       const matchResult: FaceMatchResult = {

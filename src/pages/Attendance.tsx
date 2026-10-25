@@ -327,8 +327,11 @@ export default function Attendance() {
         faceVerificationStatus = matchResult.status;
         faceMatchConfidence = matchResult.confidence;
 
-        // If face match failed or bypassed (service error), treat as failure
-        if (matchResult.status === "failed" || matchResult.status === "bypassed") {
+        // A real mismatch blocks. A service error ("bypassed") gets retries,
+        // but once they are used up the attendance is saved flagged "bypassed"
+        // for admin review instead of locking the user out of the app.
+        const serviceDown = matchResult.status === "bypassed";
+        if (matchResult.status === "failed" || (serviceDown && retryCount < 2)) {
           if (retryCount < 2) {
             setRetryCount((prev) => prev + 1);
             setActionLoading(false);
