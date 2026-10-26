@@ -84,6 +84,7 @@ Deno.serve(async (req) => {
       return json({ error: "Target user not found, or has no email address" }, 404);
     }
     const target = targetData.user;
+    const targetEmail = targetData.user.email;
 
     // Refuse to impersonate a deactivated account — signing in as someone who
     // is not allowed to sign in themselves would defeat the deactivation.
@@ -122,7 +123,7 @@ Deno.serve(async (req) => {
     // verifyOtp exchanges it for a real session.
     const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
       type: "magiclink",
-      email: target.email,
+      email: targetEmail,
     });
     if (linkErr || !linkData?.properties) {
       console.error("[login-as] generateLink failed:", linkErr);
