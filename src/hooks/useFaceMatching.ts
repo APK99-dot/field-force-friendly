@@ -17,9 +17,17 @@ export function useFaceMatching() {
   ): Promise<FaceMatchResult> => {
     setMatching(true);
     try {
-      const { data, error } = await supabase.functions.invoke("verify-face-match", {
-        body: { baselineUrl, attendanceUrl },
-      });
+      // Without a cap a stalled call leaves the user on the "verifying" step
+      // with no way forward. Give up after 30s and treat it as a service error
+      // (the "bypassed" path), which still lets attendance be recorded.
+      const { data, error } = await Promise.race([
+        supabase.functions.invoke("verify-face-match", {
+          body: { baselineUrl, attendanceUrl },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Face match timed out")), 30000),
+        ),
+      ]);
 
       if (error) {
         console.error("Face match error:", error);

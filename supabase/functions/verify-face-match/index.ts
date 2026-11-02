@@ -69,13 +69,29 @@ serve(async (req) => {
     const baselineB64 = toBase64(baselineBuffer);
     const attendanceB64 = toBase64(attendanceBuffer);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    // Everyone ends their day around the same hour, so the gateway is often
+    // busy (429) or briefly failing (5xx) right when this runs. One quick
+    // retry clears most of those instead of surfacing them to the user.
+    const callGateway = async (body: string): Promise<Response> => {
+      let res: Response | undefined;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body,
+        });
+        if (res.ok || (res.status !== 429 && res.status < 500)) return res;
+        console.error("AI gateway retryable error:", res.status, "attempt", attempt + 1);
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+      }
+      return res!;
+    };
+
+    const response = await callGateway(
+      JSON.stringify({
         model: "google/gemini-2.5-pro",
         messages: [
           {
@@ -113,7 +129,7 @@ No markdown, no code fences, no extra text.`,
           },
         ],
       }),
-    });
+    );
 
     if (!response.ok) {
       const errText = await response.text();
